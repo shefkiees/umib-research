@@ -1,0 +1,2308 @@
+:root {
+	--primary-color: #082f57;
+	--primary-dark: #06284a;
+	--secondary-color: #c9a24f;
+	--secondary-soft: #e8d7ae;
+	--accent-color: #1d4d7d;
+	--bg-light: #f3f5f7;
+	--white: #ffffff;
+	--text-dark: #132238;
+	--text-light: #6b7a90;
+	--border: #e3e8ef;
+	--shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
+	--radius: 20px;
+	--transition: all 0.3s ease;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+.committee-layout {
+	display: flex;
+	min-height: 100vh;
+	background: var(--bg-light);
+	color: var(--text-dark);
+	font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.committee-sidebar {
+	width: 295px;
+	min-height: 100vh;
+	background: linear-gradient(180deg, #eef4fb 0%, #f6f9fd 100%);
+    color: var(--text-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 24px 18px;
+	border-right: 1px solid #e3e8f0;
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
+
+.committee-brand {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin-bottom: 34px;
+	padding: 2px 6px 0;
+}
+
+.committee-brand-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    box-shadow: none;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.committee-brand-logo {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	filter: brightness(0) saturate(100%) invert(19%) sepia(62%) saturate(1772%) hue-rotate(197deg) brightness(95%) contrast(90%);
+}
+
+.committee-brand-role {
+	color: #0d47a1;
+    font-size: 0.96rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.committee-sidebar-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 26px;
+}
+
+.committee-sidebar-label {
+	margin: 0 12px 10px;
+	color: #7f93b2;
+	font-size: 0.84rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.committee-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.committee-nav-item {
+	width: 100%;
+	border: none;
+	outline: none;
+	background: transparent;
+	color: #1565c0;
+	text-align: left;
+	padding: 14px 16px;
+	border-radius: 16px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: var(--transition);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.committee-nav-item:hover {
+	background: rgba(13, 71, 161, 0.08);
+	transform: translateX(3px);
+}
+
+.committee-nav-item.is-active {
+	background: linear-gradient(90deg, rgba(13, 71, 161, 0.12), rgba(25, 103, 210, 0.1));
+	color: #0d47a1;
+	box-shadow: inset 0 0 0 1px rgba(13, 71, 161, 0.2);
+}
+
+.committee-nav-item svg {
+	color: #1976d2;
+	transition: var(--transition);
+}
+
+.committee-nav-item:hover svg,
+.committee-nav-item.is-active svg {
+	color: #0d47a1;
+}
+
+.committee-nav-left {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+}
+
+/* ===== EDIT PROFILE MODAL ===== */
+.committee-modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.28);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	z-index: 200;
+}
+
+.committee-modal {
+	width: min(720px, 92vw);
+	background: #ffffff;
+	border-radius: 16px;
+	border: 1px solid #e3e8f0;
+	box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+	padding: 24px;
+}
+
+.committee-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 16px;
+	margin-bottom: 18px;
+}
+
+.committee-modal-title {
+	margin: 0 0 6px;
+	font-size: 1.2rem;
+	font-weight: 800;
+	color: var(--text-dark);
+}
+
+.committee-modal-subtitle {
+	margin: 0;
+	color: var(--text-light);
+	font-size: 0.92rem;
+}
+
+.committee-modal-close {
+	border: none;
+	background: #f1f5f9;
+	color: #475569;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-size: 1.2rem;
+	line-height: 1;
+}
+
+.committee-modal-form {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.committee-form-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.committee-form-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 0.9rem;
+	color: var(--text-dark);
+	font-weight: 600;
+}
+
+.committee-form-field input {
+	height: 44px;
+	border-radius: 10px;
+	border: 1px solid #d8e2ee;
+	padding: 0 12px;
+	font-size: 0.95rem;
+	background: #f9fbfe;
+	color: var(--text-dark);
+}
+
+.committee-form-field input:focus {
+	outline: none;
+	border-color: #2563eb;
+	background: #ffffff;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.committee-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+.committee-btn-secondary,
+.committee-btn-primary {
+	border-radius: 10px;
+	height: 42px;
+	padding: 0 18px;
+	font-weight: 700;
+	border: 1px solid transparent;
+	cursor: pointer;
+}
+
+.committee-btn-secondary {
+	background: #f1f5f9;
+	color: #334155;
+	border-color: #d6e0ec;
+}
+
+.committee-btn-primary {
+	background: #2563eb;
+	color: #ffffff;
+}
+
+.committee-badge {
+	min-width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	background: #ef5350;
+	color: #ffffff;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: 0.9rem;
+	border: 1px solid #f29a98;
+	box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+}
+
+
+
+.committee-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.committee-topbar {
+	background: var(--white);
+	min-height: 76px;
+	border-bottom: 1px solid var(--border);
+	padding: 14px 28px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.committee-topbar h1 {
+	margin: 0;
+	font-size: 1.75rem;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+	color: var(--text-dark);
+	display: none;
+}
+
+.committee-topbar-left {
+	display: grid;
+	gap: 2px;
+}
+
+.committee-topbar-kicker {
+	display: none;
+}
+
+.committee-topbar-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+	flex: 1;
+}
+
+.committee-search-wrap {
+	width: min(560px, 55vw);
+	min-width: 260px;
+	flex: 1 1 360px;
+	height: 46px;
+	border: 1px solid #d8e2ee;
+	border-radius: 14px;
+	background: #f9fbfe;
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 16px;
+	color: #64748b;
+	transition: var(--transition);
+}
+
+.committee-search-wrap:focus-within {
+	border-color: #2563eb;
+	background: #ffffff;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.committee-search {
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	border-radius: 0;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 0.98rem;
+	color: var(--text-dark);
+}
+
+.committee-search:focus {
+	background: transparent;
+	border-color: transparent;
+}
+
+.committee-icon-btn {
+	width: 44px;
+	height: 44px;
+	border: 1px solid #d8e2ee;
+	background: #ffffff;
+	color: #4b5563;
+	border-radius: 12px;
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: var(--transition);
+}
+
+.committee-icon-btn:hover {
+	border-color: #2563eb;
+	color: #2563eb;
+	background: #eef5ff;
+}
+
+.committee-dot {
+	min-width: 22px;
+	height: 22px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: #ef5350;
+	position: absolute;
+	top: -7px;
+	right: -7px;
+	border: 2px solid var(--white);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.72rem;
+	font-weight: 800;
+	line-height: 1;
+	color: #ffffff;
+}
+
+.committee-profile-block {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	width: auto;
+	max-width: 280px;
+	height: 58px;
+	padding: 0 14px 0 12px;
+	border: 1px solid #cfd8e3;
+	background: #f7f9fc;
+	cursor: pointer;
+	border-radius: 10px;
+	transition: var(--transition);
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+.committee-profile-block:hover {
+	background: #ffffff;
+	border-color: #b3c2d6;
+	box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.committee-profile-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.committee-profile-text h4 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 800;
+	color: var(--text-dark);
+}
+
+.committee-profile-text p {
+	margin: 3px 0 0;
+	color: var(--text-light);
+	font-size: 0.86rem;
+	font-weight: 600;
+}
+
+.committee-avatar {
+	width: 42px;
+	height: 42px;
+	border-radius: 999px;
+	background: #2c5d95;
+	color: white;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 800;
+	flex-shrink: 0;
+	border: 2px solid #ffffff;
+	box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.committee-notification-wrap,
+.committee-profile-wrap {
+	position: relative;
+}
+
+.committee-popover {
+	position: absolute;
+	top: calc(100% + 10px);
+	right: 0;
+	width: 320px;
+	background: #ffffff;
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	box-shadow: var(--shadow);
+	padding: 0;
+	z-index: 30;
+	overflow: hidden;
+}
+
+.committee-popover-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--border);
+	background: #f8fbff;
+}
+
+.committee-popover-head > div {
+	display: grid;
+	gap: 2px;
+}
+
+.committee-popover-head p {
+	margin: 0;
+	font-size: 0.8rem;
+	color: #6b7a90;
+}
+
+.committee-popover-head button {
+	border: none;
+	background: transparent;
+	color: #25578f;
+	font-weight: 700;
+	cursor: pointer;
+	font-size: 0.9rem;
+}
+
+.committee-popover-head button:disabled,
+.committee-settings-back:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.committee-popover ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: 0;
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+.committee-popover li {
+	border: none;
+	border-radius: 0;
+	padding: 12px 14px;
+	background: #ffffff;
+	border-bottom: 1px solid var(--border);
+}
+
+.committee-notification-item-btn {
+	width: 100%;
+	border: none;
+	background: transparent;
+	text-align: left;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+	cursor: pointer;
+}
+
+.committee-notification-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.committee-notification-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: #e8f0ff;
+	color: #1f4f84;
+	font-size: 0.74rem;
+	font-weight: 700;
+}
+
+.committee-popover li:last-child {
+	border-bottom: none;
+}
+
+.committee-popover li.is-read {
+	opacity: 0.68;
+}
+
+.committee-popover li p {
+	margin: 0;
+	font-size: 0.94rem;
+	color: var(--text-dark);
+	font-weight: 500;
+}
+
+.committee-popover li span {
+	margin-top: 4px;
+	display: inline-block;
+	font-size: 0.82rem;
+	color: var(--text-light);
+}
+
+.committee-notification-item-btn span {
+	margin-top: 0;
+}
+
+.committee-profile-menu {
+	width: 230px;
+	display: grid;
+	gap: 2px;
+	padding: 8px 0;
+}
+
+.committee-profile-menu button {
+	border: none;
+	height: 40px;
+	border-radius: 0;
+	background: transparent;
+	text-align: left;
+	padding: 0 14px;
+	font-weight: 600;
+	color: var(--text-dark);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 0.95rem;
+	transition: var(--transition);
+}
+
+.committee-profile-menu button svg {
+	color: #64748b;
+	flex-shrink: 0;
+}
+
+.committee-popover-icon {
+	display: inline-block;
+	min-width: 20px;
+	text-align: center;
+	font-size: 1.1em;
+	color: #64748b;
+}
+
+.committee-profile-menu button.is-danger .committee-popover-icon,
+.committee-profile-menu button:last-child .committee-popover-icon {
+	color: #d53333;
+}
+
+.committee-profile-menu button:hover {
+	background: #f4f8fd;
+}
+
+.committee-profile-menu button.is-danger,
+.committee-profile-menu button:last-child {
+	color: #d53333;
+}
+
+.committee-profile-menu button.is-danger svg,
+.committee-profile-menu button:last-child svg {
+	color: #d53333;
+}
+
+.committee-content {
+	padding: 38px 36px;
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+}
+
+.committee-notification-list-detailed {
+	display: grid;
+	gap: 12px;
+}
+
+.committee-notification-card {
+	width: 100%;
+	border: 1px solid #dbe4ef;
+	border-radius: 12px;
+	padding: 14px;
+	background: #ffffff;
+	text-align: left;
+	cursor: pointer;
+	display: grid;
+	gap: 8px;
+}
+
+.committee-notification-card.is-unread {
+	background: #f6fafe;
+	border-color: #c8dbf4;
+}
+
+.committee-notification-card.is-read {
+	opacity: 0.78;
+}
+
+.committee-notification-card:hover {
+	background: #f0f6fd;
+}
+
+.committee-notification-card-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.committee-notification-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: #e8f0ff;
+	color: #1f4f84;
+	font-size: 0.74rem;
+	font-weight: 700;
+}
+
+.committee-notification-card-meta span:last-child {
+	font-size: 0.82rem;
+	color: #64748b;
+}
+
+.committee-notification-card h4 {
+	margin: 0;
+	font-size: 0.98rem;
+	color: #17324f;
+}
+
+.committee-notification-card p {
+	margin: 0;
+	font-size: 0.9rem;
+	line-height: 1.45;
+	color: #5f6b7a;
+}
+
+.committee-hero {
+	background: var(--committee-surface);
+	color: #112742;
+	border-radius: 18px;
+	padding: 36px;
+	border: 1px solid var(--committee-border);
+	box-shadow: var(--committee-shadow);
+}
+
+.committee-hero-tag {
+	display: inline-flex;
+	align-items: center;
+	min-height: 34px;
+	padding: 0 16px;
+	border-radius: 999px;
+	background: #e9f1fb;
+	color: #1f4f84;
+	font-weight: 700;
+	font-size: 0.95rem;
+}
+
+.committee-hero h2 {
+	margin: 18px 0 10px;
+	font-size: 2.1rem;
+	line-height: 1.08;
+	letter-spacing: -0.02em;
+}
+
+.committee-hero p {
+	margin: 0;
+	max-width: 760px;
+	color: #5e718a;
+	font-size: 1.02rem;
+	line-height: 1.7;
+}
+
+.committee-hero-caption {
+	margin-top: 12px;
+	color: #6c819b;
+	font-size: 0.95rem;
+}
+
+.committee-hero-actions {
+	margin-top: 28px;
+	display: flex;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.committee-primary-btn,
+.committee-secondary-btn {
+	height: 52px;
+	border-radius: 12px;
+	padding: 0 18px;
+	font-size: 1.03rem;
+	font-weight: 700;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.committee-primary-btn {
+	border: none;
+	color: #ffffff;
+	background: #1f4f84;
+}
+
+.committee-primary-btn:hover {
+	filter: brightness(1.04);
+}
+
+.committee-secondary-btn {
+	border: 1px solid #cfdbea;
+	color: #1f4f84;
+	background: transparent;
+}
+
+.committee-secondary-btn:hover {
+	background: #edf4fd;
+}
+
+.committee-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 22px;
+}
+
+.committee-stat-card,
+.committee-card-panel {
+	background: var(--committee-surface);
+	border: 1px solid var(--committee-border);
+	border-radius: 16px;
+	box-shadow: var(--committee-shadow);
+}
+
+.committee-stat-card {
+	padding: 26px 24px;
+}
+
+.committee-stat-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.committee-stat-title {
+	color: #5f738d;
+	font-size: 0.98rem;
+	font-weight: 500;
+}
+
+.committee-stat-icon,
+.committee-mini-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.tone-neutral {
+	color: #1f4f84;
+	background: #e8eff7;
+}
+
+.tone-success {
+	color: #18924c;
+	background: #dff2e8;
+}
+
+.tone-danger {
+	color: #d53333;
+	background: #fbe5e5;
+}
+
+.tone-warning {
+	color: #be8c21;
+	background: #f7f1df;
+}
+
+.committee-stat-card h3 {
+	margin: 14px 0 8px;
+	font-size: 2rem;
+	line-height: 1;
+}
+
+.committee-stat-card p {
+	margin: 0;
+	color: #627892;
+	font-size: 0.98rem;
+}
+
+.committee-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 22px;
+}
+
+.committee-card-panel {
+	padding: 20px 22px;
+}
+
+.committee-panel-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.committee-panel-head h3 {
+	margin: 0;
+	font-size: 1.2rem;
+}
+
+.committee-panel-head button {
+	border: none;
+	background: #edf2f9;
+	color: #244a76;
+	height: 34px;
+	border-radius: 10px;
+	padding: 0 12px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.committee-panel-head button:hover {
+	background: #dee9f8;
+}
+
+.committee-mini-grid {
+	display: grid;
+	gap: 12px;
+}
+
+.committee-mini-card {
+	border: 1px solid #dbe4ef;
+	border-radius: 12px;
+	padding: 12px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.committee-mini-card h4 {
+	margin: 0;
+	font-size: 1.35rem;
+}
+
+.committee-mini-card p {
+	margin: 2px 0 0;
+	color: #667d97;
+}
+
+.committee-decision-list {
+	display: grid;
+	gap: 12px;
+}
+
+.committee-decision-item {
+	border: 1px solid #dbe4ef;
+	border-radius: 12px;
+	padding: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.committee-decision-id {
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: #5f7690;
+}
+
+.committee-decision-item h4 {
+	margin: 6px 0 3px;
+	font-size: 1rem;
+}
+
+.committee-decision-item p {
+	margin: 0;
+	color: #6a8098;
+	font-size: 0.92rem;
+}
+
+.committee-status-badge {
+	display: inline-flex;
+	align-items: center;
+	height: 26px;
+	padding: 0 10px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	margin-top: 8px;
+}
+
+.committee-status-badge.in-review {
+	background: #e8eff9;
+	color: #1f4f84;
+}
+
+.committee-status-badge.ready {
+	background: #dff2e8;
+	color: #177748;
+}
+
+.committee-status-badge.revision {
+	background: #f7f1df;
+	color: #8f6a18;
+}
+
+.committee-status-badge.default {
+	background: #eef2f7;
+	color: #5f7690;
+}
+
+.committee-decision-actions {
+	display: inline-flex;
+	gap: 8px;
+}
+
+.committee-decision-actions button {
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	border: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+
+.committee-decision-actions .approve {
+	background: #e3f4e8;
+	color: #137943;
+}
+
+.committee-decision-actions .review {
+	background: #f7f1df;
+	color: #996f17;
+}
+
+.committee-decision-actions .reject {
+	background: #fbe9e9;
+	color: #be2e2e;
+}
+
+.committee-page-card {
+	background: var(--white);
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	box-shadow: var(--shadow);
+	padding: 26px;
+}
+
+.committee-page-head h3 {
+	margin: 0;
+	font-size: 1.35rem;
+	color: var(--text-dark);
+}
+
+.committee-settings-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.committee-settings-back {
+	border: 1px solid #d7e1ee;
+	background: #ffffff;
+	color: #1f4f84;
+	font-weight: 600;
+	font-size: 0.84rem;
+	padding: 6px 12px;
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.committee-settings-back:hover {
+	background: #eef4ff;
+	border-color: #c7d7f0;
+}
+
+.committee-page-head p {
+	margin: 6px 0 14px;
+	color: var(--text-light);
+}
+
+.committee-table-wrap {
+	overflow-x: auto;
+}
+
+.committee-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.97rem;
+}
+
+.committee-table thead tr {
+	background: #f4f7fb;
+}
+
+.committee-table th,
+.committee-table td {
+	padding: 12px;
+	text-align: left;
+	border-bottom: 1px solid var(--border);
+}
+
+.committee-table th {
+	font-size: 0.82rem;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--text-light);
+}
+
+.committee-table td:last-child {
+	white-space: nowrap;
+	font-weight: 600;
+	color: var(--accent-color);
+}
+
+.committee-empty {
+	margin: 10px 0 0;
+	color: #6a7d94;
+	font-weight: 600;
+}
+
+.committee-notification-center {
+	display: grid;
+	gap: 14px;
+}
+
+.committee-notifications-shell {
+	background:
+		radial-gradient(circle at 92% -24%, rgba(37, 99, 235, 0.1), transparent 45%),
+		radial-gradient(circle at -8% 15%, rgba(15, 118, 110, 0.08), transparent 36%),
+		#ffffff;
+	padding: 28px;
+}
+
+.committee-notifications-shell-v2 {
+	padding: 16px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 4px;
+}
+
+.committee-notifications-hero {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 10px 14px;
+	border: 1px solid #dbe7f6;
+	background: #f9fafb;
+	border-radius: 4px;
+	margin-bottom: 10px;
+}
+
+.committee-notifications-hero-main h3 {
+	margin: 2px 0 6px;
+	font-size: 1.35rem;
+	letter-spacing: -0.02em;
+	color: #102a4a;
+}
+
+.committee-notifications-hero-main p {
+	margin: 0;
+	color: #5c7088;
+	font-size: 0.9rem;
+	max-width: 640px;
+}
+
+.committee-notifications-kicker {
+	display: inline-flex;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	color: #5d7899;
+}
+
+.committee-unread-pill-v2 {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 10px;
+	border-radius: 999px;
+	background: #eaf2ff;
+	border: 1px solid #c9dcff;
+	color: #1a4a7b;
+	font-size: 0.78rem;
+	font-weight: 800;
+	white-space: nowrap;
+}
+
+.committee-notifications-toolbar-v2 {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+	flex-wrap: wrap;
+	padding: 6px;
+	background: #f9fafb;
+	border: 1px solid #e5e7eb;
+	border-radius: 4px;
+}
+
+.committee-notifications-search-v2 {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	height: 36px;
+	min-width: 220px;
+	flex: 1;
+	border: 1px solid #d1d5db;
+	border-radius: 4px;
+	background: #ffffff;
+	padding: 0 10px;
+	color: #64748b;
+	transition: var(--transition);
+}
+
+.committee-notifications-search-v2:focus-within {
+	border-color: #2563eb;
+}
+
+.committee-notifications-search-v2 input {
+	width: 100%;
+	border: none;
+	background: transparent;
+	outline: none;
+	font-size: 0.9rem;
+	color: var(--text-dark);
+}
+
+.committee-notifications-actions-v2 {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.committee-action-btn-v2 {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 34px;
+	padding: 0 12px;
+	border-radius: 4px;
+	font-size: 0.86rem;
+}
+
+.committee-notifications-summary-v2 {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.committee-notification-kpi-v2 {
+	padding: 8px 10px;
+	border-radius: 4px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	position: relative;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.committee-notification-kpi-v2::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 3px;
+	background: #d1d5db;
+}
+
+.committee-notification-kpi-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: #4e6988;
+}
+
+.committee-notification-kpi-icon {
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	background: #e6effb;
+	color: #1c4f83;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-notification-kpi-v2 strong {
+	font-size: 1.2rem;
+	color: #0f2745;
+	margin-left: auto;
+}
+
+.committee-notification-feed-v2 {
+	display: grid;
+	gap: 8px;
+}
+
+.committee-notification-card-v2 {
+	border: 1px solid #e5e7eb;
+	border-radius: 4px;
+	padding: 10px;
+	background: #ffffff;
+	transition: var(--transition);
+}
+
+.committee-notification-card-v2.is-unread {
+	border-left: 4px solid #3b82f6;
+}
+
+.committee-notification-card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.committee-notification-title-wrap-v2 {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.committee-notification-icon-v2 {
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	background: #e8f0ff;
+	color: #224f7f;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-notification-title-block-v2 {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.committee-state-chip-v2 {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+}
+
+.committee-state-chip-v2.unread {
+	background: #e7f1ff;
+	color: #1f5a96;
+}
+
+.committee-state-chip-v2.read {
+	background: #edf2f7;
+	color: #5c6f84;
+}
+
+.committee-notification-time-v2 {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #7b8ea5;
+}
+
+.committee-notification-card-v2 p {
+	margin: 4px 0 0;
+	font-size: 0.86rem;
+	color: #193552;
+	line-height: 1.35;
+}
+
+.committee-link-btn-v2 {
+	border: 1px solid #cfe0f5;
+	height: 26px;
+	padding: 0 8px;
+	background: #f4f9ff;
+	color: #25578f;
+	font-weight: 700;
+	cursor: pointer;
+	font-size: 0.82rem;
+	margin-top: 6px;
+	border-radius: 10px;
+}
+
+.committee-link-btn-v2:hover {
+	background: #e9f2ff;
+	border-color: #b9d2f1;
+}
+
+.committee-notification-card-v2.is-read {
+	opacity: 0.86;
+}
+
+.committee-notifications-neo {
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	padding: 16px;
+	background: #ffffff;
+}
+
+.committee-notifications-neo-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+.committee-notifications-neo-title h3 {
+	margin: 4px 0 6px;
+	font-size: 1.3rem;
+	color: #0f2745;
+}
+
+.committee-notifications-neo-title p {
+	margin: 0;
+	color: #5c7088;
+	font-size: 0.9rem;
+	max-width: 620px;
+}
+
+.committee-neo-kicker {
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	font-weight: 800;
+	color: #5d7899;
+}
+
+.committee-neo-meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border: 1px solid #dbe7f6;
+	background: #f7faff;
+	border-radius: 8px;
+	color: #1f5a96;
+	font-weight: 700;
+}
+
+.committee-neo-meta span {
+	display: block;
+	font-size: 0.72rem;
+	color: #5c7088;
+}
+
+.committee-neo-meta strong {
+	display: block;
+	font-size: 1.1rem;
+	color: #0f2745;
+}
+
+.committee-neo-toolbar {
+	display: grid;
+	grid-template-columns: minmax(220px, 1fr) auto;
+	align-items: center;
+	gap: 10px;
+	margin: 12px 0 10px;
+}
+
+.committee-neo-search {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 36px;
+	padding: 0 10px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	background: #ffffff;
+	color: #64748b;
+}
+
+.committee-neo-search input {
+	width: 100%;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 0.88rem;
+	color: #0f2745;
+}
+
+.committee-neo-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.committee-neo-btn {
+	height: 34px;
+	padding: 0 12px;
+	border-radius: 6px;
+	font-size: 0.84rem;
+	gap: 6px;
+}
+
+.committee-neo-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.committee-neo-stat {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	padding: 8px 10px;
+	background: #ffffff;
+}
+
+.committee-neo-stat-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	background: #eef4ff;
+	color: #1f5a96;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.committee-neo-stat-text span {
+	display: block;
+	font-size: 0.76rem;
+	color: #5c7088;
+	font-weight: 700;
+}
+
+.committee-neo-stat-text strong {
+	font-size: 1.05rem;
+	color: #0f2745;
+}
+
+.committee-neo-list {
+	display: grid;
+	gap: 8px;
+}
+
+.committee-neo-item {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 12px;
+	align-items: start;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	padding: 10px;
+	background: #ffffff;
+}
+
+.committee-neo-item.is-unread {
+	border-left: 4px solid #2563eb;
+}
+
+.committee-neo-item-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	background: #eef4ff;
+	color: #1f5a96;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-neo-item-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.committee-neo-item-head strong {
+	font-size: 0.95rem;
+	color: #0f2745;
+}
+
+.committee-neo-item-main p {
+	margin: 4px 0 0;
+	font-size: 0.86rem;
+	color: #193552;
+	line-height: 1.35;
+}
+
+.committee-neo-chip {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+}
+
+.committee-neo-chip.unread {
+	background: #e7f1ff;
+	color: #1f5a96;
+}
+
+.committee-neo-chip.read {
+	background: #edf2f7;
+	color: #5c6f84;
+}
+
+.committee-neo-item-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
+}
+
+.committee-neo-time {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #7b8ea5;
+}
+
+.committee-neo-link {
+	border: 1px solid #cfe0f5;
+	background: #f4f9ff;
+	color: #25578f;
+	font-weight: 700;
+	font-size: 0.8rem;
+	border-radius: 999px;
+	padding: 4px 8px;
+	cursor: pointer;
+}
+
+.committee-neo-link:hover {
+	background: #e9f2ff;
+	border-color: #b9d2f1;
+}
+
+.committee-notifications-registry {
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	padding: 0;
+	max-width: 980px;
+	margin: 0 auto;
+	overflow: hidden;
+	background: #ffffff;
+	font-family: Arial, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	font-weight: 400;
+}
+
+.committee-notifications-registry-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 14px 18px;
+	border-bottom: 1px solid #e5e7eb;
+	background: #f9fbff;
+}
+
+.committee-notifications-registry-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 600;
+	color: #0f2745;
+}
+
+.committee-registry-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border: 1px solid #d7e1ee;
+	background: #ffffff;
+	color: #1f4f84;
+	font-weight: 600;
+	font-size: 0.82rem;
+	padding: 6px 10px;
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.committee-registry-back:hover {
+	background: #eef4ff;
+	border-color: #c7d7f0;
+}
+
+.committee-notifications-registry-title h3 {
+	margin: 0;
+	font-size: 1.05rem;
+}
+
+.committee-notifications-registry-sort {
+	font-size: 0.78rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: #6b7a90;
+	font-weight: 600;
+}
+
+.committee-notifications-registry-list {
+	display: grid;
+	position: relative;
+}
+
+.committee-notifications-registry-list::before {
+	content: "";
+	position: absolute;
+	left: 14px;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: #eef2f7;
+}
+
+.committee-notifications-registry-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 120px;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 18px 12px 28px;
+	border-bottom: 1px solid #e5e7eb;
+	border-left: 3px solid #eef2f7;
+}
+
+.committee-notifications-registry-item:last-child {
+	border-bottom: none;
+}
+
+.committee-notifications-registry-main strong {
+	display: block;
+	font-size: 1rem;
+	color: #0f2745;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.committee-notifications-registry-main p {
+	margin: 0;
+	font-size: 0.92rem;
+	color: #6b7a90;
+	line-height: 1.5;
+}
+
+.committee-notifications-registry-time {
+	font-size: 0.86rem;
+	color: #6b7a90;
+	font-weight: 700;
+	white-space: nowrap;
+	text-align: right;
+}
+
+@media (max-width: 860px) {
+	.committee-notifications-registry-head {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.committee-notifications-registry-item {
+		grid-template-columns: 1fr;
+		align-items: flex-start;
+	}
+
+	.committee-notifications-registry-time {
+		text-align: left;
+		font-size: 0.82rem;
+	}
+}
+
+@media (max-width: 860px) {
+	.committee-notifications-neo-head {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.committee-neo-toolbar {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-neo-item {
+		grid-template-columns: auto 1fr;
+	}
+
+	.committee-neo-item-meta {
+		flex-direction: row;
+		justify-content: space-between;
+		grid-column: 1 / -1;
+		align-items: center;
+	}
+}
+
+.committee-head-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.committee-unread-pill {
+	display: inline-flex;
+	align-items: center;
+	height: 34px;
+	padding: 0 12px;
+	border-radius: 999px;
+	background: linear-gradient(180deg, #eef4ff 0%, #e5f0ff 100%);
+	border: 1px solid #c9dcff;
+	color: #1a4a7b;
+	font-size: 0.84rem;
+	font-weight: 800;
+}
+
+.committee-notifications-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 18px;
+	flex-wrap: wrap;
+	padding: 10px;
+	background: #f7fbff;
+	border: 1px solid #dce7f5;
+	border-radius: 16px;
+}
+
+.committee-notifications-search {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	height: 46px;
+	min-width: 280px;
+	flex: 1;
+	border: 1px solid #d8e2ee;
+	border-radius: 14px;
+	background: #ffffff;
+	padding: 0 14px;
+	color: #64748b;
+	transition: var(--transition);
+}
+
+.committee-notifications-search:focus-within {
+	border-color: #2563eb;
+	background: #ffffff;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.committee-notifications-search input {
+	width: 100%;
+	border: none;
+	background: transparent;
+	outline: none;
+	font-size: 0.96rem;
+	color: var(--text-dark);
+}
+
+.committee-notifications-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.committee-notifications-actions .committee-btn-secondary,
+.committee-notifications-actions .committee-btn-primary {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 44px;
+	padding: 0 16px;
+	border-radius: 12px;
+}
+
+.committee-notifications-summary {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 12px;
+	margin-bottom: 18px;
+}
+
+.committee-notification-stat {
+	padding: 16px;
+	border-radius: 14px;
+	background: linear-gradient(180deg, #f9fcff 0%, #f2f8ff 100%);
+	border-color: #dce7f5;
+	position: relative;
+	overflow: hidden;
+}
+
+.committee-notification-stat::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 3px;
+	background: #7da8d8;
+}
+
+.committee-notification-stat strong {
+	font-size: 1.95rem;
+}
+
+.committee-notification-stat.is-total::after {
+	background: #5b8dbf;
+}
+
+.committee-notification-stat.is-unread::after {
+	background: #ef5350;
+}
+
+.committee-notification-stat.is-filtered::after {
+	background: #0f766e;
+}
+
+.committee-notification-stat-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.committee-notification-stat-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 9px;
+	background: #e6effb;
+	color: #1c4f83;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-notification-row {
+	border: 1px solid #dfe8f4;
+	border-radius: 14px;
+	padding: 16px;
+	background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+	transition: var(--transition);
+}
+
+.committee-notification-row:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+}
+
+.committee-notification-row.is-unread {
+	border-left: 4px solid #3b82f6;
+	padding-left: 12px;
+}
+
+.committee-notification-row-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.committee-notification-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.committee-notification-title-block {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.committee-notification-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	background: #e8f0ff;
+	color: #224f7f;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-notification-time {
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: #7b8ea5;
+}
+
+.committee-state-chip {
+	display: inline-flex;
+	align-items: center;
+	height: 24px;
+	padding: 0 8px;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+}
+
+.committee-state-chip.unread {
+	background: #e7f1ff;
+	color: #1f5a96;
+}
+
+.committee-state-chip.read {
+	background: #edf2f7;
+	color: #5c6f84;
+}
+
+.committee-link-btn {
+	border: 1px solid #cfe0f5;
+	height: 34px;
+	padding: 0 12px;
+	background: #f4f9ff;
+	color: #25578f;
+	font-weight: 700;
+	cursor: pointer;
+	font-size: 0.88rem;
+	margin-top: 8px;
+	border-radius: 10px;
+}
+
+.committee-link-btn:hover {
+	background: #e9f2ff;
+	border-color: #b9d2f1;
+}
+
+.committee-notification-row.is-read {
+	opacity: 0.86;
+}
+
+.committee-notification-row p {
+	margin: 8px 0 0;
+	font-size: 0.95rem;
+	color: #193552;
+	line-height: 1.5;
+}
+
+.committee-notification-time {
+	display: inline-block;
+}
+
+.committee-stats-only-card {
+	padding: 26px;
+}
+
+.committee-settings-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.committee-settings-card {
+	background: #f8fbff;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 16px;
+	display: grid;
+	gap: 12px;
+}
+
+.committee-settings-card h4 {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 1rem;
+	color: var(--text-dark);
+}
+
+.committee-toggle-row,
+.committee-select-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	color: #30465d;
+	font-weight: 600;
+	font-size: 0.92rem;
+}
+
+.committee-select-row select {
+	min-width: 160px;
+	height: 38px;
+	border: 1px solid #d8e2ee;
+	border-radius: 10px;
+	padding: 0 10px;
+	background: #ffffff;
+	color: var(--text-dark);
+}
+
+.committee-settings-actions {
+	grid-column: 1 / -1;
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.committee-settings-message {
+	margin: 12px 0 0;
+	font-weight: 700;
+	color: #1e6d44;
+}
+
+.committee-stats-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.committee-stats-title-wrap {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+}
+
+.committee-stats-icon {
+	width: 54px;
+	height: 54px;
+	border-radius: 16px;
+	background: #e9eff7;
+	color: #224f7f;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.committee-api-chip {
+	border: 1px solid #d4dfed;
+	background: #f6f9fd;
+	border-radius: 10px;
+	height: 34px;
+	padding: 0 12px;
+	color: #3a5f87;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.committee-chart-wrap {
+	margin-top: 18px;
+	background: #f9fbfd;
+	border: 1px solid #dce4f0;
+	border-radius: 16px;
+	padding: 24px;
+}
+
+.committee-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+	margin-top: 18px;
+}
+
+.committee-summary-card {
+	background: #f8fbff;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.committee-summary-card span {
+	font-size: 0.86rem;
+	color: var(--text-light);
+	font-weight: 600;
+}
+
+.committee-summary-card strong {
+	font-size: 1.35rem;
+	color: var(--text-dark);
+}
+
+@media (max-width: 1360px) {
+	.committee-stats-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.committee-summary-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-notifications-summary {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.committee-notification-row-head {
+		align-items: flex-start;
+	}
+
+	.committee-notification-title-wrap {
+		align-items: flex-start;
+	}
+
+	.committee-settings-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-notifications-summary-v2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 1120px) {
+	.committee-layout {
+		flex-direction: column;
+	}
+
+	.committee-sidebar {
+		width: 100%;
+		min-height: auto;
+	}
+
+	.committee-nav {
+		max-height: 240px;
+		overflow-y: auto;
+	}
+
+	.committee-topbar {
+		flex-direction: column;
+		align-items: flex-start;
+		padding: 20px;
+	}
+
+	.committee-topbar-right {
+		width: 100%;
+		flex-wrap: wrap;
+	}
+
+	.committee-search-wrap {
+		width: min(100%, 500px);
+	}
+
+	.committee-content {
+		padding: 20px;
+	}
+
+	.committee-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-notifications-summary {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-notifications-hero {
+		flex-direction: column;
+	}
+
+	.committee-notifications-summary-v2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 700px) {
+	.committee-notifications-shell-v2 {
+		padding: 18px;
+	}
+
+	.committee-notifications-hero-main h3 {
+		font-size: 1.35rem;
+	}
+}
+
+@media (max-width: 700px) {
+	.committee-stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-hero {
+		padding: 26px 20px;
+	}
+
+	.committee-hero-tag {
+		font-size: 0.9rem;
+	}
+
+	.committee-hero h2 {
+		font-size: 1.8rem;
+	}
+
+	.committee-profile-text {
+		display: none;
+	}
+}

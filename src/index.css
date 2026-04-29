@@ -1,0 +1,35 @@
+/* index.css */
+
+:root {
+  /* Kjo siguron që ngjyrat tua në LoginForm.css të kenë prioritet */
+  --bg-body: #f2f5f8; 
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+
+  background-color: var(--bg-body) !important;
+  color: #1a202c;
+  font-family: 'Inter', sans-serif;
+}
+
+#root {
+  /* Kjo e heq kufizimin 1126px dhe vijat anash */
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  display: block !important;
+  text-align: left !important; /* Heq qendërzimin e tekstit që vjen nga default */
+}
+
+/* Ky rregull ndalon "Dark Mode" të sistemit të prishë ngjyrat e tua */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--bg-body) !important;
+  }
+}

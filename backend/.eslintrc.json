@@ -1,0 +1,17 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true
+  },
+  "globals": {
+    "process": "readonly"
+  },
+  "overrides": [
+    {
+      "files": ["backend/**/*.js"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,210 @@
+.conference-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.conference-panel {
+  background: #ffffff;
+  border: 1px solid #e4ebf5;
+  border-radius: 18px;
+  padding: 26px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+.conference-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #061b3a;
+  margin-bottom: 6px;
+}
+
+.conference-header p {
+  color: #64748b;
+  font-size: 15px;
+  margin-bottom: 22px;
+}
+
+.conference-form {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.form-group input {
+  height: 44px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: #2458d3;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(36, 88, 211, 0.12);
+}
+
+.form-wide {
+  grid-column: span 3;
+}
+
+.conference-submit-btn {
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2458d3, #1746b8);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.conference-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid #e6edf6;
+  background: #fbfdff;
+}
+
+.conference-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #eef5ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.conference-details {
+  flex: 1;
+}
+
+.conference-details h3 {
+  font-size: 18px;
+  color: #061b3a;
+  margin-bottom: 6px;
+}
+
+.conference-details p {
+  color: #64748b;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+.conference-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.conference-meta span {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.conference-details a {
+  color: #2458d3;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.conference-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.status-badge {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.status-badge.open {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.status-badge.closing-soon {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.status-badge.closed {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.conference-actions button {
+  border: none;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .conference-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .conference-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-wide {
+    grid-column: span 1;
+  }
+
+  .conference-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .conference-actions {
+    align-items: flex-start;
+  }
+}
