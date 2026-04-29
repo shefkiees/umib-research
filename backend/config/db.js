@@ -51,6 +51,7 @@ function encodePossiblyRawPassword(connectionString) {
 const rawConnectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || "";
 const connectionString = encodePossiblyRawPassword(rawConnectionString);
 const hasConnectionString = Boolean(connectionString);
+const hasPlaceholderProjectRef = /YOUR_PROJECT_REF/i.test(connectionString);
 const shouldUseSsl =
   process.env.DB_SSL === "true"
   || /\.supabase\.co/i.test(connectionString)
@@ -90,6 +91,13 @@ function getConnectionDescription() {
 }
 
 export async function checkDbConnection() {
+  if (hasPlaceholderProjectRef) {
+    console.error(
+      "Database connection failed: replace YOUR_PROJECT_REF in DATABASE_URL with your Supabase project ref."
+    );
+    return false;
+  }
+
   try {
     const result = await db.query("select current_database() as database, current_user as user");
     const row = result.rows[0];
