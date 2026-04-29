@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "./LoginForm.css";
 import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
+import { apiUrl } from "./utils/api";
 
 const AUTH_ERROR_MESSAGES = {
   oauth_not_configured: "Google sign-in is not configured on the server. Check the production environment variables.",
@@ -10,20 +11,6 @@ const AUTH_ERROR_MESSAGES = {
   db_user_sync_failed: "Google sign-in succeeded, but your account could not be synced with the database.",
   session_login_failed: "Google sign-in succeeded, but the session could not be created.",
   google_login_failed: "Google sign-in failed. Please try again."
-};
-
-const getApiBaseUrl = () => {
-  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
-  if (configuredApiBaseUrl) {
-    return configuredApiBaseUrl.replace(/\/$/, "");
-  }
-
-  if (window.location.hostname === "localhost") {
-    return "http://localhost:5000/api";
-  }
-
-  return `${window.location.origin}/api`;
 };
 
 const LoginForm = () => {
@@ -35,7 +22,7 @@ const LoginForm = () => {
 
   const handleGoogleLogin = () => {
     setLoading(true);
-    window.location.href = `${getApiBaseUrl()}/auth/google`;
+    window.location.href = apiUrl("/auth/google");
     console.log("Duke u ridrejtuar te Google...");
   };
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "db:schema": "node scripts/apply-schema.js",
     "start": "node --require dotenv/config server.js"
   },
   "keywords": [],
@@ -17,8 +18,8 @@
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "express-session": "^1.18.2",
-    "mysql2": "^3.20.0",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.20.0"
   }
 }

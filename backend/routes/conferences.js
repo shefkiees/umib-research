@@ -6,11 +6,13 @@ const router = express.Router();
 /* GET all conferences */
 router.get("/", async (req, res) => {
   try {
-    const [results] = await db.query(
-      "SELECT * FROM conferences"
+    const { rows } = await db.query(
+      `select id, title, acronym, field, location, submission_deadline, conference_date, website, created_at, updated_at
+       from conferences
+       order by submission_deadline nulls last, created_at desc`
     );
 
-    res.json(results);
+    res.json(rows);
 
   } catch (err) {
     console.error(err);
@@ -33,23 +35,25 @@ router.post("/", async (req, res) => {
       website
     } = req.body;
 
-    await db.query(
-      `INSERT INTO conferences
+    const { rows } = await db.query(
+      `insert into conferences
       (title, acronym, field, location, submission_deadline, conference_date, website)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      values ($1, $2, $3, $4, $5, $6, $7)
+      returning id, title, acronym, field, location, submission_deadline, conference_date, website, created_at, updated_at`,
       [
         title,
-        acronym,
-        field,
-        location,
-        submission_deadline,
-        conference_date,
-        website
+        acronym || null,
+        field || null,
+        location || null,
+        submission_deadline || null,
+        conference_date || null,
+        website || null
       ]
     );
 
     res.json({
-      message: "Conference added"
+      message: "Conference added",
+      data: rows[0]
     });
 
   } catch (err) {
@@ -65,10 +69,15 @@ router.post("/", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
 
-    await db.query(
-      "DELETE FROM conferences WHERE id=?",
+    const result = await db.query(
+      "delete from conferences where id = $1",
       [req.params.id]
     );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: "Conference not found" });
+      return;
+    }
 
     res.json({
       message: "Deleted"

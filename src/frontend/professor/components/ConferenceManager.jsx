@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../styles/ConferenceManager.css";
+import { apiUrl } from "../../utils/api";
 
 function ConferenceManager() {
 const [conferences,setConferences]=useState([]);
@@ -16,7 +17,7 @@ website:""
 
 
 const fetchConferences=async()=>{
-const res=await fetch("http://localhost:5000/api/conferences");
+const res=await fetch(apiUrl("/conferences"));
 const data=await res.json();
 setConferences(data);
 };
@@ -37,7 +38,7 @@ setForm({
 const handleSubmit=async(e)=>{
 e.preventDefault();
 
-await fetch("http://localhost:5000/api/conferences",{
+await fetch(apiUrl("/conferences"),{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
@@ -61,7 +62,7 @@ fetchConferences();
 
 const deleteConference=async(id)=>{
 await fetch(
-`http://localhost:5000/api/conferences/${id}`,
+apiUrl(`/conferences/${id}`),
 {
 method:"DELETE"
 }

@@ -34,16 +34,29 @@ Important:
 - The backend now falls back to `https://umibres.page/api/auth/google/callback` in production unless `GOOGLE_CALLBACK_URL` is explicitly set.
 - The backend logs the callback URL it sends to Google as `Google OAuth callback URL:`. If sign-in still fails, copy that exact URL and add it under `Authorized redirect URIs`.
 
+Database environment variables:
+
+- `DATABASE_URL` for the Supabase Postgres connection string
+- `DB_SSL=true` when connecting to Supabase Postgres
+
+For Vercel or IPv4-only networks, use Supabase's pooler connection string instead of the direct `db.<project-ref>.supabase.co` string.
+
+Apply the database schema with:
+
+```bash
+npm run db:schema
+```
+
 Optional environment variables:
 
 - `VITE_API_BASE_URL` for a custom frontend -> backend API host
-- `FRONTEND_URL` for the post-login redirect target
+- `CLIENT_URL` for the post-login redirect target
 - `GOOGLE_CALLBACK_URL` only if production must use a custom absolute callback URL
 
-When adding `FRONTEND_URL` or `GOOGLE_CALLBACK_URL` in Vercel, the value must be only the URL.
+When adding `CLIENT_URL` or `GOOGLE_CALLBACK_URL` in Vercel, the value must be only the URL.
 Example:
 
-- `FRONTEND_URL` -> `https://www.umibres.page`
+- `CLIENT_URL` -> `https://www.umibres.page`
 - `GOOGLE_CALLBACK_URL` -> `https://www.umibres.page/api/auth/google/callback`
 
 Do not paste `GOOGLE_CALLBACK_URL=https://...` into the value field, because Google will treat that as an invalid redirect URI.

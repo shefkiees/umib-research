@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import DoiMetadataCard from "./DoiMetadataCard";
+import { apiUrl } from "../../utils/api";
 
 const DoiLookup = () => {
   const [doi, setDoi] = useState("");
@@ -22,7 +23,7 @@ const DoiLookup = () => {
     console.log("Po dergohet kerkesa per DOI:", doi);
 
     const res = await fetch(
-      `http://localhost:5000/api/doi/${encodeURIComponent(doi.trim())}`
+      apiUrl(`/doi/${encodeURIComponent(doi.trim())}`)
     );
 
     console.log("Response status:", res.status);

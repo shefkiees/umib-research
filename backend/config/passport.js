@@ -19,12 +19,18 @@ const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 console.log("Google OAuth callback URL:", googleCallbackUrl);
 
 const persistGoogleUser = async (googleUser) => {
-  await db.query(
-    `INSERT INTO users (google_id, email, full_name, password_hash)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), email = VALUES(email)`,
+  const { rows } = await db.query(
+    `insert into users (google_id, email, full_name, password_hash)
+     values ($1, $2, $3, $4)
+     on conflict (email) do update set
+       google_id = excluded.google_id,
+       full_name = excluded.full_name,
+       updated_at = now()
+     returning id, google_id, email, full_name, role`,
     [googleUser.id, googleUser.email, googleUser.displayName, ""]
   );
+
+  return rows[0];
 };
 
 if (googleAuthConfigured) {
@@ -58,9 +64,11 @@ if (googleAuthConfigured) {
       };
 
       try {
-        await persistGoogleUser(user);
+        const dbUser = await persistGoogleUser(user);
+        user.dbId = dbUser?.id;
+        user.role = dbUser?.role || "professor";
       } catch (error) {
-        console.error("Failed to sync Google user to MySQL:", error);
+        console.error("Failed to sync Google user to Postgres:", error);
 
         if (shouldRequireDbUserSync) {
           return done(error);

@@ -60,8 +60,11 @@ router.get("/:doi", async (req, res) => {
     }
 
     console.log("3. Para query ne DB");
-    const [rows] = await db.query(
-      "SELECT * FROM publication_metadata WHERE doi = ?",
+    const { rows } = await db.query(
+      `select doi, title, authors, container_title, publisher, published_date, year,
+              volume, issue, pages, type, abstract, source_url, raw_json, created_at, updated_at
+       from publication_metadata
+       where doi = $1`,
       [doi]
     );
     console.log("4. Pas query ne DB");
@@ -75,14 +78,8 @@ router.get("/:doi", async (req, res) => {
         source: "cache",
         data: {
           ...row,
-          authors:
-            typeof row.authors === "string"
-              ? JSON.parse(row.authors)
-              : row.authors,
-          raw_json:
-            typeof row.raw_json === "string"
-              ? JSON.parse(row.raw_json)
-              : row.raw_json
+          authors: row.authors,
+          raw_json: row.raw_json
         }
       });
     }
@@ -105,9 +102,23 @@ router.get("/:doi", async (req, res) => {
 
     console.log("8. Para insert ne DB");
     await db.query(
-      `INSERT INTO publication_metadata
+      `insert into publication_metadata
       (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, type, abstract, source_url, raw_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
+      on conflict (doi) do update set
+        title = excluded.title,
+        authors = excluded.authors,
+        container_title = excluded.container_title,
+        publisher = excluded.publisher,
+        published_date = excluded.published_date,
+        year = excluded.year,
+        volume = excluded.volume,
+        issue = excluded.issue,
+        pages = excluded.pages,
+        type = excluded.type,
+        abstract = excluded.abstract,
+        source_url = excluded.source_url,
+        raw_json = excluded.raw_json`,
       [
         metadata.doi,
         metadata.title,

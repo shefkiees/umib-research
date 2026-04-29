@@ -7,6 +7,12 @@ const router = express.Router();
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
 const LOGIN_ROUTE = "/login";
 const PROFESSOR_DASHBOARD_ROUTE = "/professor/dashboard";
+const DASHBOARD_BY_ROLE = {
+  admin: "/prorector/dashboard",
+  committee: "/committee/dashboard",
+  professor: PROFESSOR_DASHBOARD_ROUTE,
+  prorector: "/prorector/dashboard"
+};
 const configuredClientUrl = getAbsoluteUrlEnvValue(process.env.CLIENT_URL);
 const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
 
@@ -58,12 +64,37 @@ const redirectToLoginWithError = (res, authError, req) => {
 };
 
 const getCallbackErrorCode = (error) => {
-  if (String(error?.code || "").startsWith("ER_")) {
+  const errorCode = String(error?.code || "");
+
+  if (errorCode.startsWith("ER_") || errorCode.startsWith("23")) {
     return "db_user_sync_failed";
   }
 
   return "oauth_callback_failed";
 };
+
+router.get("/me", (req, res) => {
+  if (!req.isAuthenticated?.() || !req.user) {
+    res.status(401).json({ user: null });
+    return;
+  }
+
+  res.json({ user: req.user });
+});
+
+router.post("/logout", (req, res) => {
+  req.logout((error) => {
+    if (error) {
+      res.status(500).json({ error: "logout_failed" });
+      return;
+    }
+
+    req.session?.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
+  });
+});
 
 router.get("/google", (req, res, next) => {
   if (!googleAuthConfigured) {
@@ -105,8 +136,10 @@ router.get("/google/callback", (req, res, next) => {
         return;
       }
 
+      const dashboardRoute = DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
+
       console.log("LOGIN SUCCESS");
-      res.redirect(`${getClientUrl(req)}${PROFESSOR_DASHBOARD_ROUTE}`);
+      res.redirect(`${getClientUrl(req)}${dashboardRoute}`);
     });
   })(req, res, next);
 });

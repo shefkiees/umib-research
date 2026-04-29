@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "db:schema": "node backend/scripts/apply-schema.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -16,9 +17,9 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "lucide-react": "^1.8.0",
-    "mysql2": "^3.22.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.20.0",
     "react": "^19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.4",
