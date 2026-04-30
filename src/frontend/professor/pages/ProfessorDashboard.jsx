@@ -654,6 +654,9 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prorector-settings-list">
                   <p className="prorector-settings-subtext">Lidh profilin tuaj me platformat ndërkombëtare.</p>
+                  <a className="prorector-settings-action-btn" href="https://www.umibres.page/api/orcid/connect">
+                    Connect with ORCID
+                  </a>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
                     Shiko Integrimet
                   </button>
