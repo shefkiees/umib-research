@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginForm from "./frontend/LoginForm";
 import HomePage from "./frontend/HomePage";
+import { apiUrl } from "./frontend/utils/api";
 import ProfessorDashboard from "./frontend/professor/pages/ProfessorDashboard";
 import ProRectorDashboard from "./frontend/ProRector/pages/ProRectorDashboard";
 import CommitteeDashboard from "./frontend/committee/pages/CommitteeDashboard";
@@ -8,12 +10,21 @@ import NotificationsPage from "./frontend/committee/pages/NotificationsPage";
 import CommitteeSettings from "./frontend/committee/pages/CommitteeSettings";
 import ProfessorConferences from "./frontend/professor/pages/ProfessorConferences";
 
+function GoogleAuthRedirect() {
+  useEffect(() => {
+    window.location.replace(apiUrl("/auth/google"));
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/auth/*" element={<GoogleAuthRedirect />} />
         <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
         <Route path="/prorector/dashboard" element={<ProRectorDashboard />} />
         <Route path="/committee/dashboard" element={<CommitteeDashboard />} />

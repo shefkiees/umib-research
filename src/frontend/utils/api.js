@@ -2,7 +2,13 @@ export const getApiBaseUrl = () => {
   const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   if (configuredApiBaseUrl) {
-    return configuredApiBaseUrl.replace(/\/$/, "");
+    const normalizedBaseUrl = configuredApiBaseUrl.replace(/\/$/, "");
+
+    if (/\/api$/i.test(normalizedBaseUrl)) {
+      return normalizedBaseUrl;
+    }
+
+    return `${normalizedBaseUrl}/api`;
   }
 
   if (
