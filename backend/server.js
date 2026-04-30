@@ -40,16 +40,23 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "umibres-secret",
   resave: false,
   saveUninitialized: false,
+  proxy: true,
   cookie: {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax"
   }
 }));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(passport.initialize());
 app.use(passport.session());

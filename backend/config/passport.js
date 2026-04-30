@@ -2,6 +2,7 @@ import "./env.js";
 
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import db from "./db.js";
 import { getAbsoluteUrlEnvValue } from "./urlConfig.js";
 
 const DEFAULT_GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
@@ -12,9 +13,25 @@ const googleCallbackUrl =
   process.env.NODE_ENV === "production" && configuredGoogleCallbackUrl
     ? configuredGoogleCallbackUrl
     : DEFAULT_GOOGLE_CALLBACK_PATH;
+const shouldRequireDbUserSync = process.env.REQUIRE_DB_USER_SYNC === "true";
 const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 
 console.log("Google OAuth callback URL:", googleCallbackUrl);
+
+const persistGoogleUser = async (googleUser) => {
+  const { rows } = await db.query(
+    `insert into users (google_id, email, full_name, password_hash)
+     values ($1, $2, $3, $4)
+     on conflict (email) do update set
+       google_id = excluded.google_id,
+       full_name = excluded.full_name,
+       updated_at = now()
+     returning id, google_id, email, full_name, role`,
+    [googleUser.id, googleUser.email, googleUser.displayName, ""]
+  );
+
+  return rows[0];
+};
 
 if (googleAuthConfigured) {
   passport.use(new GoogleStrategy(
@@ -43,9 +60,20 @@ if (googleAuthConfigured) {
       const user = {
         id: profile.id,
         email,
-        displayName: profile.displayName,
-        role: "professor"
+        displayName: profile.displayName
       };
+
+      try {
+        const dbUser = await persistGoogleUser(user);
+        user.dbId = dbUser?.id;
+        user.role = dbUser?.role || "professor";
+      } catch (error) {
+        console.error("Failed to sync Google user to Postgres:", error);
+
+        if (shouldRequireDbUserSync) {
+          return done(error);
+        }
+      }
 
       return done(null, user);
     }
