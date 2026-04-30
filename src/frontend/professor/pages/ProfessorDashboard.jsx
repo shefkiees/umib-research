@@ -157,7 +157,7 @@ export default function ProfessorDashboard() {
     }
 
     if (normalizedAction === "orcidconnect" || normalizedAction === "orcid-connect") {
-      window.location.href = "https://www.umibres.page/api/orcid/connect";
+      window.location.href = `https://www.umibres.page/api/orcid/connect?userId=${profile.id}`;
       return;
     }
 
@@ -659,7 +659,10 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prorector-settings-list">
                   <p className="prorector-settings-subtext">Lidh profilin tuaj me platformat ndërkombëtare.</p>
-                  <a className="prorector-settings-action-btn" href="https://www.umibres.page/api/orcid/connect">
+                  <a
+                    className="prorector-settings-action-btn"
+                    href={`https://www.umibres.page/api/orcid/connect?userId=${profile.id}`}
+                  >
                     Connect with ORCID
                   </a>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>

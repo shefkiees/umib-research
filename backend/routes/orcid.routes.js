@@ -6,8 +6,14 @@ const router = express.Router();
 
 // 🔗 STEP 1: Redirect tek ORCID
 router.get("/connect", (req, res) => {
+  const { userId } = req.query;
+
   if (!process.env.ORCID_CLIENT_ID || !process.env.ORCID_REDIRECT_URI) {
     return res.status(500).send("ORCID environment variables are missing");
+  }
+
+  if (!userId) {
+    return res.status(400).send("Missing userId");
   }
 
   const params = new URLSearchParams({
@@ -15,6 +21,7 @@ router.get("/connect", (req, res) => {
     response_type: "code",
     scope: "/authenticate",
     redirect_uri: process.env.ORCID_REDIRECT_URI,
+    state: userId,
   });
 
   res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
@@ -23,9 +30,8 @@ router.get("/connect", (req, res) => {
 // 🔁 STEP 2: Callback nga ORCID
 router.get("/callback", async (req, res) => {
   try {
-    const { code, error } = req.query;
+    const { code, error, state } = req.query;
 
-    // ❗ kontrollo nëse ORCID kthen error direkt
     if (error) {
       console.log("ORCID auth error:", error);
       return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=auth_error`);
@@ -35,7 +41,13 @@ router.get("/callback", async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=missing_code`);
     }
 
-    // 🔑 Exchange code → token
+    const userId = state;
+
+    if (!userId) {
+      console.log("No userId found in ORCID state!");
+      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
+    }
+
     const tokenData = await exchangeCodeForToken(code);
 
     if (!tokenData || tokenData.error) {
@@ -46,22 +58,12 @@ router.get("/callback", async (req, res) => {
     const orcidId = tokenData.orcid;
     const accessToken = tokenData.access_token;
 
-    // 👤 Merr të dhënat e userit nga ORCID
     const person = await getOrcidPerson(orcidId, accessToken);
 
     const firstName = person?.name?.["given-names"]?.value || "";
     const lastName = person?.name?.["family-name"]?.value || "";
     const biography = person?.biography?.content || "";
 
-    // ⚠️ FIX KRITIK: userId duhet të ekzistojë
-    const userId = req.user?.id || req.session?.user?.id;
-
-    if (!userId) {
-      console.log("No user session found!");
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
-    }
-
-    // 💾 UPDATE DB (kontrollo nëse ekziston rreshti)
     await db.query(
       `UPDATE researchers
        SET orcid_id = ?, first_name = ?, last_name = ?, biography = ?
@@ -70,7 +72,6 @@ router.get("/callback", async (req, res) => {
     );
 
     return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=connected`);
-    
   } catch (error) {
     console.error("ORCID callback error:", error.message);
     return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=error`);
