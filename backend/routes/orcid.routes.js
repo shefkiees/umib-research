@@ -60,15 +60,19 @@ router.get("/callback", async (req, res) => {
 
     const person = await getOrcidPerson(orcidId, accessToken);
 
-    const firstName = person?.name?.["given-names"]?.value || "";
-    const lastName = person?.name?.["family-name"]?.value || "";
-    const biography = person?.biography?.content || "";
+    console.log("UserId from ORCID state:", userId);
+    console.log("ORCID ID:", orcidId);
+
+    if (!userId || userId === "undefined" || userId === "null") {
+      console.log("Invalid userId found in ORCID state:", userId);
+      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
+    }
 
     await db.query(
-      `UPDATE researchers
-       SET orcid_id = ?, first_name = ?, last_name = ?, biography = ?
-       WHERE user_id = ?`,
-      [orcidId, firstName, lastName, biography, userId]
+      `UPDATE users
+   SET orcid_id = $1
+   WHERE id = $2`,
+      [orcidId, userId]
     );
 
     return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=connected`);
