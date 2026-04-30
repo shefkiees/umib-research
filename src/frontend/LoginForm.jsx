@@ -22,7 +22,7 @@ const LoginForm = () => {
 
   const handleGoogleLogin = () => {
     setLoading(true);
-    window.location.href = "https://www.umibres.page/backend/api/auth/google";
+    window.location.href = "https://www.umibres.page/api/auth/google";
     console.log("Duke u ridrejtuar te Google...");
   };
 
