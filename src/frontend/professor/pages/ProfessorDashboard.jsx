@@ -156,6 +156,11 @@ export default function ProfessorDashboard() {
       return;
     }
 
+    if (normalizedAction === "orcidconnect" || normalizedAction === "orcid-connect") {
+      window.location.href = "https://www.umibres.page/api/orcid/connect";
+      return;
+    }
+
     if (normalizedAction === "settings") {
       setActivePage("Settings");
       return;
