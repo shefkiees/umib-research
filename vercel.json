@@ -11,7 +11,7 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "/api/index.js/:path*"
+      "destination": "/api/index.js"
     },
     {
       "source": "/:path*",
