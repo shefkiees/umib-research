@@ -8,6 +8,7 @@ import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import doiRoutes from "./routes/doi.js";
 import conferenceRoutes from "./routes/conferences.js";
+import orcidRoutes from "./routes/orcid.routes.js";
 
 const app = express();
 
@@ -68,6 +69,9 @@ app.use("/api/auth", authRoutes);
 
 // Route për DOI metadata
 app.use("/api/doi", doiRoutes);
+
+
+app.use("/api/orcid", orcidRoutes);
 
 // ✅ Route për konferenca
 app.use("/api/conferences", conferenceRoutes);
