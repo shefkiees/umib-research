@@ -1,5 +1,4 @@
 import express from "express";
-import axios from "axios";
 import db from "../config/db.js";
 
 const router = express.Router();
@@ -85,20 +84,23 @@ router.get("/:doi", async (req, res) => {
     }
 
     console.log("6. Para kerkese te DOI");
-    const response = await axios.get(
-      `https://doi.org/${encodeURIComponent(doi)}`,
-      {
-        headers: {
-          Accept: "application/vnd.citationstyles.csl+json",
-          "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)"
-        },
-        timeout: 10000,
-        maxRedirects: 5
-      }
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`https://doi.org/${encodeURIComponent(doi)}`, {
+      headers: {
+        Accept: "application/vnd.citationstyles.csl+json",
+        "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)"
+      },
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
     console.log("7. Pas kerkese te DOI");
 
-    const metadata = mapMetadata(response.data, doi);
+    if (!response.ok) {
+      throw new Error(`DOI lookup failed with status ${response.status}`);
+    }
+
+    const metadata = mapMetadata(await response.json(), doi);
 
     console.log("8. Para insert ne DB");
     await db.query(
