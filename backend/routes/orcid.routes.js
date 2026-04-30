@@ -23,18 +23,20 @@ router.get("/connect", (req, res) => {
 });
 
 router.get("/callback", async (req, res) => {
+  const dashboardUrl = `${process.env.FRONTEND_URL}/professor/dashboard`;
+
   try {
     const { code } = req.query;
 
     if (!code) {
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=missing_code`);
+      return res.redirect(`${dashboardUrl}?orcid=missing_code`);
     }
 
     const tokenData = await exchangeCodeForToken(code);
 
     if (tokenData.error) {
       console.log("ORCID token error:", tokenData);
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=token_error`);
+      return res.redirect(`${dashboardUrl}?orcid=token_error`);
     }
 
     const orcidId = tokenData.orcid;
@@ -46,12 +48,10 @@ router.get("/callback", async (req, res) => {
     const lastName = person?.name?.["family-name"]?.value || "";
     const biography = person?.biography?.content || "";
 
-    // KËTU duhet user_id i userit aktual
-    // Për momentin vendose sipas mënyrës suaj të login-it
     const userId = req.user?.id || req.session?.user?.id;
 
     if (!userId) {
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
+      return res.redirect(`${dashboardUrl}?orcid=no_user_session`);
     }
 
     await db.query(
@@ -61,13 +61,12 @@ router.get("/callback", async (req, res) => {
       [orcidId, firstName, lastName, biography, userId]
     );
 
-    res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=connected`);
+    return res.redirect(`${dashboardUrl}?orcid=connected`);
   } catch (error) {
     console.error("ORCID callback error:", error);
-    res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=error`);
+    return res.redirect(`${dashboardUrl}?orcid=error`);
   }
 });
-
 
 router.get("/debug-env", (req, res) => {
   res.json({
