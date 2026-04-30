@@ -28,7 +28,21 @@ function getRequestOrigin(req) {
   return `${forwardedProto || "https"}://${host}`;
 }
 
-function getClientUrl(req) {
+function isLocalOrigin(origin) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+
+function getAppOrigin(req) {
+  if (!isProduction) {
+    return configuredClientUrl || "http://localhost:5173";
+  }
+
+  const requestOrigin = getRequestOrigin(req);
+
+  if (requestOrigin && !isLocalOrigin(requestOrigin)) {
+    return requestOrigin;
+  }
+
   if (configuredClientUrl) {
     return configuredClientUrl;
   }
@@ -37,23 +51,22 @@ function getClientUrl(req) {
     return new URL(configuredGoogleCallbackUrl).origin;
   }
 
-  if (isProduction) {
-    return getRequestOrigin(req);
-  }
+  return requestOrigin || null;
+}
 
-  return "http://localhost:5173";
+function getClientUrl(req) {
+  return getAppOrigin(req);
 }
 
 function getGoogleCallbackUrl(req) {
-  if (configuredGoogleCallbackUrl) {
+  if (!isProduction && configuredGoogleCallbackUrl) {
     return configuredGoogleCallbackUrl;
   }
 
-  if (isProduction) {
-    const origin = getRequestOrigin(req);
-    if (origin) {
-      return `${origin}/api/auth/google/callback`;
-    }
+  const appOrigin = getAppOrigin(req);
+
+  if (appOrigin) {
+    return `${appOrigin}/api/auth/google/callback`;
   }
 
   return "http://localhost:5000/api/auth/google/callback";
