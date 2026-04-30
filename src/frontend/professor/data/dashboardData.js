@@ -19,6 +19,7 @@ export const navigationItems = [
 
 export const profileMenuItems = [
   { id: "EditProfile", label: "Edit Profile", icon: CircleUserRound },
+  { id: "OrcidConnect", label: "Connect with ORCID", icon: Link2 },
   { id: "Njoftime", label: "Njoftime", icon: Bell },
   { id: "Settings", label: "Settings", icon: Settings },
   { id: "Integrime", label: "Integrime", icon: Link2 },
