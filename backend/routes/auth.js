@@ -4,53 +4,63 @@ import { googleAuthConfigured } from "../config/passport.js";
 import { getAbsoluteUrlEnvValue } from "../config/urlConfig.js";
 
 const router = express.Router();
-
-const isProduction =
-  process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-
+const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
 const LOGIN_ROUTE = "/login";
 const PROFESSOR_DASHBOARD_ROUTE = "/professor/dashboard";
-
 const DASHBOARD_BY_ROLE = {
   admin: "/prorector/dashboard",
   committee: "/committee/dashboard",
   professor: PROFESSOR_DASHBOARD_ROUTE,
-  prorector: "/prorector/dashboard",
+  prorector: "/prorector/dashboard"
 };
-
 const configuredClientUrl = getAbsoluteUrlEnvValue(process.env.CLIENT_URL);
-const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(
-  process.env.GOOGLE_CALLBACK_URL
-);
+const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
 
 function getRequestOrigin(req) {
   const forwardedProto = req.get("x-forwarded-proto");
   const forwardedHost = req.get("x-forwarded-host");
   const host = forwardedHost || req.get("host");
 
-  if (!host) return null;
+  if (!host) {
+    return null;
+  }
 
   return `${forwardedProto || "https"}://${host}`;
 }
 
 function getClientUrl(req) {
-  if (configuredClientUrl) return configuredClientUrl;
+  if (configuredClientUrl) {
+    return configuredClientUrl;
+  }
 
   if (configuredGoogleCallbackUrl) {
     return new URL(configuredGoogleCallbackUrl).origin;
   }
 
-  if (isProduction) return getRequestOrigin(req);
+  if (isProduction) {
+    return getRequestOrigin(req);
+  }
 
   return "http://localhost:5173";
 }
 
+function getGoogleCallbackUrl(req) {
+  if (configuredGoogleCallbackUrl) {
+    return configuredGoogleCallbackUrl;
+  }
+
+  if (isProduction) {
+    const origin = getRequestOrigin(req);
+    if (origin) {
+      return `${origin}/api/auth/google/callback`;
+    }
+  }
+
+  return "http://localhost:5000/api/auth/google/callback";
+}
+
 const redirectToLoginWithError = (res, authError, req) => {
-  res.redirect(
-    `${getClientUrl(req)}${LOGIN_ROUTE}?authError=${encodeURIComponent(
-      authError
-    )}`
-  );
+  res.redirect(`${getClientUrl(req)}${LOGIN_ROUTE}?authError=${encodeURIComponent(authError)}`);
 };
 
 const getCallbackErrorCode = (error) => {
@@ -80,12 +90,7 @@ router.post("/logout", (req, res) => {
     }
 
     req.session?.destroy(() => {
-      res.clearCookie("connect.sid", {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-      });
-
+      res.clearCookie("connect.sid");
       res.json({ message: "Logged out" });
     });
   });
@@ -99,13 +104,16 @@ router.get("/google", (req, res, next) => {
 
   passport.authenticate("google", {
     scope: ["profile", "email"],
+    callbackURL: getGoogleCallbackUrl(req)
   })(req, res, next);
 });
 
 router.get("/google/callback", (req, res, next) => {
   console.log("CALLBACK HIT");
 
-  passport.authenticate("google", (error, user, info) => {
+  passport.authenticate("google", {
+    callbackURL: getGoogleCallbackUrl(req)
+  }, (error, user, info) => {
     if (error) {
       console.error("Google OAuth callback failed:", error);
       redirectToLoginWithError(res, getCallbackErrorCode(error), req);
@@ -113,8 +121,6 @@ router.get("/google/callback", (req, res, next) => {
     }
 
     if (!user) {
-      console.error("Google login failed info:", info);
-
       const authError = info?.message?.includes("@umib.net")
         ? "unauthorized_domain"
         : "google_login_failed";
@@ -130,10 +136,9 @@ router.get("/google/callback", (req, res, next) => {
         return;
       }
 
-      const dashboardRoute =
-        DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
+      const dashboardRoute = DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
 
-      console.log("LOGIN SUCCESS:", user.email);
+      console.log("LOGIN SUCCESS");
       res.redirect(`${getClientUrl(req)}${dashboardRoute}`);
     });
   })(req, res, next);
