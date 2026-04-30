@@ -5,6 +5,13 @@ import { exchangeCodeForToken, getOrcidPerson } from "../services/orcid.service.
 const router = express.Router();
 
 router.get("/connect", (req, res) => {
+  console.log("ORCID_CLIENT_ID:", process.env.ORCID_CLIENT_ID);
+  console.log("ORCID_REDIRECT_URI:", process.env.ORCID_REDIRECT_URI);
+
+  if (!process.env.ORCID_CLIENT_ID || !process.env.ORCID_REDIRECT_URI) {
+    return res.status(500).send("ORCID environment variables are missing");
+  }
+
   const params = new URLSearchParams({
     client_id: process.env.ORCID_CLIENT_ID,
     response_type: "code",
@@ -59,6 +66,16 @@ router.get("/callback", async (req, res) => {
     console.error("ORCID callback error:", error);
     res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=error`);
   }
+});
+
+
+router.get("/debug-env", (req, res) => {
+  res.json({
+    hasClientId: Boolean(process.env.ORCID_CLIENT_ID),
+    clientIdStart: process.env.ORCID_CLIENT_ID?.slice(0, 8),
+    hasRedirectUri: Boolean(process.env.ORCID_REDIRECT_URI),
+    redirectUri: process.env.ORCID_REDIRECT_URI,
+  });
 });
 
 export default router;
