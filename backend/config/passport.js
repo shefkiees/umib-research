@@ -27,10 +27,13 @@ if (googleAuthConfigured) {
     async (accessToken, refreshToken, profile, done) => {
       console.log("Google profile object:", profile);
       console.log("Google ID:", profile.id);
-      console.log("Email:", profile.emails?.[0]?.value);
+      console.log("Emails:", profile.emails);
       console.log("Display Name:", profile.displayName);
 
-      const email = profile.emails?.[0]?.value?.trim().toLowerCase();
+      const profileEmails = Array.isArray(profile.emails) ? profile.emails : [];
+      const email = profileEmails
+        .map((entry) => entry?.value?.trim().toLowerCase())
+        .find((value) => value?.endsWith("@umib.net"));
 
       if (!email) {
         return done(null, false, { message: "Google account did not provide an email address." });
