@@ -661,7 +661,7 @@ export default function ProfessorDashboard() {
                   <p className="prorector-settings-subtext">Lidh profilin tuaj me platformat ndërkombëtare.</p>
                   <a
                     className="prorector-settings-action-btn"
-                    href={`https://www.umibres.page/api/orcid/connect?userId=${profile.id}`}
+                    href="https://www.umibres.page/api/orcid/connect?userId=5bf8c645-3aba-4bfa-897e-e935d04664a1"
                   >
                     Connect with ORCID
                   </a>
