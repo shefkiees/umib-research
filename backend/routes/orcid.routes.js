@@ -8,30 +8,51 @@ import {
 const router = express.Router();
 
 const getFrontendUrl = () => {
-  return process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+  return process.env.FRONTEND_URL || process.env.CLIENT_URL || "https://www.umibres.page";
 };
 
 // 🔗 STEP 1: Redirect tek ORCID
-router.get("/connect", (req, res) => {
-  if (!process.env.ORCID_CLIENT_ID || !process.env.ORCID_REDIRECT_URI) {
-    return res.status(500).send("ORCID environment variables are missing");
+router.get("/connect", async (req, res) => {
+  try {
+    if (!process.env.ORCID_CLIENT_ID || !process.env.ORCID_REDIRECT_URI) {
+      return res.status(500).send("ORCID environment variables are missing");
+    }
+
+    if (!req.user || !req.user.email) {
+      console.log("No logged-in user found before ORCID connect");
+      return res.redirect(`${getFrontendUrl()}/login?orcid=no_user_session`);
+    }
+
+    // Gjej user-in real në databazë.
+    // req.user.id mund të jetë Google ID, ndërsa users.id është UUID.
+    const dbUserResult = await db.query(
+      `SELECT id, email, google_id, full_name
+       FROM users
+       WHERE google_id = $1 OR email = $2
+       LIMIT 1`,
+      [req.user.id, req.user.email]
+    );
+
+    if (dbUserResult.rowCount === 0) {
+      console.log("Logged-in user not found in DB:", req.user);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
+    }
+
+    const dbUser = dbUserResult.rows[0];
+
+    const params = new URLSearchParams({
+      client_id: process.env.ORCID_CLIENT_ID,
+      response_type: "code",
+      scope: "/authenticate",
+      redirect_uri: process.env.ORCID_REDIRECT_URI,
+      state: dbUser.id,
+    });
+
+    return res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
+  } catch (error) {
+    console.error("ORCID connect error:", error);
+    return res.redirect(`${getFrontendUrl()}/profile?orcid=error`);
   }
-
-  // User duhet të jetë i loguar me Google/session
-  if (!req.user || !req.user.id) {
-    console.log("No logged-in user found before ORCID connect");
-    return res.redirect(`${getFrontendUrl()}/login?orcid=no_user_session`);
-  }
-
-  const params = new URLSearchParams({
-    client_id: process.env.ORCID_CLIENT_ID,
-    response_type: "code",
-    scope: "/authenticate",
-    redirect_uri: process.env.ORCID_REDIRECT_URI,
-    state: req.user.id,
-  });
-
-  return res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
 });
 
 // 🔁 STEP 2: Callback nga ORCID
@@ -70,24 +91,24 @@ router.get("/callback", async (req, res) => {
       return res.redirect(`${getFrontendUrl()}/profile?orcid=token_error`);
     }
 
-    // Opsionale: merr metadata bazë nga ORCID
     const person = await getOrcidPerson(orcidId, accessToken);
 
     console.log("ORCID connected successfully");
-    console.log("User ID:", userId);
+    console.log("Database user ID:", userId);
     console.log("ORCID ID:", orcidId);
     console.log("ORCID person:", person ? "received" : "not received");
 
     const result = await db.query(
       `UPDATE users
-   SET orcid_id = $1,
-       updated_at = NOW()
-   WHERE google_id = $2
-   RETURNING id, email, full_name, orcid_id`,
+       SET orcid_id = $1,
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, email, full_name, orcid_id`,
       [orcidId, userId]
     );
+
     if (result.rowCount === 0) {
-      console.log("No user found with id:", userId);
+      console.log("No user found with database id:", userId);
       return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
     }
 
