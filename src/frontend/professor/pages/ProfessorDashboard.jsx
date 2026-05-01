@@ -25,6 +25,7 @@ import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
+import { apiUrl } from "../../utils/api";
 
 import {
   conferenceRows,
@@ -37,6 +38,17 @@ import {
   statisticsRows,
 } from "../data/dashboardData";
 import "../styles/ProfessorDashboard.css";
+
+const normalizeProfile = (user = {}) => ({
+  name: user.name || user.displayName || user.full_name || professorProfile.name,
+  role: user.academicTitle || user.academic_title || professorProfile.role,
+  appRole: user.role || "professor",
+  email: user.email || professorProfile.email,
+  faculty: user.faculty || professorProfile.faculty,
+  department: user.department || professorProfile.department,
+  office: user.office || professorProfile.office,
+  orcidId: user.orcidId || user.orcid_id || null,
+});
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -65,6 +77,8 @@ export default function ProfessorDashboard() {
   const [profile, setProfile] = useState(professorProfile);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -94,6 +108,38 @@ export default function ProfessorDashboard() {
       createdAt: "Dje, 17:20",
     },
   ]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const response = await fetch(apiUrl("/auth/me"), {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const nextProfile = normalizeProfile(data.user);
+
+        if (isMounted) {
+          setProfile(nextProfile);
+          setProfileDraft(nextProfile);
+        }
+      } catch (error) {
+        console.error("Profile load failed:", error);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -172,12 +218,13 @@ export default function ProfessorDashboard() {
 
     if (normalizedAction === "editprofile" || normalizedAction === "edit-profile") {
       setProfileDraft(profile);
+      setProfileError("");
       setIsEditProfileOpen(true);
       return;
     }
 
     if (normalizedAction === "orcidconnect" || normalizedAction === "orcid-connect") {
-      window.location.href = "https://www.umibres.page/api/orcid/connect";
+      window.location.href = apiUrl("/orcid/connect");
       return;
     }
 
@@ -203,10 +250,47 @@ export default function ProfessorDashboard() {
     setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleProfileSave = (event) => {
+  const handleProfileSave = async (event) => {
     event.preventDefault();
-    setProfile(profileDraft);
-    setIsEditProfileOpen(false);
+    setIsProfileSaving(true);
+    setProfileError("");
+
+    try {
+      const response = await fetch(apiUrl("/auth/me"), {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: profileDraft.name,
+          faculty: profileDraft.faculty,
+          department: profileDraft.department,
+          office: profileDraft.office,
+        }),
+      });
+
+      if (response.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("profile_save_failed");
+      }
+
+      const data = await response.json();
+      const nextProfile = normalizeProfile(data.user);
+
+      setProfile(nextProfile);
+      setProfileDraft(nextProfile);
+      setIsEditProfileOpen(false);
+    } catch (error) {
+      console.error("Profile save failed:", error);
+      setProfileError("Profili nuk u ruajt. Provoni perseri.");
+    } finally {
+      setIsProfileSaving(false);
+    }
   };
 
   const handleLogout = () => {
@@ -306,7 +390,7 @@ export default function ProfessorDashboard() {
         <section className="prof-hero">
           <div>
             <span className="prof-badge">Academic Research Workflow</span>
-            <h2>Pershendetje {professorProfile.name}</h2>
+            <h2>Pershendetje {profile.name}</h2>
             <p>
               Ke nje pasqyre te unifikuar per publikimet, konferencat, rimbursimet dhe
               integrimet akademike ne nje vend.
@@ -616,6 +700,10 @@ export default function ProfessorDashboard() {
                     <span className="prorector-settings-label">Adresa Email</span>
                     <strong className="prorector-settings-value">{profile.email}</strong>
                   </div>
+                  <div className="prorector-settings-item">
+                    <span className="prorector-settings-label">ORCID iD</span>
+                    <strong className="prorector-settings-value">{profile.orcidId || "Nuk eshte lidhur"}</strong>
+                  </div>
                   <button className="prorector-settings-edit-btn" onClick={() => handleMenuAction("EditProfile")}>
                     Ndrysho të dhënat
                   </button>
@@ -684,10 +772,10 @@ export default function ProfessorDashboard() {
                     type="button"
                     className="prorector-settings-action-btn"
                     onClick={() => {
-                      window.location.href = "https://www.umibres.page/api/orcid/connect";
+                      window.location.href = apiUrl("/orcid/connect");
                     }}
                   >
-                    Connect with ORCID
+                    {profile.orcidId ? "Rifresko nga ORCID" : "Connect with ORCID"}
                   </button>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
                     Shiko Integrimet
@@ -746,18 +834,25 @@ export default function ProfessorDashboard() {
               </button>
             </div>
             <form className="prof-modal-form" onSubmit={handleProfileSave}>
+              <p className="prof-modal-note">
+                Emri, email-i dhe ORCID iD merren automatikisht nga ORCID/llogaria. Ketu ruhen vetem te dhenat lokale te profilit.
+              </p>
               <div className="prof-form-grid">
                 <label className="prof-form-field">
                   <span>Emri dhe mbiemri</span>
-                  <input value={profileDraft.name} onChange={handleProfileFieldChange("name")} />
+                  <input value={profileDraft.name} readOnly />
                 </label>
                 <label className="prof-form-field">
                   <span>Roli</span>
-                  <input value={profileDraft.role} onChange={handleProfileFieldChange("role")} />
+                  <input value={profileDraft.role} readOnly />
                 </label>
                 <label className="prof-form-field">
                   <span>Email</span>
-                  <input type="email" value={profileDraft.email} onChange={handleProfileFieldChange("email")} />
+                  <input type="email" value={profileDraft.email} readOnly />
+                </label>
+                <label className="prof-form-field">
+                  <span>ORCID iD</span>
+                  <input value={profileDraft.orcidId || "Nuk eshte lidhur"} readOnly />
                 </label>
                 <label className="prof-form-field">
                   <span>Fakulteti</span>
@@ -772,12 +867,18 @@ export default function ProfessorDashboard() {
                   <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} />
                 </label>
               </div>
+              {profileError ? <p className="prof-modal-error" role="alert">{profileError}</p> : null}
+              {!profileDraft.orcidId ? (
+                <button type="button" className="prof-orcid-link-btn" onClick={() => handleMenuAction("OrcidConnect")}>
+                  Lidhe me ORCID per te mbushur profilin automatikisht
+                </button>
+              ) : null}
               <div className="prof-modal-actions">
-                <button type="button" className="prof-btn-secondary" onClick={() => setIsEditProfileOpen(false)}>
+                <button type="button" className="prof-btn-secondary" onClick={() => setIsEditProfileOpen(false)} disabled={isProfileSaving}>
                   Anulo
                 </button>
-                <button type="submit" className="prof-btn-primary">
-                  Ruaj ndryshimet
+                <button type="submit" className="prof-btn-primary" disabled={isProfileSaving}>
+                  {isProfileSaving ? "Duke ruajtur..." : "Ruaj ndryshimet"}
                 </button>
               </div>
             </form>

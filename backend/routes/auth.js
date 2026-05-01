@@ -1,4 +1,5 @@
 import express from "express";
+import db from "../config/db.js";
 import passport from "../config/passport.js";
 import { googleAuthConfigured } from "../config/passport.js";
 import { getAbsoluteUrlEnvValue } from "../config/urlConfig.js";
@@ -86,13 +87,104 @@ const getCallbackErrorCode = (error) => {
   return "oauth_callback_failed";
 };
 
-router.get("/me", (req, res) => {
-  if (!req.isAuthenticated?.() || !req.user) {
-    res.status(401).json({ user: null });
-    return;
+function mapUserRowToProfile(row) {
+  if (!row) {
+    return null;
   }
 
-  res.json({ user: req.user });
+  return {
+    id: row.id,
+    googleId: row.google_id,
+    orcidId: row.orcid_id,
+    email: row.email,
+    name: row.full_name || row.email || "",
+    role: row.role,
+    faculty: row.faculty || "",
+    department: row.department || "",
+    office: row.office || "",
+  };
+}
+
+router.get("/me", async (req, res) => {
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ user: null });
+      return;
+    }
+
+    const result = await db.query(
+      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ user: null });
+      return;
+    }
+
+    res.json({ user: mapUserRowToProfile(result.rows[0]) });
+  } catch (error) {
+    console.error("GET /api/auth/me failed:", error);
+    res.status(500).json({ user: null });
+  }
+});
+
+router.put("/me", async (req, res) => {
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ user: null });
+      return;
+    }
+
+    const currentResult = await db.query(
+      `SELECT id, orcid_id
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [req.user.id]
+    );
+
+    if (currentResult.rowCount === 0) {
+      res.status(404).json({ user: null });
+      return;
+    }
+
+    const currentUser = currentResult.rows[0];
+    const hasOrcidIdentity = Boolean(currentUser.orcid_id);
+    const nextName = String(req.body?.name || "").trim();
+    const nextFaculty = String(req.body?.faculty || "").trim();
+    const nextDepartment = String(req.body?.department || "").trim();
+    const nextOffice = String(req.body?.office || "").trim();
+
+    const result = await db.query(
+      `UPDATE users
+       SET full_name = CASE
+             WHEN $2::text IS NOT NULL THEN $2
+             ELSE full_name
+           END,
+           faculty = $3,
+           department = $4,
+           office = $5,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office`,
+      [
+        req.user.id,
+        hasOrcidIdentity ? null : (nextName || null),
+        nextFaculty || null,
+        nextDepartment || null,
+        nextOffice || null,
+      ]
+    );
+
+    res.json({ user: mapUserRowToProfile(result.rows[0]) });
+  } catch (error) {
+    console.error("PUT /api/auth/me failed:", error);
+    res.status(500).json({ user: null });
+  }
 });
 
 router.post("/logout", (req, res) => {

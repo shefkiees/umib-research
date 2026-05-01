@@ -12,6 +12,7 @@ create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   auth_user_id uuid unique,
   google_id text unique,
+  orcid_id text,
   email text not null unique,
   full_name text not null default '',
   password_hash text not null default '',
@@ -19,9 +20,16 @@ create table if not exists users (
     check (role in ('professor', 'committee', 'prorector', 'admin')),
   faculty text,
   department text,
+  office text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table users add column if not exists orcid_id text;
+alter table users add column if not exists office text;
+create index if not exists users_orcid_id_idx
+  on users (orcid_id)
+  where orcid_id is not null;
 
 drop trigger if exists users_set_updated_at on users;
 create trigger users_set_updated_at

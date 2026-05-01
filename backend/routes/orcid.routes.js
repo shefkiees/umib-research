@@ -7,6 +7,16 @@ import {
 
 const router = express.Router();
 
+function extractOrcidName(person, fallbackName = "") {
+  const name = person?.name || {};
+  const givenName = String(name?.["given-names"]?.value || name?.["given-names"]?.content || "").trim();
+  const familyName = String(name?.["family-name"]?.value || name?.["family-name"]?.content || "").trim();
+  const creditName = String(name?.["credit-name"]?.value || name?.["credit-name"]?.content || "").trim();
+
+  const resolvedName = creditName || [givenName, familyName].filter(Boolean).join(" ").trim();
+  return resolvedName || fallbackName;
+}
+
 const getFrontendUrl = () => {
   return process.env.FRONTEND_URL || process.env.CLIENT_URL || "https://www.umibres.page";
 };
@@ -100,13 +110,19 @@ router.get("/callback", async (req, res) => {
     console.log("ORCID ID:", orcidId);
     console.log("ORCID person:", person ? "received" : "not received");
 
+    const orcidDisplayName = extractOrcidName(person, "");
+
     const result = await db.query(
       `UPDATE users
        SET orcid_id = $1,
+           full_name = CASE
+             WHEN $2::text IS NOT NULL AND $2::text <> '' THEN $2
+             ELSE full_name
+           END,
            updated_at = NOW()
-       WHERE id = $2
+       WHERE id = $3
        RETURNING id, email, full_name, orcid_id`,
-      [orcidId, userId]
+      [orcidId, orcidDisplayName || null, userId]
     );
 
     if (result.rowCount === 0) {

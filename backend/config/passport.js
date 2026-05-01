@@ -102,9 +102,8 @@ if (googleAuthConfigured) {
              ON CONFLICT (email)
              DO UPDATE SET
                google_id = EXCLUDED.google_id,
-               full_name = EXCLUDED.full_name,
                updated_at = NOW()
-             RETURNING id, google_id, email, full_name, role`,
+             RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office`,
             [
               profile.id,
               email,
@@ -125,9 +124,13 @@ if (googleAuthConfigured) {
           return done(null, {
             id: dbUser.id,
             googleId: dbUser.google_id,
+            orcidId: dbUser.orcid_id,
             email: dbUser.email,
             displayName: dbUser.full_name,
             role: dbUser.role,
+            faculty: dbUser.faculty,
+            department: dbUser.department,
+            office: dbUser.office,
           });
         } catch (error) {
           console.error("Google OAuth database sync failed:", error);
@@ -149,7 +152,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id, done) => {
   try {
     const result = await db.query(
-      `SELECT id, google_id, email, full_name, role
+      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -165,9 +168,13 @@ passport.deserializeUser(async (id, done) => {
     return done(null, {
       id: dbUser.id,
       googleId: dbUser.google_id,
+      orcidId: dbUser.orcid_id,
       email: dbUser.email,
       displayName: dbUser.full_name,
       role: dbUser.role,
+      faculty: dbUser.faculty,
+      department: dbUser.department,
+      office: dbUser.office,
     });
   } catch (error) {
     return done(error);

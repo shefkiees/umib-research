@@ -834,6 +834,27 @@ body {
   gap: 20px;
 }
 
+.prof-modal-note,
+.prof-modal-error {
+  margin: 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.prof-modal-note {
+  background: #eef6ff;
+  color: #1d4d7a;
+  border: 1px solid #c8def5;
+}
+
+.prof-modal-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
 .prof-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -866,6 +887,24 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.prof-form-field input:read-only {
+  color: #64748b;
+  background: #eef2f7;
+  cursor: default;
+}
+
+.prof-orcid-link-btn {
+  align-self: flex-start;
+  border: 1px solid #1f6f8b;
+  background: #ffffff;
+  color: #155e75;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 0 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .prof-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -891,6 +930,12 @@ body {
 .prof-btn-primary {
   background: #2563eb;
   color: #ffffff;
+}
+
+.prof-btn-secondary:disabled,
+.prof-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 /* ===== GENERIC CARD ===== */

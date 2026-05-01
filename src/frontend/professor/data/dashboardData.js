@@ -34,6 +34,7 @@ export const professorProfile = {
   employeeId: "UMIB-PR-001",
   email: "ajete.ibishi@umib.edu",
   office: "Objekti A, Zyra 3.14",
+  orcidId: null,
 };
 
 export const publicationRows = [
