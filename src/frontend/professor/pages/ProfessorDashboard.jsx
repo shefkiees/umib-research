@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -40,6 +40,25 @@ import "../styles/ProfessorDashboard.css";
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orcidStatus = params.get("orcid");
+
+    if (!orcidStatus) return;
+
+    if (orcidStatus === "connected") {
+      alert("ORCID u lidh me sukses!");
+    } else if (orcidStatus === "user_not_found") {
+      alert("User nuk u gjet në databazë.");
+    } else {
+      alert("Ndodhi një gabim gjatë lidhjes me ORCID.");
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, []);
+
+
   const [activePage, setActivePage] = useState("Statistika");
   const [searchQuery, setSearchQuery] = useState("");
   const [periodRange, setPeriodRange] = useState("2m");
@@ -75,6 +94,7 @@ export default function ProfessorDashboard() {
       createdAt: "Dje, 17:20",
     },
   ]);
+
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
@@ -220,6 +240,7 @@ export default function ProfessorDashboard() {
     "Not connected": "not-connected",
     Pending: "pending",
   };
+
 
   const renderOverview = () => {
     const quickStats = [

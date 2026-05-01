@@ -11,6 +11,10 @@ const getFrontendUrl = () => {
   return process.env.FRONTEND_URL || process.env.CLIENT_URL || "https://www.umibres.page";
 };
 
+const getProfessorDashboardUrl = (status) => {
+  return `${getFrontendUrl()}/professor/dashboard?orcid=${status}`;
+};
+
 // 🔗 STEP 1: Redirect tek ORCID
 router.get("/connect", async (req, res) => {
   try {
@@ -23,19 +27,17 @@ router.get("/connect", async (req, res) => {
       return res.redirect(`${getFrontendUrl()}/login?orcid=no_user_session`);
     }
 
-    // Gjej user-in real në databazë.
-    // req.user.id mund të jetë Google ID, ndërsa users.id është UUID.
     const dbUserResult = await db.query(
       `SELECT id, email, google_id, full_name
        FROM users
-       WHERE google_id = $1 OR email = $2
+       WHERE id = $1 OR google_id = $2 OR email = $3
        LIMIT 1`,
-      [req.user.id, req.user.email]
+      [req.user.id, req.user.googleId || req.user.id, req.user.email]
     );
 
     if (dbUserResult.rowCount === 0) {
       console.log("Logged-in user not found in DB:", req.user);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
+      return res.redirect(getProfessorDashboardUrl("user_not_found"));
     }
 
     const dbUser = dbUserResult.rows[0];
@@ -51,7 +53,7 @@ router.get("/connect", async (req, res) => {
     return res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
   } catch (error) {
     console.error("ORCID connect error:", error);
-    return res.redirect(`${getFrontendUrl()}/profile?orcid=error`);
+    return res.redirect(getProfessorDashboardUrl("error"));
   }
 });
 
@@ -62,25 +64,25 @@ router.get("/callback", async (req, res) => {
 
     if (error) {
       console.log("ORCID auth error:", error);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=auth_error`);
+      return res.redirect(getProfessorDashboardUrl("auth_error"));
     }
 
     if (!code) {
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=missing_code`);
+      return res.redirect(getProfessorDashboardUrl("missing_code"));
     }
 
     const userId = state;
 
     if (!userId || userId === "undefined" || userId === "null") {
       console.log("Invalid userId in ORCID state:", userId);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=no_user_session`);
+      return res.redirect(getProfessorDashboardUrl("no_user_session"));
     }
 
     const tokenData = await exchangeCodeForToken(code);
 
     if (!tokenData || tokenData.error) {
       console.log("ORCID token error:", tokenData);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=token_error`);
+      return res.redirect(getProfessorDashboardUrl("token_error"));
     }
 
     const orcidId = tokenData.orcid;
@@ -88,7 +90,7 @@ router.get("/callback", async (req, res) => {
 
     if (!orcidId || !accessToken) {
       console.log("Missing ORCID ID or access token:", tokenData);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=token_error`);
+      return res.redirect(getProfessorDashboardUrl("token_error"));
     }
 
     const person = await getOrcidPerson(orcidId, accessToken);
@@ -109,17 +111,17 @@ router.get("/callback", async (req, res) => {
 
     if (result.rowCount === 0) {
       console.log("No user found with database id:", userId);
-      return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
+      return res.redirect(getProfessorDashboardUrl("user_not_found"));
     }
 
-    return res.redirect(`${getFrontendUrl()}/profile?orcid=connected`);
+    return res.redirect(getProfessorDashboardUrl("connected"));
   } catch (error) {
     console.error("ORCID callback error:", error);
-    return res.redirect(`${getFrontendUrl()}/profile?orcid=error`);
+    return res.redirect(getProfessorDashboardUrl("error"));
   }
 });
 
-// 🧪 Test: kontrollo nëse session/user ekziston
+// 🧪 Test session
 router.get("/session-check", (req, res) => {
   res.json({
     loggedIn: Boolean(req.user),
@@ -127,7 +129,7 @@ router.get("/session-check", (req, res) => {
   });
 });
 
-// 🧪 Debug endpoint
+// 🧪 Debug env
 router.get("/debug-env", (req, res) => {
   res.json({
     hasClientId: Boolean(process.env.ORCID_CLIENT_ID),
