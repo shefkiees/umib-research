@@ -92,6 +92,9 @@ function mapUserRowToProfile(row) {
     return null;
   }
 
+  const orcidEducations = Array.isArray(row.orcid_educations) ? row.orcid_educations : [];
+  const orcidEmployments = Array.isArray(row.orcid_employments) ? row.orcid_employments : [];
+
   return {
     id: row.id,
     googleId: row.google_id,
@@ -102,6 +105,12 @@ function mapUserRowToProfile(row) {
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
+    school: orcidEducations[0]?.organization || "",
+    currentAffiliation: orcidEmployments[0]?.organization || orcidEducations[0]?.organization || "",
+    orcidProfile: row.orcid_profile || {},
+    orcidEducations,
+    orcidEmployments,
+    orcidLastSyncedAt: row.orcid_last_synced_at || null,
   };
 }
 
@@ -113,7 +122,8 @@ router.get("/me", async (req, res) => {
     }
 
     const result = await db.query(
-      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office
+      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office,
+              orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -170,7 +180,8 @@ router.put("/me", async (req, res) => {
            office = $5,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office`,
+       RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office,
+                 orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at`,
       [
         req.user.id,
         hasOrcidIdentity ? null : (nextName || null),

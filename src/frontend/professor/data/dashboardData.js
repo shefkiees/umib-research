@@ -35,6 +35,12 @@ export const professorProfile = {
   email: "ajete.ibishi@umib.edu",
   office: "Objekti A, Zyra 3.14",
   orcidId: null,
+  school: "",
+  currentAffiliation: "",
+  orcidProfile: {},
+  orcidEducations: [],
+  orcidEmployments: [],
+  orcidLastSyncedAt: null,
 };
 
 export const publicationRows = [

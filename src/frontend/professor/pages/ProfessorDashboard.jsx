@@ -48,7 +48,22 @@ const normalizeProfile = (user = {}) => ({
   department: user.department || professorProfile.department,
   office: user.office || professorProfile.office,
   orcidId: user.orcidId || user.orcid_id || null,
+  school: user.school || "",
+  currentAffiliation: user.currentAffiliation || "",
+  orcidProfile: user.orcidProfile || {},
+  orcidEducations: Array.isArray(user.orcidEducations) ? user.orcidEducations : [],
+  orcidEmployments: Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [],
+  orcidLastSyncedAt: user.orcidLastSyncedAt || null,
 });
+
+const formatAffiliation = (item = {}) => {
+  const location = [item.city, item.region, item.country].filter(Boolean).join(", ");
+  const dates = [item.startDate, item.endDate].filter(Boolean).join(" - ");
+
+  return [item.organization, item.roleTitle, item.department, location, dates]
+    .filter(Boolean)
+    .join(" | ");
+};
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -704,6 +719,14 @@ export default function ProfessorDashboard() {
                     <span className="prorector-settings-label">ORCID iD</span>
                     <strong className="prorector-settings-value">{profile.orcidId || "Nuk eshte lidhur"}</strong>
                   </div>
+                  <div className="prorector-settings-item">
+                    <span className="prorector-settings-label">Shkolla nga ORCID</span>
+                    <strong className="prorector-settings-value">{profile.school || "Nuk ka te dhena publike"}</strong>
+                  </div>
+                  <div className="prorector-settings-item">
+                    <span className="prorector-settings-label">Affiliation nga ORCID</span>
+                    <strong className="prorector-settings-value">{profile.currentAffiliation || "Nuk ka te dhena publike"}</strong>
+                  </div>
                   <button className="prorector-settings-edit-btn" onClick={() => handleMenuAction("EditProfile")}>
                     Ndrysho të dhënat
                   </button>
@@ -855,6 +878,14 @@ export default function ProfessorDashboard() {
                   <input value={profileDraft.orcidId || "Nuk eshte lidhur"} readOnly />
                 </label>
                 <label className="prof-form-field">
+                  <span>Shkolla nga ORCID</span>
+                  <input value={profileDraft.school || "Nuk ka te dhena publike"} readOnly />
+                </label>
+                <label className="prof-form-field">
+                  <span>Affiliation nga ORCID</span>
+                  <input value={profileDraft.currentAffiliation || "Nuk ka te dhena publike"} readOnly />
+                </label>
+                <label className="prof-form-field">
                   <span>Fakulteti</span>
                   <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} />
                 </label>
@@ -867,6 +898,38 @@ export default function ProfessorDashboard() {
                   <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} />
                 </label>
               </div>
+              {profileDraft.orcidEducations.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
+                <div className="prof-orcid-details">
+                  {profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
+                    <div>
+                      <h4>Detaje nga ORCID</h4>
+                      {profileDraft.orcidProfile?.biography ? <p>{profileDraft.orcidProfile.biography}</p> : null}
+                      {profileDraft.orcidProfile?.keywords?.length ? (
+                        <p>Keywords: {profileDraft.orcidProfile.keywords.slice(0, 8).join(", ")}</p>
+                      ) : null}
+                      {profileDraft.orcidProfile?.researcherUrls?.slice(0, 3).map((item) => (
+                        <p key={`url-${item.url || item.name}`}>{[item.name, item.url].filter(Boolean).join(" | ")}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {profileDraft.orcidEducations.length ? (
+                    <div>
+                      <h4>Edukimi nga ORCID</h4>
+                      {profileDraft.orcidEducations.slice(0, 3).map((item) => (
+                        <p key={`education-${item.putCode || formatAffiliation(item)}`}>{formatAffiliation(item)}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {profileDraft.orcidEmployments.length ? (
+                    <div>
+                      <h4>Punesimi nga ORCID</h4>
+                      {profileDraft.orcidEmployments.slice(0, 3).map((item) => (
+                        <p key={`employment-${item.putCode || formatAffiliation(item)}`}>{formatAffiliation(item)}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {profileError ? <p className="prof-modal-error" role="alert">{profileError}</p> : null}
               {!profileDraft.orcidId ? (
                 <button type="button" className="prof-orcid-link-btn" onClick={() => handleMenuAction("OrcidConnect")}>

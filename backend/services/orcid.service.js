@@ -18,12 +18,28 @@ export async function exchangeCodeForToken(code) {
 }
 
 export async function getOrcidPerson(orcidId, accessToken) {
-  const response = await fetch(`https://pub.orcid.org/v3.0/${orcidId}/person`, {
+  return getOrcidSection(orcidId, accessToken, "person");
+}
+
+export async function getOrcidEducations(orcidId, accessToken) {
+  return getOrcidSection(orcidId, accessToken, "educations");
+}
+
+export async function getOrcidEmployments(orcidId, accessToken) {
+  return getOrcidSection(orcidId, accessToken, "employments");
+}
+
+async function getOrcidSection(orcidId, accessToken, section) {
+  const response = await fetch(`https://pub.orcid.org/v3.0/${orcidId}/${section}`, {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
   });
+
+  if (!response.ok) {
+    throw new Error(`orcid_${section}_fetch_failed`);
+  }
 
   return response.json();
 }
