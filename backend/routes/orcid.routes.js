@@ -80,13 +80,12 @@ router.get("/callback", async (req, res) => {
 
     const result = await db.query(
       `UPDATE users
-       SET orcid_id = $1,
-           updated_at = NOW()
-       WHERE id = $2
-       RETURNING id, email, full_name, orcid_id`,
+   SET orcid_id = $1,
+       updated_at = NOW()
+   WHERE google_id = $2
+   RETURNING id, email, full_name, orcid_id`,
       [orcidId, userId]
     );
-
     if (result.rowCount === 0) {
       console.log("No user found with id:", userId);
       return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
