@@ -50,7 +50,7 @@ if (googleAuthConfigured) {
         role: "professor"
       };
 
-      return done(null, user);
+      return done(null, user); 
     }
   ));
 } else {

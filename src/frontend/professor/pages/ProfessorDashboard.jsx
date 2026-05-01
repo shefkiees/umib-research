@@ -157,7 +157,7 @@ export default function ProfessorDashboard() {
     }
 
     if (normalizedAction === "orcidconnect" || normalizedAction === "orcid-connect") {
-      window.location.href = `https://www.umibres.page/api/orcid/connect?userId=${profile.id}`;
+      window.location.href = "https://www.umibres.page/api/orcid/connect";
       return;
     }
 
@@ -659,12 +659,15 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prorector-settings-list">
                   <p className="prorector-settings-subtext">Lidh profilin tuaj me platformat ndërkombëtare.</p>
-                  <a
+                  <button
+                    type="button"
                     className="prorector-settings-action-btn"
-                    href="https://www.umibres.page/api/orcid/connect?userId=5bf8c645-3aba-4bfa-897e-e935d04664a1"
+                    onClick={() => {
+                      window.location.href = "https://www.umibres.page/api/orcid/connect";
+                    }}
                   >
                     Connect with ORCID
-                  </a>
+                  </button>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
                     Shiko Integrimet
                   </button>

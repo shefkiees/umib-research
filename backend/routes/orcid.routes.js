@@ -1,19 +1,26 @@
 import express from "express";
 import db from "../config/db.js";
-import { exchangeCodeForToken, getOrcidPerson } from "../services/orcid.service.js";
+import {
+  exchangeCodeForToken,
+  getOrcidPerson,
+} from "../services/orcid.service.js";
 
 const router = express.Router();
 
+const getFrontendUrl = () => {
+  return process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+};
+
 // 🔗 STEP 1: Redirect tek ORCID
 router.get("/connect", (req, res) => {
-  const { userId } = req.query;
-
   if (!process.env.ORCID_CLIENT_ID || !process.env.ORCID_REDIRECT_URI) {
     return res.status(500).send("ORCID environment variables are missing");
   }
 
-  if (!userId) {
-    return res.status(400).send("Missing userId");
+  // User duhet të jetë i loguar me Google/session
+  if (!req.user || !req.user.id) {
+    console.log("No logged-in user found before ORCID connect");
+    return res.redirect(`${getFrontendUrl()}/login?orcid=no_user_session`);
   }
 
   const params = new URLSearchParams({
@@ -21,10 +28,10 @@ router.get("/connect", (req, res) => {
     response_type: "code",
     scope: "/authenticate",
     redirect_uri: process.env.ORCID_REDIRECT_URI,
-    state: userId,
+    state: req.user.id,
   });
 
-  res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
+  return res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
 });
 
 // 🔁 STEP 2: Callback nga ORCID
@@ -34,52 +41,70 @@ router.get("/callback", async (req, res) => {
 
     if (error) {
       console.log("ORCID auth error:", error);
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=auth_error`);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=auth_error`);
     }
 
     if (!code) {
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=missing_code`);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=missing_code`);
     }
 
     const userId = state;
 
-    if (!userId) {
-      console.log("No userId found in ORCID state!");
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
+    if (!userId || userId === "undefined" || userId === "null") {
+      console.log("Invalid userId in ORCID state:", userId);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=no_user_session`);
     }
 
     const tokenData = await exchangeCodeForToken(code);
 
     if (!tokenData || tokenData.error) {
       console.log("ORCID token error:", tokenData);
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=token_error`);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=token_error`);
     }
 
     const orcidId = tokenData.orcid;
     const accessToken = tokenData.access_token;
 
-    const person = await getOrcidPerson(orcidId, accessToken);
-
-    console.log("UserId from ORCID state:", userId);
-    console.log("ORCID ID:", orcidId);
-
-    if (!userId || userId === "undefined" || userId === "null") {
-      console.log("Invalid userId found in ORCID state:", userId);
-      return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=no_user_session`);
+    if (!orcidId || !accessToken) {
+      console.log("Missing ORCID ID or access token:", tokenData);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=token_error`);
     }
 
-    await db.query(
+    // Opsionale: merr metadata bazë nga ORCID
+    const person = await getOrcidPerson(orcidId, accessToken);
+
+    console.log("ORCID connected successfully");
+    console.log("User ID:", userId);
+    console.log("ORCID ID:", orcidId);
+    console.log("ORCID person:", person ? "received" : "not received");
+
+    const result = await db.query(
       `UPDATE users
-   SET orcid_id = $1
-   WHERE id = $2`,
+       SET orcid_id = $1,
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, email, full_name, orcid_id`,
       [orcidId, userId]
     );
 
-    return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=connected`);
+    if (result.rowCount === 0) {
+      console.log("No user found with id:", userId);
+      return res.redirect(`${getFrontendUrl()}/profile?orcid=user_not_found`);
+    }
+
+    return res.redirect(`${getFrontendUrl()}/profile?orcid=connected`);
   } catch (error) {
-    console.error("ORCID callback error:", error.message);
-    return res.redirect(`${process.env.FRONTEND_URL}/profile?orcid=error`);
+    console.error("ORCID callback error:", error);
+    return res.redirect(`${getFrontendUrl()}/profile?orcid=error`);
   }
+});
+
+// 🧪 Test: kontrollo nëse session/user ekziston
+router.get("/session-check", (req, res) => {
+  res.json({
+    loggedIn: Boolean(req.user),
+    user: req.user || null,
+  });
 });
 
 // 🧪 Debug endpoint
@@ -88,6 +113,7 @@ router.get("/debug-env", (req, res) => {
     hasClientId: Boolean(process.env.ORCID_CLIENT_ID),
     hasRedirectUri: Boolean(process.env.ORCID_REDIRECT_URI),
     redirectUri: process.env.ORCID_REDIRECT_URI,
+    frontendUrl: getFrontendUrl(),
   });
 });
 
