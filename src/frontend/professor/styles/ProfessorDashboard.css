@@ -1365,95 +1365,42 @@ body {
 /* ===== REIMBURSEMENTS ===== */
 .reimbursement-flow {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .reimbursement-flow-card,
 .reimbursement-list-card {
   overflow: hidden;
+  padding: 12px;
 }
 
 .reimbursement-flow-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .reimbursement-flow-header h3 {
-  margin: 6px 0 8px;
-  color: var(--text-dark);
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-
-.reimbursement-flow-header p {
   margin: 0;
-  max-width: 780px;
-  color: var(--text-light);
-  line-height: 1.55;
-}
-
-.reimbursement-kicker {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  background: #eef6ff;
-  color: #155e9f;
-  padding: 5px 10px;
-  font-size: 0.75rem;
+  color: var(--text-dark);
+  font-size: 1.08rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.reimbursement-header-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  color: #0d47a1;
-  background: linear-gradient(135deg, #e9f3ff 0%, #cfe4fb 100%);
-  border: 1px solid #c8def5;
-  flex-shrink: 0;
-}
-
-.reimbursement-step-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.reimbursement-step-row span {
-  min-height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 10px;
-  background: #f4f8fd;
-  color: #1f4c78;
-  border: 1px solid #d8e6f5;
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-align: center;
 }
 
 .reimbursement-type-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .reimbursement-type-card {
   border: 1px solid #dce7f2;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fbfdff;
-  padding: 16px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
   transition: var(--transition);
@@ -1462,15 +1409,15 @@ body {
 .reimbursement-type-card strong {
   display: block;
   color: #17324f;
-  font-size: 0.98rem;
-  line-height: 1.35;
-  margin-bottom: 8px;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  margin-bottom: 4px;
 }
 
 .reimbursement-type-card span {
   color: #64748b;
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .reimbursement-type-card:hover,
@@ -1483,50 +1430,50 @@ body {
 
 .reimbursement-form {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .reimbursement-section {
   border: 1px solid #e4edf6;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
-  padding: 16px;
+  padding: 10px;
 }
 
 .reimbursement-section-head {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 7px;
+  margin-bottom: 8px;
   color: #1d4d7d;
 }
 
 .reimbursement-section-head h4 {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   color: #17324f;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 800;
 }
 
 .reimbursement-section-head p {
   margin: 0;
   color: #64748b;
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .reimbursement-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 9px;
 }
 
 .reimbursement-field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
   color: #17324f;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
@@ -1545,15 +1492,15 @@ body {
   color: var(--text-dark);
   font: inherit;
   font-weight: 500;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 36px;
+  padding: 7px 9px;
   outline: none;
   transition: var(--transition);
 }
 
 .reimbursement-field textarea {
   resize: vertical;
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .reimbursement-field input:focus,
@@ -1571,7 +1518,7 @@ body {
 
 .reimbursement-inline-control {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .reimbursement-inline-control input {
@@ -1585,8 +1532,8 @@ body {
   border-radius: 10px;
   background: #ffffff;
   color: #174a7b;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1616,9 +1563,9 @@ body {
   border-radius: 12px;
   background: #f8fbff;
   color: #53677e;
-  padding: 14px;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  padding: 10px;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .reimbursement-loading {
@@ -1638,14 +1585,14 @@ body {
 }
 
 .reimbursement-message {
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 10px;
+  padding: 9px 10px;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 700;
 }
 
@@ -1668,6 +1615,7 @@ body {
 
 .reimbursement-request-item {
   align-items: center;
+  padding: 12px;
 }
 
 .reimbursement-request-actions {
@@ -1677,9 +1625,28 @@ body {
   gap: 10px;
 }
 
+.reimbursement-request-list {
+  gap: 10px;
+}
+
+.reimbursement-request-item .prof-list-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.reimbursement-request-item .prof-list-content h4 {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.reimbursement-request-item .prof-list-content p {
+  font-size: 0.84rem;
+}
+
 .reimbursement-download-btn {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .status-badge.submitted,
@@ -1774,7 +1741,6 @@ body {
     padding: 20px;
   }
 
-  .reimbursement-step-row,
   .reimbursement-type-grid,
   .reimbursement-form-grid {
     grid-template-columns: 1fr;

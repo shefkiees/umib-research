@@ -590,22 +590,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     <div className="reimbursement-flow">
       <article className="prof-card reimbursement-flow-card">
         <div className="reimbursement-flow-header">
-          <div>
-            <span className="reimbursement-kicker">Rimbursime</span>
-            <h3>Kerkese e re per financim</h3>
-            <p>Zgjidh llojin, kontrollo fushat automatike, ploteso fushat manuale dhe dergo kerkesen per ruajtje ne Supabase me PDF.</p>
-          </div>
-          <div className="reimbursement-header-icon">
-            <Wallet size={24} />
-          </div>
-        </div>
-
-        <div className="reimbursement-step-row" aria-label="Flow i rimbursimit">
-          <span>Rimbursime</span>
-          <span>Zgjedh llojin</span>
-          <span>Auto-fill</span>
-          <span>Editim manual</span>
-          <span>Submit + PDF</span>
+          <h3>Kerkese e re per financim</h3>
         </div>
 
         <div className="reimbursement-type-grid">
