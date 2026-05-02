@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.js";
 import doiRoutes from "./routes/doi.js";
 import conferenceRoutes from "./routes/conferences.js";
 import orcidRoutes from "./routes/orcid.routes.js";
+import reimbursementRoutes from "./routes/reimbursements.js";
 
 const app = express();
 
@@ -75,6 +76,9 @@ app.use("/api/orcid", orcidRoutes);
 
 // ✅ Route për konferenca
 app.use("/api/conferences", conferenceRoutes);
+
+// Route per rimbursime
+app.use("/api/reimbursements", reimbursementRoutes);
 
 const PORT = process.env.PORT || 5000;
 

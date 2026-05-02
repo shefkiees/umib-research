@@ -25,6 +25,7 @@ import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
+import ReimbursementManager from "../components/ReimbursementManager";
 import { apiUrl } from "../../utils/api";
 
 import {
@@ -370,10 +371,10 @@ export default function ProfessorDashboard() {
     ];
 
     const quickActions = [
-      { title: "Regjistro publikim", icon: <BookOpen size={20} /> },
-      { title: "Dergo kerkese rimbursimi", icon: <Wallet size={20} /> },
-      { title: "Planifiko konference", icon: <CalendarDays size={20} /> },
-      { title: "Perditeso profilin", icon: <Settings size={20} /> },
+      { title: "Regjistro publikim", icon: <BookOpen size={20} />, page: "Publikime" },
+      { title: "Dergo kerkese rimbursimi", icon: <Wallet size={20} />, page: "Rimbursime" },
+      { title: "Planifiko konference", icon: <CalendarDays size={20} />, page: "Konferenca" },
+      { title: "Perditeso profilin", icon: <Settings size={20} />, page: "Settings" },
     ];
 
     const timelineItems = [
@@ -474,7 +475,7 @@ export default function ProfessorDashboard() {
                   key={item.title}
                   className="prof-quick-item"
                   type="button"
-                  onClick={() => setActivePage(item.title.includes("publikim") ? "Publikime" : "Settings")}
+                  onClick={() => setActivePage(item.page)}
                 >
                   <div className="prof-quick-icon">{item.icon}</div>
                   <h4>{item.title}</h4>
@@ -567,20 +568,11 @@ export default function ProfessorDashboard() {
 
       case "Rimbursime":
         return (
-          <>
-            {renderListSection(
-              "Rimbursime",
-              "Kerkesat financiare me statusin e perpunimit.",
-              filteredReimbursements,
-              "request",
-              {
-                icon: <Wallet size={20} />,
-                title: (row) => row.request,
-                description: (row) => `${row.amount} • Dorezuar: ${row.submitted}`,
-                status: (row) => row.status,
-              }
-            )}
-          </>
+          <ReimbursementManager
+            profile={profile}
+            searchQuery={searchQuery}
+            fallbackRows={filteredReimbursements}
+          />
         );
 
       case "Statistika":

@@ -158,6 +158,16 @@ create table if not exists reimbursements (
 create index if not exists reimbursements_owner_id_idx
 on reimbursements (owner_id);
 
+alter table reimbursements add column if not exists request_type text not null default 'publication';
+alter table reimbursements add column if not exists request_data jsonb not null default '{}'::jsonb;
+alter table reimbursements add column if not exists document_number text;
+alter table reimbursements add column if not exists document_filename text;
+alter table reimbursements add column if not exists generated_pdf bytea;
+alter table reimbursements add column if not exists submitted_at timestamptz;
+
+create index if not exists reimbursements_request_type_idx
+on reimbursements (request_type);
+
 drop trigger if exists reimbursements_set_updated_at on reimbursements;
 create trigger reimbursements_set_updated_at
 before update on reimbursements
