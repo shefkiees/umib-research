@@ -4,6 +4,9 @@ import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
 import { apiUrl } from "./utils/api";
 
+const loginLogoSrc = import.meta.env.VITE_LOGIN_LOGO_URL || UMIBLogo;
+const loginLogoAlt = import.meta.env.VITE_LOGIN_LOGO_ALT || "University logo";
+
 const AUTH_ERROR_MESSAGES = {
   oauth_not_configured: "Google sign-in is not configured on the server. Check the production environment variables.",
   unauthorized_domain: "Only @umib.net email addresses are allowed.",
@@ -32,7 +35,7 @@ const LoginForm = () => {
         <div className="brand-side">
           <p className="state-title">Republika e Kosoves</p>
           <div className="logo-placeholder">
-            <img src={UMIBLogo} alt="UMIB Logo" className="university-logo-img" />
+            <img src={loginLogoSrc} alt={loginLogoAlt} className="university-logo-img" />
           </div>
           <div className="brand-text">
             <h1>UMIB</h1>

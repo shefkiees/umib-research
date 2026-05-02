@@ -7,17 +7,23 @@ const DoiLookup = () => {
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [savedPublication, setSavedPublication] = useState(null);
 
  const handleFetch = async () => {
   if (!doi.trim()) {
     setError("Ju lutem shkruani DOI.");
     setMetadata(null);
+    setSaveStatus("");
+    setSavedPublication(null);
     return;
   }
 
   try {
     setLoading(true);
     setError("");
+    setSaveStatus("");
+    setSavedPublication(null);
     setMetadata(null);
 
     console.log("Po dergohet kerkesa per DOI:", doi);
@@ -35,7 +41,28 @@ const DoiLookup = () => {
       throw new Error(result.message || "Gabim gjatë marrjes së metadata.");
     }
 
-    setMetadata(result.data);
+    const nextMetadata = result.data;
+    setMetadata(nextMetadata);
+
+    const saveRes = await fetch(apiUrl("/publications/from-doi"), {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        doi: nextMetadata.doi || doi.trim(),
+        metadata: nextMetadata,
+      }),
+    });
+    const saveResult = await saveRes.json().catch(() => ({}));
+
+    if (!saveRes.ok) {
+      throw new Error(saveResult.message || "Metadata u mor, por publikimi nuk u ruajt ne Supabase.");
+    }
+
+    setSavedPublication(saveResult.data || null);
+    setSaveStatus("Publikimi u ruajt ne Supabase. DOI do te mbushet automatikisht te Rimbursimet.");
   } catch (err) {
     console.error("Fetch error:", err);
     setError(err.message || "Ndodhi një gabim.");
@@ -87,6 +114,12 @@ const DoiLookup = () => {
 
       {loading && <p>Duke ngarkuar të dhënat...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
+      {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
+      {savedPublication && (
+        <p style={{ color: "#475569", marginTop: "-6px" }}>
+          Publikimi: {savedPublication.title || savedPublication.doi}
+        </p>
+      )}
       {metadata && <DoiMetadataCard metadata={metadata} />}
     </div>
   );

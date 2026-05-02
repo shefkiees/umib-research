@@ -96,6 +96,22 @@ function createDefaultForm(profile) {
   };
 }
 
+function applyPublicationToForm(prev, publication) {
+  if (!publication) {
+    return prev;
+  }
+
+  return {
+    ...prev,
+    publicationId: publication.id ? String(publication.id) : prev.publicationId,
+    doi: publication.doi || prev.doi,
+    publicationTitle: publication.title || prev.publicationTitle,
+    journal: publication.venue || prev.journal,
+    publisher: publication.publisher || prev.publisher,
+    publicationYear: publication.publicationYear || prev.publicationYear,
+  };
+}
+
 function normalizeDate(value) {
   if (!value) {
     return "";
@@ -154,6 +170,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [isDoiLoading, setIsDoiLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
   const [hasHydratedAutoFields, setHasHydratedAutoFields] = useState(false);
+  const [hasHydratedPublicationFields, setHasHydratedPublicationFields] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null);
 
@@ -273,6 +290,26 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setHasHydratedAutoFields(true);
   }, [effectiveProfile, hasHydratedAutoFields, isLoadingContext]);
 
+  useEffect(() => {
+    if (
+      isLoadingContext ||
+      hasHydratedPublicationFields ||
+      selectedType !== "publication" ||
+      context.publications.length === 0
+    ) {
+      return;
+    }
+
+    setForm((prev) => {
+      if (prev.publicationId || prev.doi || prev.publicationTitle) {
+        return prev;
+      }
+
+      return applyPublicationToForm(prev, context.publications[0]);
+    });
+    setHasHydratedPublicationFields(true);
+  }, [context.publications, hasHydratedPublicationFields, isLoadingContext, selectedType]);
+
   const handleFieldChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
@@ -287,15 +324,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     const publicationId = event.target.value;
     const selectedPublication = context.publications.find((item) => String(item.id) === publicationId);
 
-    setForm((prev) => ({
-      ...prev,
-      publicationId,
-      doi: selectedPublication?.doi || prev.doi,
-      publicationTitle: selectedPublication?.title || prev.publicationTitle,
-      journal: selectedPublication?.venue || prev.journal,
-      publisher: selectedPublication?.publisher || prev.publisher,
-      publicationYear: selectedPublication?.publicationYear || prev.publicationYear,
-    }));
+    setForm((prev) => applyPublicationToForm({ ...prev, publicationId }, selectedPublication));
   };
 
   const handleConferenceSelect = (event) => {

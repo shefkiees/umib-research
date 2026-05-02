@@ -358,7 +358,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
-         order by p.created_at desc
+         order by p.updated_at desc, p.created_at desc
          limit 100`,
         [req.user.id]
       ),
