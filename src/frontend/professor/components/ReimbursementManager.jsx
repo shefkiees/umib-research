@@ -642,7 +642,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               <Sparkles size={18} />
               <div>
                 <h4>Fushat automatike</h4>
-                <p>Keto merren nga Google/ORCID dhe profili ne Supabase. Profesori i kontrollon para dergimit.</p>
+                <p>Keto merren nga ORCID dhe profili ne databaze. Profesori i kontrollon para dergimit.</p>
               </div>
             </div>
 
@@ -734,7 +734,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           {error ? <p className="reimbursement-message error" role="alert">{error}</p> : null}
           {success ? (
             <div className="reimbursement-message success">
-              <span>Kerkesa u ruajt ne Supabase dhe PDF u gjenerua.</span>
+              <span>Kerkesa u ruajt ne databaze dhe PDF u gjenerua.</span>
               <button type="button" onClick={() => handleDownloadPdf(success)} disabled={downloadingId === success.id}>
                 {downloadingId === success.id ? "Duke shkarkuar..." : "Shkarko PDF"}
               </button>
@@ -753,7 +753,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         <div className="prof-card-header">
           <div>
             <h3>Rimbursimet e derguara</h3>
-            <p>Kerkesat e ruajtura ne Supabase dhe dokumentet PDF perkatese.</p>
+            <p>Kerkesat e ruajtura ne databaze dhe dokumentet PDF perkatese.</p>
           </div>
         </div>
 
