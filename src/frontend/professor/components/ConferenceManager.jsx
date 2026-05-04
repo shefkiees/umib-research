@@ -40,6 +40,7 @@ e.preventDefault();
 
 await fetch(apiUrl("/conferences"),{
 method:"POST",
+credentials:"include",
 headers:{
 "Content-Type":"application/json"
 },

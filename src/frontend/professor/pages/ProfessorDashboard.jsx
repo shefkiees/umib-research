@@ -35,8 +35,6 @@ import {
   profileMenuItems,
   publicationRows,
   reimbursementRows,
-  statisticsChartData,
-  statisticsRows,
 } from "../data/dashboardData";
 import "../styles/ProfessorDashboard.css";
 
@@ -83,6 +81,104 @@ const formatAffiliation = (item = {}) => {
     .join(" | ");
 };
 
+const DEFAULT_PROFESSOR_STATISTICS = {
+  period: { range: "6m", months: 6, startMonth: null },
+  summary: {
+    publicationsTotal: 0,
+    publicationsApproved: 0,
+    publicationsInReview: 0,
+    publicationsDraft: 0,
+    citationsTotal: 0,
+    conferencesTotal: 0,
+    upcomingConferences: 0,
+    reimbursementsTotal: 0,
+    reimbursementsInReview: 0,
+    reimbursementsApproved: 0,
+    unreadNotifications: 0,
+    requestedAmounts: [],
+  },
+  monthly: [],
+  publicationsByStatus: [],
+  reimbursementsByStatus: [],
+  reimbursementsByType: [],
+  generatedAt: null,
+};
+
+const MONTH_LABELS = ["Jan", "Shk", "Mar", "Pri", "Maj", "Qer", "Kor", "Gus", "Sht", "Tet", "Nen", "Dhj"];
+
+const STATUS_LABELS = {
+  draft: "Draft",
+  submitted: "Dorezuar",
+  in_review: "Ne shqyrtim",
+  approved: "Aprovuar",
+  rejected: "Refuzuar",
+  paid: "Paguar",
+  unknown: "Pa status",
+};
+
+const REQUEST_TYPE_LABELS = {
+  publication: "Publikime",
+  conference: "Konferenca",
+  project: "Projekte",
+  unknown: "Te tjera",
+};
+
+const normalizeStatisticsPayload = (payload = {}) => ({
+  ...DEFAULT_PROFESSOR_STATISTICS,
+  ...payload,
+  period: {
+    ...DEFAULT_PROFESSOR_STATISTICS.period,
+    ...(payload.period || {}),
+  },
+  summary: {
+    ...DEFAULT_PROFESSOR_STATISTICS.summary,
+    ...(payload.summary || {}),
+    requestedAmounts: Array.isArray(payload.summary?.requestedAmounts)
+      ? payload.summary.requestedAmounts
+      : [],
+  },
+  monthly: Array.isArray(payload.monthly) ? payload.monthly : [],
+  publicationsByStatus: Array.isArray(payload.publicationsByStatus) ? payload.publicationsByStatus : [],
+  reimbursementsByStatus: Array.isArray(payload.reimbursementsByStatus) ? payload.reimbursementsByStatus : [],
+  reimbursementsByType: Array.isArray(payload.reimbursementsByType) ? payload.reimbursementsByType : [],
+});
+
+const formatMonthLabel = (value) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value || "");
+  }
+
+  return MONTH_LABELS[date.getUTCMonth()] || String(value || "");
+};
+
+const formatAmount = (value) => {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat("de-DE", {
+    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+  }).format(amount);
+};
+
+const formatRequestedAmounts = (amounts = []) => {
+  if (!amounts.length) {
+    return "0 EUR";
+  }
+
+  return amounts
+    .filter((item) => Number(item.requested) > 0)
+    .map((item) => `${formatAmount(item.requested)} ${item.currency || "EUR"}`)
+    .join(" / ") || "0 EUR";
+};
+
+const getStatusLabel = (status) => STATUS_LABELS[status] || status;
+const getRequestTypeLabel = (type) => REQUEST_TYPE_LABELS[type] || type;
+
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
 
@@ -106,8 +202,11 @@ export default function ProfessorDashboard() {
 
   const [activePage, setActivePage] = useState("Statistika");
   const [searchQuery, setSearchQuery] = useState("");
-  const [periodRange, setPeriodRange] = useState("2m");
+  const [periodRange, setPeriodRange] = useState("6m");
   const [profile, setProfile] = useState(professorProfile);
+  const [statisticsData, setStatisticsData] = useState(DEFAULT_PROFESSOR_STATISTICS);
+  const [isStatisticsLoading, setIsStatisticsLoading] = useState(true);
+  const [statisticsError, setStatisticsError] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
@@ -247,21 +346,59 @@ export default function ProfessorDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStatistics = async () => {
+      setIsStatisticsLoading(true);
+      setStatisticsError("");
+
+      try {
+        const response = await fetch(apiUrl(`/professor/stats?range=${periodRange}`), {
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("stats_load_failed");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setStatisticsData(normalizeStatisticsPayload(data));
+        }
+      } catch (error) {
+        console.error("Statistics load failed:", error);
+
+        if (isMounted) {
+          setStatisticsError("Statistikat nuk u ngarkuan nga Supabase. Provoni perseri.");
+          setStatisticsData(DEFAULT_PROFESSOR_STATISTICS);
+        }
+      } finally {
+        if (isMounted) {
+          setIsStatisticsLoading(false);
+        }
+      }
+    };
+
+    loadStatistics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, periodRange]);
+
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
-  const chartDataByPeriod = useMemo(() => {
-    const monthsToShow = periodRange === "1m" ? 1 : 2;
-    return statisticsChartData.slice(-monthsToShow);
-  }, [periodRange]);
-
-  const selectedMonths = useMemo(() => {
-    return new Set(chartDataByPeriod.map((item) => item.month));
-  }, [chartDataByPeriod]);
-
   const filteredPublications = useMemo(() => {
-    const byPeriod = publicationRows.filter((row) => selectedMonths.has(row.month));
+    const byPeriod = publicationRows;
 
     if (!normalizedQuery) {
       return byPeriod;
@@ -270,10 +407,10 @@ export default function ProfessorDashboard() {
     return byPeriod.filter((row) =>
       `${row.title} ${row.journal} ${row.year} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, selectedMonths]);
+  }, [normalizedQuery]);
 
   const filteredConferences = useMemo(() => {
-    const byPeriod = conferenceRows.filter((row) => selectedMonths.has(row.month));
+    const byPeriod = conferenceRows;
 
     if (!normalizedQuery) {
       return byPeriod;
@@ -282,10 +419,10 @@ export default function ProfessorDashboard() {
     return byPeriod.filter((row) =>
       `${row.event} ${row.location} ${row.date} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, selectedMonths]);
+  }, [normalizedQuery]);
 
   const filteredReimbursements = useMemo(() => {
-    const byPeriod = reimbursementRows.filter((row) => selectedMonths.has(row.month));
+    const byPeriod = reimbursementRows;
 
     if (!normalizedQuery) {
       return byPeriod;
@@ -294,25 +431,55 @@ export default function ProfessorDashboard() {
     return byPeriod.filter((row) =>
       `${row.request} ${row.amount} ${row.submitted} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, selectedMonths]);
+  }, [normalizedQuery]);
+
+  const statisticsChartData = useMemo(() => {
+    return statisticsData.monthly.map((row) => ({
+      ...row,
+      month: formatMonthLabel(row.month),
+      rawMonth: row.month,
+    }));
+  }, [statisticsData.monthly]);
 
   const filteredStatisticsChartData = useMemo(() => {
     if (!normalizedQuery) {
-      return chartDataByPeriod;
+      return statisticsChartData;
     }
 
-    return chartDataByPeriod.filter((row) =>
-      `${row.month} ${row.publikime} ${row.citime} ${row.konferenca}`.toLowerCase().includes(normalizedQuery)
+    return statisticsChartData.filter((row) =>
+      `${row.month} ${row.publikime} ${row.citime} ${row.konferenca} ${row.rimbursime}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [chartDataByPeriod, normalizedQuery]);
+  }, [normalizedQuery, statisticsChartData]);
 
-  const filteredStatisticsRows = useMemo(() => {
+  const filteredPublicationStatuses = useMemo(() => {
     if (!normalizedQuery) {
-      return statisticsRows;
+      return statisticsData.publicationsByStatus;
     }
 
-    return statisticsRows.filter((row) => `${row.label} ${row.value}`.toLowerCase().includes(normalizedQuery));
-  }, [normalizedQuery]);
+    return statisticsData.publicationsByStatus.filter((row) =>
+      `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
+    );
+  }, [normalizedQuery, statisticsData.publicationsByStatus]);
+
+  const filteredReimbursementStatuses = useMemo(() => {
+    if (!normalizedQuery) {
+      return statisticsData.reimbursementsByStatus;
+    }
+
+    return statisticsData.reimbursementsByStatus.filter((row) =>
+      `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
+    );
+  }, [normalizedQuery, statisticsData.reimbursementsByStatus]);
+
+  const filteredReimbursementTypes = useMemo(() => {
+    if (!normalizedQuery) {
+      return statisticsData.reimbursementsByType;
+    }
+
+    return statisticsData.reimbursementsByType.filter((row) =>
+      `${getRequestTypeLabel(row.type)} ${row.count}`.toLowerCase().includes(normalizedQuery)
+    );
+  }, [normalizedQuery, statisticsData.reimbursementsByType]);
 
   const handleMenuAction = (action) => {
     const normalizedAction = String(action || "").trim().toLowerCase();
@@ -602,6 +769,175 @@ export default function ProfessorDashboard() {
     </article>
   );
 
+  const renderStatisticsBreakdown = (title, description, rows, getLabel, emptyText) => {
+    const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+
+    return (
+      <article className="prof-card prof-stat-breakdown-card">
+        <div className="prof-card-header">
+          <div>
+            <h3>{title}</h3>
+            <p>{description}</p>
+          </div>
+        </div>
+        {rows.length ? (
+          <div className="prof-stat-breakdown-list">
+            {rows.map((row) => {
+              const count = Number(row.count || 0);
+              const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+              const label = getLabel(row);
+
+              return (
+                <div className="prof-stat-breakdown-row" key={label}>
+                  <div className="prof-stat-breakdown-top">
+                    <span>{label}</span>
+                    <strong>{count}</strong>
+                  </div>
+                  <div className="prof-stat-progress" aria-hidden="true">
+                    <span style={{ width: `${percent}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="prof-stats-empty">{emptyText}</div>
+        )}
+      </article>
+    );
+  };
+
+  const renderStatistics = () => {
+    const summary = statisticsData.summary;
+    const statCards = [
+      {
+        label: "Publikime totale",
+        value: summary.publicationsTotal,
+        change: `${summary.publicationsApproved} aprovuar | ${summary.publicationsInReview} ne shqyrtim`,
+        icon: <BookOpen size={22} />,
+      },
+      {
+        label: "Citime nga metadata",
+        value: summary.citationsTotal,
+        change: "Nga DOI/Crossref kur ekziston fusha e citimeve",
+        icon: <CheckCircle2 size={22} />,
+      },
+      {
+        label: "Konferenca",
+        value: summary.conferencesTotal,
+        change: `${summary.upcomingConferences} te ardhshme`,
+        icon: <CalendarDays size={22} />,
+      },
+      {
+        label: "Rimbursime",
+        value: summary.reimbursementsTotal,
+        change: `${formatRequestedAmounts(summary.requestedAmounts)} te kerkuara`,
+        icon: <Wallet size={22} />,
+      },
+    ];
+
+    return (
+      <div className="prof-statistics-layout">
+        {statisticsError ? (
+          <div className="prof-stats-message error" role="alert">
+            {statisticsError}
+          </div>
+        ) : null}
+
+        <section className="prof-stats-grid">
+          {statCards.map((stat) => (
+            <article key={stat.label} className="prof-stat-card">
+              <div className="prof-stat-top">
+                <div>
+                  <span className="prof-stat-title">{stat.label}</span>
+                  <h3>{isStatisticsLoading ? "..." : stat.value}</h3>
+                  <p className="prof-stat-change">{stat.change}</p>
+                </div>
+                <div className="prof-stat-icon">{stat.icon}</div>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <article className="prof-card prof-stat-chart-card">
+          <div className="prof-card-header">
+            <div>
+              <h3>Statistika akademike</h3>
+              <p>Ecuria reale nga Supabase per publikime, citime, konferenca dhe rimbursime.</p>
+            </div>
+            <div className="prof-filter-wrap">
+              <label htmlFor="prof-period-filter">Periudha</label>
+              <select
+                id="prof-period-filter"
+                className="prof-filter-select"
+                value={periodRange}
+                onChange={(event) => setPeriodRange(event.target.value)}
+              >
+                <option value="1m">1 muaj</option>
+                <option value="2m">2 muaj</option>
+                <option value="6m">6 muaj</option>
+                <option value="12m">12 muaj</option>
+              </select>
+            </div>
+          </div>
+
+          {isStatisticsLoading && filteredStatisticsChartData.length === 0 ? (
+            <div className="prof-stats-empty">
+              <RefreshCw size={18} className="prof-stats-spin" />
+              Duke ngarkuar statistikat nga Supabase...
+            </div>
+          ) : filteredStatisticsChartData.length ? (
+            <div className="prof-stat-chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredStatisticsChartData} barGap={10}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
+                  <Bar dataKey="citime" name="Citime" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
+                  <Bar dataKey="konferenca" name="Konferenca" radius={[8, 8, 0, 0]} fill="#7aa7d3" />
+                  <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="prof-stats-empty">
+              Nuk ka ende te dhena reale per kete periudhe. Shto publikime, konferenca ose rimbursime per ta mbushur grafikun.
+            </div>
+          )}
+        </article>
+
+        <section className="prof-status-grid">
+          {renderStatisticsBreakdown(
+            "Publikime sipas statusit",
+            "Shperndarja e publikimeve te ruajtura nga profesori.",
+            filteredPublicationStatuses,
+            (row) => getStatusLabel(row.status),
+            "Nuk ka publikime te ruajtura."
+          )}
+
+          {renderStatisticsBreakdown(
+            "Rimbursime sipas statusit",
+            "Gjendja aktuale e kerkesave financiare.",
+            filteredReimbursementStatuses,
+            (row) => getStatusLabel(row.status),
+            "Nuk ka rimbursime te ruajtura."
+          )}
+
+          {renderStatisticsBreakdown(
+            "Rimbursime sipas llojit",
+            "Kategorite e kerkesave te dorezuara.",
+            filteredReimbursementTypes,
+            (row) => getRequestTypeLabel(row.type),
+            "Nuk ka lloje rimbursimi per t'u shfaqur."
+          )}
+        </section>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activePage) {
       case "Overview":
@@ -667,42 +1003,7 @@ export default function ProfessorDashboard() {
         );
 
       case "Statistika":
-        return (
-          <article className="prof-card">
-            <div className="prof-card-header">
-              <div>
-                <h3>Statistika akademike</h3>
-                <p>Ecuria mujore e publikimeve, citimeve dhe konferencave.</p>
-              </div>
-              <div className="prof-filter-wrap">
-                <label htmlFor="prof-period-filter">Periudha</label>
-                <select
-                  id="prof-period-filter"
-                  className="prof-filter-select"
-                  value={periodRange}
-                  onChange={(event) => setPeriodRange(event.target.value)}
-                >
-                  <option value="1m">1 muaj</option>
-                  <option value="2m">2 muaj</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ width: "100%", height: 248 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredStatisticsChartData} barGap={10}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-                  <Bar dataKey="citime" name="Citime" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-                  <Bar dataKey="konferenca" name="Konferenca" radius={[8, 8, 0, 0]} fill="#7aa7d3" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </article>
-        );
+        return renderStatistics();
 
       case "Integrime":
         return (

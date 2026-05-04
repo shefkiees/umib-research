@@ -11,6 +11,7 @@ import conferenceRoutes from "./routes/conferences.js";
 import orcidRoutes from "./routes/orcid.routes.js";
 import reimbursementRoutes from "./routes/reimbursements.js";
 import publicationRoutes from "./routes/publications.js";
+import professorStatsRoutes from "./routes/professorStats.js";
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use("/api/auth", authRoutes);
 // Route për DOI metadata
 app.use("/api/doi", doiRoutes);
 app.use("/api/publications", publicationRoutes);
+app.use("/api/professor", professorStatsRoutes);
 
 
 app.use("/api/orcid", orcidRoutes);
