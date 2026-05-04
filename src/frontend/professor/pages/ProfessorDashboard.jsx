@@ -57,6 +57,23 @@ const normalizeProfile = (user = {}) => ({
   orcidLastSyncedAt: user.orcidLastSyncedAt || null,
 });
 
+const normalizeSettingsProfile = (user = {}) => ({
+  name: user.name || user.displayName || user.full_name || "",
+  role: user.academicTitle || user.academic_title || user.role || "",
+  appRole: user.role || "",
+  email: user.email || "",
+  faculty: user.faculty || "",
+  department: user.department || "",
+  office: user.office || "",
+  orcidId: user.orcidId || user.orcid_id || null,
+  school: user.school || "",
+  currentAffiliation: user.currentAffiliation || "",
+  orcidProfile: user.orcidProfile || {},
+  orcidEducations: Array.isArray(user.orcidEducations) ? user.orcidEducations : [],
+  orcidEmployments: Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [],
+  orcidLastSyncedAt: user.orcidLastSyncedAt || null,
+});
+
 const formatAffiliation = (item = {}) => {
   const location = [item.city, item.region, item.country].filter(Boolean).join(", ");
   const dates = [item.startDate, item.endDate].filter(Boolean).join(" - ");
@@ -95,6 +112,9 @@ export default function ProfessorDashboard() {
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [settingsProfile, setSettingsProfile] = useState(null);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -124,6 +144,76 @@ export default function ProfessorDashboard() {
       createdAt: "Dje, 17:20",
     },
   ]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let redirectTimer;
+
+    if (activePage !== "Settings") {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const redirectToLogin = () => {
+      redirectTimer = window.setTimeout(() => {
+        if (isMounted) {
+          navigate("/login", { replace: true });
+        }
+      }, 900);
+    };
+
+    const loadSettingsProfile = async () => {
+      setIsSettingsLoading(true);
+      setSettingsError("");
+      setSettingsProfile(null);
+
+      try {
+        const response = await fetch(apiUrl("/auth/me"), {
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          throw new Error("Ju lutem kyquni per te hapur Settings.");
+        }
+
+        if (!response.ok) {
+          throw new Error("Sesioni nuk mund te verifikohet.");
+        }
+
+        const data = await response.json();
+
+        if (!data?.user) {
+          throw new Error("Ju lutem kyquni per te hapur Settings.");
+        }
+
+        const nextProfile = normalizeSettingsProfile(data.user);
+
+        if (isMounted) {
+          setSettingsProfile(nextProfile);
+          setProfile(nextProfile);
+          setProfileDraft(nextProfile);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setSettingsError(error.message || "Sesioni nuk eshte aktiv.");
+          setSettingsProfile(null);
+          redirectToLogin();
+        }
+      } finally {
+        if (isMounted) {
+          setIsSettingsLoading(false);
+        }
+      }
+    };
+
+    loadSettingsProfile();
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(redirectTimer);
+    };
+  }, [activePage, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -296,10 +386,11 @@ export default function ProfessorDashboard() {
       }
 
       const data = await response.json();
-      const nextProfile = normalizeProfile(data.user);
+      const nextProfile = normalizeSettingsProfile(data.user);
 
       setProfile(nextProfile);
       setProfileDraft(nextProfile);
+      setSettingsProfile(nextProfile);
       setIsEditProfileOpen(false);
     } catch (error) {
       console.error("Profile save failed:", error);
@@ -679,7 +770,27 @@ export default function ProfessorDashboard() {
           </article>
         );
 
-      case "Settings":
+      case "Settings": {
+        if (isSettingsLoading) {
+          return (
+            <div className="prorector-table-section">
+              <p>Duke u ngarkuar...</p>
+            </div>
+          );
+        }
+
+        if (settingsError) {
+          return (
+            <div className="prorector-table-section">
+              <p role="alert">{settingsError}</p>
+            </div>
+          );
+        }
+
+        if (!settingsProfile) {
+          return null;
+        }
+
         return (
           <div className="prorector-table-section">
             <h2>Settings</h2>
@@ -697,27 +808,27 @@ export default function ProfessorDashboard() {
                 <div className="prorector-settings-list">
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">Emri i plotë</span>
-                    <strong className="prorector-settings-value">{profile.name}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.name}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">Titulli Akademik</span>
-                    <strong className="prorector-settings-value">{profile.role}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.role}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">Adresa Email</span>
-                    <strong className="prorector-settings-value">{profile.email}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.email}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">ORCID iD</span>
-                    <strong className="prorector-settings-value">{profile.orcidId || "Nuk eshte lidhur"}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.orcidId || "Nuk eshte lidhur"}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">Shkolla nga ORCID</span>
-                    <strong className="prorector-settings-value">{profile.school || "Nuk ka te dhena publike"}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.school || "Nuk ka te dhena publike"}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">Affiliation nga ORCID</span>
-                    <strong className="prorector-settings-value">{profile.currentAffiliation || "Nuk ka te dhena publike"}</strong>
+                    <strong className="prorector-settings-value">{settingsProfile.currentAffiliation || "Nuk ka te dhena publike"}</strong>
                   </div>
                   <button className="prorector-settings-edit-btn" onClick={() => handleMenuAction("EditProfile")}>
                     Ndrysho të dhënat
@@ -790,7 +901,7 @@ export default function ProfessorDashboard() {
                       window.location.href = apiUrl("/orcid/connect");
                     }}
                   >
-                    {profile.orcidId ? "Rifresko nga ORCID" : "Connect with ORCID"}
+                    {settingsProfile.orcidId ? "Rifresko nga ORCID" : "Connect with ORCID"}
                   </button>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
                     Shiko Integrimet
@@ -800,6 +911,7 @@ export default function ProfessorDashboard() {
             </div>
           </div>
         );
+      }
 
       default:
         return null;
