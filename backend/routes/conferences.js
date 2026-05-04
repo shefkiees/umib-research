@@ -3,6 +3,10 @@ import db from "../config/db.js";
 
 const router = express.Router();
 
+function getAuthenticatedUserId(req) {
+  return req.isAuthenticated?.() && req.user?.id ? req.user.id : null;
+}
+
 /* GET all conferences */
 router.get("/", async (req, res) => {
   try {
@@ -37,9 +41,9 @@ router.post("/", async (req, res) => {
 
     const { rows } = await db.query(
       `insert into conferences
-      (title, acronym, field, location, submission_deadline, conference_date, website)
-      values ($1, $2, $3, $4, $5, $6, $7)
-      returning id, title, acronym, field, location, submission_deadline, conference_date, website, created_at, updated_at`,
+      (title, acronym, field, location, submission_deadline, conference_date, website, created_by)
+      values ($1, $2, $3, $4, $5, $6, $7, $8)
+      returning id, title, acronym, field, location, submission_deadline, conference_date, website, created_by, created_at, updated_at`,
       [
         title,
         acronym || null,
@@ -47,7 +51,8 @@ router.post("/", async (req, res) => {
         location || null,
         submission_deadline || null,
         conference_date || null,
-        website || null
+        website || null,
+        getAuthenticatedUserId(req)
       ]
     );
 
