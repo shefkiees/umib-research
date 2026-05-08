@@ -179,6 +179,12 @@ const formatRequestedAmounts = (amounts = []) => {
 
 const getStatusLabel = (status) => STATUS_LABELS[status] || status;
 const getRequestTypeLabel = (type) => REQUEST_TYPE_LABELS[type] || type;
+const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
+
+const hasStatisticMetricData = (rows = []) =>
+  rows.some((row) =>
+    STATISTIC_METRIC_KEYS.some((key) => Number(row[key] || 0) > 0)
+  );
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -385,6 +391,14 @@ export default function ProfessorDashboard() {
       `${row.month} ${row.publikime} ${row.citime} ${row.konferenca} ${row.rimbursime}`.toLowerCase().includes(normalizedQuery)
     );
   }, [normalizedQuery, statisticsChartData]);
+  const hasStatisticsChartData = useMemo(
+    () => hasStatisticMetricData(statisticsChartData),
+    [statisticsChartData]
+  );
+  const hasFilteredStatisticsChartData = useMemo(
+    () => hasStatisticMetricData(filteredStatisticsChartData),
+    [filteredStatisticsChartData]
+  );
 
   const filteredPublicationStatuses = useMemo(() => {
     if (!normalizedQuery) {
@@ -687,8 +701,11 @@ export default function ProfessorDashboard() {
     </article>
   );
 
-  const renderStatisticsBreakdown = (title, description, rows, getLabel, emptyText) => {
+  const renderStatisticsBreakdown = (title, description, rows, getLabel, emptyText, hasUnfilteredRows = rows.length > 0) => {
     const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const resolvedEmptyText = normalizedQuery && hasUnfilteredRows
+      ? "No results match your search"
+      : emptyText;
 
     return (
       <article className="prof-card prof-stat-breakdown-card">
@@ -719,7 +736,7 @@ export default function ProfessorDashboard() {
             })}
           </div>
         ) : (
-          <div className="prof-stats-empty">{emptyText}</div>
+          <div className="prof-stats-empty">{resolvedEmptyText}</div>
         )}
       </article>
     );
@@ -799,12 +816,20 @@ export default function ProfessorDashboard() {
             </div>
           </div>
 
-          {isStatisticsLoading && filteredStatisticsChartData.length === 0 ? (
+          {isStatisticsLoading ? (
             <div className="prof-stats-empty">
               <RefreshCw size={18} className="prof-stats-spin" />
-              Duke ngarkuar statistikat nga Supabase...
+              {statisticsData.generatedAt ? "Updating statistics..." : "Loading statistics..."}
             </div>
-          ) : filteredStatisticsChartData.length ? (
+          ) : statisticsError ? (
+            <div className="prof-stats-empty">
+              Statistics could not be loaded. Please try again.
+            </div>
+          ) : normalizedQuery && hasStatisticsChartData && !hasFilteredStatisticsChartData ? (
+            <div className="prof-stats-empty">
+              No results match your search
+            </div>
+          ) : hasFilteredStatisticsChartData ? (
             <div className="prof-stat-chart-wrap">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={filteredStatisticsChartData} barGap={10}>
@@ -822,7 +847,7 @@ export default function ProfessorDashboard() {
             </div>
           ) : (
             <div className="prof-stats-empty">
-              Nuk ka ende te dhena reale per kete periudhe. Shto publikime, konferenca ose rimbursime per ta mbushur grafikun.
+              No statistics data available yet
             </div>
           )}
         </article>
@@ -833,7 +858,8 @@ export default function ProfessorDashboard() {
             "Shperndarja e publikimeve te ruajtura nga profesori.",
             filteredPublicationStatuses,
             (row) => getStatusLabel(row.status),
-            "Nuk ka publikime te ruajtura."
+            "Nuk ka publikime te ruajtura.",
+            statisticsData.publicationsByStatus.length > 0
           )}
 
           {renderStatisticsBreakdown(
@@ -841,7 +867,8 @@ export default function ProfessorDashboard() {
             "Gjendja aktuale e kerkesave financiare.",
             filteredReimbursementStatuses,
             (row) => getStatusLabel(row.status),
-            "Nuk ka rimbursime te ruajtura."
+            "Nuk ka rimbursime te ruajtura.",
+            statisticsData.reimbursementsByStatus.length > 0
           )}
 
           {renderStatisticsBreakdown(
@@ -849,7 +876,8 @@ export default function ProfessorDashboard() {
             "Kategorite e kerkesave te dorezuara.",
             filteredReimbursementTypes,
             (row) => getRequestTypeLabel(row.type),
-            "Nuk ka lloje rimbursimi per t'u shfaqur."
+            "Nuk ka lloje rimbursimi per t'u shfaqur.",
+            statisticsData.reimbursementsByType.length > 0
           )}
         </section>
       </div>
