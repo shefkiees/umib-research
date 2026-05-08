@@ -26,10 +26,12 @@ export default function TopBar({
   const profileRef = useRef(null);
 
   const title = activePage || "Statistika";
-  const name = profile?.name || "Prof. Ajete Ibishi";
-  const role = profile?.role || "Professor i rregullt";
+  const name = profile?.name || "Professor";
+  const role = profile?.role || "Professor";
   const resolvedMenuItems = menuItems.length ? menuItems : fallbackMenuItems;
-  const unreadCount = notifications.filter((item) => !item.isRead).length;
+  const unreadCount = notifications.length
+    ? notifications.filter((item) => !item.isRead).length
+    : notificationCount;
   const initials = name
     .split(" ")
     .map((part) => part[0])
@@ -97,7 +99,7 @@ export default function TopBar({
                 </div>
                 <button
                   type="button"
-                  disabled={unreadCount === 0}
+                  disabled={unreadCount === 0 || notifications.length === 0}
                   onClick={() => {
                     if (typeof onMarkAllRead === "function") {
                       onMarkAllRead();
@@ -109,25 +111,33 @@ export default function TopBar({
               </div>
 
               <ul className="prof-notification-list-mini">
-                {notifications.map((item) => (
-                  <li key={item.id} className={item.isRead ? "is-read" : ""}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof onNotificationAction === "function") {
-                          onNotificationAction(item.id);
-                        }
-                      }}
-                    >
-                      <div className="prof-notification-meta">
-                        <span className="prof-notification-tag">{item.category || "Njoftim"}</span>
-                        <span>{item.createdAt}</span>
-                      </div>
-                      <p className="prof-notification-title">{item.title || item.text}</p>
-                      <p className="prof-notification-description">{item.description || item.text}</p>
+                {notifications.length ? (
+                  notifications.map((item) => (
+                    <li key={item.id} className={item.isRead ? "is-read" : ""}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof onNotificationAction === "function") {
+                            onNotificationAction(item.id);
+                          }
+                        }}
+                      >
+                        <div className="prof-notification-meta">
+                          <span className="prof-notification-tag">{item.category || "Njoftim"}</span>
+                          <span>{item.createdAt}</span>
+                        </div>
+                        <p className="prof-notification-title">{item.title || item.text}</p>
+                        <p className="prof-notification-description">{item.description || item.text}</p>
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li>
+                    <button type="button" disabled>
+                      <p className="prof-notification-title">No data available yet.</p>
                     </button>
                   </li>
-                ))}
+                )}
               </ul>
             </div>
           ) : null}

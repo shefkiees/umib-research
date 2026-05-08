@@ -4,7 +4,6 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   Link2,
   RefreshCw,
   Settings,
@@ -29,18 +28,14 @@ import ReimbursementManager from "../components/ReimbursementManager";
 import { apiUrl } from "../../utils/api";
 
 import {
-  conferenceRows,
-  integrations,
   professorProfile,
   profileMenuItems,
-  publicationRows,
-  reimbursementRows,
 } from "../data/dashboardData";
 import "../styles/ProfessorDashboard.css";
 
 const normalizeProfile = (user = {}) => ({
-  name: user.name || user.displayName || user.full_name || professorProfile.name,
-  role: user.academicTitle || user.academic_title || professorProfile.role,
+  name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
+  role: user.academicTitle || user.academic_title || professorProfile.role || "Professor",
   appRole: user.role || "professor",
   email: user.email || professorProfile.email,
   faculty: user.faculty || professorProfile.faculty,
@@ -105,6 +100,29 @@ const REQUEST_TYPE_LABELS = {
   project: "Projekte",
   unknown: "Te tjera",
 };
+
+const formatDate = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
+const mapPublicationRow = (row = {}) => ({
+  id: row.id || row.doi || row.title,
+  title: row.title || "Pa titull",
+  journal: row.venue || row.publisher || "Pa reviste/konference",
+  year: row.publicationYear || row.publication_year || "",
+  status: row.status || "draft",
+  createdAt: row.createdAt || row.created_at || null,
+});
 
 const normalizeStatisticsPayload = (payload = {}) => ({
   ...DEFAULT_PROFESSOR_STATISTICS,
@@ -190,39 +208,14 @@ export default function ProfessorDashboard() {
   const [statisticsData, setStatisticsData] = useState(DEFAULT_PROFESSOR_STATISTICS);
   const [isStatisticsLoading, setIsStatisticsLoading] = useState(true);
   const [statisticsError, setStatisticsError] = useState("");
+  const [publications, setPublications] = useState([]);
+  const [isPublicationsLoading, setIsPublicationsLoading] = useState(true);
+  const [publicationsError, setPublicationsError] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      category: "Raporte",
-      title: "Raporti mujor u gjenerua",
-      description: "Raporti i muajit aktual eshte gati dhe mund te shkarkohet nga paneli i raporteve.",
-      text: "Raporti mujor u gjenerua me sukses",
-      isRead: false,
-      createdAt: "Sot, 10:12",
-    },
-    {
-      id: 2,
-      category: "Rimbursime",
-      title: "Kerkesa e rimbursimit u perditesua",
-      description: "Kerkesa per udhetim ne konference kaloi ne fazen e verifikimit financiar.",
-      text: "Kerkesa e rimbursimit u perditesua",
-      isRead: false,
-      createdAt: "Sot, 08:45",
-    },
-    {
-      id: 3,
-      category: "Publikime",
-      title: "Publikimi i ri eshte ne verifikim",
-      description: "Artikulli i dorezuar tek European Computing Review po shqyrtohet nga redaksia.",
-      text: "Publikimi i ri eshte ne verifikim",
-      isRead: true,
-      createdAt: "Dje, 17:20",
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -303,45 +296,66 @@ export default function ProfessorDashboard() {
     };
   }, [navigate, periodRange]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPublications = async () => {
+      setIsPublicationsLoading(true);
+      setPublicationsError("");
+
+      try {
+        const response = await fetch(apiUrl("/publications"), {
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("publications_load_failed");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setPublications(Array.isArray(data) ? data.map(mapPublicationRow) : []);
+        }
+      } catch (error) {
+        console.error("Publications load failed:", error);
+
+        if (isMounted) {
+          setPublications([]);
+          setPublicationsError("Publikimet nuk u ngarkuan nga Supabase.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsPublicationsLoading(false);
+        }
+      }
+    };
+
+    loadPublications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
+
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const unreadNotifications = notifications.filter((item) => !item.isRead).length;
+  const unreadNotifications = statisticsData.summary.unreadNotifications;
 
   const filteredPublications = useMemo(() => {
-    const byPeriod = publicationRows;
-
     if (!normalizedQuery) {
-      return byPeriod;
+      return publications;
     }
 
-    return byPeriod.filter((row) =>
-      `${row.title} ${row.journal} ${row.year} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
+    return publications.filter((row) =>
+      `${row.title} ${row.journal} ${row.year} ${row.status}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery]);
-
-  const filteredConferences = useMemo(() => {
-    const byPeriod = conferenceRows;
-
-    if (!normalizedQuery) {
-      return byPeriod;
-    }
-
-    return byPeriod.filter((row) =>
-      `${row.event} ${row.location} ${row.date} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
-
-  const filteredReimbursements = useMemo(() => {
-    const byPeriod = reimbursementRows;
-
-    if (!normalizedQuery) {
-      return byPeriod;
-    }
-
-    return byPeriod.filter((row) =>
-      `${row.request} ${row.amount} ${row.submitted} ${row.status} ${row.month}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
+  }, [normalizedQuery, publications]);
 
   const statisticsChartData = useMemo(() => {
     return statisticsData.monthly.map((row) => ({
@@ -491,48 +505,38 @@ export default function ProfessorDashboard() {
   };
 
   const renderStatus = (value) => {
-    const statusClass = value.toLowerCase().replace(/\s+/g, "-");
+    const statusValue = String(value || "unknown");
+    const statusClass = statusValue.toLowerCase().replace(/\s+/g, "-");
 
-    return <span className={`status-badge ${statusClass}`}>{value}</span>;
-  };
-
-  const integrationIcons = {
-    Connected: CheckCircle2,
-    "Not connected": ShieldX,
-    Pending: RefreshCw,
-  };
-
-  const integrationTones = {
-    Connected: "connected",
-    "Not connected": "not-connected",
-    Pending: "pending",
+    return <span className={`status-badge ${statusClass}`}>{getStatusLabel(statusValue)}</span>;
   };
 
 
   const renderOverview = () => {
+    const summary = statisticsData.summary;
     const quickStats = [
       {
         label: "Publikime aktive",
-        value: publicationRows.length,
-        change: "+2 kete semester",
+        value: summary.publicationsTotal,
+        change: `${summary.publicationsApproved} aprovuar | ${summary.publicationsInReview} ne shqyrtim`,
         icon: <BookOpen size={22} />,
       },
       {
         label: "Konferenca te planifikuara",
-        value: conferenceRows.length,
-        change: "1 afat brenda 7 ditesh",
+        value: summary.conferencesTotal,
+        change: `${summary.upcomingConferences} te ardhshme`,
         icon: <CalendarDays size={22} />,
       },
       {
         label: "Rimbursime ne proces",
-        value: reimbursementRows.filter((row) => row.status === "Ne proces").length,
-        change: "2 kerkesa ne shqyrtim",
+        value: summary.reimbursementsInReview,
+        change: `${summary.reimbursementsApproved} aprovuar | ${summary.reimbursementsTotal} gjithsej`,
         icon: <Wallet size={22} />,
       },
       {
-        label: "Integrime aktive",
-        value: integrations.filter((item) => item.status === "Connected").length,
-        change: "Crossref ne pritje",
+        label: "ORCID",
+        value: profile.orcidId ? 1 : 0,
+        change: profile.orcidId ? "Profil i lidhur" : "Nuk eshte lidhur",
         icon: <Link2 size={22} />,
       },
     ];
@@ -544,29 +548,13 @@ export default function ProfessorDashboard() {
       { title: "Perditeso profilin", icon: <Settings size={20} />, page: "Settings" },
     ];
 
-    const timelineItems = [
-      {
-        id: "pub",
-        icon: <CheckCircle2 size={20} />,
-        title: "Publikimi u aprovua",
-        description: publicationRows[0]?.title || "Publikim i ri",
-        time: "Sot",
-      },
-      {
-        id: "conf",
-        icon: <Clock3 size={20} />,
-        title: "Konference ne shqyrtim",
-        description: conferenceRows[1]?.event || "Konference e re",
-        time: "Dje",
-      },
-      {
-        id: "refund",
-        icon: <Wallet size={20} />,
-        title: "Kerkese rimbursimi",
-        description: reimbursementRows[0]?.request || "Kerkese financiare",
-        time: "2 dite me pare",
-      },
-    ];
+    const latestPublications = publications.slice(0, 3).map((item) => ({
+      id: item.id,
+      icon: <BookOpen size={20} />,
+      title: item.title,
+      description: [item.journal, item.year].filter(Boolean).join(" | ") || "Publikim nga Supabase",
+      time: formatDate(item.createdAt),
+    }));
 
     return (
       <>
@@ -616,16 +604,22 @@ export default function ProfessorDashboard() {
               </div>
             </div>
             <div className="prof-list">
-              {timelineItems.map((item) => (
-                <div className="prof-list-item" key={item.id}>
-                  <div className="prof-list-icon">{item.icon}</div>
-                  <div className="prof-list-content">
-                    <h4>{item.title}</h4>
-                    <p>{item.description}</p>
+              {latestPublications.length ? (
+                latestPublications.map((item) => (
+                  <div className="prof-list-item" key={item.id}>
+                    <div className="prof-list-icon">{item.icon}</div>
+                    <div className="prof-list-content">
+                      <h4>{item.title}</h4>
+                      <p>{item.description}</p>
+                    </div>
+                    <span className="prof-list-time">{item.time}</span>
                   </div>
-                  <span className="prof-list-time">{item.time}</span>
+                ))
+              ) : (
+                <div className="prof-stats-empty">
+                  {isPublicationsLoading ? "Duke ngarkuar te dhenat..." : "No data available yet."}
                 </div>
-              ))}
+              )}
             </div>
           </article>
 
@@ -655,7 +649,7 @@ export default function ProfessorDashboard() {
     );
   };
 
-  const renderListSection = (title, description, rows, rowKey, formatter) => (
+  const renderListSection = (title, description, rows, rowKey, formatter, emptyText = "No data available yet.") => (
     <article className="prof-card">
       <div className="prof-card-header">
         <div>
@@ -664,16 +658,20 @@ export default function ProfessorDashboard() {
         </div>
       </div>
       <div className="prof-list">
-        {rows.map((row) => (
-          <div className="prof-list-item" key={row[rowKey]}>
-            <div className="prof-list-icon">{formatter.icon}</div>
-            <div className="prof-list-content">
-              <h4>{formatter.title(row)}</h4>
-              <p>{formatter.description(row)}</p>
+        {rows.length ? (
+          rows.map((row) => (
+            <div className="prof-list-item" key={row[rowKey]}>
+              <div className="prof-list-icon">{formatter.icon}</div>
+              <div className="prof-list-content">
+                <h4>{formatter.title(row)}</h4>
+                <p>{formatter.description(row)}</p>
+              </div>
+              <div>{renderStatus(formatter.status(row))}</div>
             </div>
-            <div>{renderStatus(formatter.status(row))}</div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <div className="prof-stats-empty">{emptyText}</div>
+        )}
       </div>
     </article>
   );
@@ -872,13 +870,14 @@ export default function ProfessorDashboard() {
               "Publikime",
               "Regjistri i publikimeve me statusin aktual.",
               filteredPublications,
-              "title",
+              "id",
               {
                 icon: <BookOpen size={20} />,
                 title: (row) => row.title,
                 description: (row) => `${row.journal} • ${row.year}`,
                 status: (row) => row.status,
-              }
+              },
+              publicationsError || (isPublicationsLoading ? "Duke ngarkuar publikimet nga Supabase..." : "No data available yet.")
             )}
           </>
         );
@@ -907,7 +906,6 @@ export default function ProfessorDashboard() {
           <ReimbursementManager
             profile={profile}
             searchQuery={searchQuery}
-            fallbackRows={filteredReimbursements}
           />
         );
 
@@ -927,18 +925,18 @@ export default function ProfessorDashboard() {
               </button>
             </div>
             <div className="prof-integration-list">
-              {integrations.map((item) => (
-                <article className="prof-integration-item" key={item.provider}>
-                  <div className={`prof-integration-mark ${integrationTones[item.status]}`}>
-                    {React.createElement(integrationIcons[item.status] || CheckCircle2, { size: 22 })}
-                  </div>
-                  <div className="prof-integration-copy">
-                    <h4>{item.provider}</h4>
-                    <p>{item.description}</p>
-                  </div>
-                  {renderStatus(item.status)}
-                </article>
-              ))}
+              <article className="prof-integration-item">
+                <div className={`prof-integration-mark ${profile.orcidId ? "connected" : "not-connected"}`}>
+                  {profile.orcidId ? <CheckCircle2 size={22} /> : <ShieldX size={22} />}
+                </div>
+                <div className="prof-integration-copy">
+                  <h4>ORCID</h4>
+                  <p>{profile.orcidId || "No data available yet."}</p>
+                </div>
+                <span className={`status-badge ${profile.orcidId ? "connected" : "not-connected"}`}>
+                  {profile.orcidId ? "Connected" : "Not connected"}
+                </span>
+              </article>
             </div>
           </article>
         );
@@ -955,27 +953,31 @@ export default function ProfessorDashboard() {
                 type="button"
                 className="prof-integration-manage-btn"
                 onClick={markAllNotificationsAsRead}
-                disabled={unreadNotifications === 0}
+                disabled={unreadNotifications === 0 || notifications.length === 0}
               >
                 Sheno te gjitha si te lexuara
               </button>
             </div>
             <div className="prof-notification-list">
-              {notifications.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`prof-notification-item ${item.isRead ? "neutral" : "info"}`}
-                  onClick={() => markNotificationAsRead(item.id)}
-                >
-                  <div className="prof-notification-item-head">
-                    <span className="prof-notification-pill">{item.category || "Njoftim"}</span>
-                    <span>{item.createdAt}</span>
-                  </div>
-                  <h4>{item.title || item.text}</h4>
-                  <p>{item.description || item.text}</p>
-                </button>
-              ))}
+              {notifications.length ? (
+                notifications.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`prof-notification-item ${item.isRead ? "neutral" : "info"}`}
+                    onClick={() => markNotificationAsRead(item.id)}
+                  >
+                    <div className="prof-notification-item-head">
+                      <span className="prof-notification-pill">{item.category || "Njoftim"}</span>
+                      <span>{item.createdAt}</span>
+                    </div>
+                    <h4>{item.title || item.text}</h4>
+                    <p>{item.description || item.text}</p>
+                  </button>
+                ))
+              ) : (
+                <div className="prof-stats-empty">No data available yet.</div>
+              )}
             </div>
           </article>
         );
