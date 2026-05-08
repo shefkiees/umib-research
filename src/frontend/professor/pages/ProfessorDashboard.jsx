@@ -226,6 +226,11 @@ export default function ProfessorDashboard() {
           credentials: "include",
         });
 
+        if (response.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
         if (!response.ok) {
           return;
         }
@@ -247,7 +252,7 @@ export default function ProfessorDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -262,8 +267,7 @@ export default function ProfessorDashboard() {
         });
 
         if (response.status === 401) {
-          navigate("/login", { replace: true });
-          return;
+          throw new Error("stats_unauthorized");
         }
 
         if (!response.ok) {
@@ -279,7 +283,11 @@ export default function ProfessorDashboard() {
         console.error("Statistics load failed:", error);
 
         if (isMounted) {
-          setStatisticsError("Statistikat nuk u ngarkuan nga Supabase. Provoni perseri.");
+          setStatisticsError(
+            error.message === "stats_unauthorized"
+              ? "Statistikat nuk u ngarkuan sepse sesioni nuk u pranua nga API."
+              : "Statistikat nuk u ngarkuan nga Supabase. Provoni perseri."
+          );
           setStatisticsData(DEFAULT_PROFESSOR_STATISTICS);
         }
       } finally {
@@ -309,8 +317,7 @@ export default function ProfessorDashboard() {
         });
 
         if (response.status === 401) {
-          navigate("/login", { replace: true });
-          return;
+          throw new Error("publications_unauthorized");
         }
 
         if (!response.ok) {
@@ -327,7 +334,11 @@ export default function ProfessorDashboard() {
 
         if (isMounted) {
           setPublications([]);
-          setPublicationsError("Publikimet nuk u ngarkuan nga Supabase.");
+          setPublicationsError(
+            error.message === "publications_unauthorized"
+              ? "Publikimet nuk u ngarkuan sepse sesioni nuk u pranua nga API."
+              : "Publikimet nuk u ngarkuan nga Supabase."
+          );
         }
       } finally {
         if (isMounted) {
