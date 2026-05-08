@@ -39,6 +39,22 @@ create index if not exists users_orcid_id_idx
   on users (orcid_id)
   where orcid_id is not null;
 
+create table if not exists app_sessions (
+  sid text primary key,
+  data jsonb not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists app_sessions_expires_at_idx
+on app_sessions (expires_at);
+
+drop trigger if exists app_sessions_set_updated_at on app_sessions;
+create trigger app_sessions_set_updated_at
+before update on app_sessions
+for each row execute function set_updated_at();
+
 drop trigger if exists users_set_updated_at on users;
 create trigger users_set_updated_at
 before update on users

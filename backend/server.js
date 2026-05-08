@@ -4,6 +4,7 @@ import express from "express";
 import session from "express-session";
 import cors from "cors";
 import { checkDbConnection } from "./config/db.js";
+import PostgresSessionStore from "./config/postgresSessionStore.js";
 import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import doiRoutes from "./routes/doi.js";
@@ -16,6 +17,7 @@ import professorStatsRoutes from "./routes/professorStats.js";
 const app = express();
 
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+const sessionMaxAgeMs = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 7);
 const callbackOrigin = process.env.GOOGLE_CALLBACK_URL
   ? new URL(process.env.GOOGLE_CALLBACK_URL).origin
   : null;
@@ -45,12 +47,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
+  store: new PostgresSessionStore({ ttlMs: sessionMaxAgeMs }),
   secret: process.env.SESSION_SECRET || "umibres-secret",
   resave: false,
   saveUninitialized: false,
   proxy: true,
   cookie: {
     httpOnly: true,
+    maxAge: sessionMaxAgeMs,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax"
   }

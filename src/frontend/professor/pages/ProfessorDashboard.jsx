@@ -515,10 +515,19 @@ export default function ProfessorDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    sessionStorage.removeItem("authToken");
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    try {
+      await fetch(apiUrl("/auth/logout"), {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      localStorage.removeItem("authToken");
+      sessionStorage.removeItem("authToken");
+      navigate("/", { replace: true });
+    }
   };
 
   const markAllNotificationsAsRead = () => {

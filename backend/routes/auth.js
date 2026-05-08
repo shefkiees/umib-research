@@ -199,14 +199,26 @@ router.put("/me", async (req, res) => {
 });
 
 router.post("/logout", (req, res) => {
+  const clearCookieOptions = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  };
+
   req.logout((error) => {
     if (error) {
       res.status(500).json({ error: "logout_failed" });
       return;
     }
 
-    req.session?.destroy(() => {
-      res.clearCookie("connect.sid");
+    if (!req.session) {
+      res.clearCookie("connect.sid", clearCookieOptions);
+      res.json({ message: "Logged out" });
+      return;
+    }
+
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid", clearCookieOptions);
       res.json({ message: "Logged out" });
     });
   });
