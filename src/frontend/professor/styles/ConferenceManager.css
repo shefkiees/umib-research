@@ -76,10 +76,37 @@
   cursor: pointer;
 }
 
+.conference-submit-btn:disabled,
+.conference-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.conference-error {
+  margin: 16px 0 0;
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .conference-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.conference-empty {
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .conference-card {
