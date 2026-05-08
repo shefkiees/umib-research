@@ -1,5 +1,10 @@
 import express from "express";
 import db from "../config/db.js";
+import {
+  buildReimbursementDocx,
+  buildReimbursementPdf,
+  getReimbursementDocumentFilenames,
+} from "../services/reimbursementDocument.service.js";
 
 const router = express.Router();
 
@@ -7,6 +12,26 @@ const REQUEST_TYPES = {
   publication: "Financim publikimi shkencor",
   conference: "Financim pjesemarrjeje ne konference/simpozium",
   project: "Financim projekti shkencor",
+};
+
+const VALID_REIMBURSEMENT_STATUSES = new Set([
+  "draft",
+  "submitted",
+  "received",
+  "in_review",
+  "approved",
+  "rejected",
+  "paid",
+]);
+
+const STATUS_LABELS = {
+  draft: "Draft",
+  submitted: "Dorezuar",
+  received: "Pranuar",
+  in_review: "Ne shqyrtim",
+  approved: "Aprovuar",
+  rejected: "Refuzuar",
+  paid: "Paguar",
 };
 
 const CURRENCY_FALLBACK = "EUR";
@@ -18,6 +43,10 @@ function requireAuthenticatedUser(req, res, next) {
   }
 
   next();
+}
+
+function canManageReimbursements(user) {
+  return ["committee", "prorector", "admin"].includes(user?.role);
 }
 
 function normalizeText(value) {
@@ -50,24 +79,64 @@ function parseAmount(value) {
   return Math.round(amount * 100) / 100;
 }
 
+function hasMeaningfulValue(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasMeaningfulValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasMeaningfulValue);
+  }
+
+  return normalizeText(value) !== "";
+}
+
+function sanitizeJsonValue(value, depth = 0) {
+  if (depth > 6) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "boolean" || value === null) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeJsonValue(item, depth + 1))
+      .filter((item) => hasMeaningfulValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value).reduce((acc, [key, item]) => {
+      const sanitizedKey = normalizeText(key).replace(/[^\w-]/g, "");
+
+      if (!sanitizedKey) {
+        return acc;
+      }
+
+      const sanitizedValue = sanitizeJsonValue(item, depth + 1);
+      acc[sanitizedKey] = sanitizedValue;
+      return acc;
+    }, {});
+  }
+
+  return null;
+}
+
 function sanitizeRequestData(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return {};
   }
 
-  return Object.entries(data).reduce((acc, [key, value]) => {
-    if (typeof value === "string") {
-      acc[key] = value.trim();
-      return acc;
-    }
-
-    if (value === null || typeof value === "number" || typeof value === "boolean") {
-      acc[key] = value;
-      return acc;
-    }
-
-    return acc;
-  }, {});
+  return sanitizeJsonValue(data) || {};
 }
 
 function formatDate(value) {
@@ -139,6 +208,24 @@ function buildRequestTitle(requestType, data) {
   return normalizeText(data.projectTitle || data.projectCode) || REQUEST_TYPES.project;
 }
 
+function parseOptionalUuid(value) {
+  const text = normalizeText(value);
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
+    ? text
+    : null;
+}
+
+function parseOptionalInteger(value) {
+  const text = normalizeText(value);
+
+  if (!/^\d+$/.test(text)) {
+    return null;
+  }
+
+  return Number(text);
+}
+
 function mapPublicationRow(row) {
   return {
     id: row.id,
@@ -165,6 +252,25 @@ function mapConferenceRow(row) {
   };
 }
 
+function normalizeStatusHistory(value) {
+  const parsed = typeof value === "string" ? JSON.parse(value) : value;
+
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed.map((item) => ({
+    id: item.id,
+    previousStatus: item.previousStatus || item.previous_status || null,
+    previousStatusLabel: STATUS_LABELS[item.previousStatus || item.previous_status] || "",
+    status: item.status || "",
+    statusLabel: STATUS_LABELS[item.status] || item.status || "",
+    actorId: item.actorId || item.actor_id || null,
+    note: item.note || "",
+    createdAt: item.createdAt || item.created_at || null,
+  }));
+}
+
 function mapReimbursementRow(row) {
   const requestData = row.request_data || {};
 
@@ -176,170 +282,105 @@ function mapReimbursementRow(row) {
     amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
     currency: row.currency || CURRENCY_FALLBACK,
     status: row.status || "submitted",
+    statusLabel: STATUS_LABELS[row.status] || row.status || "",
     submittedAt: row.submitted_at || row.created_at || null,
     documentNumber: row.document_number || "",
     documentFilename: row.document_filename || "",
+    documentDocxFilename: row.document_docx_filename || "",
     downloadUrl: `/api/reimbursements/${row.id}/pdf`,
+    docxDownloadUrl: `/api/reimbursements/${row.id}/docx`,
+    statusHistory: normalizeStatusHistory(row.status_history || []),
     requestData,
   };
 }
 
-function removeDiacritics(value) {
-  return normalizeText(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "");
+function buildHistorySelect(whereClause) {
+  return `select r.id, r.owner_id, r.title, r.amount, r.currency, r.status, r.request_type, r.request_data,
+                 r.document_number, r.document_filename, r.document_docx_filename,
+                 r.submitted_at, r.created_at, r.updated_at,
+                 coalesce(
+                   (
+                     select json_agg(
+                       json_build_object(
+                         'id', h.id,
+                         'previousStatus', h.previous_status,
+                         'status', h.status,
+                         'actorId', h.actor_id,
+                         'note', h.note,
+                         'createdAt', h.created_at
+                       )
+                       order by h.created_at asc
+                     )
+                     from reimbursement_status_history h
+                     where h.reimbursement_id = r.id
+                   ),
+                   '[]'::json
+                 ) as status_history
+          from reimbursements r
+          ${whereClause}`;
 }
 
-function escapePdfText(value) {
-  return removeDiacritics(value)
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
+async function selectReimbursementWithHistoryById(id, client = db) {
+  const result = await client.query(
+    `${buildHistorySelect("where r.id = $1")}
+     limit 1`,
+    [id]
+  );
+
+  return result.rows[0] || null;
 }
 
-function wrapText(value, maxLength = 90) {
-  const words = removeDiacritics(value).split(/\s+/).filter(Boolean);
-  const lines = [];
-  let currentLine = "";
+async function canAccessReimbursement(row, user) {
+  if (!row) {
+    return false;
+  }
 
-  words.forEach((word) => {
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+  return row.owner_id === user?.id || canManageReimbursements(user);
+}
 
-    if (nextLine.length > maxLength && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-      return;
+async function ensureGeneratedDocument(row, format) {
+  const documentNumber =
+    row.document_number || `RIM-${formatDocumentDate(row.submitted_at || row.created_at)}-${String(row.id).slice(0, 8).toUpperCase()}`;
+  const filenames = getReimbursementDocumentFilenames({
+    ...row,
+    document_number: documentNumber,
+  });
+
+  if (format === "docx") {
+    const filename = row.document_docx_filename || filenames.docx;
+    const buffer = row.generated_docx || (await buildReimbursementDocx({ ...row, document_number: documentNumber }));
+
+    if (!row.generated_docx || !row.document_docx_filename || !row.document_number) {
+      await db.query(
+        `update reimbursements
+         set document_number = coalesce(document_number, $2),
+             document_docx_filename = coalesce(document_docx_filename, $3),
+             generated_docx = coalesce(generated_docx, $4),
+             updated_at = now()
+         where id = $1`,
+        [row.id, documentNumber, filename, buffer]
+      );
     }
 
-    currentLine = nextLine;
-  });
-
-  if (currentLine) {
-    lines.push(currentLine);
+    return { buffer, filename };
   }
 
-  return lines.length ? lines : [""];
-}
+  const filename = row.document_filename || filenames.pdf;
+  const buffer = row.generated_pdf || (await buildReimbursementPdf({ ...row, document_number: documentNumber }));
 
-function addField(lines, label, value) {
-  const text = normalizeText(value);
-
-  if (!text) {
-    return;
+  if (!row.generated_pdf || !row.document_filename || !row.document_number) {
+    await db.query(
+      `update reimbursements
+       set document_number = coalesce(document_number, $2),
+           document_filename = coalesce(document_filename, $3),
+           generated_pdf = coalesce(generated_pdf, $4),
+           updated_at = now()
+       where id = $1`,
+      [row.id, documentNumber, filename, buffer]
+    );
   }
 
-  wrapText(`${label}: ${text}`).forEach((line) => lines.push(line));
-}
-
-function buildDocumentLines(row) {
-  const data = row.request_data || {};
-  const auto = data.auto || {};
-  const lines = [
-    "UMIBRes - Kerkese per rimbursim",
-    `Numri i dokumentit: ${row.document_number || ""}`,
-    `Data e dorezimit: ${formatDate(row.submitted_at || row.created_at)}`,
-    `Lloji i kerkeses: ${REQUEST_TYPES[row.request_type] || data.requestTypeLabel || ""}`,
-    "",
-    "Te dhenat automatike",
-  ];
-
-  addField(lines, "Profesori", auto.name);
-  addField(lines, "Email", auto.email);
-  addField(lines, "Fakulteti", auto.faculty);
-  addField(lines, "Departamenti", auto.department);
-  addField(lines, "Zyra", auto.office);
-  addField(lines, "ORCID iD", auto.orcidId || "Nuk eshte lidhur");
-  lines.push("");
-  lines.push("Detajet e kerkeses");
-
-  if (row.request_type === "publication") {
-    addField(lines, "DOI", data.doi);
-    addField(lines, "Titulli i publikimit", data.publicationTitle);
-    addField(lines, "Revista/Konferenca", data.journal);
-    addField(lines, "Botuesi", data.publisher);
-    addField(lines, "Viti", data.publicationYear);
-    addField(lines, "Tarifa e publikimit", data.publicationFee);
-  }
-
-  if (row.request_type === "conference") {
-    addField(lines, "Konferenca/Simpoziumi", data.conferenceTitle);
-    addField(lines, "Lokacioni", data.location);
-    addField(lines, "Data", data.conferenceDate);
-    addField(lines, "Lloji i pjesemarrjes", data.participationType);
-    addField(lines, "Kosto regjistrimi", data.registrationFee);
-    addField(lines, "Kosto udhetimi", data.travelCost);
-    addField(lines, "Kosto akomodimi", data.accommodationCost);
-  }
-
-  if (row.request_type === "project") {
-    addField(lines, "Titulli i projektit", data.projectTitle);
-    addField(lines, "Kodi/Thirrja", data.projectCode);
-    addField(lines, "Roli ne projekt", data.projectRole);
-    addField(lines, "Periudha", data.projectPeriod);
-    addField(lines, "Institucioni/Financuesi", data.fundingBody);
-    addField(lines, "Linja buxhetore", data.budgetLine);
-  }
-
-  addField(lines, "Shuma e kerkuar", row.amount ? `${row.amount} ${row.currency}` : "");
-  addField(lines, "Data e shpenzimit", data.expenseDate);
-  addField(lines, "Numri i fatures", data.invoiceNumber);
-  addField(lines, "IBAN / Llogaria bankare", data.iban);
-  addField(lines, "Link dokumentesh", data.attachmentUrl);
-  addField(lines, "Pershkrimi", data.purpose);
-  addField(lines, "Shenime", data.notes);
-
-  return lines.filter((line, index, allLines) => !(line === "" && allLines[index - 1] === ""));
-}
-
-function buildPdfBuffer(row) {
-  const lines = buildDocumentLines(row).slice(0, 42);
-  const content = [
-    "BT",
-    "/F1 16 Tf",
-    "50 790 Td",
-    `(${escapePdfText(lines[0] || "Kerkese per rimbursim")}) Tj`,
-    "/F1 10 Tf",
-    "0 -24 Td",
-    ...lines.slice(1).flatMap((line) => {
-      if (!line) {
-        return ["0 -12 Td"];
-      }
-
-      return [`(${escapePdfText(line)}) Tj`, "0 -16 Td"];
-    }),
-    "ET",
-  ].join("\n");
-
-  const stream = `<< /Length ${Buffer.byteLength(content, "ascii")} >>\nstream\n${content}\nendstream`;
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    stream,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets[index + 1] = Buffer.byteLength(pdf, "ascii");
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = Buffer.byteLength(pdf, "ascii");
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-
-  for (let index = 1; index <= objects.length; index += 1) {
-    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
-  }
-
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
-  pdf += `startxref\n${xrefOffset}\n%%EOF`;
-
-  return Buffer.from(pdf, "ascii");
+  return { buffer, filename };
 }
 
 router.get("/context", requireAuthenticatedUser, async (req, res) => {
@@ -385,11 +426,8 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
 router.get("/", requireAuthenticatedUser, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `select id, owner_id, title, amount, currency, status, request_type, request_data,
-              document_number, document_filename, submitted_at, created_at, updated_at
-       from reimbursements
-       where owner_id = $1
-       order by coalesce(submitted_at, created_at) desc`,
+      `${buildHistorySelect("where r.owner_id = $1")}
+       order by coalesce(r.submitted_at, r.created_at) desc`,
       [req.user.id]
     );
 
@@ -432,6 +470,8 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
   };
   const title = buildRequestTitle(requestType, requestData);
   const currency = normalizeCurrency(formData.currency);
+  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+  const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
   const client = await db.connect();
 
   try {
@@ -439,37 +479,48 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
 
     const insertResult = await client.query(
       `insert into reimbursements
-       (owner_id, title, amount, currency, status, request_type, request_data, submitted_at)
-       values ($1, $2, $3, $4, 'submitted', $5, $6::jsonb, now())
+       (owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data, submitted_at)
+       values ($1, $2, $3, $4, $5, $6, 'submitted', $7, $8::jsonb, now())
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
-                 document_number, document_filename, submitted_at, created_at, updated_at`,
-      [req.user.id, title, amount, currency, requestType, JSON.stringify(requestData)]
+                 document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
+      [req.user.id, publicationId, conferenceId, title, amount, currency, requestType, JSON.stringify(requestData)]
     );
 
     const inserted = insertResult.rows[0];
     const documentNumber = `RIM-${formatDocumentDate(inserted.submitted_at)}-${String(inserted.id).slice(0, 8).toUpperCase()}`;
-    const documentFilename = `${documentNumber}.pdf`;
-    const pdfBuffer = buildPdfBuffer({
-      ...inserted,
-      document_number: documentNumber,
-      document_filename: documentFilename,
-    });
+    const rowForDocuments = { ...inserted, document_number: documentNumber };
+    const filenames = getReimbursementDocumentFilenames(rowForDocuments);
+    const [pdfBuffer, docxBuffer] = await Promise.all([
+      buildReimbursementPdf(rowForDocuments),
+      buildReimbursementDocx(rowForDocuments),
+    ]);
 
     const updateResult = await client.query(
       `update reimbursements
        set document_number = $2,
            document_filename = $3,
-           generated_pdf = $4,
+           document_docx_filename = $4,
+           generated_pdf = $5,
+           generated_docx = $6,
            updated_at = now()
        where id = $1
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
-                 document_number, document_filename, submitted_at, created_at, updated_at`,
-      [inserted.id, documentNumber, documentFilename, pdfBuffer]
+                 document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
+      [inserted.id, documentNumber, filenames.pdf, filenames.docx, pdfBuffer, docxBuffer]
     );
+
+    await client.query(
+      `insert into reimbursement_status_history
+       (reimbursement_id, previous_status, status, actor_id, note)
+       values ($1, null, 'submitted', $2, $3)`,
+      [inserted.id, req.user.id, "Kerkesa u krijua dhe u dorezua."]
+    );
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(updateResult.rows[0].id, client);
 
     await client.query("commit");
 
-    res.status(201).json({ data: mapReimbursementRow(updateResult.rows[0]) });
+    res.status(201).json({ data: mapReimbursementRow(rowWithHistory) });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("POST /api/reimbursements failed:", error);
@@ -479,49 +530,143 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
   }
 });
 
-router.get("/:id/pdf", requireAuthenticatedUser, async (req, res) => {
+router.get("/:id/history", requireAuthenticatedUser, async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `select id, owner_id, title, amount, currency, status, request_type, request_data,
-              document_number, document_filename, generated_pdf, submitted_at, created_at
-       from reimbursements
-       where id = $1 and owner_id = $2
-       limit 1`,
-      [req.params.id, req.user.id]
-    );
+    const row = await selectReimbursementWithHistoryById(req.params.id);
 
-    if (rows.length === 0) {
+    if (!(await canAccessReimbursement(row, req.user))) {
       res.status(404).json({ error: "not_found" });
       return;
     }
 
-    const row = rows[0];
-    let pdfBuffer = row.generated_pdf;
-    let filename = row.document_filename;
+    res.json({ data: normalizeStatusHistory(row.status_history || []) });
+  } catch (error) {
+    console.error("GET /api/reimbursements/:id/history failed:", error);
+    res.status(500).json({ error: "history_failed" });
+  }
+});
 
-    if (!pdfBuffer) {
-      const documentNumber =
-        row.document_number || `RIM-${formatDocumentDate(row.submitted_at || row.created_at)}-${String(row.id).slice(0, 8).toUpperCase()}`;
-      filename = filename || `${documentNumber}.pdf`;
-      pdfBuffer = buildPdfBuffer({ ...row, document_number: documentNumber, document_filename: filename });
+router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
+  if (!canManageReimbursements(req.user)) {
+    res.status(403).json({ error: "forbidden", message: "Vetem komisioni, prorektori ose admini mund te ndryshoje statusin." });
+    return;
+  }
 
-      await db.query(
-        `update reimbursements
-         set document_number = coalesce(document_number, $2),
-             document_filename = coalesce(document_filename, $3),
-             generated_pdf = $4,
-             updated_at = now()
-         where id = $1`,
-        [row.id, documentNumber, filename, pdfBuffer]
-      );
+  const nextStatus = normalizeText(req.body?.status);
+  const note = normalizeText(req.body?.note);
+
+  if (!VALID_REIMBURSEMENT_STATUSES.has(nextStatus)) {
+    res.status(400).json({ error: "invalid_status" });
+    return;
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, status
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+
+    if (currentResult.rows.length === 0) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
     }
+
+    const current = currentResult.rows[0];
+
+    await client.query(
+      `update reimbursements
+       set status = $2,
+           updated_at = now()
+       where id = $1`,
+      [current.id, nextStatus]
+    );
+
+    await client.query(
+      `insert into reimbursement_status_history
+       (reimbursement_id, previous_status, status, actor_id, note)
+       values ($1, $2, $3, $4, $5)`,
+      [current.id, current.status, nextStatus, req.user.id, note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`]
+    );
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+
+    await client.query("commit");
+
+    res.json({ data: mapReimbursementRow(rowWithHistory) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/reimbursements/:id/status failed:", error);
+    res.status(500).json({ error: "status_update_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.get("/:id/pdf", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `select id, owner_id, title, amount, currency, status, request_type, request_data,
+              document_number, document_filename, document_docx_filename, generated_pdf,
+              submitted_at, created_at
+       from reimbursements
+       where id = $1
+       limit 1`,
+      [req.params.id]
+    );
+
+    const row = rows[0] || null;
+
+    if (!(await canAccessReimbursement(row, req.user))) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    const { buffer, filename } = await ensureGeneratedDocument(row, "pdf");
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename || "rimbursim.pdf"}"`);
-    res.send(Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer));
+    res.send(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer));
   } catch (error) {
     console.error("GET /api/reimbursements/:id/pdf failed:", error);
     res.status(500).json({ error: "pdf_failed" });
+  }
+});
+
+router.get("/:id/docx", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `select id, owner_id, title, amount, currency, status, request_type, request_data,
+              document_number, document_filename, document_docx_filename, generated_docx,
+              submitted_at, created_at
+       from reimbursements
+       where id = $1
+       limit 1`,
+      [req.params.id]
+    );
+
+    const row = rows[0] || null;
+
+    if (!(await canAccessReimbursement(row, req.user))) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    const { buffer, filename } = await ensureGeneratedDocument(row, "docx");
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename || "rimbursim.docx"}"`);
+    res.send(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer));
+  } catch (error) {
+    console.error("GET /api/reimbursements/:id/docx failed:", error);
+    res.status(500).json({ error: "docx_failed" });
   }
 });
 

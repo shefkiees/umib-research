@@ -1615,6 +1615,73 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-subsection {
+  border: 1px solid #dce7f2;
+  border-radius: 10px;
+  background: #f9fbfe;
+  padding: 10px;
+}
+
+.reimbursement-subsection-head,
+.reimbursement-team-head,
+.reimbursement-message-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reimbursement-subsection-head {
+  margin-bottom: 9px;
+  color: #17324f;
+}
+
+.reimbursement-subsection-head strong,
+.reimbursement-team-head strong {
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.reimbursement-subsection-head button,
+.reimbursement-team-head button {
+  border: 1px solid #cbd8e8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #174a7b;
+  min-height: 30px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.reimbursement-subsection-head button:hover,
+.reimbursement-team-head button:hover {
+  border-color: #1d67aa;
+  background: #eef7ff;
+}
+
+.reimbursement-team-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.reimbursement-team-card {
+  border: 1px solid #e4edf6;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.reimbursement-team-head {
+  margin-bottom: 8px;
+  color: #17324f;
+}
+
 .reimbursement-inline-control {
   display: flex;
   gap: 8px;
@@ -1707,6 +1774,11 @@ body {
   border: 1px solid #bbebcc;
 }
 
+.reimbursement-message-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .reimbursement-actions {
   display: flex;
   justify-content: flex-end;
@@ -1743,12 +1815,18 @@ body {
   font-size: 0.84rem;
 }
 
+.reimbursement-history-line {
+  color: #64748b;
+  margin-top: 3px;
+}
+
 .reimbursement-download-btn {
   min-height: 32px;
   padding: 0 10px;
 }
 
 .status-badge.submitted,
+.status-badge.received,
 .status-badge.ne-proces,
 .status-badge.ne-shqyrtim,
 .status-badge.in_review {

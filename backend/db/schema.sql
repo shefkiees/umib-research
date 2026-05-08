@@ -166,7 +166,7 @@ create table if not exists reimbursements (
   amount numeric(12, 2),
   currency text not null default 'EUR',
   status text not null default 'draft'
-    check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'paid')),
+    check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -178,11 +178,51 @@ alter table reimbursements add column if not exists request_type text not null d
 alter table reimbursements add column if not exists request_data jsonb not null default '{}'::jsonb;
 alter table reimbursements add column if not exists document_number text;
 alter table reimbursements add column if not exists document_filename text;
+alter table reimbursements add column if not exists document_docx_filename text;
 alter table reimbursements add column if not exists generated_pdf bytea;
+alter table reimbursements add column if not exists generated_docx bytea;
 alter table reimbursements add column if not exists submitted_at timestamptz;
+
+alter table reimbursements drop constraint if exists reimbursements_status_check;
+alter table reimbursements add constraint reimbursements_status_check
+check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid'));
 
 create index if not exists reimbursements_request_type_idx
 on reimbursements (request_type);
+
+create table if not exists reimbursement_status_history (
+  id uuid primary key default gen_random_uuid(),
+  reimbursement_id uuid not null references reimbursements(id) on delete cascade,
+  previous_status text
+    check (previous_status is null or previous_status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
+  status text not null
+    check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
+  actor_id uuid references users(id) on delete set null,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reimbursement_status_history_reimbursement_idx
+on reimbursement_status_history (reimbursement_id, created_at);
+
+create index if not exists reimbursement_status_history_actor_idx
+on reimbursement_status_history (actor_id);
+
+insert into reimbursement_status_history
+  (reimbursement_id, previous_status, status, actor_id, note, created_at)
+select
+  r.id,
+  null,
+  r.status,
+  r.owner_id,
+  'Statusi fillestar u regjistrua nga skema.',
+  coalesce(r.submitted_at, r.created_at, now())
+from reimbursements r
+where not exists (
+  select 1
+  from reimbursement_status_history h
+  where h.reimbursement_id = r.id
+);
 
 drop trigger if exists reimbursements_set_updated_at on reimbursements;
 create trigger reimbursements_set_updated_at
@@ -235,6 +275,7 @@ alter table conferences enable row level security;
 alter table publication_metadata enable row level security;
 alter table publications enable row level security;
 alter table reimbursements enable row level security;
+alter table reimbursement_status_history enable row level security;
 alter table approval_events enable row level security;
 alter table notifications enable row level security;
 alter table audit_logs enable row level security;
