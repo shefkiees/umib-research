@@ -126,15 +126,15 @@ export default function TopBar({
                           <span className="prof-notification-tag">{item.category || "Njoftim"}</span>
                           <span>{item.createdAt}</span>
                         </div>
-                        <p className="prof-notification-title">{item.title || item.text}</p>
-                        <p className="prof-notification-description">{item.description || item.text}</p>
+                        <p className="prof-notification-title">{item.title}</p>
+                        <p className="prof-notification-description">{item.message}</p>
                       </button>
                     </li>
                   ))
                 ) : (
                   <li>
                     <button type="button" disabled>
-                      <p className="prof-notification-title">No data available yet.</p>
+                      <p className="prof-notification-title">No notifications available yet.</p>
                     </button>
                   </li>
                 )}

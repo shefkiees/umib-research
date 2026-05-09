@@ -124,6 +124,16 @@ const mapPublicationRow = (row = {}) => ({
   createdAt: row.createdAt || row.created_at || null,
 });
 
+const mapNotificationRow = (row = {}) => ({
+  id: row.id,
+  userId: row.user_id || row.userId || null,
+  title: row.title || "",
+  message: row.message || "",
+  category: row.category || "",
+  isRead: Boolean(row.is_read ?? row.isRead),
+  createdAt: formatDate(row.created_at || row.createdAt),
+});
+
 const normalizeStatisticsPayload = (payload = {}) => ({
   ...DEFAULT_PROFESSOR_STATISTICS,
   ...payload,
@@ -221,7 +231,10 @@ export default function ProfessorDashboard() {
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [hasAuthenticatedSession, setHasAuthenticatedSession] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -247,6 +260,7 @@ export default function ProfessorDashboard() {
         if (isMounted) {
           setProfile(nextProfile);
           setProfileDraft(nextProfile);
+          setHasAuthenticatedSession(true);
         }
       } catch (error) {
         console.error("Profile load failed:", error);
@@ -259,6 +273,52 @@ export default function ProfessorDashboard() {
       isMounted = false;
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (!hasAuthenticatedSession) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      setIsNotificationsLoading(true);
+      setNotificationsError("");
+
+      try {
+        const response = await fetch(apiUrl("/notifications"), {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("notifications_load_failed");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setNotifications(Array.isArray(data) ? data.map(mapNotificationRow) : []);
+        }
+      } catch (error) {
+        console.error("Notifications load failed:", error);
+
+        if (isMounted) {
+          setNotifications([]);
+          setNotificationsError("Notifications could not be loaded. Please try again.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsNotificationsLoading(false);
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasAuthenticatedSession]);
 
   useEffect(() => {
     let isMounted = true;
@@ -362,7 +422,7 @@ export default function ProfessorDashboard() {
 
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const unreadNotifications = statisticsData.summary.unreadNotifications;
+  const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
   const filteredPublications = useMemo(() => {
     if (!normalizedQuery) {
@@ -530,12 +590,59 @@ export default function ProfessorDashboard() {
     }
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+  const markAllNotificationsAsRead = async () => {
+    if (unreadNotifications === 0 || notifications.length === 0) {
+      return;
+    }
+
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl("/notifications/read-all"), {
+        method: "PATCH",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("notifications_read_all_failed");
+      }
+
+      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    } catch (error) {
+      console.error("Mark all notifications as read failed:", error);
+      setNotificationsError("Notifications could not be marked as read. Please try again.");
+    }
   };
 
-  const markNotificationAsRead = (id) => {
-    setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
+  const markNotificationAsRead = async (id) => {
+    const notification = notifications.find((item) => item.id === id);
+
+    if (!notification || notification.isRead) {
+      return;
+    }
+
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/notifications/${id}/read`), {
+        method: "PATCH",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("notification_read_failed");
+      }
+
+      const data = await response.json();
+      const updatedNotification = mapNotificationRow(data);
+
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...updatedNotification, isRead: true } : item))
+      );
+    } catch (error) {
+      console.error("Mark notification as read failed:", error);
+      setNotificationsError("Notification could not be marked as read. Please try again.");
+    }
   };
 
   const renderStatus = (value) => {
@@ -1007,7 +1114,14 @@ export default function ProfessorDashboard() {
               </button>
             </div>
             <div className="prof-notification-list">
-              {notifications.length ? (
+              {notificationsError ? (
+                <div className="prof-stats-empty" role="alert">{notificationsError}</div>
+              ) : isNotificationsLoading ? (
+                <div className="prof-stats-empty">
+                  <RefreshCw size={18} className="prof-stats-spin" />
+                  Loading notifications...
+                </div>
+              ) : notifications.length ? (
                 notifications.map((item) => (
                   <button
                     key={item.id}
@@ -1019,12 +1133,12 @@ export default function ProfessorDashboard() {
                       <span className="prof-notification-pill">{item.category || "Njoftim"}</span>
                       <span>{item.createdAt}</span>
                     </div>
-                    <h4>{item.title || item.text}</h4>
-                    <p>{item.description || item.text}</p>
+                    <h4>{item.title}</h4>
+                    <p>{item.message}</p>
                   </button>
                 ))
               ) : (
-                <div className="prof-stats-empty">No data available yet.</div>
+                <div className="prof-stats-empty">No notifications available yet.</div>
               )}
             </div>
           </article>

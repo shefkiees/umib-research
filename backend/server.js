@@ -13,6 +13,7 @@ import orcidRoutes from "./routes/orcid.routes.js";
 import reimbursementRoutes from "./routes/reimbursements.js";
 import publicationRoutes from "./routes/publications.js";
 import professorStatsRoutes from "./routes/professorStats.js";
+import notificationRoutes from "./routes/notifications.js";
 
 const app = express();
 
@@ -78,6 +79,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/doi", doiRoutes);
 app.use("/api/publications", publicationRoutes);
 app.use("/api/professor", professorStatsRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 
 app.use("/api/orcid", orcidRoutes);
