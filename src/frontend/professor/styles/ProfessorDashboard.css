@@ -1673,6 +1673,13 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-field input.reimbursement-autofill-input {
+  border-color: #bfe8cd;
+  background: #ecfdf3;
+  color: #167244;
+  font-weight: 800;
+}
+
 .reimbursement-helper {
   color: #64748b;
   font-size: 0.72rem;

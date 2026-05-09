@@ -60,16 +60,16 @@ const ROLE_ALIASES = {
 };
 
 const KOSOVO_BANKS = [
-  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA"] },
-  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO"] },
-  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO"] },
-  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK"] },
-  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301"] },
-  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX"] },
-  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB"] },
-  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK"] },
-  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA"] },
-  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM"] },
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA", "1701", "17"] },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO", "1101", "11"] },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO", "1212", "1201", "12"] },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK", "1501", "15"] },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301", "13"] },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX", "1601", "16"] },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB", "1801", "18"] },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK", "1901", "19"] },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA", "2101", "21"] },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM", "1401", "14"] },
 ];
 
 const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
@@ -222,17 +222,44 @@ function isValidIban(value) {
   return ibanMod97(iban) === 1;
 }
 
-function detectKosovoBankFromIban(value) {
-  const iban = normalizeIban(value);
+function getBankIdentifiersFromAccount(value) {
+  const account = normalizeIban(value);
 
-  if (!iban.startsWith("XK") || iban.length < 8) {
+  if (!account) {
+    return [];
+  }
+
+  const identifiers = new Set();
+
+  if (account.startsWith("XK")) {
+    identifiers.add(account.slice(4, 8));
+    identifiers.add(account.slice(4, 6));
+  } else {
+    const digits = account.replace(/\D/g, "");
+
+    if (digits.length >= 4) {
+      identifiers.add(digits.slice(0, 4));
+    }
+
+    if (digits.length >= 2) {
+      identifiers.add(digits.slice(0, 2));
+    }
+  }
+
+  identifiers.add(account.slice(0, 4));
+  identifiers.add(account.slice(0, 2));
+
+  return Array.from(identifiers).filter(Boolean);
+}
+
+function detectKosovoBankFromIban(value) {
+  const identifiers = getBankIdentifiersFromAccount(value);
+
+  if (!identifiers.length) {
     return null;
   }
 
-  const code4 = iban.slice(4, 8);
-  const code2 = iban.slice(4, 6);
-
-  return KOSOVO_BANKS.find((bank) => bank.ibanCodes.includes(code4) || bank.ibanCodes.includes(code2)) || null;
+  return KOSOVO_BANKS.find((bank) => identifiers.some((code) => bank.ibanCodes.includes(code))) || null;
 }
 
 function isValidSwift(value) {
@@ -242,6 +269,9 @@ function isValidSwift(value) {
 
 function normalizeBankingData(formData, amount, currency) {
   const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber);
+  const detectedBankCode = detectedBank
+    ? getBankIdentifiersFromAccount(formData.bankAccountNumber).find((code) => detectedBank.ibanCodes.includes(code)) || ""
+    : "";
   const bankName = normalizeText(formData.bankName) === "Tjeter"
     ? normalizeText(formData.bankNameOther)
     : normalizeText(formData.bankName);
@@ -261,7 +291,7 @@ function normalizeBankingData(formData, amount, currency) {
     documentLink: normalizeText(formData.attachmentUrl),
     description: normalizeText(formData.purpose),
     notes: normalizeText(formData.notes),
-    detectedBankCode: detectedBank ? normalizeIban(formData.bankAccountNumber).slice(4, 8) : "",
+    detectedBankCode,
     bankDetectedAutomatically: Boolean(detectedBank),
   };
 }
@@ -615,8 +645,16 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
     ? normalizeText(formData.bankNameOther)
     : normalizeText(formData.bankName);
 
+  if (detectedBank) {
+    for (let index = errors.length - 1; index >= 0; index -= 1) {
+      if (errors[index].field === "bankName" || errors[index].field === "swiftCode") {
+        errors.splice(index, 1);
+      }
+    }
+  }
+
   if (!(detectedBank?.name || bankName)) {
-    errors.push({ field: "bankName", message: "Zgjidh ose shkruaj banken." });
+    errors.push({ field: "bankName", message: "Banka nuk u identifikua nga IBAN/numri i llogarise." });
   }
 
   if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
