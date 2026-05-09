@@ -60,16 +60,16 @@ const ROLE_ALIASES = {
 };
 
 const KOSOVO_BANKS = [
-  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA", "1701", "17"] },
-  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO", "1101", "11"] },
-  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO", "1212", "1201", "12"] },
-  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK", "1501", "15"] },
-  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301", "13"] },
-  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX", "1601", "16"] },
-  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB", "1801", "18"] },
-  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK", "1901", "19"] },
-  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA", "2101", "21"] },
-  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM", "1401", "14"] },
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["1701", "17"] },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["1101", "11"] },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["1503", "1212", "1201", "12"] },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["1501", "15"] },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["1301", "13"] },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["1601", "16"] },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["1801", "18"] },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["1901", "19"] },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["2101", "21"] },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"] },
 ];
 
 const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
@@ -222,34 +222,41 @@ function isValidIban(value) {
   return ibanMod97(iban) === 1;
 }
 
+function isKosovoIban(value) {
+  return normalizeIban(value).startsWith("XK");
+}
+
+function isValidKosovoIban(value) {
+  const iban = normalizeIban(value);
+  return iban.startsWith("XK") && isValidIban(iban);
+}
+
+function isValidLocalAccountNumber(value) {
+  return /^\d{8,24}$/.test(normalizeIban(value));
+}
+
+function isValidBankAccountIdentifier(value) {
+  const account = normalizeIban(value);
+
+  if (isKosovoIban(account)) {
+    return isValidKosovoIban(account);
+  }
+
+  return isValidLocalAccountNumber(account);
+}
+
 function getBankIdentifiersFromAccount(value) {
   const account = normalizeIban(value);
 
-  if (!account) {
+  if (isValidKosovoIban(account)) {
+    return [account.slice(4, 8), account.slice(4, 6)].filter(Boolean);
+  }
+
+  if (!/^\d{4,24}$/.test(account)) {
     return [];
   }
 
-  const identifiers = new Set();
-
-  if (account.startsWith("XK")) {
-    identifiers.add(account.slice(4, 8));
-    identifiers.add(account.slice(4, 6));
-  } else {
-    const digits = account.replace(/\D/g, "");
-
-    if (digits.length >= 4) {
-      identifiers.add(digits.slice(0, 4));
-    }
-
-    if (digits.length >= 2) {
-      identifiers.add(digits.slice(0, 2));
-    }
-  }
-
-  identifiers.add(account.slice(0, 4));
-  identifiers.add(account.slice(0, 2));
-
-  return Array.from(identifiers).filter(Boolean);
+  return [account.slice(0, 4), account.slice(0, 2)].filter(Boolean);
 }
 
 function detectKosovoBankFromIban(value) {
@@ -276,15 +283,16 @@ function normalizeBankingData(formData, amount, currency) {
     ? normalizeText(formData.bankNameOther)
     : normalizeText(formData.bankName);
   const swift = normalizeText(formData.swiftCode).toUpperCase();
+  const bankSelectionSource = normalizeText(formData.bankSelectionSource);
 
   return {
     amount,
     currency,
     amountInWords: normalizeText(formData.amountWords),
     applicantName: normalizeText(formData.bankApplicantName),
-    bankName: detectedBank?.name || bankName,
+    bankName: bankName || detectedBank?.name || "",
     iban: normalizeIban(formData.bankAccountNumber || formData.iban),
-    swift: detectedBank?.swift || swift,
+    swift: swift || detectedBank?.swift || "",
     country: normalizeText(formData.bankCountry),
     invoiceNumber: normalizeText(formData.invoiceNumber),
     expenseDate: normalizeText(formData.expenseDate),
@@ -292,7 +300,7 @@ function normalizeBankingData(formData, amount, currency) {
     description: normalizeText(formData.purpose),
     notes: normalizeText(formData.notes),
     detectedBankCode,
-    bankDetectedAutomatically: Boolean(detectedBank),
+    bankDetectedAutomatically: Boolean(detectedBank && bankSelectionSource !== "manual" && (!bankName || bankName === detectedBank.name)),
   };
 }
 
@@ -633,31 +641,14 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
     errors.push({ field: "amount", message: "Shuma e kerkuar duhet te jete numer pozitiv." });
   }
 
-  if (!isValidIban(formData.bankAccountNumber || formData.iban)) {
+  if (!isValidBankAccountIdentifier(formData.bankAccountNumber || formData.iban)) {
     errors.push({
       field: "bankAccountNumber",
-      message: "IBAN nuk eshte valid. Kontrollo numrin e llogarise bankare.",
+      message: "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.",
     });
   }
 
-  const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber || formData.iban);
-  const bankName = normalizeText(formData.bankName) === "Tjeter"
-    ? normalizeText(formData.bankNameOther)
-    : normalizeText(formData.bankName);
-
-  if (detectedBank) {
-    for (let index = errors.length - 1; index >= 0; index -= 1) {
-      if (errors[index].field === "bankName" || errors[index].field === "swiftCode") {
-        errors.splice(index, 1);
-      }
-    }
-  }
-
-  if (!(detectedBank?.name || bankName)) {
-    errors.push({ field: "bankName", message: "Banka nuk u identifikua nga IBAN/numri i llogarise." });
-  }
-
-  if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
+  if (!isValidSwift(formData.swiftCode)) {
     errors.push({ field: "swiftCode", message: "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide." });
   }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
+import { Download, FileText, Landmark, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 
 const REQUEST_TYPES = [
@@ -85,17 +85,18 @@ const ALLOWED_ATTACHMENT_TYPES = [
 ];
 
 const KOSOVO_BANKS = [
-  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA", "1701", "17"] },
-  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO", "1101", "11"] },
-  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO", "1212", "1201", "12"] },
-  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK", "1501", "15"] },
-  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301", "13"] },
-  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX", "1601", "16"] },
-  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB", "1801", "18"] },
-  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK", "1901", "19"] },
-  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA", "2101", "21"] },
-  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM", "1401", "14"] },
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["1701", "17"], logoLabel: "BKT", logoTone: "bkt" },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["1101", "11"], logoLabel: "PCB", logoTone: "procredit" },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["1503", "1212", "1201", "12"], logoLabel: "RB", logoTone: "raiffeisen" },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["1501", "15"], logoLabel: "TEB", logoTone: "teb" },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["1301", "13"], logoLabel: "NLB", logoTone: "nlb" },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["1601", "16"], logoLabel: "BPB", logoTone: "bpb" },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["1801", "18"], logoLabel: "ZB", logoTone: "ziraat" },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["1901", "19"], logoLabel: "IS", logoTone: "isbank" },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["2101", "21"], logoLabel: "PB", logoTone: "pribank" },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"], logoLabel: "EB", logoTone: "economic" },
 ];
+const BANK_OPTIONS = ["", ...KOSOVO_BANKS.map((bank) => bank.name)];
 
 const FORM_STEPS = [
   { id: "basic", label: "Te dhenat baze" },
@@ -140,6 +141,7 @@ const DEFAULT_FORM_VALUES = {
   bankNameOther: "",
   detectedBankCode: "",
   bankDetectedAutomatically: false,
+  bankSelectionSource: "",
   bankAccountNumber: "",
   swiftCode: "",
   bankCountry: "Kosove",
@@ -336,37 +338,44 @@ function isValidIban(value) {
   return ibanMod97(iban) === 1;
 }
 
+function isKosovoIban(value) {
+  return normalizeIban(value).startsWith("XK");
+}
+
+function isValidKosovoIban(value) {
+  const iban = normalizeIban(value);
+  return iban.startsWith("XK") && isValidIban(iban);
+}
+
+function isValidLocalAccountNumber(value) {
+  return /^\d{8,24}$/.test(normalizeIban(value));
+}
+
+function isValidBankAccountIdentifier(value) {
+  const account = normalizeIban(value);
+
+  if (isKosovoIban(account)) {
+    return isValidKosovoIban(account);
+  }
+
+  return isValidLocalAccountNumber(account);
+}
+
 function getBankIdentifiersFromAccount(value) {
   const account = normalizeIban(value);
 
-  if (!account) {
+  if (isValidKosovoIban(account)) {
+    return [account.slice(4, 8), account.slice(4, 6)].filter(Boolean);
+  }
+
+  if (!/^\d{4,24}$/.test(account)) {
     return [];
   }
 
-  const identifiers = new Set();
-
-  if (account.startsWith("XK")) {
-    identifiers.add(account.slice(4, 8));
-    identifiers.add(account.slice(4, 6));
-  } else {
-    const digits = account.replace(/\D/g, "");
-
-    if (digits.length >= 4) {
-      identifiers.add(digits.slice(0, 4));
-    }
-
-    if (digits.length >= 2) {
-      identifiers.add(digits.slice(0, 2));
-    }
-  }
-
-  identifiers.add(account.slice(0, 4));
-  identifiers.add(account.slice(0, 2));
-
-  return Array.from(identifiers).filter(Boolean);
+  return [account.slice(0, 4), account.slice(0, 2)].filter(Boolean);
 }
 
-function detectKosovoBankFromIban(value) {
+function detectKosovoBankFromAccount(value) {
   const identifiers = getBankIdentifiersFromAccount(value);
 
   if (!identifiers.length) {
@@ -374,6 +383,10 @@ function detectKosovoBankFromIban(value) {
   }
 
   return KOSOVO_BANKS.find((bank) => identifiers.some((code) => bank.ibanCodes.includes(code))) || null;
+}
+
+function getBankByName(name) {
+  return KOSOVO_BANKS.find((bank) => bank.name === name) || null;
 }
 
 function isValidSwift(value) {
@@ -485,9 +498,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   );
 
   const selectedTypeConfig = REQUEST_TYPES.find((item) => item.id === selectedType) || REQUEST_TYPES[0];
-  const normalizedIban = useMemo(() => normalizeIban(form.bankAccountNumber || form.iban), [form.bankAccountNumber, form.iban]);
-  const isIbanValid = useMemo(() => isValidIban(normalizedIban), [normalizedIban]);
-  const detectedBank = useMemo(() => detectKosovoBankFromIban(normalizedIban), [normalizedIban]);
+  const normalizedAccount = useMemo(() => normalizeIban(form.bankAccountNumber || form.iban), [form.bankAccountNumber, form.iban]);
+  const isAccountNumberValid = useMemo(() => isValidBankAccountIdentifier(normalizedAccount), [normalizedAccount]);
+  const detectedBank = useMemo(() => detectKosovoBankFromAccount(normalizedAccount), [normalizedAccount]);
+  const selectedBank = useMemo(() => getBankByName(form.bankName), [form.bankName]);
+  const visualBank = selectedBank || detectedBank;
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
   const stepStates = useMemo(() => {
     const academicMainField = selectedType === "conference"
@@ -501,11 +516,12 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       academic: hasValue(form[academicMainField]),
       financial:
         Number(String(form.amount || "").replace(",", ".")) > 0
-        && isIbanValid
-        && Boolean(detectedBank),
+        && isAccountNumberValid
+        && hasValue(form.bankName)
+        && isValidSwift(form.swiftCode),
       documents: selectedFiles.length > 0 || hasValue(form.attachmentUrl),
     };
-  }, [detectedBank, form, isIbanValid, selectedFiles.length, selectedType]);
+  }, [form, isAccountNumberValid, selectedFiles.length, selectedType]);
 
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
@@ -641,37 +657,44 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   useEffect(() => {
     setForm((prev) => {
-      if (!normalizedIban) {
-        return prev.bankName || prev.swiftCode || prev.bankDetectedAutomatically || prev.detectedBankCode
+      if (prev.bankSelectionSource === "manual") {
+        return prev;
+      }
+
+      if (!normalizedAccount) {
+        return prev.bankDetectedAutomatically || prev.detectedBankCode
           ? {
               ...prev,
-              bankName: "",
-              swiftCode: "",
+              bankName: prev.bankSelectionSource === "auto" ? "" : prev.bankName,
+              swiftCode: prev.bankSelectionSource === "auto" ? "" : prev.swiftCode,
               detectedBankCode: "",
               bankDetectedAutomatically: false,
+              bankSelectionSource: "",
             }
           : prev;
       }
 
       if (!detectedBank) {
-        return prev.bankDetectedAutomatically || prev.bankName || prev.swiftCode || prev.detectedBankCode
+        return prev.bankDetectedAutomatically || prev.detectedBankCode
           ? {
               ...prev,
-              bankName: "",
-              swiftCode: "",
+              bankName: prev.bankSelectionSource === "auto" ? "" : prev.bankName,
+              swiftCode: prev.bankSelectionSource === "auto" ? "" : prev.swiftCode,
               detectedBankCode: "",
               bankDetectedAutomatically: false,
+              bankSelectionSource: "",
             }
           : prev;
       }
 
-      const detectedCode = getBankIdentifiersFromAccount(normalizedIban).find((code) => detectedBank.ibanCodes.includes(code)) || "";
+      const detectedCode = getBankIdentifiersFromAccount(normalizedAccount).find((code) => detectedBank.ibanCodes.includes(code)) || "";
 
       if (
         prev.bankName === detectedBank.name
         && prev.swiftCode === detectedBank.swift
         && prev.detectedBankCode === detectedCode
         && prev.bankDetectedAutomatically
+        && prev.bankSelectionSource === "auto"
       ) {
         return prev;
       }
@@ -682,15 +705,22 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         swiftCode: detectedBank.swift || prev.swiftCode,
         detectedBankCode: detectedCode,
         bankDetectedAutomatically: true,
+        bankSelectionSource: "auto",
       };
     });
-    setFieldErrors((prev) => ({
-      ...prev,
-      bankName: "",
-      bankAccountNumber: "",
-      swiftCode: "",
-    }));
-  }, [detectedBank, normalizedIban]);
+    setFieldErrors((prev) => {
+      if (!prev.bankName && !prev.bankAccountNumber && !prev.swiftCode) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        bankName: detectedBank ? "" : prev.bankName,
+        bankAccountNumber: "",
+        swiftCode: detectedBank ? "" : prev.swiftCode,
+      };
+    });
+  }, [detectedBank, normalizedAccount]);
 
   const handleFieldChange = (field) => (event) => {
     const nextValue = event.target.value;
@@ -705,6 +735,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
       if (field === "swiftCode") {
         nextForm.swiftCode = nextValue.toUpperCase();
+      }
+
+      if (field === "bankName") {
+        const selectedBank = getBankByName(nextValue);
+        nextForm.bankSelectionSource = nextValue ? "manual" : "";
+        nextForm.bankDetectedAutomatically = false;
+        nextForm.detectedBankCode = "";
+        nextForm.swiftCode = selectedBank?.swift || "";
       }
 
       return nextForm;
@@ -839,20 +877,21 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       nextErrors.amount = "Shuma e kerkuar duhet te jete numer pozitiv.";
     }
 
-    if (!isValidIban(form.bankAccountNumber || form.iban)) {
+    const submittedAccount = form.bankAccountNumber || form.iban;
+
+    if (submittedAccount && !isValidBankAccountIdentifier(submittedAccount)) {
       nextErrors.bankAccountNumber = "IBAN nuk është valid. Kontrollo numrin e llogarisë bankare.";
     }
 
-    const submittedDetectedBank = detectKosovoBankFromIban(form.bankAccountNumber || form.iban);
-
-    if (submittedDetectedBank) {
-      delete nextErrors.bankName;
-      delete nextErrors.swiftCode;
-    } else {
-      nextErrors.bankName = "Banka nuk u identifikua nga IBAN/numri i llogarise. Kontrollo numrin.";
+    if (submittedAccount && nextErrors.bankAccountNumber) {
+      nextErrors.bankAccountNumber = "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.";
     }
 
-    if (!isValidSwift(submittedDetectedBank?.swift || form.swiftCode)) {
+    if (!hasValue(form.bankName)) {
+      nextErrors.bankName = "Zgjidh banken.";
+    }
+
+    if (!isValidSwift(form.swiftCode)) {
       nextErrors.swiftCode = "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide.";
     }
 
@@ -1376,34 +1415,45 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           <input
             value={form.bankAccountNumber}
             onChange={handleFieldChange("bankAccountNumber")}
-            placeholder="XK..."
+            placeholder="Numri vendor ose XK..."
             autoComplete="off"
           />
-          <small className="reimbursement-helper">Hapesirat hiqen automatikisht. Kontrollohet formati dhe checksum Mod 97.</small>
-          {isIbanValid ? <span className="reimbursement-valid-badge">IBAN valid</span> : null}
-          {detectedBank ? <span className="reimbursement-valid-badge muted">Banka u identifikua automatikisht</span> : null}
           {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
         </label>
 
         <label className="reimbursement-field">
           <span>Emri i bankes</span>
-          <input
+          <select
             value={form.bankName}
-            readOnly
-            placeholder="Plotesohet automatikisht nga IBAN"
-            className={detectedBank ? "reimbursement-autofill-input" : ""}
-          />
-          <small className="reimbursement-helper">
-            Banka identifikohet nga kodi bankar i IBAN-it ose nga fillimi i numrit vendor te llogarise.
-          </small>
+            onChange={handleFieldChange("bankName")}
+            className={form.bankSelectionSource === "auto" ? "reimbursement-autofill-input" : ""}
+          >
+            {BANK_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option || "Zgjidh banken"}
+              </option>
+            ))}
+          </select>
           {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
         </label>
 
         <label className="reimbursement-field">
           <span>SWIFT/BIC kodi</span>
-          <input value={form.swiftCode} readOnly placeholder="Plotesohet automatikisht" />
+          <input value={form.swiftCode} onChange={handleFieldChange("swiftCode")} placeholder="RBKOXKPR" />
           {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{fieldErrors.swiftCode}</small> : null}
         </label>
+
+        {visualBank ? (
+          <div className="reimbursement-detected-bank" aria-live="polite">
+            <span className="reimbursement-bank-logo" data-tone={visualBank.logoTone || "default"}>
+              {visualBank.logoLabel || <Landmark size={18} />}
+            </span>
+            <span>
+              <strong>{visualBank.name}</strong>
+              <small>{visualBank.swift}</small>
+            </span>
+          </div>
+        ) : null}
 
         {renderInput("Vendi", "bankCountry")}
         {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}

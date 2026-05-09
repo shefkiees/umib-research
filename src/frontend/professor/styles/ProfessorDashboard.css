@@ -1673,7 +1673,8 @@ body {
   background: #eef2f7;
 }
 
-.reimbursement-field input.reimbursement-autofill-input {
+.reimbursement-field input.reimbursement-autofill-input,
+.reimbursement-field select.reimbursement-autofill-input {
   border-color: #bfe8cd;
   background: #ecfdf3;
   color: #167244;
@@ -1724,6 +1725,101 @@ body {
   border-color: #b8d2ff;
   background: #eaf2ff;
   color: #1d4ed8;
+}
+
+.reimbursement-detected-bank {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid #d7e6f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #18324a;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.reimbursement-detected-bank strong,
+.reimbursement-detected-bank small {
+  display: block;
+}
+
+.reimbursement-detected-bank strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.reimbursement-detected-bank small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.reimbursement-bank-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #edf6ff;
+  color: #2563eb;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.reimbursement-bank-logo[data-tone="raiffeisen"] {
+  background: #ffe600;
+  color: #111827;
+}
+
+.reimbursement-bank-logo[data-tone="teb"] {
+  background: #0f8f57;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="economic"] {
+  background: #174ea6;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="procredit"] {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="bkt"] {
+  background: #d71920;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="nlb"] {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="bpb"] {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="ziraat"] {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="isbank"] {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.reimbursement-bank-logo[data-tone="pribank"] {
+  background: #7c3aed;
+  color: #ffffff;
 }
 
 .reimbursement-subsection {
