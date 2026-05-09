@@ -15,6 +15,8 @@ import "../styles/CommitteeDashboard.css";
 import CommitteeSidebar from "../components/CommitteeSidebar";
 import CommitteeTopBar from "../components/CommitteeTopBar";
 import CommitteeSettings from "./CommitteeSettings";
+import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
+import { apiUrl } from "../../utils/api";
 
 const facultyStatistics = [
   { faculty: "FG", label: "Fakulteti i Gjeoshkencave", department: "Fakulteti i Gjeoshkencave", publikime: 22, projekte: 8, rimbursime: 6 },
@@ -35,12 +37,6 @@ const conferenceRows = [
   { id: "CF-032", event: "IEEE BalkanCom", unit: "FIMC", status: "Konfirmuar" },
   { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
   { id: "CF-018", event: "Legal Innovation Summit", unit: "FJ", status: "Konfirmuar" },
-];
-
-const reimbursementRows = [
-  { id: "RB-012", request: "Article Processing Charge", unit: "FE", status: "Procesuar" },
-  { id: "RB-009", request: "Conference Travel", unit: "FTU", status: "Ne verifikim" },
-  { id: "RB-006", request: "Research Equipment", unit: "FIMC", status: "Procesuar" },
 ];
 
 const navLabels = ["Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
@@ -125,16 +121,6 @@ export default function CommitteeDashboard() {
     );
   }, [normalizedQuery]);
 
-  const filteredReimbursements = useMemo(() => {
-    if (!normalizedQuery) {
-      return reimbursementRows;
-    }
-
-    return reimbursementRows.filter((item) =>
-      `${item.id} ${item.request} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
-
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
   const markAllNotificationsAsRead = () => {
@@ -172,9 +158,14 @@ export default function CommitteeDashboard() {
     }
 
     if (normalizedAction === "logout") {
-      localStorage.removeItem("authToken");
-      sessionStorage.removeItem("authToken");
-      navigate("/", { replace: true });
+      fetch(apiUrl("/auth/logout"), {
+        method: "POST",
+        credentials: "include",
+      }).finally(() => {
+        localStorage.removeItem("authToken");
+        sessionStorage.removeItem("authToken");
+        navigate("/", { replace: true });
+      });
       return;
     }
   };
@@ -319,17 +310,15 @@ export default function CommitteeDashboard() {
   );
 
   if (activePage === "Shqyrtimi") {
-    resultCount = filteredPublications.length;
-    content = renderSimpleTable(
-      "Shqyrtimi",
-      "Procesi i shqyrtimit të dorëzimeve akademike.",
-      [
-        { key: "id", label: "ID" },
-        { key: "title", label: "Dorëzimi" },
-        { key: "unit", label: "Njesia" },
-        { key: "status", label: "Statusi" },
-      ],
-      filteredPublications
+    resultCount = 0;
+    content = (
+      <ReimbursementReviewPanel
+        role="committee"
+        scope="review"
+        searchQuery={searchQuery}
+        title="Shqyrtimi i rimbursimeve"
+        description="Kerkesat reale nga databaza per pranim, shqyrtim, korrigjim, aprovim ose refuzim nga komisioni."
+      />
     );
   }
 
@@ -364,32 +353,28 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Auditimi") {
-    resultCount = filteredReimbursements.length;
-    content = renderSimpleTable(
-      "Auditimi",
-      "Regjistrimi i auditimit për të gjitha aktivitetet.",
-      [
-        { key: "id", label: "ID" },
-        { key: "request", label: "Aktiviteti" },
-        { key: "unit", label: "Njesia" },
-        { key: "status", label: "Statusi" },
-      ],
-      filteredReimbursements
+    resultCount = 0;
+    content = (
+      <ReimbursementReviewPanel
+        role="committee"
+        scope="review"
+        searchQuery={searchQuery}
+        title="Auditimi i rimbursimeve"
+        description="Historiku institucional i kerkesave qe jane ne fazen e komisionit."
+      />
     );
   }
 
   if (activePage === "Raporte") {
-    resultCount = filteredReimbursements.length;
-    content = renderSimpleTable(
-      "Raporte",
-      "Raportet mujore dhe vjetore te komisionit.",
-      [
-        { key: "id", label: "ID" },
-        { key: "request", label: "Raporti" },
-        { key: "unit", label: "Perioda" },
-        { key: "status", label: "Statusi" },
-      ],
-      filteredReimbursements
+    resultCount = 0;
+    content = (
+      <ReimbursementReviewPanel
+        role="committee"
+        scope="review"
+        searchQuery={searchQuery}
+        title="Raporte te rimbursimeve"
+        description="Statistikat dhe lista reale e kerkesave financiare qe i takojne fazes se komisionit."
+      />
     );
   }
 

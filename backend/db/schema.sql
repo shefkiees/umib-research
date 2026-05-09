@@ -166,7 +166,7 @@ create table if not exists reimbursements (
   amount numeric(12, 2),
   currency text not null default 'EUR',
   status text not null default 'draft'
-    check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
+    check (status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -185,7 +185,7 @@ alter table reimbursements add column if not exists submitted_at timestamptz;
 
 alter table reimbursements drop constraint if exists reimbursements_status_check;
 alter table reimbursements add constraint reimbursements_status_check
-check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid'));
+check (status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid'));
 
 create index if not exists reimbursements_request_type_idx
 on reimbursements (request_type);
@@ -194,13 +194,18 @@ create table if not exists reimbursement_status_history (
   id uuid primary key default gen_random_uuid(),
   reimbursement_id uuid not null references reimbursements(id) on delete cascade,
   previous_status text
-    check (previous_status is null or previous_status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
+    check (previous_status is null or previous_status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid')),
   status text not null
-    check (status in ('draft', 'submitted', 'received', 'in_review', 'approved', 'rejected', 'paid')),
+    check (status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid')),
   actor_id uuid references users(id) on delete set null,
+  actor_role text,
+  actor_name text,
   note text,
   created_at timestamptz not null default now()
 );
+
+alter table reimbursement_status_history add column if not exists actor_role text;
+alter table reimbursement_status_history add column if not exists actor_name text;
 
 create index if not exists reimbursement_status_history_reimbursement_idx
 on reimbursement_status_history (reimbursement_id, created_at);
@@ -223,6 +228,20 @@ where not exists (
   from reimbursement_status_history h
   where h.reimbursement_id = r.id
 );
+
+create table if not exists reimbursement_attachments (
+  id uuid primary key default gen_random_uuid(),
+  reimbursement_id uuid not null references reimbursements(id) on delete cascade,
+  uploaded_by uuid references users(id) on delete set null,
+  filename text not null,
+  mime_type text not null,
+  size_bytes integer not null default 0,
+  content bytea not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reimbursement_attachments_reimbursement_idx
+on reimbursement_attachments (reimbursement_id, created_at);
 
 drop trigger if exists reimbursements_set_updated_at on reimbursements;
 create trigger reimbursements_set_updated_at
@@ -276,6 +295,7 @@ alter table publication_metadata enable row level security;
 alter table publications enable row level security;
 alter table reimbursements enable row level security;
 alter table reimbursement_status_history enable row level security;
+alter table reimbursement_attachments enable row level security;
 alter table approval_events enable row level security;
 alter table notifications enable row level security;
 alter table audit_logs enable row level security;

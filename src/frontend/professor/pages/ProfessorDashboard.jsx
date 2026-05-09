@@ -87,8 +87,11 @@ const MONTH_LABELS = ["Jan", "Shk", "Mar", "Pri", "Maj", "Qer", "Kor", "Gus", "S
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
+  received: "Pranuar",
   in_review: "Ne shqyrtim",
-  approved: "Aprovuar",
+  needs_correction: "Kthyer per korrigjim",
+  committee_approved: "Aprovuar nga komisioni",
+  approved: "Aprovuar final",
   rejected: "Refuzuar",
   paid: "Paguar",
   unknown: "Pa status",

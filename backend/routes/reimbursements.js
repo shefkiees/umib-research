@@ -19,6 +19,8 @@ const VALID_REIMBURSEMENT_STATUSES = new Set([
   "submitted",
   "received",
   "in_review",
+  "needs_correction",
+  "committee_approved",
   "approved",
   "rejected",
   "paid",
@@ -29,12 +31,74 @@ const STATUS_LABELS = {
   submitted: "Dorezuar",
   received: "Pranuar",
   in_review: "Ne shqyrtim",
-  approved: "Aprovuar",
+  needs_correction: "Kthyer per korrigjim",
+  committee_approved: "Aprovuar nga komisioni",
+  approved: "Aprovuar final",
   rejected: "Refuzuar",
   paid: "Paguar",
 };
 
+const ROLE_LABELS = {
+  professor: "Profesor",
+  committee: "Komision",
+  prorector: "Prorektor",
+  admin: "Administrator",
+};
+
+const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
+
+const REQUIRED_FIELDS = {
+  common: [
+    ["applicantName", "Emri dhe mbiemri eshte obligativ."],
+    ["applicantEmail", "Email-i eshte obligativ."],
+    ["applicantFaculty", "Njesia akademike eshte obligative."],
+    ["amount", "Shuma e kerkuar eshte obligative."],
+    ["currency", "Valuta eshte obligative."],
+    ["purpose", "Pershkrimi/arsyeja eshte obligative."],
+    ["bankApplicantName", "Emri i aplikantit ne banke eshte obligativ."],
+    ["bankName", "Emri i bankes eshte obligativ."],
+    ["bankAccountNumber", "Numri i llogarise bankare/IBAN eshte obligativ."],
+  ],
+  publication: [
+    ["publicationTitle", "Titulli i punimit eshte obligativ."],
+    ["mainAuthor", "Autori kryesor eshte obligativ."],
+    ["affiliation", "Perkatesia/affiliation eshte obligative."],
+    ["journal", "Emri i revistes eshte obligativ."],
+    ["publisher", "Shtepia botuese eshte obligative."],
+    ["indexingPlatform", "Indeksimi ne platforme eshte obligativ."],
+    ["publicationLink", "Linku i publikimit eshte obligativ."],
+  ],
+  conference: [
+    ["conferenceTitle", "Emertimi i ngjarjes eshte obligativ."],
+    ["eventPlaceDate", "Vendi dhe data jane obligative."],
+    ["organizer", "Organizatori eshte obligativ."],
+    ["invitationProgram", "Ftesa/programi eshte obligativ."],
+    ["abstractTitle", "Abstrakti dhe titulli i punimit jane obligative."],
+    ["acceptanceConfirmation", "Konfirmimi i pranimit eshte obligativ."],
+    ["participationType", "Lloji i pjesemarrjes eshte obligativ."],
+  ],
+  project: [
+    ["projectTitle", "Titulli i projektit eshte obligativ."],
+    ["projectDurationMonths", "Kohezgjatja e projektit eshte obligative."],
+    ["applyingUnit", "Njesia akademike aplikuese eshte obligative."],
+    ["deanName", "Emri i dekanit eshte obligativ."],
+    ["projectDescription", "Pershkrimi i projekt-propozimit eshte obligativ."],
+    ["projectKeywords", "Fjalet kyce jane obligative."],
+    ["projectImpact", "Ndikimi/arsyeshmeria e projektit eshte obligative."],
+    ["workPlan", "Plani i punes eshte obligativ."],
+    ["totalProjectCost", "Kosto totale e projektit eshte obligative."],
+    ["requestedFromUibm", "Shuma e kerkuar nga UIBM eshte obligative."],
+    ["detailedCostDescription", "Pershkrimi i detajuar i kostos eshte obligativ."],
+  ],
+};
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -252,22 +316,40 @@ function mapConferenceRow(row) {
   };
 }
 
-function normalizeStatusHistory(value) {
-  const parsed = typeof value === "string" ? JSON.parse(value) : value;
-
-  if (!Array.isArray(parsed)) {
+function safeJsonArray(value) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
     return [];
   }
+}
 
-  return parsed.map((item) => ({
+function normalizeStatusHistory(value) {
+  return safeJsonArray(value).map((item) => ({
     id: item.id,
     previousStatus: item.previousStatus || item.previous_status || null,
     previousStatusLabel: STATUS_LABELS[item.previousStatus || item.previous_status] || "",
     status: item.status || "",
     statusLabel: STATUS_LABELS[item.status] || item.status || "",
     actorId: item.actorId || item.actor_id || null,
+    actorRole: item.actorRole || item.actor_role || "",
+    actorRoleLabel: ROLE_LABELS[item.actorRole || item.actor_role] || item.actorRole || item.actor_role || "",
+    actorName: item.actorName || item.actor_name || "",
     note: item.note || "",
     createdAt: item.createdAt || item.created_at || null,
+  }));
+}
+
+function normalizeAttachments(value) {
+  return safeJsonArray(value).map((item) => ({
+    id: item.id,
+    filename: item.filename || "",
+    mimeType: item.mimeType || item.mime_type || "",
+    sizeBytes: Number(item.sizeBytes || item.size_bytes || 0),
+    uploadedBy: item.uploadedBy || item.uploaded_by || null,
+    createdAt: item.createdAt || item.created_at || null,
+    downloadUrl: item.id ? `/api/reimbursements/${item.reimbursementId || item.reimbursement_id}/attachments/${item.id}` : "",
   }));
 }
 
@@ -276,6 +358,14 @@ function mapReimbursementRow(row) {
 
   return {
     id: row.id,
+    ownerId: row.owner_id,
+    owner: {
+      id: row.owner_id,
+      name: row.owner_name || "",
+      email: row.owner_email || "",
+      faculty: row.owner_faculty || "",
+      department: row.owner_department || "",
+    },
     requestType: row.request_type || requestData.requestType || "",
     requestTypeLabel: REQUEST_TYPES[row.request_type] || requestData.requestTypeLabel || row.request_type || "",
     title: row.title || "",
@@ -283,13 +373,16 @@ function mapReimbursementRow(row) {
     currency: row.currency || CURRENCY_FALLBACK,
     status: row.status || "submitted",
     statusLabel: STATUS_LABELS[row.status] || row.status || "",
-    submittedAt: row.submitted_at || row.created_at || null,
+    submittedAt: row.submitted_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
     documentNumber: row.document_number || "",
     documentFilename: row.document_filename || "",
     documentDocxFilename: row.document_docx_filename || "",
     downloadUrl: `/api/reimbursements/${row.id}/pdf`,
     docxDownloadUrl: `/api/reimbursements/${row.id}/docx`,
     statusHistory: normalizeStatusHistory(row.status_history || []),
+    attachments: normalizeAttachments(row.attachments || []),
     requestData,
   };
 }
@@ -298,6 +391,7 @@ function buildHistorySelect(whereClause) {
   return `select r.id, r.owner_id, r.title, r.amount, r.currency, r.status, r.request_type, r.request_data,
                  r.document_number, r.document_filename, r.document_docx_filename,
                  r.submitted_at, r.created_at, r.updated_at,
+                 u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty, u.department as owner_department,
                  coalesce(
                    (
                      select json_agg(
@@ -306,17 +400,40 @@ function buildHistorySelect(whereClause) {
                          'previousStatus', h.previous_status,
                          'status', h.status,
                          'actorId', h.actor_id,
+                         'actorRole', coalesce(h.actor_role, actor.role),
+                         'actorName', coalesce(h.actor_name, actor.full_name, actor.email),
                          'note', h.note,
                          'createdAt', h.created_at
                        )
                        order by h.created_at asc
                      )
                      from reimbursement_status_history h
+                     left join users actor on actor.id = h.actor_id
                      where h.reimbursement_id = r.id
                    ),
                    '[]'::json
-                 ) as status_history
+                 ) as status_history,
+                 coalesce(
+                   (
+                     select json_agg(
+                       json_build_object(
+                         'id', a.id,
+                         'reimbursementId', a.reimbursement_id,
+                         'filename', a.filename,
+                         'mimeType', a.mime_type,
+                         'sizeBytes', a.size_bytes,
+                         'uploadedBy', a.uploaded_by,
+                         'createdAt', a.created_at
+                       )
+                       order by a.created_at desc
+                     )
+                     from reimbursement_attachments a
+                     where a.reimbursement_id = r.id
+                   ),
+                   '[]'::json
+                 ) as attachments
           from reimbursements r
+          left join users u on u.id = r.owner_id
           ${whereClause}`;
 }
 
@@ -336,6 +453,121 @@ async function canAccessReimbursement(row, user) {
   }
 
   return row.owner_id === user?.id || canManageReimbursements(user);
+}
+
+function validateRequiredFields(formData, requiredFields) {
+  return requiredFields
+    .filter(([field]) => !hasMeaningfulValue(formData[field]))
+    .map(([field, message]) => ({ field, message }));
+}
+
+function validateReimbursementPayload(requestType, formData, options = {}) {
+  const errors = [];
+  const amount = parseAmount(formData.amount);
+
+  if (normalizeText(formData.amount) && amount === null) {
+    errors.push({ field: "amount", message: "Shuma duhet te jete numer valid." });
+  }
+
+  if (options.asDraft) {
+    return errors;
+  }
+
+  errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS.common));
+  errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS[requestType] || []));
+
+  if (requestType === "project") {
+    const teamMembers = Array.isArray(formData.teamMembers) ? formData.teamMembers : [];
+    const hasTeamMember = teamMembers.some((member) =>
+      hasMeaningfulValue(member?.name) && hasMeaningfulValue(member?.email)
+    );
+
+    if (!hasTeamMember) {
+      errors.push({
+        field: "teamMembers",
+        message: "Shto se paku nje anetar te ekipit hulumtues me emer dhe email.",
+      });
+    }
+  }
+
+  return errors;
+}
+
+function buildRequestPayload(user, requestType, formData) {
+  const autoFields = buildEditableAutoFields(user, formData);
+  const requestData = {
+    ...formData,
+    auto: autoFields,
+    requestType,
+    requestTypeLabel: REQUEST_TYPES[requestType],
+  };
+  const title = buildRequestTitle(requestType, requestData);
+  const amount = parseAmount(formData.amount);
+  const currency = normalizeCurrency(formData.currency);
+  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+  const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
+
+  return { requestData, title, amount, currency, publicationId, conferenceId };
+}
+
+async function insertStatusHistory(client, reimbursementId, previousStatus, status, actor, note) {
+  await client.query(
+    `insert into reimbursement_status_history
+     (reimbursement_id, previous_status, status, actor_id, actor_role, actor_name, note)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      reimbursementId,
+      previousStatus,
+      status,
+      actor?.id || null,
+      actor?.role || null,
+      actor?.displayName || actor?.name || actor?.email || null,
+      note || `Statusi u ndryshua ne ${STATUS_LABELS[status] || status}.`,
+    ]
+  );
+}
+
+async function notifyOwner(client, reimbursementId, ownerId, status, note) {
+  if (!ownerId) {
+    return;
+  }
+
+  await client.query(
+    `insert into notifications (user_id, title, message, category)
+     values ($1, $2, $3, 'Rimbursime')`,
+    [
+      ownerId,
+      `Rimbursimi: ${STATUS_LABELS[status] || status}`,
+      note || `Statusi i kerkeses suaj u ndryshua ne ${STATUS_LABELS[status] || status}.`,
+    ]
+  );
+}
+
+async function createGeneratedDocuments(client, row) {
+  const documentNumber =
+    row.document_number || `RIM-${formatDocumentDate(row.submitted_at || row.created_at)}-${String(row.id).slice(0, 8).toUpperCase()}`;
+  const rowForDocuments = { ...row, document_number: documentNumber };
+  const filenames = getReimbursementDocumentFilenames(rowForDocuments);
+  const [pdfBuffer, docxBuffer] = await Promise.all([
+    buildReimbursementPdf(rowForDocuments),
+    buildReimbursementDocx(rowForDocuments),
+  ]);
+
+  const updateResult = await client.query(
+    `update reimbursements
+     set document_number = $2,
+         document_filename = $3,
+         document_docx_filename = $4,
+         generated_pdf = $5,
+         generated_docx = $6,
+         updated_at = now()
+     where id = $1
+     returning id, owner_id, title, amount, currency, status, request_type, request_data,
+               document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
+    [row.id, documentNumber, filenames.pdf, filenames.docx, pdfBuffer, docxBuffer]
+  );
+
+  return updateResult.rows[0];
 }
 
 async function ensureGeneratedDocument(row, format) {
@@ -383,6 +615,94 @@ async function ensureGeneratedDocument(row, format) {
   return { buffer, filename };
 }
 
+function getListScopeWhere(user, scope) {
+  const normalizedScope = normalizeText(scope);
+
+  if (user.role === "professor" || normalizedScope === "mine") {
+    return {
+      where: "where r.owner_id = $1",
+      params: [user.id],
+    };
+  }
+
+  if (user.role === "committee" || normalizedScope === "review") {
+    return {
+      where: "where r.status = any($1::text[])",
+      params: [COMMITTEE_REVIEW_STATUSES],
+    };
+  }
+
+  if (user.role === "prorector" || normalizedScope === "final") {
+    return {
+      where: `where r.status in ('committee_approved', 'approved', 'rejected', 'paid')
+              and exists (
+                select 1
+                from reimbursement_status_history h
+                where h.reimbursement_id = r.id and h.status = 'committee_approved'
+              )`,
+      params: [],
+    };
+  }
+
+  if (user.role === "admin" || normalizedScope === "all") {
+    return {
+      where: "where r.status <> 'draft'",
+      params: [],
+    };
+  }
+
+  return {
+    where: "where r.owner_id = $1",
+    params: [user.id],
+  };
+}
+
+function getAllowedStatuses(user, currentStatus) {
+  if (user.role === "admin") {
+    return Array.from(VALID_REIMBURSEMENT_STATUSES).filter((status) => status !== "draft");
+  }
+
+  if (user.role === "committee" && COMMITTEE_REVIEW_STATUSES.includes(currentStatus)) {
+    return ["received", "in_review", "needs_correction", "committee_approved", "rejected"];
+  }
+
+  if (user.role === "prorector" && currentStatus === "committee_approved") {
+    return ["approved", "rejected"];
+  }
+
+  if (user.role === "prorector" && currentStatus === "approved") {
+    return ["paid"];
+  }
+
+  return [];
+}
+
+function parseAttachmentFile(file) {
+  const filename = normalizeText(file?.filename).replace(/[\\/]/g, "-");
+  const mimeType = normalizeText(file?.mimeType || file?.type);
+  const base64 = normalizeText(file?.base64).replace(/^data:[^;]+;base64,/, "");
+
+  if (!filename) {
+    return { error: "Emri i fajllit mungon." };
+  }
+
+  if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType)) {
+    return { error: "Lejohen vetem PDF, JPG, PNG dhe DOCX." };
+  }
+
+  if (!base64) {
+    return { error: `Fajlli ${filename} nuk ka permbajtje valide.` };
+  }
+
+  const content = Buffer.from(base64, "base64");
+
+  if (!content.length || content.length > MAX_ATTACHMENT_SIZE_BYTES) {
+    return { error: `Fajlli ${filename} duhet te jete deri ne 10MB.` };
+  }
+
+  return { filename, mimeType, content, sizeBytes: content.length };
+}
+
 router.get("/context", requireAuthenticatedUser, async (req, res) => {
   try {
     const user = await loadCurrentUser(req.user.id);
@@ -414,6 +734,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
     res.json({
       profile: getCurrentUserProfile(user),
       requestTypes: Object.entries(REQUEST_TYPES).map(([id, label]) => ({ id, label })),
+      statuses: Object.entries(STATUS_LABELS).map(([id, label]) => ({ id, label })),
       publications: publicationsResult.rows.map(mapPublicationRow),
       conferences: conferencesResult.rows.map(mapConferenceRow),
     });
@@ -423,12 +744,36 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
   }
 });
 
+router.get("/stats/summary", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const scope = getListScopeWhere(req.user, req.query.scope);
+    const result = await db.query(
+      `select
+         count(*)::int as total,
+         count(*) filter (where r.status in ('submitted', 'received', 'in_review', 'needs_correction', 'committee_approved'))::int as pending,
+         count(*) filter (where r.status in ('committee_approved', 'approved', 'paid'))::int as approved,
+         count(*) filter (where r.status = 'rejected')::int as rejected,
+         count(*) filter (where r.status = 'paid')::int as paid,
+         coalesce(sum(r.amount), 0)::numeric(12, 2) as total_amount
+       from reimbursements r
+       ${scope.where}`,
+      scope.params
+    );
+
+    res.json({ data: result.rows[0] || {} });
+  } catch (error) {
+    console.error("GET /api/reimbursements/stats/summary failed:", error);
+    res.status(500).json({ error: "stats_failed" });
+  }
+});
+
 router.get("/", requireAuthenticatedUser, async (req, res) => {
   try {
+    const scope = getListScopeWhere(req.user, req.query.scope);
     const { rows } = await db.query(
-      `${buildHistorySelect("where r.owner_id = $1")}
+      `${buildHistorySelect(scope.where)}
        order by coalesce(r.submitted_at, r.created_at) desc`,
-      [req.user.id]
+      scope.params
     );
 
     res.json(rows.map(mapReimbursementRow));
@@ -442,15 +787,21 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
   const requestType = normalizeText(req.body?.requestType);
 
   if (!REQUEST_TYPES[requestType]) {
-    res.status(400).json({ error: "invalid_request_type" });
+    res.status(400).json({ error: "invalid_request_type", message: "Lloji i kerkeses nuk eshte valid." });
     return;
   }
 
+  const action = normalizeText(req.body?.action || req.body?.status || "submit");
+  const asDraft = action === "draft";
   const formData = sanitizeRequestData(req.body?.formData);
-  const amount = parseAmount(formData.amount);
+  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft });
 
-  if (normalizeText(formData.amount) && amount === null) {
-    res.status(400).json({ error: "invalid_amount", message: "Shuma duhet te jete numer valid." });
+  if (validationErrors.length) {
+    res.status(400).json({
+      error: "validation_failed",
+      message: validationErrors[0].message,
+      errors: validationErrors,
+    });
     return;
   }
 
@@ -461,17 +812,8 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const autoFields = buildEditableAutoFields(user, formData);
-  const requestData = {
-    ...formData,
-    auto: autoFields,
-    requestType,
-    requestTypeLabel: REQUEST_TYPES[requestType],
-  };
-  const title = buildRequestTitle(requestType, requestData);
-  const currency = normalizeCurrency(formData.currency);
-  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
-  const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
+  const payload = buildRequestPayload(user, requestType, formData);
+  const status = asDraft ? "draft" : "submitted";
   const client = await db.connect();
 
   try {
@@ -480,43 +822,33 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     const insertResult = await client.query(
       `insert into reimbursements
        (owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data, submitted_at)
-       values ($1, $2, $3, $4, $5, $6, 'submitted', $7, $8::jsonb, now())
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, case when $7 = 'submitted' then now() else null end)
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
-      [req.user.id, publicationId, conferenceId, title, amount, currency, requestType, JSON.stringify(requestData)]
+      [
+        req.user.id,
+        payload.publicationId,
+        payload.conferenceId,
+        payload.title,
+        payload.amount,
+        payload.currency,
+        status,
+        requestType,
+        JSON.stringify(payload.requestData),
+      ]
     );
 
-    const inserted = insertResult.rows[0];
-    const documentNumber = `RIM-${formatDocumentDate(inserted.submitted_at)}-${String(inserted.id).slice(0, 8).toUpperCase()}`;
-    const rowForDocuments = { ...inserted, document_number: documentNumber };
-    const filenames = getReimbursementDocumentFilenames(rowForDocuments);
-    const [pdfBuffer, docxBuffer] = await Promise.all([
-      buildReimbursementPdf(rowForDocuments),
-      buildReimbursementDocx(rowForDocuments),
-    ]);
-
-    const updateResult = await client.query(
-      `update reimbursements
-       set document_number = $2,
-           document_filename = $3,
-           document_docx_filename = $4,
-           generated_pdf = $5,
-           generated_docx = $6,
-           updated_at = now()
-       where id = $1
-       returning id, owner_id, title, amount, currency, status, request_type, request_data,
-                 document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
-      [inserted.id, documentNumber, filenames.pdf, filenames.docx, pdfBuffer, docxBuffer]
+    const withDocuments = await createGeneratedDocuments(client, insertResult.rows[0]);
+    await insertStatusHistory(
+      client,
+      withDocuments.id,
+      null,
+      status,
+      req.user,
+      asDraft ? "Kerkesa u ruajt si draft." : "Kerkesa u krijua dhe u dorezua per shqyrtim."
     );
 
-    await client.query(
-      `insert into reimbursement_status_history
-       (reimbursement_id, previous_status, status, actor_id, note)
-       values ($1, null, 'submitted', $2, $3)`,
-      [inserted.id, req.user.id, "Kerkesa u krijua dhe u dorezua."]
-    );
-
-    const rowWithHistory = await selectReimbursementWithHistoryById(updateResult.rows[0].id, client);
+    const rowWithHistory = await selectReimbursementWithHistoryById(withDocuments.id, client);
 
     await client.query("commit");
 
@@ -525,6 +857,193 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     await client.query("rollback").catch(() => {});
     console.error("POST /api/reimbursements failed:", error);
     res.status(500).json({ error: "create_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/:id", requireAuthenticatedUser, async (req, res) => {
+  const requestType = normalizeText(req.body?.requestType);
+
+  if (!REQUEST_TYPES[requestType]) {
+    res.status(400).json({ error: "invalid_request_type", message: "Lloji i kerkeses nuk eshte valid." });
+    return;
+  }
+
+  const formData = sanitizeRequestData(req.body?.formData);
+  const action = normalizeText(req.body?.action || "draft");
+  const isSubmit = action === "submit";
+  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft: !isSubmit });
+
+  if (validationErrors.length) {
+    res.status(400).json({
+      error: "validation_failed",
+      message: validationErrors[0].message,
+      errors: validationErrors,
+    });
+    return;
+  }
+
+  const user = await loadCurrentUser(req.user.id);
+
+  if (!user) {
+    res.status(404).json({ error: "user_not_found" });
+    return;
+  }
+
+  const payload = buildRequestPayload(user, requestType, formData);
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, owner_id, status
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+
+    const current = currentResult.rows[0];
+
+    if (!current || current.owner_id !== req.user.id) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    if (!["draft", "needs_correction"].includes(current.status)) {
+      await client.query("rollback");
+      res.status(409).json({
+        error: "not_editable",
+        message: "Kerkesa mund te editohet vetem kur eshte draft ose e kthyer per korrigjim.",
+      });
+      return;
+    }
+
+    const nextStatus = isSubmit ? "submitted" : current.status === "needs_correction" ? "needs_correction" : "draft";
+    const updateResult = await client.query(
+      `update reimbursements
+       set publication_id = $2,
+           conference_id = $3,
+           title = $4,
+           amount = $5,
+           currency = $6,
+           request_type = $7,
+           request_data = $8::jsonb,
+           status = $9,
+           submitted_at = case when $9 = 'submitted' then coalesce(submitted_at, now()) else submitted_at end,
+           updated_at = now()
+       where id = $1
+       returning id, owner_id, title, amount, currency, status, request_type, request_data,
+                 document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
+      [
+        current.id,
+        payload.publicationId,
+        payload.conferenceId,
+        payload.title,
+        payload.amount,
+        payload.currency,
+        requestType,
+        JSON.stringify(payload.requestData),
+        nextStatus,
+      ]
+    );
+
+    const withDocuments = await createGeneratedDocuments(client, updateResult.rows[0]);
+
+    if (isSubmit && current.status !== "submitted") {
+      await insertStatusHistory(
+        client,
+        current.id,
+        current.status,
+        "submitted",
+        req.user,
+        "Kerkesa u dergua per shqyrtim."
+      );
+    }
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(withDocuments.id, client);
+
+    await client.query("commit");
+
+    res.json({ data: mapReimbursementRow(rowWithHistory) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PUT /api/reimbursements/:id failed:", error);
+    res.status(500).json({ error: "update_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, owner_id, status, request_type, request_data, title, amount, currency,
+              document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+    const current = currentResult.rows[0];
+
+    if (!current || current.owner_id !== req.user.id) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    if (!["draft", "needs_correction"].includes(current.status)) {
+      await client.query("rollback");
+      res.status(409).json({
+        error: "not_submittable",
+        message: "Kerkesa mund te dorezohet vetem kur eshte draft ose e kthyer per korrigjim.",
+      });
+      return;
+    }
+
+    const validationErrors = validateReimbursementPayload(current.request_type, current.request_data || {}, { asDraft: false });
+
+    if (validationErrors.length) {
+      await client.query("rollback");
+      res.status(400).json({
+        error: "validation_failed",
+        message: validationErrors[0].message,
+        errors: validationErrors,
+      });
+      return;
+    }
+
+    const updateResult = await client.query(
+      `update reimbursements
+       set status = 'submitted',
+           submitted_at = coalesce(submitted_at, now()),
+           updated_at = now()
+       where id = $1
+       returning id, owner_id, title, amount, currency, status, request_type, request_data,
+                 document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
+      [current.id]
+    );
+
+    const withDocuments = await createGeneratedDocuments(client, updateResult.rows[0]);
+    await insertStatusHistory(client, current.id, current.status, "submitted", req.user, "Kerkesa u dergua per shqyrtim.");
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(withDocuments.id, client);
+
+    await client.query("commit");
+
+    res.json({ data: mapReimbursementRow(rowWithHistory) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("POST /api/reimbursements/:id/submit failed:", error);
+    res.status(500).json({ error: "submit_failed" });
   } finally {
     client.release();
   }
@@ -555,8 +1074,16 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
   const nextStatus = normalizeText(req.body?.status);
   const note = normalizeText(req.body?.note);
 
-  if (!VALID_REIMBURSEMENT_STATUSES.has(nextStatus)) {
-    res.status(400).json({ error: "invalid_status" });
+  if (!VALID_REIMBURSEMENT_STATUSES.has(nextStatus) || nextStatus === "draft") {
+    res.status(400).json({ error: "invalid_status", message: "Statusi i zgjedhur nuk eshte valid." });
+    return;
+  }
+
+  if (["rejected", "needs_correction"].includes(nextStatus) && !note) {
+    res.status(400).json({
+      error: "note_required",
+      message: "Komenti institucional eshte obligativ per refuzim ose kthim per korrigjim.",
+    });
     return;
   }
 
@@ -566,7 +1093,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     await client.query("begin");
 
     const currentResult = await client.query(
-      `select id, status
+      `select id, owner_id, status
        from reimbursements
        where id = $1
        for update`,
@@ -580,6 +1107,16 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     }
 
     const current = currentResult.rows[0];
+    const allowedStatuses = getAllowedStatuses(req.user, current.status);
+
+    if (!allowedStatuses.includes(nextStatus)) {
+      await client.query("rollback");
+      res.status(403).json({
+        error: "transition_forbidden",
+        message: "Ky veprim nuk lejohet per rolin/statusin aktual.",
+      });
+      return;
+    }
 
     await client.query(
       `update reimbursements
@@ -589,12 +1126,10 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
       [current.id, nextStatus]
     );
 
-    await client.query(
-      `insert into reimbursement_status_history
-       (reimbursement_id, previous_status, status, actor_id, note)
-       values ($1, $2, $3, $4, $5)`,
-      [current.id, current.status, nextStatus, req.user.id, note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`]
-    );
+    const historyNote = note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`;
+
+    await insertStatusHistory(client, current.id, current.status, nextStatus, req.user, historyNote);
+    await notifyOwner(client, current.id, current.owner_id, nextStatus, historyNote);
 
     const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
 
@@ -607,6 +1142,113 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     res.status(500).json({ error: "status_update_failed" });
   } finally {
     client.release();
+  }
+});
+
+router.post("/:id/attachments", requireAuthenticatedUser, async (req, res) => {
+  const files = Array.isArray(req.body?.files) ? req.body.files : [];
+
+  if (!files.length) {
+    res.status(400).json({ error: "no_files", message: "Zgjidh se paku nje fajll per upload." });
+    return;
+  }
+
+  if (files.length > 5) {
+    res.status(400).json({ error: "too_many_files", message: "Maksimum 5 fajlla per nje upload." });
+    return;
+  }
+
+  const parsedFiles = [];
+
+  for (const file of files) {
+    const parsed = parseAttachmentFile(file);
+
+    if (parsed.error) {
+      res.status(400).json({ error: "invalid_file", message: parsed.error });
+      return;
+    }
+
+    parsedFiles.push(parsed);
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, owner_id, status
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+    const current = currentResult.rows[0];
+
+    if (!(await canAccessReimbursement(current, req.user))) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    if (current.owner_id !== req.user.id && !canManageReimbursements(req.user)) {
+      await client.query("rollback");
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+
+    for (const file of parsedFiles) {
+      await client.query(
+        `insert into reimbursement_attachments
+         (reimbursement_id, uploaded_by, filename, mime_type, size_bytes, content)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [current.id, req.user.id, file.filename, file.mimeType, file.sizeBytes, file.content]
+      );
+    }
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+
+    await client.query("commit");
+
+    res.status(201).json({ data: mapReimbursementRow(rowWithHistory) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("POST /api/reimbursements/:id/attachments failed:", error);
+    res.status(500).json({ error: "attachment_upload_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.get("/:id/attachments/:attachmentId", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const row = await selectReimbursementWithHistoryById(req.params.id);
+
+    if (!(await canAccessReimbursement(row, req.user))) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    const result = await db.query(
+      `select id, filename, mime_type, content
+       from reimbursement_attachments
+       where reimbursement_id = $1 and id = $2
+       limit 1`,
+      [req.params.id, req.params.attachmentId]
+    );
+    const attachment = result.rows[0];
+
+    if (!attachment) {
+      res.status(404).json({ error: "attachment_not_found" });
+      return;
+    }
+
+    res.setHeader("Content-Type", attachment.mime_type);
+    res.setHeader("Content-Disposition", `attachment; filename="${attachment.filename}"`);
+    res.send(Buffer.isBuffer(attachment.content) ? attachment.content : Buffer.from(attachment.content));
+  } catch (error) {
+    console.error("GET /api/reimbursements/:id/attachments/:attachmentId failed:", error);
+    res.status(500).json({ error: "attachment_download_failed" });
   }
 });
 

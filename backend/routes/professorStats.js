@@ -113,7 +113,7 @@ router.get("/stats", requireAuthenticatedUser, async (req, res) => {
             where owner_id = $1) as reimbursements_total,
            (select count(*)::int
            from reimbursements
-            where owner_id = $1 and status in ('submitted', 'received', 'in_review')) as reimbursements_in_review,
+            where owner_id = $1 and status in ('submitted', 'received', 'in_review', 'needs_correction', 'committee_approved')) as reimbursements_in_review,
            (select count(*)::int
             from reimbursements
             where owner_id = $1 and status in ('approved', 'paid')) as reimbursements_approved,

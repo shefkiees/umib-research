@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Loader2, Plus, Search, Sparkles, Trash2, Wallet } from "lucide-react";
+import { Download, FileText, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 
 const REQUEST_TYPES = [
   {
     id: "publication",
     label: "F1 - Publikime shkencore",
-    description: "Financim i publikimit shkencor sipas Formularit 1.",
+    description: "Financim i publikimit shkencor.",
   },
   {
     id: "conference",
     label: "F2 - Konferenca dhe simpoziume",
-    description: "Pjesemarrje, prezantim, poster, panel ose aktivitet shkencor.",
+    description: "Pjesemarrje, prezantim, poster ,aktivitet shkencor.",
   },
   {
     id: "project",
@@ -25,10 +25,64 @@ const STATUS_LABELS = {
   submitted: "Dorezuar",
   received: "Pranuar",
   in_review: "Ne shqyrtim",
-  approved: "Aprovuar",
+  needs_correction: "Kthyer per korrigjim",
+  committee_approved: "Aprovuar nga komisioni",
+  approved: "Aprovuar final",
   rejected: "Refuzuar",
   paid: "Paguar",
 };
+
+const REQUIRED_FIELDS = {
+  common: {
+    applicantName: "Emri dhe mbiemri eshte obligativ.",
+    applicantEmail: "Email-i eshte obligativ.",
+    applicantFaculty: "Njesia akademike eshte obligative.",
+    amount: "Shuma e kerkuar eshte obligative.",
+    currency: "Valuta eshte obligative.",
+    purpose: "Pershkrimi/arsyeja eshte obligative.",
+    bankApplicantName: "Emri i aplikantit ne banke eshte obligativ.",
+    bankName: "Emri i bankes eshte obligativ.",
+    bankAccountNumber: "Numri i llogarise bankare/IBAN eshte obligativ.",
+  },
+  publication: {
+    publicationTitle: "Titulli i punimit eshte obligativ.",
+    mainAuthor: "Autori kryesor eshte obligativ.",
+    affiliation: "Affiliation eshte obligativ.",
+    journal: "Emri i revistes eshte obligativ.",
+    publisher: "Shtepia botuese eshte obligative.",
+    indexingPlatform: "Indeksimi ne platforme eshte obligativ.",
+    publicationLink: "Linku i publikimit eshte obligativ.",
+  },
+  conference: {
+    conferenceTitle: "Emertimi i ngjarjes eshte obligativ.",
+    eventPlaceDate: "Vendi dhe data jane obligative.",
+    organizer: "Organizatori eshte obligativ.",
+    invitationProgram: "Ftesa/programi eshte obligativ.",
+    abstractTitle: "Abstrakti dhe titulli i punimit jane obligative.",
+    acceptanceConfirmation: "Konfirmimi i pranimit eshte obligativ.",
+    participationType: "Lloji i pjesemarrjes eshte obligativ.",
+  },
+  project: {
+    projectTitle: "Titulli i projektit eshte obligativ.",
+    projectDurationMonths: "Kohezgjatja e projektit eshte obligative.",
+    applyingUnit: "Njesia akademike aplikuese eshte obligative.",
+    deanName: "Emri i dekanit eshte obligativ.",
+    projectDescription: "Pershkrimi i projekt-propozimit eshte obligativ.",
+    projectKeywords: "Fjalet kyce jane obligative.",
+    projectImpact: "Ndikimi/arsyeshmeria e projektit eshte obligative.",
+    workPlan: "Plani i punes eshte obligativ.",
+    totalProjectCost: "Kosto totale e projektit eshte obligative.",
+    requestedFromUibm: "Shuma e kerkuar nga UIBM eshte obligative.",
+    detailedCostDescription: "Pershkrimi i detajuar i kostos eshte obligativ.",
+  },
+};
+
+const ALLOWED_ATTACHMENT_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 
 const PARTICIPATION_OPTIONS = ["Prezantim", "Poster", "Pjesemarrje", "Keynote", "Panelist", "Kryesues"];
 const YES_NO_OPTIONS = ["", "Po", "Jo"];
@@ -206,6 +260,44 @@ function normalizeDate(value) {
   });
 }
 
+function hasValue(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasValue);
+  }
+
+  return String(value ?? "").trim() !== "";
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",").pop() : result);
+    };
+    reader.onerror = () => reject(new Error(`Fajlli ${file.name} nuk u lexua.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(value) {
+  const size = Number(value || 0);
+
+  if (!Number.isFinite(size) || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024 * 1024) {
+    return `${Math.round(size / 1024)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function formatAmount(request) {
   if (request.amount === null || request.amount === undefined || request.amount === "") {
     return "Pa shume";
@@ -258,6 +350,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDoiLoading, setIsDoiLoading] = useState(false);
   const [downloadingDocument, setDownloadingDocument] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [editingRequest, setEditingRequest] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [hasHydratedAutoFields, setHasHydratedAutoFields] = useState(false);
   const [hasHydratedPublicationFields, setHasHydratedPublicationFields] = useState(false);
   const [error, setError] = useState("");
@@ -404,6 +499,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const handleFieldChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    setFieldErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   const handleTeamMemberChange = (index, field) => (event) => {
@@ -494,15 +590,91 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const validateForm = (action) => {
+    const nextErrors = {};
+
+    if (action === "draft") {
+      if (form.amount && Number.isNaN(Number(String(form.amount).replace(",", ".")))) {
+        nextErrors.amount = "Shuma duhet te jete numer valid.";
+      }
+
+      setFieldErrors(nextErrors);
+      return Object.keys(nextErrors).length === 0;
+    }
+
+    const required = {
+      ...REQUIRED_FIELDS.common,
+      ...(REQUIRED_FIELDS[selectedType] || {}),
+    };
+
+    Object.entries(required).forEach(([field, message]) => {
+      if (!hasValue(form[field])) {
+        nextErrors[field] = message;
+      }
+    });
+
+    if (selectedType === "project") {
+      const hasTeamMember = form.teamMembers?.some((member) => hasValue(member.name) && hasValue(member.email));
+
+      if (!hasTeamMember) {
+        nextErrors.teamMembers = "Shto se paku nje anetar me emer dhe email.";
+      }
+    }
+
+    if (form.amount && Number.isNaN(Number(String(form.amount).replace(",", ".")))) {
+      nextErrors.amount = "Shuma duhet te jete numer valid.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const uploadSelectedFiles = async (requestId) => {
+    if (!selectedFiles.length) {
+      return null;
+    }
+
+    const files = await Promise.all(
+      selectedFiles.map(async (file) => ({
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        base64: await readFileAsBase64(file),
+      }))
+    );
+    const response = await fetch(apiUrl(`/reimbursements/${requestId}/attachments`), {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ files }),
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Dokumentet mbeshtetese nuk u ngarkuan.");
+    }
+
+    return result.data;
+  };
+
+  const submitRequest = async (action) => {
+    if (!validateForm(action)) {
+      setError("Ploteso fushat obligative para dergimit.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError("");
     setSuccess(null);
 
     try {
-      const response = await fetch(apiUrl("/reimbursements"), {
-        method: "POST",
+      const requestUrl = editingRequest
+        ? apiUrl(`/reimbursements/${editingRequest.id}`)
+        : apiUrl("/reimbursements");
+      const response = await fetch(requestUrl, {
+        method: editingRequest ? "PUT" : "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
@@ -510,6 +682,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         body: JSON.stringify({
           requestType: selectedType,
           formData: form,
+          action,
         }),
       });
       const result = await response.json();
@@ -519,19 +692,36 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       }
 
       if (!response.ok) {
+        if (Array.isArray(result.errors)) {
+          setFieldErrors(result.errors.reduce((acc, item) => ({ ...acc, [item.field]: item.message }), {}));
+        }
         throw new Error(result.message || "Kerkesa nuk u ruajt.");
       }
 
-      setRequests((prev) => [result.data, ...prev.filter((item) => item.id !== result.data.id)]);
+      const withAttachments = await uploadSelectedFiles(result.data.id);
+      const savedRequest = withAttachments || result.data;
+
+      setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
       setHasLoadedRequests(true);
-      setSuccess(result.data);
+      setSuccess(savedRequest);
       setForm(createDefaultForm(effectiveProfile));
+      setSelectedFiles([]);
+      setEditingRequest(null);
       setHasHydratedAutoFields(true);
     } catch (submitError) {
       setError(submitError.message || "Ndodhi nje gabim gjate dergimit.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    submitRequest("submit");
+  };
+
+  const handleSaveDraft = () => {
+    submitRequest("draft");
   };
 
   const handleDownloadDocument = async (request, format) => {
@@ -571,8 +761,81 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }
   };
 
+  const handleDownloadAttachment = async (request, attachment) => {
+    if (!attachment?.id) {
+      return;
+    }
+
+    const downloadKey = `${request.id}-${attachment.id}`;
+    setDownloadingDocument(downloadKey);
+    setError("");
+
+    try {
+      const response = await fetch(apiUrl(`/reimbursements/${request.id}/attachments/${attachment.id}`), {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Dokumenti mbeshtetes nuk u shkarkua.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.filename || "dokument";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(downloadError.message || "Shkarkimi i dokumentit deshtoi.");
+    } finally {
+      setDownloadingDocument("");
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles = files.filter((file) => ALLOWED_ATTACHMENT_TYPES.includes(file.type));
+
+    if (validFiles.length !== files.length) {
+      setError("Lejohen vetem PDF, JPG, PNG dhe DOCX.");
+    }
+
+    setSelectedFiles(validFiles.slice(0, 5));
+  };
+
+  const handleEditRequest = (request) => {
+    const nextType = request.requestType || "publication";
+    const nextForm = {
+      ...createDefaultForm(effectiveProfile),
+      ...(request.requestData || {}),
+      teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
+        ? request.requestData.teamMembers
+        : createDefaultTeamMembers(),
+    };
+
+    setSelectedType(nextType);
+    setForm(nextForm);
+    setEditingRequest(request);
+    setSelectedFiles([]);
+    setFieldErrors({});
+    setError("");
+    setSuccess(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRequest(null);
+    setForm(createDefaultForm(effectiveProfile));
+    setSelectedFiles([]);
+    setFieldErrors({});
+    setError("");
+  };
+
   const renderInput = (label, field, options = {}) => {
     const className = options.wide ? "reimbursement-field reimbursement-wide" : "reimbursement-field";
+    const fieldError = fieldErrors[field];
 
     if (options.type === "textarea") {
       return (
@@ -585,6 +848,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             required={options.required}
             placeholder={options.placeholder}
           />
+          {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
         </label>
       );
     }
@@ -600,6 +864,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               </option>
             ))}
           </select>
+          {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
         </label>
       );
     }
@@ -615,6 +880,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           inputMode={options.inputMode}
           placeholder={options.placeholder}
         />
+        {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
       </label>
     );
   };
@@ -793,6 +1059,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         <div className="reimbursement-team-grid">
           {form.teamMembers.map(renderTeamMember)}
         </div>
+        {fieldErrors.teamMembers ? <small className="reimbursement-field-error">{fieldErrors.teamMembers}</small> : null}
       </div>
 
       {renderInput("Pershkrimi i projekt-propozimit dhe plani i hulumtimit", "projectDescription", {
@@ -849,11 +1116,91 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </div>
   );
 
+  const renderAttachmentUpload = () => (
+    <div className="reimbursement-upload-box">
+      <label className="reimbursement-upload-label">
+        <span>Dokumente mbeshtetese</span>
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={handleFileChange}
+        />
+      </label>
+      {selectedFiles.length ? (
+        <div className="reimbursement-file-list">
+          {selectedFiles.map((file) => (
+            <span key={`${file.name}-${file.size}`}>
+              {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p>Lejohen PDF, JPG, PNG dhe DOCX. Fajllat ruhen me kerkesen dhe shihen nga komisioni/prorektori.</p>
+      )}
+    </div>
+  );
+
+  const renderStatusTimeline = (history = []) => {
+    if (!history.length) {
+      return null;
+    }
+
+    return (
+      <div className="reimbursement-timeline">
+        {history.map((item) => (
+          <div className="reimbursement-timeline-item" key={item.id || `${item.status}-${item.createdAt}`}>
+            <span className="reimbursement-timeline-dot" />
+            <div>
+              <strong>{item.statusLabel || STATUS_LABELS[item.status] || item.status}</strong>
+              <p>
+                {[normalizeDate(item.createdAt), item.actorRoleLabel || item.actorRole, item.actorName]
+                  .filter(Boolean)
+                  .join(" | ")}
+              </p>
+              {item.note ? <p>{item.note}</p> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderAttachments = (request) => {
+    if (!request.attachments?.length) {
+      return null;
+    }
+
+    return (
+      <div className="reimbursement-attachment-list">
+        {request.attachments.map((attachment) => (
+          <button
+            key={attachment.id}
+            type="button"
+            onClick={() => handleDownloadAttachment(request, attachment)}
+            disabled={downloadingDocument === `${request.id}-${attachment.id}`}
+          >
+            <Download size={14} />
+            {downloadingDocument === `${request.id}-${attachment.id}` ? "Duke shkarkuar..." : attachment.filename}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="reimbursement-flow">
       <article className="prof-card reimbursement-flow-card">
         <div className="reimbursement-flow-header">
-          <h3>Kerkese e re per financim</h3>
+          <div>
+            <h3>{editingRequest ? "Edito kerkesen" : "Kerkese e re per financim"}</h3>
+            {editingRequest ? <p>Po punon ne kerkesen {editingRequest.documentNumber || editingRequest.title}.</p> : null}
+          </div>
+          {editingRequest ? (
+            <button type="button" className="reimbursement-download-btn" onClick={handleCancelEdit}>
+              Anulo editimin
+            </button>
+          ) : null}
         </div>
 
         <div className="reimbursement-type-grid">
@@ -912,12 +1259,17 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             </div>
 
             {renderFinanceFields()}
+            {renderAttachmentUpload()}
           </section>
 
           {error ? <p className="reimbursement-message error" role="alert">{error}</p> : null}
           {success ? (
             <div className="reimbursement-message success">
-              <span>Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan.</span>
+              <span>
+                {success.status === "draft"
+                  ? "Draft-i u ruajt ne databaze."
+                  : "Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan."}
+              </span>
               <div className="reimbursement-message-actions">
                 <button
                   type="button"
@@ -938,8 +1290,13 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           ) : null}
 
           <div className="reimbursement-actions">
+            <button type="button" className="prof-btn-secondary" onClick={handleSaveDraft} disabled={isSubmitting || isLoadingContext}>
+              <Save size={16} />
+              {isSubmitting ? "Duke ruajtur..." : "Ruaje si draft"}
+            </button>
             <button type="submit" className="prof-btn-primary" disabled={isSubmitting || isLoadingContext}>
-              {isSubmitting ? "Duke derguar..." : "Submit kerkesen"}
+              <Upload size={16} />
+              {isSubmitting ? "Duke derguar..." : "Dergo per shqyrtim"}
             </button>
           </div>
         </form>
@@ -963,7 +1320,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                 <div className="prof-list-content">
                   <h4>{request.title}</h4>
                   <p>
-                    {[request.requestTypeLabel, formatAmount(request), normalizeDate(request.submittedAt)]
+                    {[request.requestTypeLabel, formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
                       .filter(Boolean)
                       .join(" | ")}
                   </p>
@@ -972,6 +1329,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                       Historiku i fundit: {getLatestHistoryLabel(request.statusHistory)}
                     </p>
                   ) : null}
+                  {renderAttachments(request)}
+                  {renderStatusTimeline(request.statusHistory)}
                 </div>
                 <div className="reimbursement-request-actions">
                   <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
@@ -979,6 +1338,15 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   </span>
                   {!request.isLegacy ? (
                     <>
+                      {["draft", "needs_correction"].includes(request.status) ? (
+                        <button
+                          type="button"
+                          className="reimbursement-download-btn"
+                          onClick={() => handleEditRequest(request)}
+                        >
+                          Edito
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="reimbursement-download-btn"

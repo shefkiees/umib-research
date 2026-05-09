@@ -1,3 +1,6 @@
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import PDFDocument from "pdfkit";
 import {
   AlignmentType,
@@ -13,6 +16,9 @@ import {
   WidthType,
 } from "docx";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TEMPLATE_DIR = path.resolve(__dirname, "..", "templates");
+
 const FORM_TITLES = {
   publication: "KERKESE PER FINANCIM TE PUBLIKIMIT SHKENCOR (Formulari 1)",
   conference: "FORMULAR I APLIKIMIT PER FINANCIM TE PJESEMARRJES NE KONFERENCA DHE SIMPOZIUME (Formulari 2)",
@@ -24,7 +30,9 @@ const STATUS_LABELS = {
   submitted: "Dorezuar",
   received: "Pranuar",
   in_review: "Ne shqyrtim",
-  approved: "Aprovuar",
+  needs_correction: "Kthyer per korrigjim",
+  committee_approved: "Aprovuar nga komisioni",
+  approved: "Aprovuar final",
   rejected: "Refuzuar",
   paid: "Paguar",
 };
@@ -363,8 +371,324 @@ function createFieldTable(data, section) {
   });
 }
 
+function getTypeCode(requestType) {
+  if (requestType === "conference") {
+    return "F2";
+  }
+
+  if (requestType === "project") {
+    return "F3";
+  }
+
+  return "F1";
+}
+
+function escapeXml(value) {
+  return normalizeText(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function templateValue(data, field) {
+  return valueOf(data, field) || EMPTY_VALUE;
+}
+
+function getTemplateValues(data) {
+  const baseValues = {
+    documentNumber: data.documentNumber || "",
+    submittedAt: formatDate(data.submittedAt),
+    status: STATUS_LABELS[data.status] || data.status || "",
+    amount: templateValue(data, "amount"),
+    applicantName: templateValue(data, "applicantName"),
+    applicantEmail: templateValue(data, "applicantEmail"),
+    applicantFaculty: templateValue(data, "applicantFaculty"),
+    applicantDepartment: templateValue(data, "applicantDepartment"),
+    scientificTitle: templateValue(data, "scientificTitle"),
+    academicTitle: templateValue(data, "academicTitle"),
+    bankApplicantName: templateValue(data, "bankApplicantName") || templateValue(data, "applicantName"),
+    bankName: templateValue(data, "bankName"),
+    bankAccountNumber: templateValue(data, "bankAccountNumber") || templateValue(data, "iban"),
+    swiftCode: templateValue(data, "swiftCode"),
+    bankCountry: templateValue(data, "bankCountry"),
+    amountWords: templateValue(data, "amountWords"),
+    purpose: templateValue(data, "purpose"),
+  };
+
+  if (data.requestType === "conference") {
+    return {
+      ...baseValues,
+      mainAuthor: templateValue(data, "mainAuthor"),
+      coParticipant: templateValue(data, "coParticipant"),
+      conferenceTitle: templateValue(data, "conferenceTitle"),
+      eventPlaceDate: templateValue(data, "eventPlaceDate") || [templateValue(data, "location"), templateValue(data, "conferenceDate")].filter((item) => item !== EMPTY_VALUE).join(" / "),
+      organizer: templateValue(data, "organizer"),
+      invitationProgram: templateValue(data, "invitationProgram"),
+      abstractTitle: templateValue(data, "abstractTitle"),
+      acceptanceConfirmation: templateValue(data, "acceptanceConfirmation"),
+      authorsAffiliation: templateValue(data, "authorsAffiliation"),
+      speakerWithPaperPoster: templateValue(data, "speakerWithPaperPoster"),
+      artisticSportEvent: templateValue(data, "artisticSportEvent"),
+      chairPanelist: templateValue(data, "chairPanelist"),
+      eventPublicationLink: templateValue(data, "eventPublicationLink"),
+    };
+  }
+
+  if (data.requestType === "project") {
+    const members = Array.isArray(data.requestData?.teamMembers) ? data.requestData.teamMembers : [];
+    const memberSummary = members
+      .map((member, index) => [
+        `Anetari ${index + 1}`,
+        member?.name,
+        member?.scientificGrade,
+        member?.academicUnit,
+        member?.phone,
+        member?.email,
+        member?.specialization,
+        member?.contribution,
+      ].filter(Boolean).join(" | "))
+      .filter(Boolean)
+      .join("; ");
+
+    return {
+      ...baseValues,
+      projectTitle: templateValue(data, "projectTitle"),
+      projectDurationMonths: templateValue(data, "projectDurationMonths"),
+      applyingUnit: templateValue(data, "applyingUnit") || templateValue(data, "applicantFaculty"),
+      deanName: templateValue(data, "deanName"),
+      deanPlace: templateValue(data, "deanPlace"),
+      deanPhone: templateValue(data, "deanPhone"),
+      deanEmail: templateValue(data, "deanEmail"),
+      deanWebsite: templateValue(data, "deanWebsite"),
+      teamMembers: memberSummary || EMPTY_VALUE,
+      projectDescription: templateValue(data, "projectDescription"),
+      projectKeywords: templateValue(data, "projectKeywords"),
+      projectImpact: templateValue(data, "projectImpact"),
+      workPlan: templateValue(data, "workPlan"),
+      totalProjectCost: templateValue(data, "totalProjectCost"),
+      requestedFromUibm: templateValue(data, "requestedFromUibm"),
+      materialCost: templateValue(data, "materialCost"),
+      administrativeCost: templateValue(data, "administrativeCost"),
+      personnelCost: templateValue(data, "personnelCost"),
+      otherCosts: templateValue(data, "otherCosts"),
+      detailedCostDescription: templateValue(data, "detailedCostDescription"),
+    };
+  }
+
+  return {
+    ...baseValues,
+    mainAuthor: templateValue(data, "mainAuthor"),
+    correspondingAuthor: templateValue(data, "correspondingAuthor"),
+    coauthors: templateValue(data, "coauthors"),
+    affiliation: templateValue(data, "affiliation"),
+    publicationTitle: templateValue(data, "publicationTitle"),
+    doi: templateValue(data, "doi"),
+    journal: templateValue(data, "journal"),
+    publisher: templateValue(data, "publisher"),
+    indexingPlatform: templateValue(data, "indexingPlatform"),
+    impactFactor: templateValue(data, "impactFactor"),
+    scopusQuartile: templateValue(data, "scopusQuartile"),
+    acceptanceDate: templateValue(data, "acceptanceDate"),
+    publicationDate: templateValue(data, "publicationDate"),
+    publicationLink: templateValue(data, "publicationLink"),
+    uibmDatabaseEvidence: templateValue(data, "uibmDatabaseEvidence"),
+    publicationConferenceDetails: templateValue(data, "publicationConferenceDetails"),
+    conferenceLink: templateValue(data, "conferenceLink"),
+    conferenceLocation: templateValue(data, "conferenceLocation"),
+    conferencePresentationDate: templateValue(data, "conferencePresentationDate"),
+  };
+}
+
+function getTemplateLabelMap(data) {
+  if (data.requestType === "conference") {
+    return {
+      "EMRI DHE MBIEMRI:": "applicantName",
+      "THIRRJA SHKENCORE:": "scientificTitle",
+      "NJËSIA AKADEMIKE:": "applicantFaculty",
+      "THIRRJA AKADEMIKE:": "academicTitle",
+      "AUTORI KRYESOR:": "mainAuthor",
+      "BASHKËPJESËMARRËSI:": "coParticipant",
+      "EMËRTIMI I NGJARJES:": "conferenceTitle",
+      "VENDI DHE DATA:": "eventPlaceDate",
+      "ORGANIZATORI:": "organizer",
+      "FTESA DHE PROGRAMI:": "invitationProgram",
+      "ABSTRAKTI DHE TITULLI I PUNIMIT:": "abstractTitle",
+      "KONFIRMIMI I PRANIMIT TË PUNIMIT:": "acceptanceConfirmation",
+      "AUTORËT E PUNIMIT (AFFILIATION):": "authorsAffiliation",
+      "FOLES ME KUMTESË/POSTER:": "speakerWithPaperPoster",
+      "NGJARJE ARTISTIKE/ SPORTIVE:": "artisticSportEvent",
+      "KRYESUES/PANELIST": "chairPanelist",
+      "LINKU I PUBLIKIMIT TË NGJARJES:": "eventPublicationLink",
+      "EMRI BANKËS:": "bankName",
+      "NUMRI I LLOGARISË BANKARE:": "bankAccountNumber",
+      "SWIFT KODI:": "swiftCode",
+      "VENDI:": "bankCountry",
+      "SHUMA E KËRKUAR:": "amount",
+      "SHËNO ME FJALË:": "amountWords",
+    };
+  }
+
+  if (data.requestType === "project") {
+    return {
+      "Titulli i projektit": "projectTitle",
+      "Kohëzgjatja e projektit (në muaj)": "projectDurationMonths",
+      "Njësia Akademike e UIBM-së që aplikon": "applyingUnit",
+      "Emri i Dekanit": "deanName",
+      "Vendi": "deanPlace",
+      "Numri i telefonit": "deanPhone",
+      "Email adresa": "deanEmail",
+      "Faqja e internetit/rrjeti social": "deanWebsite",
+      "Të dhënat për anëtarët e ekipit hulumtues": "teamMembers",
+      "Përshkrim gjithëpërfshirës i projekt-propozimit dhe plani i hulumtimit": "projectDescription",
+      "Fjalë kyçe për projektin": "projectKeywords",
+      "Ndikimi dhe arsyeshmëria e projektit": "projectImpact",
+      "Plani i punës dhe afatet kohore": "workPlan",
+      "Kosto totale e projektit": "totalProjectCost",
+      "Shuma e kërkuar nga UIBM": "requestedFromUibm",
+      "Kosto materiale": "materialCost",
+      "Kosto administrative": "administrativeCost",
+      "Kosto të personelit": "personnelCost",
+      "Kostot e tjera": "otherCosts",
+      "Përshkrimi i detajuar i kostos": "detailedCostDescription",
+    };
+  }
+
+  return {
+    "EMRI DHE MBIEMRI:": "applicantName",
+    "THIRRJA SHKENCORE:": "scientificTitle",
+    "NJËSIA AKADEMIKE": "applicantFaculty",
+    "THIRRJA AKADEMIKE:": "academicTitle",
+    "AUTOR KRYESOR:": "mainAuthor",
+    "AUTOR KORRESPONDENT:": "correspondingAuthor",
+    "BASHKAUTORËT:": "coauthors",
+    "PËRKATËSIA E AUTORIT (AFFILATION):": "affiliation",
+    "TITULLI I PUNIMIT:": "publicationTitle",
+    "DOI:": "doi",
+    "EMRI REVISTËS:": "journal",
+    "SHTËPIA BOTUESE": "publisher",
+    "INDEKSIMI NË PLATFORMËN:": "indexingPlatform",
+    "IMPAKT FAKTORI (IF):": "impactFactor",
+    "SCOPUS (Q1-Q": "scopusQuartile",
+    "DATA E PRANIMIT:": "acceptanceDate",
+    "DATA E PUBLIKIMIT:": "publicationDate",
+    "LINKU I PUBLIKIMIT:": "publicationLink",
+    "DËSHMIA E REGJISTRIMIT TË PUNIMIT SHKENCOR NË DATABAZËN E PUNIMEVE SHKENCORE TË UIBM": "uibmDatabaseEvidence",
+    "LINKU I KONFERENCËS:": "conferenceLink",
+    "VENDI I KONFERENCËS:": "conferenceLocation",
+    "DATA:": "conferencePresentationDate",
+    "EMRI BANKËS:": "bankName",
+    "NUMRI I LLOGARISË BANKARE:": "bankAccountNumber",
+    "SWIFT KODI:": "swiftCode",
+    "VENDI:": "bankCountry",
+    "SHUMA E KËRKUAR:": "amount",
+    "SHËNO ME FJALË:": "amountWords",
+  };
+}
+
+function replaceTemplateMarkers(xml, values) {
+  let nextXml = xml;
+  let replacements = 0;
+
+  Object.entries(values).forEach(([key, value]) => {
+    const safeValue = escapeXml(value).replace(/[\r\n]+/g, "; ");
+
+    [`{{${key}}}`, `[[${key}]]`, `«${key}»`].forEach((marker) => {
+      const regex = new RegExp(escapeRegex(escapeXml(marker)), "g");
+      const matches = nextXml.match(regex);
+
+      if (matches?.length) {
+        replacements += matches.length;
+        nextXml = nextXml.replace(regex, safeValue);
+      }
+    });
+  });
+
+  return { xml: nextXml, replacements };
+}
+
+function appendTemplateLabelValues(xml, values, labelMap) {
+  let nextXml = xml;
+  let replacements = 0;
+
+  Object.entries(labelMap).forEach(([label, key]) => {
+    const value = values[key];
+
+    if (!hasMeaningfulValue(value) || value === EMPTY_VALUE) {
+      return;
+    }
+
+    const safeLabel = escapeXml(label);
+    const safeValue = escapeXml(value).replace(/[\r\n]+/g, "; ");
+    const regex = new RegExp(`(${escapeRegex(safeLabel)})(?!\\s*${escapeRegex(safeValue)})`, "g");
+    const matches = nextXml.match(regex);
+
+    if (matches?.length) {
+      replacements += matches.length;
+      nextXml = nextXml.replace(regex, `$1 ${safeValue}`);
+    }
+  });
+
+  return { xml: nextXml, replacements };
+}
+
+async function buildTemplateDocx(data) {
+  const templatePath = path.join(TEMPLATE_DIR, `${getTypeCode(data.requestType)}.docx`);
+
+  try {
+    const [{ default: JSZip }, templateBuffer] = await Promise.all([
+      import("jszip"),
+      fs.readFile(templatePath),
+    ]);
+    const zip = await JSZip.loadAsync(templateBuffer);
+    const values = getTemplateValues(data);
+    const labelMap = getTemplateLabelMap(data);
+    let replacementCount = 0;
+    const xmlFileNames = Object.keys(zip.files).filter((name) =>
+      /^word\/(document|header|footer).*\.xml$/i.test(name)
+    );
+
+    for (const fileName of xmlFileNames) {
+      const file = zip.file(fileName);
+
+      if (!file) {
+        continue;
+      }
+
+      const originalXml = await file.async("string");
+      const markerResult = replaceTemplateMarkers(originalXml, values);
+      const labelResult = appendTemplateLabelValues(markerResult.xml, values, labelMap);
+      replacementCount += markerResult.replacements + labelResult.replacements;
+
+      if (markerResult.replacements || labelResult.replacements) {
+        zip.file(fileName, labelResult.xml);
+      }
+    }
+
+    if (replacementCount === 0) {
+      return null;
+    }
+
+    return zip.generateAsync({ type: "nodebuffer" });
+  } catch (error) {
+    console.warn("Official reimbursement DOCX template fill failed, falling back to generated document:", error.message);
+    return null;
+  }
+}
+
 export async function buildReimbursementDocx(row) {
   const data = prepareDocumentData(row);
+  const templateBuffer = await buildTemplateDocx(data);
+
+  if (templateBuffer) {
+    return templateBuffer;
+  }
+
   const title = FORM_TITLES[data.requestType] || "FORMULAR RIMBURSIMI";
   const children = [
     createDocxParagraph("Universiteti \"Isa Boletini\" - Mitrovice", {
@@ -486,7 +810,7 @@ export function buildReimbursementPdf(row) {
 }
 
 export function getReimbursementDocumentFilenames(row) {
-  const typeCode = row.request_type === "conference" ? "F2" : row.request_type === "project" ? "F3" : "F1";
+  const typeCode = getTypeCode(row.request_type);
   const documentNumber = row.document_number || `RIM-${String(row.id).slice(0, 8).toUpperCase()}`;
 
   return {

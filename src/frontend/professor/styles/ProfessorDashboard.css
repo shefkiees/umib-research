@@ -1615,6 +1615,12 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-field-error {
+  color: #be123c;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .reimbursement-subsection {
   border: 1px solid #dce7f2;
   border-radius: 10px;
@@ -1781,7 +1787,15 @@ body {
 
 .reimbursement-actions {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.reimbursement-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .reimbursement-request-item {
@@ -1825,11 +1839,108 @@ body {
   padding: 0 10px;
 }
 
+.reimbursement-upload-box {
+  grid-column: 1 / -1;
+  border: 1px dashed #cbd8e8;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.reimbursement-upload-label {
+  display: grid;
+  gap: 6px;
+  color: #17324f;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.reimbursement-upload-label input {
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.reimbursement-upload-box p,
+.reimbursement-file-list span {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.reimbursement-file-list,
+.reimbursement-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.reimbursement-attachment-list {
+  margin-top: 8px;
+}
+
+.reimbursement-attachment-list button {
+  border: 1px solid #cbd8e8;
+  background: #ffffff;
+  color: #174a7b;
+  border-radius: 999px;
+  min-height: 28px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reimbursement-timeline {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+  border-left: 2px solid #d8e2ee;
+  padding-left: 12px;
+}
+
+.reimbursement-timeline-item {
+  position: relative;
+  display: grid;
+  gap: 2px;
+}
+
+.reimbursement-timeline-dot {
+  position: absolute;
+  left: -18px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #1d67aa;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #b9d4ef;
+}
+
+.reimbursement-timeline-item strong {
+  color: #17324f;
+  font-size: 0.82rem;
+}
+
+.reimbursement-timeline-item p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .status-badge.submitted,
 .status-badge.received,
 .status-badge.ne-proces,
 .status-badge.ne-shqyrtim,
-.status-badge.in_review {
+.status-badge.in_review,
+.status-badge.committee_approved {
   color: #1d4ed8;
   background: #eaf2ff;
   border-color: #b8d2ff;
@@ -1851,7 +1962,8 @@ body {
 }
 
 .status-badge.draft,
-.status-badge.dokumente-shtese {
+.status-badge.dokumente-shtese,
+.status-badge.needs_correction {
   color: #b45309;
   background: #fff7e8;
   border-color: #f8d49a;

@@ -14,6 +14,8 @@ import {
 import "../styles/ProRectorDashboard.css";
 import ProRectorSidebar from "../components/Sidebar";
 import ProRectorTopBar from "../components/TopBar";
+import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
+import { apiUrl } from "../../utils/api";
 
 const facultyStatistics = [
   { faculty: "FG", label: "Fakulteti i Gjeoshkencave", department: "Fakulteti i Gjeoshkencave", publikime: 22, projekte: 8, rimbursime: 6 },
@@ -34,12 +36,6 @@ const conferenceRows = [
   { id: "CF-032", event: "IEEE BalkanCom", unit: "FIMC", status: "Konfirmuar" },
   { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
   { id: "CF-018", event: "Legal Innovation Summit", unit: "FJ", status: "Konfirmuar" },
-];
-
-const reimbursementRows = [
-  { id: "RB-012", request: "Article Processing Charge", unit: "FE", status: "Procesuar" },
-  { id: "RB-009", request: "Conference Travel", unit: "FTU", status: "Ne verifikim" },
-  { id: "RB-006", request: "Research Equipment", unit: "FIMC", status: "Procesuar" },
 ];
 
 export default function ProRectorDashboard() {
@@ -136,16 +132,6 @@ export default function ProRectorDashboard() {
 
     return conferenceRows.filter((item) =>
       `${item.id} ${item.event} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
-
-  const filteredReimbursements = useMemo(() => {
-    if (!normalizedQuery) {
-      return reimbursementRows;
-    }
-
-    return reimbursementRows.filter((item) =>
-      `${item.id} ${item.request} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
     );
   }, [normalizedQuery]);
 
@@ -361,67 +347,25 @@ export default function ProRectorDashboard() {
 
     if (activePage === "Rimbursime") {
       return (
-        <div className="prorector-table-section">
-          <h2>Rimbursime</h2>
-          <p>Përmbledhje e kërkesave për rimbursim.</p>
-          <table className="prorector-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>KËRKESA</th>
-                <th>NJESIA</th>
-                <th>STATUSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredReimbursements.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td>{row.request}</td>
-                  <td>{row.unit}</td>
-                  <td>
-                    <span className={`status-badge status-${row.status.toLowerCase().replace(" ", "-")}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ReimbursementReviewPanel
+          role="prorector"
+          scope="final"
+          searchQuery={searchQuery}
+          title="Rimbursime per aprovim final"
+          description="Kerkesat reale qe jane aprovuar nga komisioni dhe presin vendimin final te prorektorit."
+        />
       );
     }
 
     if (activePage === "Aprovime") {
       return (
-        <div className="prorector-table-section">
-          <h2>Aprovime</h2>
-          <p>Përmbledhje e aprovimeve të dorëzimeve.</p>
-          <table className="prorector-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>TITULL</th>
-                <th>NJESIA</th>
-                <th>STATUSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPublications.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td>{row.title}</td>
-                  <td>{row.unit}</td>
-                  <td>
-                    <span className={`status-badge status-${row.status.toLowerCase().replace(" ", "-")}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ReimbursementReviewPanel
+          role="prorector"
+          scope="final"
+          searchQuery={searchQuery}
+          title="Aprovime finale"
+          description="Vendimi final, refuzimi final ose shenimi i pageses per kerkesat qe kaluan komisionin."
+        />
       );
     }
 
@@ -625,7 +569,10 @@ export default function ProRectorDashboard() {
             }
 
             if (action === "Logout") {
-              navigate("/");
+              fetch(apiUrl("/auth/logout"), {
+                method: "POST",
+                credentials: "include",
+              }).finally(() => navigate("/"));
             }
           }}
           onNotificationRead={markNotificationAsRead}
