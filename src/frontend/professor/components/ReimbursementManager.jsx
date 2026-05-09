@@ -84,6 +84,28 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+const OTHER_BANK_OPTION = "Tjeter";
+const KOSOVO_BANKS = [
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA"] },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO"] },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO"] },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK"] },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301"] },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX"] },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB"] },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK"] },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA"] },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM"] },
+];
+const BANK_OPTIONS = ["", ...KOSOVO_BANKS.map((bank) => bank.name), OTHER_BANK_OPTION];
+
+const FORM_STEPS = [
+  { id: "basic", label: "Te dhenat baze" },
+  { id: "academic", label: "Te dhenat akademike" },
+  { id: "financial", label: "Financat" },
+  { id: "documents", label: "Dokumentet" },
+];
+
 const PARTICIPATION_OPTIONS = ["Prezantim", "Poster", "Pjesemarrje", "Keynote", "Panelist", "Kryesues"];
 const YES_NO_OPTIONS = ["", "Po", "Jo"];
 const SCOPUS_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "Jo e indeksuar", "Nuk aplikohet"];
@@ -117,6 +139,7 @@ const DEFAULT_FORM_VALUES = {
   notes: "",
   bankApplicantName: "",
   bankName: "",
+  bankNameOther: "",
   bankAccountNumber: "",
   swiftCode: "",
   bankCountry: "Kosove",
@@ -272,6 +295,77 @@ function hasValue(value) {
   return String(value ?? "").trim() !== "";
 }
 
+function normalizeIban(value) {
+  return String(value ?? "").replace(/\s+/g, "").toUpperCase();
+}
+
+function ibanMod97(iban) {
+  const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`;
+  let remainder = 0;
+
+  for (const char of rearranged) {
+    const code = char >= "A" && char <= "Z" ? String(char.charCodeAt(0) - 55) : char;
+
+    if (!/^\d+$/.test(code)) {
+      return null;
+    }
+
+    for (const digit of code) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+
+  return remainder;
+}
+
+function isValidIban(value) {
+  const iban = normalizeIban(value);
+
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) {
+    return false;
+  }
+
+  if (iban.length < 15 || iban.length > 34) {
+    return false;
+  }
+
+  if (iban.startsWith("XK") && iban.length !== 20) {
+    return false;
+  }
+
+  return ibanMod97(iban) === 1;
+}
+
+function detectKosovoBankFromIban(value) {
+  const iban = normalizeIban(value);
+
+  if (!iban.startsWith("XK") || iban.length < 8) {
+    return null;
+  }
+
+  const code4 = iban.slice(4, 8);
+  const code2 = iban.slice(4, 6);
+
+  return KOSOVO_BANKS.find((bank) => bank.ibanCodes.includes(code4) || bank.ibanCodes.includes(code2)) || null;
+}
+
+function isValidSwift(value) {
+  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(value ?? "").trim().toUpperCase());
+}
+
+function formatMoneyPreview(amount, currency = "EUR") {
+  const numericAmount = Number(String(amount ?? "").replace(",", "."));
+
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericAmount) + ` ${currency || "EUR"}`;
+}
+
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -364,6 +458,28 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   );
 
   const selectedTypeConfig = REQUEST_TYPES.find((item) => item.id === selectedType) || REQUEST_TYPES[0];
+  const normalizedIban = useMemo(() => normalizeIban(form.bankAccountNumber || form.iban), [form.bankAccountNumber, form.iban]);
+  const isIbanValid = useMemo(() => isValidIban(normalizedIban), [normalizedIban]);
+  const detectedBank = useMemo(() => detectKosovoBankFromIban(normalizedIban), [normalizedIban]);
+  const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
+  const stepStates = useMemo(() => {
+    const academicMainField = selectedType === "conference"
+      ? "conferenceTitle"
+      : selectedType === "project"
+        ? "projectTitle"
+        : "publicationTitle";
+
+    return {
+      basic: hasValue(form.applicantName) && hasValue(form.applicantEmail) && hasValue(form.applicantFaculty),
+      academic: hasValue(form[academicMainField]),
+      financial:
+        Number(String(form.amount || "").replace(",", ".")) > 0
+        && hasValue(form.bankName)
+        && isIbanValid
+        && isValidSwift(form.swiftCode),
+      documents: selectedFiles.length > 0 || hasValue(form.attachmentUrl),
+    };
+  }, [form, isIbanValid, selectedFiles.length, selectedType]);
 
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
@@ -497,8 +613,60 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setHasHydratedPublicationFields(true);
   }, [context.publications, hasHydratedPublicationFields, isLoadingContext, selectedType]);
 
+  useEffect(() => {
+    if (!detectedBank) {
+      return;
+    }
+
+    setForm((prev) => {
+      if (prev.bankName === detectedBank.name && prev.swiftCode === detectedBank.swift) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        bankName: detectedBank.name,
+        bankNameOther: "",
+        swiftCode: detectedBank.swift || prev.swiftCode,
+      };
+    });
+    setFieldErrors((prev) => ({
+      ...prev,
+      bankName: "",
+      bankAccountNumber: "",
+      swiftCode: "",
+    }));
+  }, [detectedBank]);
+
   const handleFieldChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    const nextValue = event.target.value;
+
+    setForm((prev) => {
+      const nextForm = { ...prev, [field]: nextValue };
+
+      if (field === "bankAccountNumber") {
+        nextForm.bankAccountNumber = normalizeIban(nextValue);
+        nextForm.iban = nextForm.bankAccountNumber;
+      }
+
+      if (field === "swiftCode") {
+        nextForm.swiftCode = nextValue.toUpperCase();
+      }
+
+      if (field === "bankName") {
+        const selectedBank = KOSOVO_BANKS.find((bank) => bank.name === nextValue);
+
+        if (selectedBank?.swift) {
+          nextForm.swiftCode = selectedBank.swift;
+        }
+
+        if (nextValue !== OTHER_BANK_OPTION) {
+          nextForm.bankNameOther = "";
+        }
+      }
+
+      return nextForm;
+    });
     setFieldErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
@@ -623,6 +791,22 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
     if (form.amount && Number.isNaN(Number(String(form.amount).replace(",", ".")))) {
       nextErrors.amount = "Shuma duhet te jete numer valid.";
+    }
+
+    if (!form.amount || Number(String(form.amount).replace(",", ".")) <= 0) {
+      nextErrors.amount = "Shuma e kerkuar duhet te jete numer pozitiv.";
+    }
+
+    if (!isValidIban(form.bankAccountNumber || form.iban)) {
+      nextErrors.bankAccountNumber = "IBAN nuk është valid. Kontrollo numrin e llogarisë bankare.";
+    }
+
+    if (form.bankName === OTHER_BANK_OPTION && !hasValue(form.bankNameOther)) {
+      nextErrors.bankNameOther = "Shkruaj emrin e bankes.";
+    }
+
+    if (!isValidSwift(form.swiftCode)) {
+      nextErrors.swiftCode = "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide.";
     }
 
     setFieldErrors(nextErrors);
@@ -808,9 +992,25 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const handleEditRequest = (request) => {
     const nextType = request.requestType || "publication";
+    const banking = request.requestData?.banking || {};
     const nextForm = {
       ...createDefaultForm(effectiveProfile),
       ...(request.requestData || {}),
+      amount: request.requestData?.amount || banking.amount || "",
+      currency: request.requestData?.currency || banking.currency || "EUR",
+      amountWords: request.requestData?.amountWords || banking.amountInWords || "",
+      bankApplicantName: request.requestData?.bankApplicantName || banking.applicantName || "",
+      bankName: request.requestData?.bankName || banking.bankName || "",
+      bankNameOther: request.requestData?.bankNameOther || "",
+      bankAccountNumber: request.requestData?.bankAccountNumber || banking.iban || "",
+      iban: request.requestData?.iban || banking.iban || "",
+      swiftCode: request.requestData?.swiftCode || banking.swift || "",
+      bankCountry: request.requestData?.bankCountry || banking.country || "Kosove",
+      invoiceNumber: request.requestData?.invoiceNumber || banking.invoiceNumber || "",
+      expenseDate: request.requestData?.expenseDate || banking.expenseDate || "",
+      attachmentUrl: request.requestData?.attachmentUrl || banking.documentLink || "",
+      purpose: request.requestData?.purpose || banking.description || "",
+      notes: request.requestData?.notes || banking.notes || "",
       teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
         ? request.requestData.teamMembers
         : createDefaultTeamMembers(),
@@ -879,6 +1079,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           required={options.required}
           inputMode={options.inputMode}
           placeholder={options.placeholder}
+          min={options.min}
+          step={options.step}
         />
         {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
       </label>
@@ -1098,21 +1300,63 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   };
 
   const renderFinanceFields = () => (
-    <div className="reimbursement-form-grid">
-      {renderInput("Shuma e kerkuar", "amount", { inputMode: "decimal", required: true })}
-      {renderInput("Valuta", "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
-      {renderInput("Shuma me fjale", "amountWords", { wide: true, placeholder: "p.sh. Nje mije e dyqind euro" })}
-      {renderInput("Emri dhe mbiemri i aplikantit", "bankApplicantName")}
-      {renderInput("Emri i bankes", "bankName")}
-      {renderInput("Numri i llogarise bankare / IBAN", "bankAccountNumber", { placeholder: "IBAN ose numer llogarie" })}
-      {renderInput("SWIFT kodi", "swiftCode")}
-      {renderInput("Vendi", "bankCountry")}
-      {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}
-      {renderInput("Numri i fatures", "invoiceNumber")}
-      {renderInput("IBAN / Llogaria bankare (legacy)", "iban")}
-      {renderInput("Link dokumentesh", "attachmentUrl", { placeholder: "URL e fatures ose dokumenteve" })}
-      {renderInput("Pershkrimi / Arsyeja", "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
-      {renderInput("Shenime shtese", "notes", { wide: true, type: "textarea", rows: 3 })}
+    <div className="reimbursement-bank-panel">
+      <div className="reimbursement-bank-grid">
+        <label className="reimbursement-field">
+          <span>Shuma e kerkuar</span>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            inputMode="decimal"
+            value={form.amount}
+            onChange={handleFieldChange("amount")}
+            required
+            placeholder="0.00"
+          />
+          {amountPreview ? <small className="reimbursement-helper">Totali: {amountPreview}</small> : null}
+          {fieldErrors.amount ? <small className="reimbursement-field-error">{fieldErrors.amount}</small> : null}
+        </label>
+
+        {renderInput("Valuta", "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
+        {renderInput("Shuma me fjale", "amountWords", { wide: true, placeholder: "p.sh. Nje mije e dyqind euro" })}
+        {renderInput("Emri dhe mbiemri i aplikantit", "bankApplicantName")}
+
+        <label className="reimbursement-field">
+          <span>Numri i llogarise bankare / IBAN</span>
+          <input
+            value={form.bankAccountNumber}
+            onChange={handleFieldChange("bankAccountNumber")}
+            placeholder="XK..."
+            autoComplete="off"
+          />
+          <small className="reimbursement-helper">Hapesirat hiqen automatikisht. Kontrollohet formati dhe checksum Mod 97.</small>
+          {isIbanValid ? <span className="reimbursement-valid-badge">IBAN valid</span> : null}
+          {detectedBank ? <span className="reimbursement-valid-badge muted">Banka u identifikua automatikisht</span> : null}
+          {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
+        </label>
+
+        <label className="reimbursement-field">
+          <span>Emri i bankes</span>
+          <select value={form.bankName} onChange={handleFieldChange("bankName")} required>
+            {BANK_OPTIONS.map((option) => (
+              <option key={option || "empty"} value={option}>
+                {option || "Zgjidh banken"}
+              </option>
+            ))}
+          </select>
+          {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
+        </label>
+
+        {form.bankName === OTHER_BANK_OPTION ? renderInput("Emri i bankes tjeter", "bankNameOther") : null}
+        {renderInput("SWIFT/BIC kodi", "swiftCode", { placeholder: "p.sh. RBKOXKPR" })}
+        {renderInput("Vendi", "bankCountry")}
+        {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}
+        {renderInput("Numri i fatures", "invoiceNumber")}
+        {renderInput("Link dokumentesh", "attachmentUrl", { placeholder: "URL e fatures ose dokumenteve" })}
+        {renderInput("Pershkrimi / Arsyeja", "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
+        {renderInput("Shenime shtese", "notes", { wide: true, type: "textarea", rows: 3 })}
+      </div>
     </div>
   );
 
@@ -1203,28 +1447,40 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           ) : null}
         </div>
 
-        <div className="reimbursement-type-grid">
-          {REQUEST_TYPES.map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              className={`reimbursement-type-card ${selectedType === type.id ? "active" : ""}`}
-              onClick={() => handleTypeSelect(type.id)}
-            >
-              <strong>{type.label}</strong>
-              <span>{type.description}</span>
-            </button>
-          ))}
-        </div>
-
         <form className="reimbursement-form" onSubmit={handleSubmit}>
+          <div className="reimbursement-stepper" aria-label="Hapat e formularit te rimbursimit">
+            {FORM_STEPS.map((step, index) => (
+              <div
+                key={step.id}
+                className={`reimbursement-step ${stepStates[step.id] ? "is-complete" : ""}`}
+              >
+                <span>{stepStates[step.id] ? "OK" : index + 1}</span>
+                <strong>{step.label}</strong>
+              </div>
+            ))}
+          </div>
+
           <section className="reimbursement-section">
             <div className="reimbursement-section-head">
               <Sparkles size={18} />
               <div>
-                <h4>Te dhenat e aplikuesit</h4>
-                <p>Keto merren nga profili dhe mund te plotesohen para dergimit.</p>
+                <h4>Te dhenat baze</h4>
+                <p>Zgjidh llojin e kerkeses dhe verifiko te dhenat e aplikuesit para dergimit.</p>
               </div>
+            </div>
+
+            <div className="reimbursement-type-grid">
+              {REQUEST_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`reimbursement-type-card ${selectedType === type.id ? "active" : ""}`}
+                  onClick={() => handleTypeSelect(type.id)}
+                >
+                  <strong>{type.label}</strong>
+                  <span>{type.description}</span>
+                </button>
+              ))}
             </div>
 
             {isLoadingContext ? (
@@ -1241,8 +1497,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <FileText size={18} />
               <div>
-                <h4>{selectedTypeConfig.label}</h4>
-                <p>Fushat jane zgjeruar sipas formularit zyrtar per kete lloj kerkese.</p>
+                <h4>Te dhenat akademike</h4>
+                <p>{selectedTypeConfig.label}: fushat shfaqen sipas formularit zyrtar perkates.</p>
               </div>
             </div>
 
@@ -1253,51 +1509,66 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Wallet size={18} />
               <div>
-                <h4>Te dhenat bankare dhe financiare</h4>
-                <p>Keto fusha ruhen ne request_data dhe futen ne PDF/DOCX.</p>
+                <h4>Te dhenat financiare/bankare</h4>
+                <p>IBAN, banka, SWIFT dhe shuma validohen para dergimit final.</p>
               </div>
             </div>
 
             {renderFinanceFields()}
+          </section>
+
+          <section className="reimbursement-section">
+            <div className="reimbursement-section-head">
+              <Upload size={18} />
+              <div>
+                <h4>Dokumentet mbeshtetese</h4>
+                <p>Ngarko dokumentet zyrtare ose vendos nje link mbeshtetes per shqyrtim.</p>
+              </div>
+            </div>
+
             {renderAttachmentUpload()}
           </section>
 
-          {error ? <p className="reimbursement-message error" role="alert">{error}</p> : null}
-          {success ? (
-            <div className="reimbursement-message success">
-              <span>
-                {success.status === "draft"
-                  ? "Draft-i u ruajt ne databaze."
-                  : "Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan."}
-              </span>
-              <div className="reimbursement-message-actions">
-                <button
-                  type="button"
-                  onClick={() => handleDownloadDocument(success, "pdf")}
-                  disabled={downloadingDocument === `${success.id}-pdf`}
-                >
-                  {downloadingDocument === `${success.id}-pdf` ? "PDF..." : "PDF"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadDocument(success, "docx")}
-                  disabled={downloadingDocument === `${success.id}-docx`}
-                >
-                  {downloadingDocument === `${success.id}-docx` ? "DOCX..." : "DOCX"}
-                </button>
-              </div>
+          <div className="reimbursement-action-bar">
+            <div className="reimbursement-action-feedback">
+              {error ? <p className="reimbursement-message error" role="alert">{error}</p> : null}
+              {success ? (
+                <div className="reimbursement-message success">
+                  <span>
+                    {success.status === "draft"
+                      ? "Draft-i u ruajt ne databaze."
+                      : "Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan."}
+                  </span>
+                  <div className="reimbursement-message-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadDocument(success, "pdf")}
+                      disabled={downloadingDocument === `${success.id}-pdf`}
+                    >
+                      {downloadingDocument === `${success.id}-pdf` ? "PDF..." : "PDF"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadDocument(success, "docx")}
+                      disabled={downloadingDocument === `${success.id}-docx`}
+                    >
+                      {downloadingDocument === `${success.id}-docx` ? "DOCX..." : "DOCX"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : null}
 
-          <div className="reimbursement-actions">
-            <button type="button" className="prof-btn-secondary" onClick={handleSaveDraft} disabled={isSubmitting || isLoadingContext}>
-              <Save size={16} />
-              {isSubmitting ? "Duke ruajtur..." : "Ruaje si draft"}
-            </button>
-            <button type="submit" className="prof-btn-primary" disabled={isSubmitting || isLoadingContext}>
-              <Upload size={16} />
-              {isSubmitting ? "Duke derguar..." : "Dergo per shqyrtim"}
-            </button>
+            <div className="reimbursement-actions">
+              <button type="button" className="prof-btn-secondary" onClick={handleSaveDraft} disabled={isSubmitting || isLoadingContext}>
+                <Save size={16} />
+                {isSubmitting ? "Duke ruajtur..." : "Ruaje si draft"}
+              </button>
+              <button type="submit" className="prof-btn-primary" disabled={isSubmitting || isLoadingContext}>
+                <Upload size={16} />
+                {isSubmitting ? "Duke derguar..." : "Dergo per shqyrtim"}
+              </button>
+            </div>
           </div>
         </form>
       </article>

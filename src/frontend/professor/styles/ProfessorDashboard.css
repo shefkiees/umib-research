@@ -1464,13 +1464,13 @@ body {
 /* ===== REIMBURSEMENTS ===== */
 .reimbursement-flow {
   display: grid;
-  gap: 10px;
+  gap: 16px;
 }
 
 .reimbursement-flow-card,
 .reimbursement-list-card {
-  overflow: hidden;
-  padding: 12px;
+  overflow: visible;
+  padding: 16px;
 }
 
 .reimbursement-flow-header {
@@ -1478,7 +1478,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
 
 .reimbursement-flow-header h3 {
@@ -1491,15 +1491,15 @@ body {
 .reimbursement-type-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .reimbursement-type-card {
   border: 1px solid #dce7f2;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fbfdff;
-  padding: 10px 12px;
+  padding: 12px;
   text-align: left;
   cursor: pointer;
   transition: var(--transition);
@@ -1523,28 +1523,86 @@ body {
 .reimbursement-type-card.active {
   border-color: #1d67aa;
   background: #eef7ff;
-  box-shadow: 0 12px 24px rgba(29, 103, 170, 0.1);
+  box-shadow: 0 10px 22px rgba(29, 103, 170, 0.1);
   transform: translateY(-1px);
 }
 
 .reimbursement-form {
   display: grid;
-  gap: 10px;
+  gap: 14px;
+}
+
+.reimbursement-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reimbursement-step {
+  border: 1px solid #dce7f2;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #53677e;
+  min-height: 44px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.reimbursement-step span {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #cbd8e8;
+  color: #174a7b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.reimbursement-step.is-complete {
+  border-color: #bfe8cd;
+  background: #ecfdf3;
+  color: #167244;
+}
+
+.reimbursement-step.is-complete span {
+  border-color: #9fdcb5;
+  background: #16803f;
+  color: #ffffff;
 }
 
 .reimbursement-section {
   border: 1px solid #e4edf6;
   border-radius: 12px;
   background: #ffffff;
-  padding: 10px;
+  padding: 16px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
 .reimbursement-section-head {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
-  margin-bottom: 8px;
+  gap: 9px;
+  margin-bottom: 14px;
   color: #1d4d7d;
+}
+
+.reimbursement-section-head > svg {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #eef7ff;
+  color: #1d67aa;
+  flex: 0 0 auto;
 }
 
 .reimbursement-section-head h4 {
@@ -1564,7 +1622,7 @@ body {
 .reimbursement-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: 12px;
 }
 
 .reimbursement-field {
@@ -1615,10 +1673,50 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-helper {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .reimbursement-field-error {
   color: #be123c;
   font-size: 0.74rem;
   font-weight: 800;
+}
+
+.reimbursement-bank-panel {
+  border: 1px solid #dce7f2;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f7fbff 100%);
+  padding: 12px;
+}
+
+.reimbursement-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reimbursement-valid-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #bfe8cd;
+  background: #eaf8ef;
+  color: #16803f;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.reimbursement-valid-badge.muted {
+  border-color: #b8d2ff;
+  background: #eaf2ff;
+  color: #1d4ed8;
 }
 
 .reimbursement-subsection {
@@ -1785,11 +1883,33 @@ body {
   justify-content: flex-end;
 }
 
+.reimbursement-action-bar {
+  position: sticky;
+  bottom: 14px;
+  z-index: 8;
+  border: 1px solid #dce7f2;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reimbursement-action-feedback {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .reimbursement-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   flex-wrap: wrap;
+  flex: 0 0 auto;
 }
 
 .reimbursement-actions button {
@@ -2035,16 +2155,37 @@ body {
   }
 
   .reimbursement-type-grid,
-  .reimbursement-form-grid {
+  .reimbursement-stepper,
+  .reimbursement-form-grid,
+  .reimbursement-bank-grid {
     grid-template-columns: 1fr;
   }
 
   .reimbursement-flow-header,
   .reimbursement-message,
+  .reimbursement-action-bar,
   .reimbursement-request-item,
   .reimbursement-request-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .reimbursement-action-bar {
+    bottom: 10px;
+  }
+
+  .reimbursement-action-feedback,
+  .reimbursement-actions,
+  .reimbursement-actions button {
+    width: 100%;
+  }
+
+  .reimbursement-actions {
+    justify-content: stretch;
+  }
+
+  .reimbursement-actions button {
+    justify-content: center;
   }
 
   .reimbursement-request-actions {

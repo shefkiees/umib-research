@@ -45,6 +45,33 @@ const ROLE_LABELS = {
   admin: "Administrator",
 };
 
+const ROLE_ALIASES = {
+  administrator: "admin",
+  admin: "admin",
+  committee: "committee",
+  commission: "committee",
+  komision: "committee",
+  komisioni: "committee",
+  prorektor: "prorector",
+  prorector: "prorector",
+  prorektorat: "prorector",
+  professor: "professor",
+  profesor: "professor",
+};
+
+const KOSOVO_BANKS = [
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["NCBA"] },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["MBKO"] },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["RBKO"] },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["TEBK"] },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["NLPR", "1301"] },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["BPBX"] },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["TCZB"] },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["ISBK"] },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["PHHA"] },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["EKOM"] },
+];
+
 const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "application/pdf",
@@ -66,6 +93,8 @@ const REQUIRED_FIELDS = {
     ["bankApplicantName", "Emri i aplikantit ne banke eshte obligativ."],
     ["bankName", "Emri i bankes eshte obligativ."],
     ["bankAccountNumber", "Numri i llogarise bankare/IBAN eshte obligativ."],
+    ["swiftCode", "SWIFT/BIC kodi eshte obligativ."],
+    ["amountWords", "Shuma me fjale eshte obligative."],
   ],
   publication: [
     ["publicationTitle", "Titulli i punimit eshte obligativ."],
@@ -110,11 +139,20 @@ function requireAuthenticatedUser(req, res, next) {
 }
 
 function canManageReimbursements(user) {
-  return ["committee", "prorector", "admin"].includes(user?.role);
+  return ["committee", "prorector", "admin"].includes(normalizeRole(user?.role));
 }
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeRole(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/[\s_-]+/g, "");
+  return ROLE_ALIASES[normalized] || normalized;
+}
+
+function getActorName(actor) {
+  return actor?.displayName || actor?.name || actor?.full_name || actor?.email || null;
 }
 
 function normalizeCurrency(value) {
@@ -141,6 +179,91 @@ function parseAmount(value) {
   }
 
   return Math.round(amount * 100) / 100;
+}
+
+function normalizeIban(value) {
+  return normalizeText(value).replace(/\s+/g, "").toUpperCase();
+}
+
+function ibanMod97(iban) {
+  const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`;
+  let remainder = 0;
+
+  for (const char of rearranged) {
+    const code = char >= "A" && char <= "Z" ? String(char.charCodeAt(0) - 55) : char;
+
+    if (!/^\d+$/.test(code)) {
+      return null;
+    }
+
+    for (const digit of code) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+
+  return remainder;
+}
+
+function isValidIban(value) {
+  const iban = normalizeIban(value);
+
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) {
+    return false;
+  }
+
+  if (iban.length < 15 || iban.length > 34) {
+    return false;
+  }
+
+  if (iban.startsWith("XK") && iban.length !== 20) {
+    return false;
+  }
+
+  return ibanMod97(iban) === 1;
+}
+
+function detectKosovoBankFromIban(value) {
+  const iban = normalizeIban(value);
+
+  if (!iban.startsWith("XK") || iban.length < 8) {
+    return null;
+  }
+
+  const code4 = iban.slice(4, 8);
+  const code2 = iban.slice(4, 6);
+
+  return KOSOVO_BANKS.find((bank) => bank.ibanCodes.includes(code4) || bank.ibanCodes.includes(code2)) || null;
+}
+
+function isValidSwift(value) {
+  const swift = normalizeText(value).toUpperCase();
+  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(swift);
+}
+
+function normalizeBankingData(formData, amount, currency) {
+  const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber);
+  const bankName = normalizeText(formData.bankName) === "Tjeter"
+    ? normalizeText(formData.bankNameOther)
+    : normalizeText(formData.bankName);
+  const swift = normalizeText(formData.swiftCode).toUpperCase();
+
+  return {
+    amount,
+    currency,
+    amountInWords: normalizeText(formData.amountWords),
+    applicantName: normalizeText(formData.bankApplicantName),
+    bankName: detectedBank?.name || bankName,
+    iban: normalizeIban(formData.bankAccountNumber || formData.iban),
+    swift: detectedBank?.swift || swift,
+    country: normalizeText(formData.bankCountry),
+    invoiceNumber: normalizeText(formData.invoiceNumber),
+    expenseDate: normalizeText(formData.expenseDate),
+    documentLink: normalizeText(formData.attachmentUrl),
+    description: normalizeText(formData.purpose),
+    notes: normalizeText(formData.notes),
+    detectedBankCode: detectedBank ? normalizeIban(formData.bankAccountNumber).slice(4, 8) : "",
+    bankDetectedAutomatically: Boolean(detectedBank),
+  };
 }
 
 function hasMeaningfulValue(value) {
@@ -476,6 +599,30 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
   errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS.common));
   errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS[requestType] || []));
 
+  if (amount === null || amount <= 0) {
+    errors.push({ field: "amount", message: "Shuma e kerkuar duhet te jete numer pozitiv." });
+  }
+
+  if (!isValidIban(formData.bankAccountNumber || formData.iban)) {
+    errors.push({
+      field: "bankAccountNumber",
+      message: "IBAN nuk eshte valid. Kontrollo numrin e llogarise bankare.",
+    });
+  }
+
+  const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber || formData.iban);
+  const bankName = normalizeText(formData.bankName) === "Tjeter"
+    ? normalizeText(formData.bankNameOther)
+    : normalizeText(formData.bankName);
+
+  if (!(detectedBank?.name || bankName)) {
+    errors.push({ field: "bankName", message: "Zgjidh ose shkruaj banken." });
+  }
+
+  if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
+    errors.push({ field: "swiftCode", message: "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide." });
+  }
+
   if (requestType === "project") {
     const teamMembers = Array.isArray(formData.teamMembers) ? formData.teamMembers : [];
     const hasTeamMember = teamMembers.some((member) =>
@@ -495,15 +642,31 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
 
 function buildRequestPayload(user, requestType, formData) {
   const autoFields = buildEditableAutoFields(user, formData);
+  const amount = parseAmount(formData.amount);
+  const currency = normalizeCurrency(formData.currency);
+  const banking = normalizeBankingData(formData, amount, currency);
   const requestData = {
     ...formData,
+    amount: amount === null ? normalizeText(formData.amount) : String(amount),
+    currency,
+    amountWords: banking.amountInWords,
+    bankApplicantName: banking.applicantName,
+    bankName: banking.bankName,
+    bankAccountNumber: banking.iban,
+    iban: banking.iban,
+    swiftCode: banking.swift,
+    bankCountry: banking.country,
+    invoiceNumber: banking.invoiceNumber,
+    expenseDate: banking.expenseDate,
+    attachmentUrl: banking.documentLink,
+    purpose: banking.description,
+    notes: banking.notes,
+    banking,
     auto: autoFields,
     requestType,
     requestTypeLabel: REQUEST_TYPES[requestType],
   };
   const title = buildRequestTitle(requestType, requestData);
-  const amount = parseAmount(formData.amount);
-  const currency = normalizeCurrency(formData.currency);
   const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
 
@@ -511,6 +674,8 @@ function buildRequestPayload(user, requestType, formData) {
 }
 
 async function insertStatusHistory(client, reimbursementId, previousStatus, status, actor, note) {
+  const actorRole = normalizeRole(actor?.role);
+
   await client.query(
     `insert into reimbursement_status_history
      (reimbursement_id, previous_status, status, actor_id, actor_role, actor_name, note)
@@ -520,8 +685,8 @@ async function insertStatusHistory(client, reimbursementId, previousStatus, stat
       previousStatus,
       status,
       actor?.id || null,
-      actor?.role || null,
-      actor?.displayName || actor?.name || actor?.email || null,
+      actorRole || null,
+      getActorName(actor),
       note || `Statusi u ndryshua ne ${STATUS_LABELS[status] || status}.`,
     ]
   );
@@ -617,22 +782,23 @@ async function ensureGeneratedDocument(row, format) {
 
 function getListScopeWhere(user, scope) {
   const normalizedScope = normalizeText(scope);
+  const role = normalizeRole(user?.role);
 
-  if (user.role === "professor" || normalizedScope === "mine") {
+  if (role === "professor" || normalizedScope === "mine") {
     return {
       where: "where r.owner_id = $1",
       params: [user.id],
     };
   }
 
-  if (user.role === "committee" || normalizedScope === "review") {
+  if ((role === "committee" && (!normalizedScope || normalizedScope === "review")) || (role === "admin" && normalizedScope === "review")) {
     return {
       where: "where r.status = any($1::text[])",
       params: [COMMITTEE_REVIEW_STATUSES],
     };
   }
 
-  if (user.role === "prorector" || normalizedScope === "final") {
+  if ((role === "prorector" && (!normalizedScope || normalizedScope === "final")) || (role === "admin" && normalizedScope === "final")) {
     return {
       where: `where r.status in ('committee_approved', 'approved', 'rejected', 'paid')
               and exists (
@@ -644,7 +810,7 @@ function getListScopeWhere(user, scope) {
     };
   }
 
-  if (user.role === "admin" || normalizedScope === "all") {
+  if (role === "admin" || normalizedScope === "all") {
     return {
       where: "where r.status <> 'draft'",
       params: [],
@@ -658,19 +824,21 @@ function getListScopeWhere(user, scope) {
 }
 
 function getAllowedStatuses(user, currentStatus) {
-  if (user.role === "admin") {
+  const role = normalizeRole(user?.role);
+
+  if (role === "admin") {
     return Array.from(VALID_REIMBURSEMENT_STATUSES).filter((status) => status !== "draft");
   }
 
-  if (user.role === "committee" && COMMITTEE_REVIEW_STATUSES.includes(currentStatus)) {
+  if (role === "committee" && COMMITTEE_REVIEW_STATUSES.includes(currentStatus)) {
     return ["received", "in_review", "needs_correction", "committee_approved", "rejected"];
   }
 
-  if (user.role === "prorector" && currentStatus === "committee_approved") {
+  if (role === "prorector" && currentStatus === "committee_approved") {
     return ["approved", "rejected"];
   }
 
-  if (user.role === "prorector" && currentStatus === "approved") {
+  if (role === "prorector" && currentStatus === "approved") {
     return ["paid"];
   }
 
@@ -746,7 +914,8 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
 
 router.get("/stats/summary", requireAuthenticatedUser, async (req, res) => {
   try {
-    const scope = getListScopeWhere(req.user, req.query.scope);
+    const actor = (await loadCurrentUser(req.user.id)) || req.user;
+    const scope = getListScopeWhere(actor, req.query.scope);
     const result = await db.query(
       `select
          count(*)::int as total,
@@ -769,7 +938,8 @@ router.get("/stats/summary", requireAuthenticatedUser, async (req, res) => {
 
 router.get("/", requireAuthenticatedUser, async (req, res) => {
   try {
-    const scope = getListScopeWhere(req.user, req.query.scope);
+    const actor = (await loadCurrentUser(req.user.id)) || req.user;
+    const scope = getListScopeWhere(actor, req.query.scope);
     const { rows } = await db.query(
       `${buildHistorySelect(scope.where)}
        order by coalesce(r.submitted_at, r.created_at) desc`,
@@ -1066,7 +1236,9 @@ router.get("/:id/history", requireAuthenticatedUser, async (req, res) => {
 });
 
 router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
-  if (!canManageReimbursements(req.user)) {
+  const actor = await loadCurrentUser(req.user.id);
+
+  if (!actor || !canManageReimbursements(actor)) {
     res.status(403).json({ error: "forbidden", message: "Vetem komisioni, prorektori ose admini mund te ndryshoje statusin." });
     return;
   }
@@ -1107,7 +1279,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     }
 
     const current = currentResult.rows[0];
-    const allowedStatuses = getAllowedStatuses(req.user, current.status);
+    const allowedStatuses = getAllowedStatuses(actor, current.status);
 
     if (!allowedStatuses.includes(nextStatus)) {
       await client.query("rollback");
@@ -1128,7 +1300,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
 
     const historyNote = note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`;
 
-    await insertStatusHistory(client, current.id, current.status, nextStatus, req.user, historyNote);
+    await insertStatusHistory(client, current.id, current.status, nextStatus, actor, historyNote);
     await notifyOwner(client, current.id, current.owner_id, nextStatus, historyNote);
 
     const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
