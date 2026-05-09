@@ -1762,64 +1762,20 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 68px;
+  height: 36px;
+  padding: 5px;
+  border: 1px solid #eef2f7;
   border-radius: 8px;
-  background: #edf6ff;
+  background: #ffffff;
   color: #2563eb;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0;
 }
 
-.reimbursement-bank-logo[data-tone="raiffeisen"] {
-  background: #ffe600;
-  color: #111827;
-}
-
-.reimbursement-bank-logo[data-tone="teb"] {
-  background: #0f8f57;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="economic"] {
-  background: #174ea6;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="procredit"] {
-  background: #e11d48;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="bkt"] {
-  background: #d71920;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="nlb"] {
-  background: #f97316;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="bpb"] {
-  background: #0f766e;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="ziraat"] {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="isbank"] {
-  background: #1d4ed8;
-  color: #ffffff;
-}
-
-.reimbursement-bank-logo[data-tone="pribank"] {
-  background: #7c3aed;
-  color: #ffffff;
+.reimbursement-bank-logo img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .reimbursement-subsection {
