@@ -46,6 +46,45 @@ function translateWarning(warning) {
   return WARNING_TRANSLATIONS[warning] || warning;
 }
 
+function formatConferenceDate(value) {
+  if (!value) {
+    return "Pa date";
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("sq-AL", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function getDateBadgeParts(value) {
+  if (!value) {
+    return { day: "--", month: "Pa datë" };
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return { day: "--", month: "Pa datë" };
+  }
+
+  return {
+    day: new Intl.DateTimeFormat("sq-AL", { day: "2-digit" }).format(date),
+    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date),
+  };
+}
+
+function getWorkflowStatusClass(status) {
+  return String(status || "Interested").toLowerCase();
+}
+
 function ConferenceManager({ searchQuery = "" }) {
   const [conferences, setConferences] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -331,6 +370,14 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
         ) : null}
 
+        <div className="conference-form-heading">
+          <div>
+            <h3>Detajet e konferencës</h3>
+            <p>Kontrolloni dhe plotësoni të dhënat para ruajtjes.</p>
+          </div>
+          {editingId ? <span>Duke edituar</span> : null}
+        </div>
+
         <form onSubmit={handleSubmit} className="conference-form">
           <div className={getFieldClass("title")}>
             <label>Titulli i konferencës</label>
@@ -422,14 +469,15 @@ function ConferenceManager({ searchQuery = "" }) {
             />
           </div>
 
-          <button
-            type="submit"
-            className="conference-submit-btn"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto konferencë"}
-          </button>
-          {editingId ? (
+          <div className="conference-form-actions">
+            <button
+              type="submit"
+              className="conference-submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto konferencë"}
+            </button>
+            {editingId ? (
             <button
               type="button"
               className="conference-cancel-btn"
@@ -438,7 +486,8 @@ function ConferenceManager({ searchQuery = "" }) {
             >
               Anulo
             </button>
-          ) : null}
+            ) : null}
+          </div>
         </form>
 
         {error ? (
@@ -464,10 +513,14 @@ function ConferenceManager({ searchQuery = "" }) {
           ) : conferences.length ? (
             conferences.map((conf) => {
               const status = getDeadlineStatus(conf.submission_deadline);
+              const dateBadge = getDateBadgeParts(conf.conference_date || conf.submission_deadline);
 
               return (
                 <div className="conference-card" key={conf.id}>
-                  <div className="conference-icon">Kal</div>
+                  <div className="conference-date-badge" aria-hidden="true">
+                    <strong>{dateBadge.day}</strong>
+                    <span>{dateBadge.month}</span>
+                  </div>
 
                   <div className="conference-details">
                     <h3>
@@ -479,11 +532,12 @@ function ConferenceManager({ searchQuery = "" }) {
 
                     <div className="conference-meta">
                       <span>{conf.field || "Pa fushë"}</span>
-                      <span>Afati: {conf.submission_deadline || "Pa afat"}</span>
+                      <span>Afati: {formatConferenceDate(conf.submission_deadline)}</span>
+                      <span>Data: {formatConferenceDate(conf.conference_date)}</span>
                     </div>
 
                     {conf.website && (
-                      <a href={conf.website} target="_blank" rel="noreferrer">
+                      <a className="conference-link" href={conf.website} target="_blank" rel="noreferrer">
                         Vizito faqen
                       </a>
                     )}
@@ -503,10 +557,13 @@ function ConferenceManager({ searchQuery = "" }) {
                     >
                       {status}
                     </span>
-                    <span className="conference-workflow-status">{getStatusLabel(conf.status)}</span>
+                    <span className={`conference-workflow-status ${getWorkflowStatusClass(conf.status)}`}>
+                      {getStatusLabel(conf.status)}
+                    </span>
 
                     <button
                       type="button"
+                      className="conference-action-edit"
                       onClick={() => editConference(conf)}
                       disabled={deletingId === conf.id}
                     >
@@ -515,6 +572,7 @@ function ConferenceManager({ searchQuery = "" }) {
 
                     <button
                       type="button"
+                      className="conference-action-delete"
                       onClick={() => deleteConference(conf.id)}
                       disabled={deletingId === conf.id}
                     >
