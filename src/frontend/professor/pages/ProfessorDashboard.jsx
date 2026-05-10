@@ -1277,9 +1277,9 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto dhe Menaxho Konferenca</h3>
+                  <h3>Shto dhe menaxho konferenca</h3>
                   <p>
-                    Regjistro konferenca, afate submissions dhe menaxho
+                    Regjistro konferenca, afate dorëzimi dhe menaxho
                     pjesëmarrjet shkencore.
                   </p>
                 </div>
