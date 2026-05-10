@@ -335,16 +335,6 @@ function ConferenceManager({ searchQuery = "" }) {
   return (
     <div className="conference-page">
       <section className="conference-panel">
-        <div className="conference-header">
-          <div>
-            <h2>Shto dhe menaxho konferenca</h2>
-            <p>
-              Regjistro konferenca, afate dorëzimi
-              dhe menaxho pjesëmarrjet shkencore.
-            </p>
-          </div>
-        </div>
-
         <div className="conference-import">
           <div className="conference-import-copy">
             <strong>Importo nga linku</strong>
