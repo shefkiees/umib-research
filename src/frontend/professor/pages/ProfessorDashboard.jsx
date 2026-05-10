@@ -199,6 +199,39 @@ const formatRequestedAmounts = (amounts = []) => {
 const getStatusLabel = (status) => STATUS_LABELS[status] || status;
 const getRequestTypeLabel = (type) => REQUEST_TYPE_LABELS[type] || type;
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
+const PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY = "professorSystemPreferences";
+
+const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
+  emailNotifications: true,
+  language: "sq",
+};
+
+const PROFESSOR_SYSTEM_PREFERENCE_COPY = {
+  sq: {
+    title: "Preferencat e Sistemit",
+    emailLabel: "Njoftime me email",
+    emailSubtext: "Merr njoftime per cdo publikim ose rimbursim",
+    enabledStatus: "Aktive",
+    disabledStatus: "Joaktive",
+    languageLabel: "Gjuha e nderfaqes",
+    languageSubtext: "Zgjidh gjuhen e shfaqjes per kete seksion.",
+    albanian: "Shqip",
+    english: "English",
+    saved: "Preferencat u ruajten.",
+  },
+  en: {
+    title: "System Preferences",
+    emailLabel: "Email notifications",
+    emailSubtext: "Receive notifications for every publication or reimbursement",
+    enabledStatus: "Enabled",
+    disabledStatus: "Disabled",
+    languageLabel: "Interface language",
+    languageSubtext: "Choose the display language for this section.",
+    albanian: "Albanian",
+    english: "English",
+    saved: "Preferences saved.",
+  },
+};
 
 const hasStatisticMetricData = (rows = []) =>
   rows.some((row) =>
@@ -259,6 +292,55 @@ export default function ProfessorDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
+  const [systemPreferences, setSystemPreferences] = useState(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_PROFESSOR_SYSTEM_PREFERENCES;
+    }
+
+    try {
+      const persisted = window.localStorage.getItem(PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY);
+      const parsed = persisted ? JSON.parse(persisted) : {};
+
+      return {
+        ...DEFAULT_PROFESSOR_SYSTEM_PREFERENCES,
+        ...parsed,
+        language: parsed.language === "en" ? "en" : "sq",
+        emailNotifications: Boolean(
+          parsed.emailNotifications ?? DEFAULT_PROFESSOR_SYSTEM_PREFERENCES.emailNotifications
+        ),
+      };
+    } catch {
+      return DEFAULT_PROFESSOR_SYSTEM_PREFERENCES;
+    }
+  });
+  const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
+
+  const systemPreferenceCopy =
+    PROFESSOR_SYSTEM_PREFERENCE_COPY[systemPreferences.language] || PROFESSOR_SYSTEM_PREFERENCE_COPY.sq;
+
+  const updateSystemPreference = useCallback((field, value) => {
+    const next = { ...systemPreferences, [field]: value };
+
+    setSystemPreferences(next);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY, JSON.stringify(next));
+    }
+
+    setSystemPreferencesMessage(
+      (PROFESSOR_SYSTEM_PREFERENCE_COPY[next.language] || PROFESSOR_SYSTEM_PREFERENCE_COPY.sq).saved
+    );
+  }, [systemPreferences]);
+
+  useEffect(() => {
+    if (!systemPreferencesMessage) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setSystemPreferencesMessage(""), 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [systemPreferencesMessage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1430,29 +1512,50 @@ export default function ProfessorDashboard() {
                   <div className="prorector-settings-icon">
                     <BookOpen size={20} />
                   </div>
-                  <h3>Preferencat e Sistemit</h3>
+                  <h3>{systemPreferenceCopy.title}</h3>
                 </div>
                 <div className="prorector-settings-options">
                   <div className="prorector-settings-option-item">
                     <div className="prorector-settings-option-info">
-                      <span className="prorector-settings-label">Njoftime me email</span>
-                      <p className="prorector-settings-subtext">Merr njoftime për çdo publikim ose rimbursim</p>
+                      <span className="prorector-settings-label">{systemPreferenceCopy.emailLabel}</span>
+                      <p className="prorector-settings-subtext">{systemPreferenceCopy.emailSubtext}</p>
+                      <p className="prorector-settings-subtext">
+                        {systemPreferences.emailNotifications
+                          ? systemPreferenceCopy.enabledStatus
+                          : systemPreferenceCopy.disabledStatus}
+                      </p>
                     </div>
                     <label className="prorector-switch">
-                      <input type="checkbox" defaultChecked />
+                      <input
+                        type="checkbox"
+                        checked={systemPreferences.emailNotifications}
+                        aria-label={systemPreferenceCopy.emailLabel}
+                        onChange={(event) => updateSystemPreference("emailNotifications", event.target.checked)}
+                      />
                       <span className="prorector-slider"></span>
                     </label>
                   </div>
 
                   <div className="prorector-settings-option-item">
                     <div className="prorector-settings-option-info">
-                      <span className="prorector-settings-label">Gjuha e Ndërfaqes</span>
+                      <span className="prorector-settings-label">{systemPreferenceCopy.languageLabel}</span>
+                      <p className="prorector-settings-subtext">{systemPreferenceCopy.languageSubtext}</p>
                     </div>
-                    <select className="prorector-settings-select" defaultValue="Shqip">
-                      <option>Shqip</option>
-                      <option>English</option>
+                    <select
+                      className="prorector-settings-select"
+                      value={systemPreferences.language}
+                      aria-label={systemPreferenceCopy.languageLabel}
+                      onChange={(event) => updateSystemPreference("language", event.target.value)}
+                    >
+                      <option value="sq">{systemPreferenceCopy.albanian}</option>
+                      <option value="en">{systemPreferenceCopy.english}</option>
                     </select>
                   </div>
+                  {systemPreferencesMessage ? (
+                    <p className="prorector-settings-subtext" role="status" aria-live="polite">
+                      {systemPreferencesMessage}
+                    </p>
+                  ) : null}
                 </div>
               </article>
 
