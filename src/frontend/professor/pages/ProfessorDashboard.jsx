@@ -1,14 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
   Link2,
+  Pencil,
   RefreshCw,
+  Save,
   Settings,
   ShieldX,
+  Trash2,
   Wallet,
+  X,
 } from "lucide-react";
 import {
   Bar,
@@ -120,10 +124,12 @@ const formatDate = (value) => {
 
 const mapPublicationRow = (row = {}) => ({
   id: row.id || row.doi || row.title,
+  doi: row.doi || "",
   title: row.title || "Pa titull",
   journal: row.venue || row.publisher || "Pa reviste/konference",
   year: row.publicationYear || row.publication_year || "",
   status: row.status || "draft",
+  sourceUrl: row.sourceUrl || row.source_url || "",
   createdAt: row.createdAt || row.created_at || null,
 });
 
@@ -230,6 +236,21 @@ export default function ProfessorDashboard() {
   const [publications, setPublications] = useState([]);
   const [isPublicationsLoading, setIsPublicationsLoading] = useState(true);
   const [publicationsError, setPublicationsError] = useState("");
+  const [publicationsPage, setPublicationsPage] = useState(1);
+  const [publicationsPagination, setPublicationsPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 1,
+  });
+  const [editingPublicationId, setEditingPublicationId] = useState("");
+  const [publicationDraft, setPublicationDraft] = useState({
+    title: "",
+    venue: "",
+    publicationYear: "",
+    status: "draft",
+  });
+  const [publicationActionId, setPublicationActionId] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
@@ -374,54 +395,63 @@ export default function ProfessorDashboard() {
   }, [navigate, periodRange]);
 
   useEffect(() => {
-    let isMounted = true;
+    setPublicationsPage(1);
+  }, [searchQuery]);
 
-    const loadPublications = async () => {
-      setIsPublicationsLoading(true);
-      setPublicationsError("");
+  const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
+    setIsPublicationsLoading(true);
+    setPublicationsError("");
 
-      try {
-        const response = await fetch(apiUrl("/publications"), {
-          credentials: "include",
-        });
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "25",
+      });
+      const trimmedQuery = query.trim();
 
-        if (response.status === 401) {
-          throw new Error("publications_unauthorized");
-        }
-
-        if (!response.ok) {
-          throw new Error("publications_load_failed");
-        }
-
-        const data = await response.json();
-
-        if (isMounted) {
-          setPublications(Array.isArray(data) ? data.map(mapPublicationRow) : []);
-        }
-      } catch (error) {
-        console.error("Publications load failed:", error);
-
-        if (isMounted) {
-          setPublications([]);
-          setPublicationsError(
-            error.message === "publications_unauthorized"
-              ? "Publikimet nuk u ngarkuan sepse sesioni nuk u pranua nga API."
-              : "Publikimet nuk u ngarkuan nga Supabase."
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setIsPublicationsLoading(false);
-        }
+      if (trimmedQuery) {
+        params.set("q", trimmedQuery);
       }
-    };
 
-    loadPublications();
+      const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
 
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
+      if (response.status === 401) {
+        throw new Error("publications_unauthorized");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "publications_load_failed");
+      }
+
+      const rows = Array.isArray(data) ? data : data.data;
+
+      setPublications(Array.isArray(rows) ? rows.map(mapPublicationRow) : []);
+      setPublicationsPagination({
+        page: data.pagination?.page || page,
+        limit: data.pagination?.limit || 25,
+        total: data.pagination?.total || (Array.isArray(rows) ? rows.length : 0),
+        totalPages: data.pagination?.totalPages || 1,
+      });
+    } catch (error) {
+      console.error("Publications load failed:", error);
+
+      setPublications([]);
+      setPublicationsError(
+        error.message === "publications_unauthorized"
+          ? "Publikimet nuk u ngarkuan sepse sesioni nuk u pranua nga API."
+          : error.message || "Publikimet nuk u ngarkuan nga Supabase."
+      );
+    } finally {
+      setIsPublicationsLoading(false);
+    }
+  }, [publicationsPage, searchQuery]);
+
+  useEffect(() => {
+    loadPublications({ page: publicationsPage, query: searchQuery });
+  }, [loadPublications, publicationsPage, searchQuery]);
 
   const pageTitle = activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -648,6 +678,92 @@ export default function ProfessorDashboard() {
     }
   };
 
+  const startPublicationEdit = (publication) => {
+    setEditingPublicationId(publication.id);
+    setPublicationDraft({
+      title: publication.title || "",
+      venue: publication.journal || "",
+      publicationYear: publication.year || "",
+      status: publication.status || "draft",
+    });
+    setPublicationsError("");
+  };
+
+  const cancelPublicationEdit = () => {
+    setEditingPublicationId("");
+    setPublicationDraft({
+      title: "",
+      venue: "",
+      publicationYear: "",
+      status: "draft",
+    });
+  };
+
+  const handlePublicationDraftChange = (field) => (event) => {
+    setPublicationDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const savePublicationEdit = async (id) => {
+    setPublicationActionId(id);
+    setPublicationsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/publications/${id}`), {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(publicationDraft),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Publikimi nuk u ruajt.");
+      }
+
+      cancelPublicationEdit();
+      await loadPublications({ page: publicationsPage, query: searchQuery });
+    } catch (error) {
+      setPublicationsError(error.message || "Publikimi nuk u ruajt.");
+    } finally {
+      setPublicationActionId("");
+    }
+  };
+
+  const deletePublication = async (id) => {
+    const confirmed = window.confirm("A jeni te sigurt qe doni ta fshini kete publikim?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublicationActionId(id);
+    setPublicationsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/publications/${id}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Publikimi nuk u fshi.");
+      }
+
+      if (editingPublicationId === id) {
+        cancelPublicationEdit();
+      }
+
+      await loadPublications({ page: publicationsPage, query: searchQuery });
+    } catch (error) {
+      setPublicationsError(error.message || "Publikimi nuk u fshi.");
+    } finally {
+      setPublicationActionId("");
+    }
+  };
+
   const renderStatus = (value) => {
     const statusValue = String(value || "unknown");
     const statusClass = statusValue.toLowerCase().replace(/\s+/g, "-");
@@ -810,7 +926,7 @@ export default function ProfessorDashboard() {
                 <h4>{formatter.title(row)}</h4>
                 <p>{formatter.description(row)}</p>
               </div>
-              <div>{renderStatus(formatter.status(row))}</div>
+              <div>{formatter.actions ? formatter.actions(row) : renderStatus(formatter.status(row))}</div>
             </div>
           ))
         ) : (
@@ -1003,6 +1119,97 @@ export default function ProfessorDashboard() {
     );
   };
 
+  const renderPublicationTitle = (row) => {
+    if (editingPublicationId !== row.id) {
+      return row.title;
+    }
+
+    return (
+      <div style={{ display: "grid", gap: "8px", maxWidth: "620px" }}>
+        <input
+          value={publicationDraft.title}
+          onChange={handlePublicationDraftChange("title")}
+          style={{ width: "100%" }}
+          aria-label="Titulli i publikimit"
+        />
+        <input
+          value={publicationDraft.venue}
+          onChange={handlePublicationDraftChange("venue")}
+          placeholder="Revista / konferenca"
+          aria-label="Revista ose konferenca"
+        />
+        <input
+          value={publicationDraft.publicationYear}
+          onChange={handlePublicationDraftChange("publicationYear")}
+          placeholder="Viti"
+          inputMode="numeric"
+          aria-label="Viti i publikimit"
+        />
+        <select
+          value={publicationDraft.status}
+          onChange={handlePublicationDraftChange("status")}
+          aria-label="Statusi i publikimit"
+        >
+          <option value="draft">Draft</option>
+          <option value="submitted">Dorezuar</option>
+          <option value="in_review">Ne shqyrtim</option>
+          <option value="approved">Aprovuar</option>
+          <option value="rejected">Refuzuar</option>
+        </select>
+      </div>
+    );
+  };
+
+  const renderPublicationActions = (row) => {
+    if (editingPublicationId === row.id) {
+      return (
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            className="prof-btn-primary"
+            onClick={() => savePublicationEdit(row.id)}
+            disabled={publicationActionId === row.id}
+            aria-label="Ruaj publikimin"
+          >
+            <Save size={15} />
+          </button>
+          <button
+            type="button"
+            className="prof-btn-secondary"
+            onClick={cancelPublicationEdit}
+            disabled={publicationActionId === row.id}
+            aria-label="Anulo editimin"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        {renderStatus(row.status)}
+        <button
+          type="button"
+          className="prof-btn-secondary"
+          onClick={() => startPublicationEdit(row)}
+          aria-label="Edito publikimin"
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          type="button"
+          className="prof-btn-secondary"
+          onClick={() => deletePublication(row.id)}
+          disabled={publicationActionId === row.id}
+          aria-label="Fshij publikimin"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activePage) {
       case "Overview":
@@ -1021,7 +1228,7 @@ export default function ProfessorDashboard() {
                 </div>
               </div>
 
-              <DoiLookup />
+              <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
             </article>
 
             {renderListSection(
@@ -1031,12 +1238,36 @@ export default function ProfessorDashboard() {
               "id",
               {
                 icon: <BookOpen size={20} />,
-                title: (row) => row.title,
+                title: renderPublicationTitle,
                 description: (row) => `${row.journal} • ${row.year}`,
                 status: (row) => row.status,
+                actions: renderPublicationActions,
               },
               publicationsError || (isPublicationsLoading ? "Duke ngarkuar publikimet nga Supabase..." : "No data available yet.")
             )}
+            {publicationsPagination.totalPages > 1 ? (
+              <div className="prof-modal-actions" style={{ marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => setPublicationsPage((page) => Math.max(page - 1, 1))}
+                  disabled={publicationsPagination.page <= 1 || isPublicationsLoading}
+                >
+                  Mbrapa
+                </button>
+                <span style={{ alignSelf: "center", color: "#64748b", fontWeight: 700 }}>
+                  Faqja {publicationsPagination.page} / {publicationsPagination.totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => setPublicationsPage((page) => Math.min(page + 1, publicationsPagination.totalPages))}
+                  disabled={publicationsPagination.page >= publicationsPagination.totalPages || isPublicationsLoading}
+                >
+                  Para
+                </button>
+              </div>
+            ) : null}
           </>
         );
 
@@ -1054,7 +1285,7 @@ export default function ProfessorDashboard() {
                 </div>
               </div>
 
-              <ConferenceManager />
+              <ConferenceManager searchQuery={searchQuery} />
             </article>
           </>
         );
