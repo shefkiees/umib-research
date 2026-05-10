@@ -14,6 +14,7 @@ import reimbursementRoutes from "./routes/reimbursements.js";
 import publicationRoutes from "./routes/publications.js";
 import professorStatsRoutes from "./routes/professorStats.js";
 import notificationRoutes from "./routes/notifications.js";
+import adminRoutes from "./routes/admin.js";
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use("/api/doi", doiRoutes);
 app.use("/api/publications", publicationRoutes);
 app.use("/api/professor", professorStatsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 app.use("/api/orcid", orcidRoutes);

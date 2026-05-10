@@ -9,6 +9,8 @@
     "db:schema": "node backend/scripts/apply-schema.js",
     "lint": "eslint .",
     "test:reimbursements": "node backend/scripts/reimbursement-docx-smoke.js",
+    "auth:sync:dry-run": "node backend/scripts/sync-supabase-auth-users.js",
+    "auth:sync:apply": "node backend/scripts/sync-supabase-auth-users.js --apply",
     "preview": "vite preview"
   },
   "dependencies": {
