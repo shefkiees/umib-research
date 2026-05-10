@@ -10,18 +10,40 @@ const EMPTY_FORM = {
   submission_deadline: "",
   conference_date: "",
   website: "",
+  status: "Interested",
+};
+
+const CONFERENCE_STATUSES = ["Interested", "Planning", "Submitted", "Accepted", "Attended", "Completed"];
+const CONFERENCE_STATUS_LABELS = {
+  Interested: "I interesuar",
+  Planning: "Në planifikim",
+  Submitted: "Dërguar",
+  Accepted: "Pranuar",
+  Attended: "Pjesëmarrë",
+  Completed: "Përfunduar",
+};
+const WARNING_TRANSLATIONS = {
+  "Metadata extraction failed. You can complete the form manually.": "Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.",
 };
 
 function getConferenceErrorMessage(response, data, action) {
   if (response.status === 401) {
-    return `Sesioni nuk eshte aktiv. Kyquni me Google per te ${action} konferenca.`;
+    return `Sesioni nuk është aktiv. Kyçuni me Google për të ${action} konferenca.`;
   }
 
   if (response.status === 403) {
-    return "Nuk keni leje per kete veprim.";
+    return "Nuk keni leje për këtë veprim.";
   }
 
-  return data?.message || "Konferencat nuk u perditesuan.";
+  return data?.message || "Konferencat nuk u përditësuan.";
+}
+
+function getStatusLabel(status) {
+  return CONFERENCE_STATUS_LABELS[status] || status || CONFERENCE_STATUS_LABELS.Interested;
+}
+
+function translateWarning(warning) {
+  return WARNING_TRANSLATIONS[warning] || warning;
 }
 
 function ConferenceManager({ searchQuery = "" }) {
@@ -32,6 +54,11 @@ function ConferenceManager({ searchQuery = "" }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
+  const [extractUrl, setExtractUrl] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractMessage, setExtractMessage] = useState("");
+  const [extractWarnings, setExtractWarnings] = useState([]);
+  const [missingFields, setMissingFields] = useState([]);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -61,7 +88,7 @@ function ConferenceManager({ searchQuery = "" }) {
       const data = await response.json().catch(() => []);
 
       if (!response.ok) {
-        throw new Error(getConferenceErrorMessage(response, data, "pare"));
+        throw new Error(getConferenceErrorMessage(response, data, "parë"));
       }
 
       const rows = Array.isArray(data) ? data : data.data;
@@ -93,6 +120,72 @@ function ConferenceManager({ searchQuery = "" }) {
       ...form,
       [event.target.name]: event.target.value,
     });
+    setMissingFields((prev) => prev.filter((field) => field !== event.target.name));
+  };
+
+  const getFieldClass = (field) =>
+    `form-group${missingFields.includes(field) ? " conference-field-missing" : ""}`;
+
+  const handleExtract = async () => {
+    const url = extractUrl.trim();
+
+    if (!url) {
+      setExtractMessage("Shkruani linkun e konferencës.");
+      setExtractWarnings([]);
+      return;
+    }
+
+    setIsExtracting(true);
+    setError("");
+    setExtractMessage("");
+    setExtractWarnings([]);
+    setMissingFields([]);
+
+    try {
+      const response = await fetch(apiUrl("/conferences/extract"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
+      const result = await response.json().catch(() => ({}));
+      const extracted = result.data || {};
+
+      setForm((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          Object.entries(extracted).filter(([, value]) => value !== undefined && value !== null && value !== "")
+        ),
+        website: extracted.website || url,
+        status: extracted.status || prev.status || "Interested",
+      }));
+      setMissingFields(Array.isArray(result.missingFields) ? result.missingFields : []);
+      setExtractWarnings(Array.isArray(result.warnings) ? result.warnings : []);
+
+      if (!response.ok) {
+        setExtractMessage("Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.");
+        return;
+      }
+
+      if (result.missingFields?.length) {
+        setExtractMessage("Disa të dhëna nuk u identifikuan. Ju lutem plotësojini manualisht.");
+      } else {
+        setExtractMessage("Të dhënat u gjetën. Ju lutem kontrolloni para ruajtjes.");
+      }
+    } catch {
+      setForm((prev) => ({
+        ...prev,
+        website: url,
+        status: prev.status || "Interested",
+      }));
+      setMissingFields(["title", "submission_deadline", "conference_date", "location"]);
+      setExtractWarnings([]);
+      setExtractMessage("Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.");
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -135,18 +228,21 @@ function ConferenceManager({ searchQuery = "" }) {
       submission_deadline: conference.submission_deadline || "",
       conference_date: conference.conference_date || "",
       website: conference.website || "",
+      status: conference.status || "Interested",
     });
     setError("");
+    setMissingFields([]);
   };
 
   const cancelEdit = () => {
     setEditingId("");
     setForm(EMPTY_FORM);
     setError("");
+    setMissingFields([]);
   };
 
   const deleteConference = async (id) => {
-    const confirmed = window.confirm("A jeni te sigurt qe doni ta fshini kete konference?");
+    const confirmed = window.confirm("A dëshironi ta fshini konferencën?");
 
     if (!confirmed) {
       return;
@@ -163,7 +259,7 @@ function ConferenceManager({ searchQuery = "" }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(getConferenceErrorMessage(response, data, "fshire"));
+        throw new Error(getConferenceErrorMessage(response, data, "fshirë"));
       }
 
       if (editingId === id) {
@@ -179,6 +275,10 @@ function ConferenceManager({ searchQuery = "" }) {
   };
 
   const getDeadlineStatus = (deadline) => {
+    if (!deadline) {
+      return "Pa afat";
+    }
+
     const today = new Date();
     const deadlineDate = new Date(deadline);
 
@@ -186,8 +286,9 @@ function ConferenceManager({ searchQuery = "" }) {
       (deadlineDate - today) / (1000 * 60 * 60 * 24)
     );
 
+    if (Number.isNaN(deadlineDate.getTime())) return "Pa afat";
     if (difference < 0) return "Mbyllur";
-    if (difference <= 7) return "Mbyllet se shpejti";
+    if (difference <= 7) return "Mbyllet së shpejti";
 
     return "Hapur";
   };
@@ -197,73 +298,98 @@ function ConferenceManager({ searchQuery = "" }) {
       <section className="conference-panel">
         <div className="conference-header">
           <div>
-            <h2>Shto dhe Menaxho Konferenca</h2>
+            <h2>Shto dhe menaxho konferenca</h2>
             <p>
-              Regjistro konferenca, afate aplikimi
-              dhe menaxho pjesemarrjet shkencore.
+              Regjistro konferenca, afate dorëzimi
+              dhe menaxho pjesëmarrjet shkencore.
             </p>
           </div>
         </div>
 
+        <div className="conference-import">
+          <div className="conference-import-copy">
+            <strong>Importo nga linku</strong>
+            <span>Vendos faqen zyrtare të konferencës për të provuar plotësimin automatik.</span>
+          </div>
+          <div className="conference-import-controls">
+            <input
+              type="url"
+              value={extractUrl}
+              onChange={(event) => setExtractUrl(event.target.value)}
+              placeholder="https://faqja-e-konferences.com"
+            />
+            <button type="button" onClick={handleExtract} disabled={isExtracting}>
+              {isExtracting ? "Duke nxjerrë të dhënat..." : "Nxirr të dhënat"}
+            </button>
+          </div>
+        </div>
+
+        {extractMessage ? (
+          <div className={`conference-extract-message ${missingFields.length ? "partial" : "success"}`}>
+            <strong>{extractMessage}</strong>
+            {extractWarnings.length ? <span>{extractWarnings.map(translateWarning).join(" ")}</span> : null}
+          </div>
+        ) : null}
+
         <form onSubmit={handleSubmit} className="conference-form">
-          <div className="form-group">
-            <label>Titulli i Konferences</label>
+          <div className={getFieldClass("title")}>
+            <label>Titulli i konferencës</label>
             <input
               name="title"
               type="text"
-              placeholder="Shkruaj titullin e konferences"
+              placeholder="Shkruani titullin e konferencës"
               value={form.title}
               onChange={handleChange}
               required
             />
           </div>
 
-          <div className="form-group">
+          <div className={getFieldClass("acronym")}>
             <label>Akronimi</label>
             <input
               name="acronym"
               type="text"
-              placeholder="p.sh ICIS"
+              placeholder="p.sh. ICIS"
               value={form.acronym}
               onChange={handleChange}
             />
           </div>
 
-          <div className="form-group">
-            <label>Fusha Kerkimore</label>
+          <div className={getFieldClass("field")}>
+            <label>Fusha kërkimore</label>
             <input
               name="field"
               type="text"
-              placeholder="Shkenca Kompjuterike"
+              placeholder="Shkenca kompjuterike"
               value={form.field}
               onChange={handleChange}
             />
           </div>
 
-          <div className="form-group">
-            <label>Lokacioni</label>
+          <div className={getFieldClass("location")}>
+            <label>Vendndodhja</label>
             <input
               name="location"
               type="text"
-              placeholder="Viene, Austri"
+              placeholder="Vjenë, Austri"
               value={form.location}
               onChange={handleChange}
             />
           </div>
 
-          <div className="form-group">
-            <label>Afati i Aplikimit</label>
+          <div className={getFieldClass("submission_deadline")}>
+            <label>Afati i dorëzimit</label>
             <input
               name="submission_deadline"
               type="date"
               value={form.submission_deadline}
               onChange={handleChange}
-              required
+              required={form.status !== "Interested"}
             />
           </div>
 
-          <div className="form-group">
-            <label>Data e Konferences</label>
+          <div className={getFieldClass("conference_date")}>
+            <label>Data e konferencës</label>
             <input
               name="conference_date"
               type="date"
@@ -272,8 +398,21 @@ function ConferenceManager({ searchQuery = "" }) {
             />
           </div>
 
-          <div className="form-group form-wide">
-            <label>Web Faqja</label>
+          <div className="form-group">
+            <label>Statusi</label>
+            <select
+              name="status"
+              value={form.status}
+              onChange={handleChange}
+            >
+              {CONFERENCE_STATUSES.map((status) => (
+                <option key={status} value={status}>{getStatusLabel(status)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={`${getFieldClass("website")} form-wide`}>
+            <label>Faqja zyrtare</label>
             <input
               name="website"
               type="url"
@@ -288,7 +427,7 @@ function ConferenceManager({ searchQuery = "" }) {
             className="conference-submit-btn"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto Konference"}
+            {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto konferencë"}
           </button>
           {editingId ? (
             <button
@@ -314,7 +453,7 @@ function ConferenceManager({ searchQuery = "" }) {
           <div>
             <h2>Konferencat ekzistuese</h2>
             <p>
-              Pjesemarrjet dhe afatet e ardhshme.
+              Pjesëmarrjet dhe afatet e ardhshme.
             </p>
           </div>
         </div>
@@ -328,7 +467,7 @@ function ConferenceManager({ searchQuery = "" }) {
 
               return (
                 <div className="conference-card" key={conf.id}>
-                  <div className="conference-icon">Cal</div>
+                  <div className="conference-icon">Kal</div>
 
                   <div className="conference-details">
                     <h3>
@@ -336,16 +475,16 @@ function ConferenceManager({ searchQuery = "" }) {
                       {conf.acronym && <span>({conf.acronym})</span>}
                     </h3>
 
-                    <p>{conf.location || "Pa lokacion"}</p>
+                    <p>{conf.location || "Pa vendndodhje"}</p>
 
                     <div className="conference-meta">
-                      <span>{conf.field || "Pa fushe"}</span>
-                      <span>Afati: {conf.submission_deadline}</span>
+                      <span>{conf.field || "Pa fushë"}</span>
+                      <span>Afati: {conf.submission_deadline || "Pa afat"}</span>
                     </div>
 
                     {conf.website && (
                       <a href={conf.website} target="_blank" rel="noreferrer">
-                        Vizito Faqen
+                        Vizito faqen
                       </a>
                     )}
                   </div>
@@ -355,13 +494,16 @@ function ConferenceManager({ searchQuery = "" }) {
                       className={`status-badge ${
                         status === "Hapur"
                           ? "open"
-                          : status === "Mbyllet se shpejti"
+                          : status === "Mbyllet së shpejti"
                             ? "closing-soon"
-                            : "closed"
+                            : status === "Mbyllur"
+                              ? "closed"
+                              : "neutral"
                       }`}
                     >
                       {status}
                     </span>
+                    <span className="conference-workflow-status">{getStatusLabel(conf.status)}</span>
 
                     <button
                       type="button"
@@ -376,7 +518,7 @@ function ConferenceManager({ searchQuery = "" }) {
                       onClick={() => deleteConference(conf.id)}
                       disabled={deletingId === conf.id}
                     >
-                      {deletingId === conf.id ? "Duke fshire..." : "Fshij"}
+                      {deletingId === conf.id ? "Duke fshirë..." : "Fshij"}
                     </button>
                   </div>
                 </div>
@@ -384,7 +526,7 @@ function ConferenceManager({ searchQuery = "" }) {
             })
           ) : (
             <div className="conference-empty">
-              Nuk ka ende konferenca per kete profesor.
+              Nuk u gjet asnjë konferencë.
             </div>
           )}
         </div>
