@@ -5,14 +5,16 @@ import {
   buildReimbursementPdf,
   getReimbursementDocumentFilenames,
 } from "../services/reimbursementDocument.service.js";
+import {
+  REIMBURSEMENT_TYPE_LABELS,
+  getAttachmentChecklist,
+  getRequiredFields,
+  requiresBank,
+} from "../../shared/reimbursementSchema.js";
 
 const router = express.Router();
 
-const REQUEST_TYPES = {
-  publication: "Financim publikimi shkencor",
-  conference: "Financim pjesemarrjeje ne konference/simpozium",
-  project: "Financim projekti shkencor",
-};
+const REQUEST_TYPES = REIMBURSEMENT_TYPE_LABELS;
 
 const VALID_REIMBURSEMENT_STATUSES = new Set([
   "draft",
@@ -82,52 +84,6 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
 
-const REQUIRED_FIELDS = {
-  common: [
-    ["applicantName", "Emri dhe mbiemri eshte obligativ."],
-    ["applicantEmail", "Email-i eshte obligativ."],
-    ["applicantFaculty", "Njesia akademike eshte obligative."],
-    ["amount", "Shuma e kerkuar eshte obligative."],
-    ["currency", "Valuta eshte obligative."],
-    ["purpose", "Pershkrimi/arsyeja eshte obligative."],
-    ["bankApplicantName", "Emri i aplikantit ne banke eshte obligativ."],
-    ["bankName", "Emri i bankes eshte obligativ."],
-    ["bankAccountNumber", "Numri i llogarise bankare/IBAN eshte obligativ."],
-    ["swiftCode", "SWIFT/BIC kodi eshte obligativ."],
-    ["amountWords", "Shuma me fjale eshte obligative."],
-  ],
-  publication: [
-    ["publicationTitle", "Titulli i punimit eshte obligativ."],
-    ["mainAuthor", "Autori kryesor eshte obligativ."],
-    ["affiliation", "Perkatesia/affiliation eshte obligative."],
-    ["journal", "Emri i revistes eshte obligativ."],
-    ["publisher", "Shtepia botuese eshte obligative."],
-    ["indexingPlatform", "Indeksimi ne platforme eshte obligativ."],
-    ["publicationLink", "Linku i publikimit eshte obligativ."],
-  ],
-  conference: [
-    ["conferenceTitle", "Emertimi i ngjarjes eshte obligativ."],
-    ["eventPlaceDate", "Vendi dhe data jane obligative."],
-    ["organizer", "Organizatori eshte obligativ."],
-    ["invitationProgram", "Ftesa/programi eshte obligativ."],
-    ["abstractTitle", "Abstrakti dhe titulli i punimit jane obligative."],
-    ["acceptanceConfirmation", "Konfirmimi i pranimit eshte obligativ."],
-    ["participationType", "Lloji i pjesemarrjes eshte obligativ."],
-  ],
-  project: [
-    ["projectTitle", "Titulli i projektit eshte obligativ."],
-    ["projectDurationMonths", "Kohezgjatja e projektit eshte obligative."],
-    ["applyingUnit", "Njesia akademike aplikuese eshte obligative."],
-    ["deanName", "Emri i dekanit eshte obligativ."],
-    ["projectDescription", "Pershkrimi i projekt-propozimit eshte obligativ."],
-    ["projectKeywords", "Fjalet kyce jane obligative."],
-    ["projectImpact", "Ndikimi/arsyeshmeria e projektit eshte obligative."],
-    ["workPlan", "Plani i punes eshte obligativ."],
-    ["totalProjectCost", "Kosto totale e projektit eshte obligative."],
-    ["requestedFromUibm", "Shuma e kerkuar nga UIBM eshte obligative."],
-    ["detailedCostDescription", "Pershkrimi i detajuar i kostos eshte obligativ."],
-  ],
-};
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -622,6 +578,80 @@ function validateRequiredFields(formData, requiredFields) {
     .map(([field, message]) => ({ field, message }));
 }
 
+function addValidationError(errors, field, message) {
+  if (!errors.some((item) => item.field === field)) {
+    errors.push({ field, message });
+  }
+}
+
+function hasCompleteWorkPlanItem(items) {
+  return Array.isArray(items) && items.some((item) =>
+    hasMeaningfulValue(item?.activity)
+    && hasMeaningfulValue(item?.deadline)
+    && hasMeaningfulValue(item?.responsiblePerson)
+    && hasMeaningfulValue(item?.expectedResult)
+  );
+}
+
+function hasCompleteCostItem(items) {
+  return Array.isArray(items) && items.some((item) =>
+    hasMeaningfulValue(item?.item)
+    && hasMeaningfulValue(item?.quantity)
+    && hasMeaningfulValue(item?.unitCost)
+    && hasMeaningfulValue(item?.totalCost)
+  );
+}
+
+function parsePositiveNumber(value) {
+  const amount = Number(normalizeText(value).replace(",", "."));
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+function validateProjectBudget(formData, errors) {
+  const requested = parsePositiveNumber(formData.requestedFromUibm);
+  const fields = [
+    ["materialCost", "Kosto materiale (40%) eshte obligative."],
+    ["administrativeCost", "Kosto administrative (30%) eshte obligative."],
+    ["personnelCost", "Kosto te personelit (20%) eshte obligative."],
+    ["otherCosts", "Kostot e tjera (10%) jane obligative."],
+  ];
+
+  const values = fields.map(([field, message]) => {
+    const amount = parsePositiveNumber(formData[field]);
+
+    if (amount === null) {
+      addValidationError(errors, field, message);
+    }
+
+    return amount || 0;
+  });
+
+  if (requested !== null && values.every((value) => value >= 0)) {
+    const sum = values.reduce((total, value) => total + value, 0);
+
+    if (Math.abs(sum - requested) > 0.01) {
+      addValidationError(
+        errors,
+        "requestedFromUibm",
+        "Ndarja 40/30/20/10 duhet te barazohet me shumen e kerkuar nga UIBM."
+      );
+    }
+  }
+}
+
+function validateRequiredDocumentChecklist(requestType, formData) {
+  const checklist = formData.documentChecklist && typeof formData.documentChecklist === "object"
+    ? formData.documentChecklist
+    : {};
+
+  return getAttachmentChecklist(requestType)
+    .filter((item) => item.required && !checklist[item.id])
+    .map((item) => ({
+      field: `documentChecklist.${item.id}`,
+      message: `Konfirmo dokumentin mbeshtetes: ${item.label}.`,
+    }));
+}
+
 function validateReimbursementPayload(requestType, formData, options = {}) {
   const errors = [];
   const amount = parseAmount(formData.amount);
@@ -634,38 +664,40 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
     return errors;
   }
 
-  errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS.common));
-  errors.push(...validateRequiredFields(formData, REQUIRED_FIELDS[requestType] || []));
+  errors.push(...validateRequiredFields(formData, getRequiredFields(requestType)));
+  errors.push(...validateRequiredDocumentChecklist(requestType, formData));
 
   if (amount === null || amount <= 0) {
     errors.push({ field: "amount", message: "Shuma e kerkuar duhet te jete numer pozitiv." });
   }
 
-  if (!isValidBankAccountIdentifier(formData.bankAccountNumber || formData.iban)) {
-    errors.push({
-      field: "bankAccountNumber",
-      message: "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.",
-    });
-  }
-
-  const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber || formData.iban);
-
-  for (let index = errors.length - 1; index >= 0; index -= 1) {
-    if (errors[index].field === "bankName" && (detectedBank || !hasMeaningfulValue(formData.bankName))) {
-      errors.splice(index, 1);
+  if (requiresBank(requestType)) {
+    if (!isValidBankAccountIdentifier(formData.bankAccountNumber || formData.iban)) {
+      errors.push({
+        field: "bankAccountNumber",
+        message: "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.",
+      });
     }
 
-    if (errors[index]?.field === "swiftCode" && detectedBank) {
-      errors.splice(index, 1);
+    const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber || formData.iban);
+
+    for (let index = errors.length - 1; index >= 0; index -= 1) {
+      if (errors[index].field === "bankName" && (detectedBank || !hasMeaningfulValue(formData.bankName))) {
+        errors.splice(index, 1);
+      }
+
+      if (errors[index]?.field === "swiftCode" && detectedBank) {
+        errors.splice(index, 1);
+      }
     }
-  }
 
-  if (!detectedBank && !hasMeaningfulValue(formData.bankName)) {
-    errors.push({ field: "bankName", message: "Banka nuk u identifikua nga numri i llogarise." });
-  }
+    if (!detectedBank && !hasMeaningfulValue(formData.bankName)) {
+      errors.push({ field: "bankName", message: "Banka nuk u identifikua nga numri i llogarise." });
+    }
 
-  if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
-    errors.push({ field: "swiftCode", message: "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide." });
+    if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
+      errors.push({ field: "swiftCode", message: "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide." });
+    }
   }
 
   if (requestType === "project") {
@@ -680,6 +712,16 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
         message: "Shto se paku nje anetar te ekipit hulumtues me emer dhe email.",
       });
     }
+
+    if (!hasCompleteWorkPlanItem(formData.workPlanItems)) {
+      errors.push({ field: "workPlanItems", message: "Shto se paku nje aktivitet te plote ne planin e punes." });
+    }
+
+    if (!hasCompleteCostItem(formData.costItems)) {
+      errors.push({ field: "costItems", message: "Shto se paku nje rresht te plote ne pershkrimin e kostos." });
+    }
+
+    validateProjectBudget(formData, errors);
   }
 
   return errors;
@@ -716,6 +758,24 @@ function buildRequestPayload(user, requestType, formData) {
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
 
   return { requestData, title, amount, currency, publicationId, conferenceId };
+}
+
+function buildPreviewRow(user, requestType, payload) {
+  const now = new Date().toISOString();
+
+  return {
+    id: "preview",
+    owner_id: user.id,
+    title: payload.title,
+    amount: payload.amount,
+    currency: payload.currency,
+    status: "submitted",
+    request_type: requestType,
+    request_data: payload.requestData,
+    document_number: `PREVIEW-${getCurrentUserProfile(user).id || "RIMBURSIM"}`,
+    submitted_at: now,
+    created_at: now,
+  };
 }
 
 async function insertStatusHistory(client, reimbursementId, previousStatus, status, actor, note) {
@@ -995,6 +1055,56 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   } catch (error) {
     console.error("GET /api/reimbursements failed:", error);
     res.status(500).json({ error: "list_failed" });
+  }
+});
+
+router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
+  const requestType = normalizeText(req.body?.requestType);
+  const format = normalizeText(req.params.format).toLowerCase();
+
+  if (!REQUEST_TYPES[requestType] || !["pdf", "docx"].includes(format)) {
+    res.status(400).json({ error: "invalid_preview", message: "Preview nuk eshte valid." });
+    return;
+  }
+
+  const formData = sanitizeRequestData(req.body?.formData);
+  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft: false });
+
+  if (validationErrors.length) {
+    res.status(400).json({
+      error: "validation_failed",
+      message: validationErrors[0].message,
+      errors: validationErrors,
+    });
+    return;
+  }
+
+  try {
+    const user = await loadCurrentUser(req.user.id);
+
+    if (!user) {
+      res.status(404).json({ error: "user_not_found" });
+      return;
+    }
+
+    const payload = buildRequestPayload(user, requestType, formData);
+    const previewRow = buildPreviewRow(user, requestType, payload);
+    const filenames = getReimbursementDocumentFilenames(previewRow);
+    const buffer = format === "docx"
+      ? await buildReimbursementDocx(previewRow)
+      : await buildReimbursementPdf(previewRow);
+
+    res.setHeader(
+      "Content-Type",
+      format === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${format === "docx" ? filenames.docx : filenames.pdf}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error("POST /api/reimbursements/preview/:format failed:", error);
+    res.status(500).json({ error: "preview_failed" });
   }
 });
 
