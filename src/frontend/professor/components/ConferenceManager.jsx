@@ -22,6 +22,13 @@ const CONFERENCE_STATUS_LABELS = {
   Attended: "Pjesëmarrë",
   Completed: "Përfunduar",
 };
+const DEADLINE_FILTERS = [
+  { value: "all", label: "Të gjitha" },
+  { value: "week", label: "Afati këtë javë" },
+  { value: "month", label: "Afati këtë muaj" },
+  { value: "past", label: "Afati ka kaluar" },
+  { value: "none", label: "Pa afat" },
+];
 const WARNING_TRANSLATIONS = {
   "Metadata extraction failed. You can complete the form manually.": "Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.",
 };
@@ -99,6 +106,8 @@ function ConferenceManager({ searchQuery = "" }) {
   const [extractWarnings, setExtractWarnings] = useState([]);
   const [missingFields, setMissingFields] = useState([]);
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [deadlineFilter, setDeadlineFilter] = useState("all");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 25,
@@ -106,7 +115,12 @@ function ConferenceManager({ searchQuery = "" }) {
     totalPages: 1,
   });
 
-  const fetchConferences = useCallback(async ({ nextPage = page, query = searchQuery } = {}) => {
+  const fetchConferences = useCallback(async ({
+    nextPage = page,
+    query = searchQuery,
+    status = statusFilter,
+    deadline = deadlineFilter,
+  } = {}) => {
     setIsLoading(true);
     setError("");
 
@@ -119,6 +133,14 @@ function ConferenceManager({ searchQuery = "" }) {
 
       if (trimmedQuery) {
         params.set("q", trimmedQuery);
+      }
+
+      if (status !== "all") {
+        params.set("status", status);
+      }
+
+      if (deadline !== "all") {
+        params.set("deadline", deadline);
       }
 
       const response = await fetch(apiUrl(`/conferences?${params.toString()}`), {
@@ -144,15 +166,20 @@ function ConferenceManager({ searchQuery = "" }) {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery]);
+  }, [page, searchQuery, statusFilter, deadlineFilter]);
 
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
 
   useEffect(() => {
-    fetchConferences({ nextPage: page, query: searchQuery });
-  }, [fetchConferences, page, searchQuery]);
+    fetchConferences({
+      nextPage: page,
+      query: searchQuery,
+      status: statusFilter,
+      deadline: deadlineFilter,
+    });
+  }, [fetchConferences, page, searchQuery, statusFilter, deadlineFilter]);
 
   const handleChange = (event) => {
     setForm({
@@ -249,7 +276,12 @@ function ConferenceManager({ searchQuery = "" }) {
 
       setForm(EMPTY_FORM);
       setEditingId("");
-      await fetchConferences({ nextPage: page, query: searchQuery });
+      await fetchConferences({
+        nextPage: page,
+        query: searchQuery,
+        status: statusFilter,
+        deadline: deadlineFilter,
+      });
     } catch (submitError) {
       setError(submitError.message || "Konferenca nuk u ruajt.");
     } finally {
@@ -305,7 +337,12 @@ function ConferenceManager({ searchQuery = "" }) {
         cancelEdit();
       }
 
-      await fetchConferences({ nextPage: page, query: searchQuery });
+      await fetchConferences({
+        nextPage: page,
+        query: searchQuery,
+        status: statusFilter,
+        deadline: deadlineFilter,
+      });
     } catch (deleteError) {
       setError(deleteError.message || "Konferenca nuk u fshi.");
     } finally {
@@ -494,6 +531,37 @@ function ConferenceManager({ searchQuery = "" }) {
             <p>
               Pjesëmarrjet dhe afatet e ardhshme.
             </p>
+          </div>
+          <div className="conference-filters" aria-label="Filtrat e konferencave">
+            <label>
+              <span>Statusi</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">Të gjitha</option>
+                {CONFERENCE_STATUSES.map((status) => (
+                  <option key={status} value={status}>{getStatusLabel(status)}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Afati</span>
+              <select
+                value={deadlineFilter}
+                onChange={(event) => {
+                  setDeadlineFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                {DEADLINE_FILTERS.map((filter) => (
+                  <option key={filter.value} value={filter.value}>{filter.label}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
