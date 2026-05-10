@@ -104,6 +104,12 @@ create table if not exists conferences (
 create index if not exists conferences_submission_deadline_idx
 on conferences (submission_deadline);
 
+create index if not exists conferences_created_by_idx
+on conferences (created_by);
+
+create index if not exists conferences_created_by_deadline_idx
+on conferences (created_by, submission_deadline, created_at desc);
+
 drop trigger if exists conferences_set_updated_at on conferences;
 create trigger conferences_set_updated_at
 before update on conferences
@@ -151,6 +157,13 @@ create table if not exists publications (
 
 create index if not exists publications_owner_id_idx
 on publications (owner_id);
+
+create unique index if not exists publications_owner_doi_unique_idx
+on publications (owner_id, doi)
+where doi is not null;
+
+create index if not exists publications_owner_updated_at_idx
+on publications (owner_id, updated_at desc, created_at desc);
 
 drop trigger if exists publications_set_updated_at on publications;
 create trigger publications_set_updated_at
