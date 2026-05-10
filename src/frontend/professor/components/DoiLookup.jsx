@@ -8,74 +8,110 @@ const DoiLookup = ({ onPublicationSaved }) => {
   const [doi, setDoi] = useState("");
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
-  const [savedPublication, setSavedPublication] = useState(null);
 
- const handleFetch = async () => {
-  if (!doi.trim()) {
-    setError(t("professor.doi.required"));
-    setMetadata(null);
-    setSaveStatus("");
-    setSavedPublication(null);
-    return;
-  }
+  const getDoiMessage = (result = {}, fallbackKey = "professor.doi.genericError") => {
+    if (result.error === "invalid_doi") {
+      return t("professor.doi.invalid");
+    }
 
-  try {
-    setLoading(true);
+    if (result.error === "doi_not_found") {
+      return t("professor.doi.notFound");
+    }
+
+    if (result.error === "duplicate_publication") {
+      return t("professor.doi.duplicate");
+    }
+
+    if (result.error === "rate_limited") {
+      return t("professor.doi.rateLimited");
+    }
+
+    return result.message || t(fallbackKey);
+  };
+
+  const resetMessages = () => {
     setError("");
     setSaveStatus("");
-    setSavedPublication(null);
-    setMetadata(null);
+  };
 
-    console.log("Po dergohet kerkesa per DOI:", doi);
+  const handleFetch = async () => {
+    const trimmedDoi = doi.trim();
 
-    const res = await fetch(
-      apiUrl(`/doi/${encodeURIComponent(doi.trim())}`)
-    );
-
-    console.log("Response status:", res.status);
-
-    const result = await res.json();
-    console.log("Response data:", result);
-
-    if (!res.ok) {
-      throw new Error(result.message || t("professor.doi.fetchError"));
+    if (!trimmedDoi) {
+      setError(t("professor.doi.required"));
+      setMetadata(null);
+      setSaveStatus("");
+      return;
     }
 
-    const nextMetadata = result.data;
-    setMetadata(nextMetadata);
+    try {
+      setLoading(true);
+      resetMessages();
+      setMetadata(null);
 
-    const saveRes = await fetch(apiUrl("/publications/from-doi"), {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        doi: nextMetadata.doi || doi.trim(),
-        metadata: nextMetadata,
-      }),
-    });
-    const saveResult = await saveRes.json().catch(() => ({}));
+      const res = await fetch(apiUrl(`/doi/${encodeURIComponent(trimmedDoi)}`));
+      const result = await res.json().catch(() => ({}));
 
-    if (!saveRes.ok) {
-      throw new Error(saveResult.message || t("professor.doi.saveError"));
+      if (!res.ok) {
+        throw new Error(getDoiMessage(result, "professor.doi.fetchError"));
+      }
+
+      if (!result.data) {
+        throw new Error(t("professor.doi.notFound"));
+      }
+
+      setMetadata(result.data);
+      setSaveStatus(t("professor.doi.previewReady"));
+    } catch (err) {
+      setError(err.message || t("professor.doi.genericError"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!metadata) {
+      setError(t("professor.doi.previewMissing"));
+      return;
     }
 
-    setSavedPublication(saveResult.data || null);
-    setSaveStatus(t("professor.doi.saved"));
-    onPublicationSaved?.(saveResult.data || null);
-  } catch (err) {
-    console.error("Fetch error:", err);
-    setError(err.message || t("professor.doi.genericError"));
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setSaving(true);
+      resetMessages();
+
+      const saveRes = await fetch(apiUrl("/publications/from-doi"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          doi: metadata.doi || doi.trim(),
+          metadata,
+        }),
+      });
+      const saveResult = await saveRes.json().catch(() => ({}));
+
+      if (!saveRes.ok) {
+        throw new Error(getDoiMessage(saveResult, "professor.doi.saveError"));
+      }
+
+      setMetadata(null);
+      setDoi("");
+      setSaveStatus(t("professor.doi.saved"));
+      await onPublicationSaved?.(saveResult.data || null);
+    } catch (err) {
+      setError(err.message || t("professor.doi.genericError"));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !loading && !saving) {
       handleFetch();
     }
   };
@@ -89,8 +125,13 @@ const DoiLookup = ({ onPublicationSaved }) => {
           type="text"
           placeholder={t("professor.doi.placeholder")}
           value={doi}
-          onChange={(e) => setDoi(e.target.value)}
+          onChange={(e) => {
+            setDoi(e.target.value);
+            setMetadata(null);
+            setSaveStatus("");
+          }}
           onKeyDown={handleKeyDown}
+          disabled={loading || saving}
           style={{
             flex: 1,
             padding: "10px",
@@ -100,15 +141,15 @@ const DoiLookup = ({ onPublicationSaved }) => {
         />
         <button
           onClick={handleFetch}
-          disabled={loading}
+          disabled={loading || saving}
           style={{
             padding: "10px 16px",
             border: "none",
             borderRadius: "6px",
             background: "#2563eb",
             color: "#fff",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1
+            cursor: loading || saving ? "not-allowed" : "pointer",
+            opacity: loading || saving ? 0.7 : 1
           }}
         >
           {loading ? t("professor.doi.fetching") : t("professor.doi.fetch")}
@@ -118,12 +159,30 @@ const DoiLookup = ({ onPublicationSaved }) => {
       {loading && <p>{t("professor.doi.loading")}</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
-      {savedPublication && (
-        <p style={{ color: "#475569", marginTop: "-6px" }}>
-          {t("professor.doi.publication")}: {savedPublication.title || savedPublication.doi}
-        </p>
+      {metadata && (
+        <>
+          <DoiMetadataCard metadata={metadata} />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || loading}
+              style={{
+                padding: "10px 16px",
+                border: "none",
+                borderRadius: "6px",
+                background: "#153a63",
+                color: "#fff",
+                cursor: saving || loading ? "not-allowed" : "pointer",
+                fontWeight: 700,
+                opacity: saving || loading ? 0.7 : 1
+              }}
+            >
+              {saving ? t("professor.doi.saving") : t("professor.doi.savePublication")}
+            </button>
+          </div>
+        </>
       )}
-      {metadata && <DoiMetadataCard metadata={metadata} />}
     </div>
   );
 };
