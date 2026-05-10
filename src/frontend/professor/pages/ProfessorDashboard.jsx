@@ -30,7 +30,7 @@ import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
 import { apiUrl } from "../../utils/api";
-import { isSupabaseAuthConfigured, sendPasswordResetEmail } from "../../utils/supabaseAuth";
+import { sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 import {
@@ -204,6 +204,9 @@ const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
   emailNotifications: true,
 };
 
+const PASSWORD_RESET_TOAST_DURATION_MS = 2500;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const hasStatisticMetricData = (rows = []) =>
   rows.some((row) =>
     STATISTIC_METRIC_KEYS.some((key) => Number(row[key] || 0) > 0)
@@ -263,7 +266,7 @@ export default function ProfessorDashboard() {
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [passwordResetEmail, setPasswordResetEmail] = useState("");
   const [isPasswordResetSending, setIsPasswordResetSending] = useState(false);
-  const [passwordResetMessage, setPasswordResetMessage] = useState("");
+  const [passwordResetToast, setPasswordResetToast] = useState("");
   const [passwordResetError, setPasswordResetError] = useState("");
   const [hasAuthenticatedSession, setHasAuthenticatedSession] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -315,6 +318,16 @@ export default function ProfessorDashboard() {
 
     return () => window.clearTimeout(timeout);
   }, [systemPreferencesMessage]);
+
+  useEffect(() => {
+    if (!passwordResetToast) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setPasswordResetToast(""), PASSWORD_RESET_TOAST_DURATION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [passwordResetToast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -681,14 +694,45 @@ export default function ProfessorDashboard() {
 
   const openPasswordResetModal = () => {
     setPasswordResetEmail(profile.email || "");
-    setPasswordResetMessage("");
     setPasswordResetError("");
     setIsPasswordResetOpen(true);
   };
 
+  const getPasswordResetErrorMessage = (error) => {
+    const rawMessage = String(error?.message || "");
+    const message = rawMessage.toLowerCase();
+    const code = String(error?.code || "").toLowerCase();
+    const status = Number(error?.status || 0);
+
+    if (rawMessage === "supabase_not_configured") {
+      return settingsText.supabaseNotConfigured;
+    }
+
+    if (rawMessage === "invalid_redirect_url" || message.includes("redirect") || message.includes("url")) {
+      return settingsText.invalidRedirectUrl;
+    }
+
+    if (status === 429 || code.includes("rate") || message.includes("rate") || message.includes("too many")) {
+      return settingsText.resetRateLimited;
+    }
+
+    if (message.includes("invalid email") || message.includes("email address") || message.includes("valid email")) {
+      return settingsText.emailInvalid;
+    }
+
+    if (status === 404 || code.includes("not_found") || message.includes("not found") || message.includes("user not found")) {
+      return settingsText.authUserNotFound;
+    }
+
+    if (message.includes("smtp") || message.includes("provider") || message.includes("email") || message.includes("send")) {
+      return settingsText.resetProviderError;
+    }
+
+    return rawMessage || settingsText.resetLinkError;
+  };
+
   const handlePasswordResetSubmit = async (event) => {
     event.preventDefault();
-    setPasswordResetMessage("");
     setPasswordResetError("");
 
     const trimmedEmail = passwordResetEmail.trim();
@@ -698,8 +742,13 @@ export default function ProfessorDashboard() {
       return;
     }
 
-    if (!isSupabaseAuthConfigured) {
-      setPasswordResetError(settingsText.supabaseNotConfigured);
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setPasswordResetError(settingsText.emailInvalid);
+      return;
+    }
+
+    if (profile.email && trimmedEmail.toLowerCase() !== profile.email.toLowerCase()) {
+      setPasswordResetError(settingsText.emailMustMatchAccount);
       return;
     }
 
@@ -707,9 +756,11 @@ export default function ProfessorDashboard() {
 
     try {
       await sendPasswordResetEmail(trimmedEmail);
-      setPasswordResetMessage(settingsText.resetLinkSent);
-    } catch {
-      setPasswordResetError(settingsText.resetLinkError);
+      setPasswordResetToast(settingsText.resetLinkSent);
+      setPasswordResetEmail("");
+      setIsPasswordResetOpen(false);
+    } catch (error) {
+      setPasswordResetError(getPasswordResetErrorMessage(error));
     } finally {
       setIsPasswordResetSending(false);
     }
@@ -1676,6 +1727,12 @@ export default function ProfessorDashboard() {
         <div className="prof-content">{renderContent()}</div>
       </div>
 
+      {passwordResetToast ? (
+        <div className="prof-toast success" role="status" aria-live="polite">
+          {passwordResetToast}
+        </div>
+      ) : null}
+
       {isEditProfileOpen ? (
         <div className="prof-modal-overlay" role="dialog" aria-modal="true">
           <div className="prof-modal">
@@ -1819,8 +1876,6 @@ export default function ProfessorDashboard() {
               </label>
 
               {passwordResetError ? <p className="prof-modal-error" role="alert">{passwordResetError}</p> : null}
-              {passwordResetMessage ? <p className="prof-modal-success" role="status">{passwordResetMessage}</p> : null}
-
               <div className="prof-modal-actions">
                 <button
                   type="button"
