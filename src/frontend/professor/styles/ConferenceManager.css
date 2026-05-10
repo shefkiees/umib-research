@@ -1,78 +1,113 @@
 .conference-page {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
 }
 
 .conference-panel {
   background: #ffffff;
-  border: 1px solid #e4ebf5;
-  border-radius: 18px;
-  padding: 26px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  border: 1px solid #e2eaf3;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
 .conference-header h2 {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   color: #061b3a;
-  margin-bottom: 6px;
+  margin: 0 0 4px;
 }
 
 .conference-header p {
   color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 16px;
+}
+
+.conference-form-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e6edf5;
+}
+
+.conference-form-heading h3 {
+  margin: 0 0 3px;
+  color: #17324f;
   font-size: 15px;
-  margin-bottom: 22px;
+  font-weight: 900;
+}
+
+.conference-form-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.conference-form-heading > span {
+  border: 1px solid #b8d2ff;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #1d4ed8;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .conference-form {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   align-items: end;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .form-group label {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   color: #334155;
 }
 
 .form-group input,
 .form-group select {
-  height: 44px;
-  border: 1px solid #d7e2f0;
-  border-radius: 12px;
-  padding: 0 14px;
-  font-size: 14px;
-  background: #f8fafc;
+  height: 38px;
+  border: 1px solid #d5e0ec;
+  border-radius: 10px;
+  padding: 0 11px;
+  font-size: 13px;
+  background: #fbfdff;
   color: #0f172a;
   outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   border-color: #2458d3;
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(36, 88, 211, 0.12);
+  box-shadow: 0 0 0 3px rgba(36, 88, 211, 0.1);
 }
 
 .conference-import {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.4fr);
-  gap: 16px;
-  align-items: end;
-  border: 1px solid #dbe7f3;
-  border-radius: 14px;
-  background: #f8fbff;
-  padding: 16px;
-  margin-bottom: 18px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #d8e7f5;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f8fd 100%);
+  padding: 14px;
+  margin-bottom: 14px;
 }
 
 .conference-import-copy {
@@ -82,41 +117,51 @@
 }
 
 .conference-import-copy strong {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .conference-import-copy span {
   color: #64748b;
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .conference-import-controls {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .conference-import-controls input {
   flex: 1;
   min-width: 0;
-  height: 44px;
-  border: 1px solid #d7e2f0;
-  border-radius: 12px;
-  padding: 0 14px;
+  height: 38px;
+  border: 1px solid #d5e0ec;
+  border-radius: 10px;
+  padding: 0 11px;
   background: #ffffff;
   color: #0f172a;
   outline: none;
+  font-size: 13px;
 }
 
 .conference-import-controls button {
-  min-width: 104px;
-  height: 44px;
+  min-width: 120px;
+  height: 38px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #174a7b;
   color: #ffffff;
+  font-size: 13px;
   font-weight: 900;
   cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.conference-import-controls button:hover:not(:disabled) {
+  background: #123e68;
+  box-shadow: 0 8px 18px rgba(23, 74, 123, 0.16);
+  transform: translateY(-1px);
 }
 
 .conference-import-controls button:disabled {
@@ -127,10 +172,10 @@
 .conference-extract-message {
   display: grid;
   gap: 4px;
-  margin: 0 0 16px;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 14px;
+  margin: 0 0 14px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -157,25 +202,42 @@
 }
 
 .conference-submit-btn {
-  height: 44px;
+  height: 38px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #2458d3, #1746b8);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  padding: 0 16px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .conference-cancel-btn {
-  height: 44px;
+  height: 38px;
   border: 1px solid #d7e2f0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #ffffff;
   color: #334155;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  padding: 0 16px;
+}
+
+.conference-submit-btn:hover:not(:disabled),
+.conference-cancel-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.conference-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 .conference-submit-btn:disabled,
@@ -186,51 +248,77 @@
 }
 
 .conference-error {
-  margin: 16px 0 0;
+  margin: 14px 0 0;
   color: #991b1b;
   background: #fee2e2;
   border: 1px solid #fecaca;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .conference-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .conference-empty {
-  padding: 22px;
-  border-radius: 16px;
+  padding: 18px;
+  border-radius: 12px;
   border: 1px dashed #cbd5e1;
   background: #f8fafc;
   color: #64748b;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
+  text-align: center;
 }
 
 .conference-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 18px;
-  padding: 22px;
-  border-radius: 16px;
-  border: 1px solid #e6edf6;
-  background: #fbfdff;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e3ebf4;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.conference-icon {
+.conference-card:hover {
+  border-color: #cbdcf0;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
+  transform: translateY(-1px);
+}
+
+.conference-date-badge {
   width: 54px;
-  height: 54px;
-  border-radius: 16px;
-  background: #eef5ff;
+  min-height: 58px;
+  border-radius: 12px;
+  border: 1px solid #d7e6f5;
+  background: #eef6ff;
+  color: #174a7b;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.conference-date-badge strong {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.conference-date-badge span {
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .conference-details {
@@ -238,20 +326,21 @@
 }
 
 .conference-details h3 {
-  font-size: 18px;
+  font-size: 16px;
   color: #061b3a;
-  margin-bottom: 6px;
+  margin: 0 0 5px;
+  line-height: 1.3;
 }
 
 .conference-details p {
   color: #64748b;
-  font-size: 15px;
-  margin-bottom: 10px;
+  font-size: 13px;
+  margin: 0 0 9px;
 }
 
 .conference-meta {
   display: flex;
-  gap: 10px;
+  gap: 7px;
   flex-wrap: wrap;
   margin-bottom: 8px;
 }
@@ -259,45 +348,64 @@
 .conference-meta span {
   background: #f1f5f9;
   color: #475569;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.conference-details a {
+.conference-link {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef5ff;
+  padding: 5px 9px;
   color: #2458d3;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.conference-link:hover {
+  background: #dcecff;
+  color: #1746b8;
 }
 
 .conference-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  max-width: 260px;
 }
 
 .status-badge {
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
+  border: 1px solid transparent;
 }
 
 .status-badge.open {
   color: #166534;
   background: #dcfce7;
+  border-color: #bbf7d0;
 }
 
 .status-badge.closing-soon {
   color: #92400e;
   background: #fef3c7;
+  border-color: #fde68a;
 }
 
 .status-badge.closed {
   color: #991b1b;
   background: #fee2e2;
+  border-color: #fecaca;
 }
 
 .status-badge.neutral,
@@ -310,46 +418,97 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
+  border: 1px solid #e2e8f0;
+}
+
+.conference-workflow-status.interested {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.conference-workflow-status.planning {
+  color: #7c3aed;
+  background: #f3e8ff;
+  border-color: #ddd6fe;
+}
+
+.conference-workflow-status.submitted {
+  color: #0f766e;
+  background: #ccfbf1;
+  border-color: #99f6e4;
+}
+
+.conference-workflow-status.accepted {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.conference-workflow-status.attended {
+  color: #0e7490;
+  background: #cffafe;
+  border-color: #a5f3fc;
+}
+
+.conference-workflow-status.completed {
+  color: #334155;
+  background: #e2e8f0;
+  border-color: #cbd5e1;
 }
 
 .conference-actions button {
   border: 1px solid #cbd8e8;
   background: #ffffff;
   color: #174a7b;
-  padding: 9px 14px;
-  border-radius: 10px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
-.conference-actions button:last-child {
-  border: none;
+.conference-actions button:hover:not(:disabled) {
+  border-color: #174a7b;
+  background: #eef5ff;
+}
+
+.conference-actions .conference-action-delete {
+  border-color: #fecaca;
   background: #fee2e2;
   color: #991b1b;
+}
+
+.conference-actions .conference-action-delete:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: #fecaca;
+  color: #7f1d1d;
 }
 
 .conference-pagination {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 14px;
   color: #64748b;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .conference-pagination button {
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid #cbd8e8;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   color: #174a7b;
-  padding: 0 14px;
+  padding: 0 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -365,7 +524,7 @@
   }
 
   .conference-form {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .form-wide {
@@ -374,6 +533,10 @@
 }
 
 @media (max-width: 700px) {
+  .conference-panel {
+    padding: 16px;
+  }
+
   .conference-form {
     grid-template-columns: 1fr;
   }
@@ -387,11 +550,24 @@
   }
 
   .conference-card {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: flex-start;
   }
 
   .conference-actions {
     align-items: flex-start;
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .conference-form-actions,
+  .conference-pagination {
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .conference-form-actions button,
+  .conference-pagination button {
+    flex: 1;
   }
 }
