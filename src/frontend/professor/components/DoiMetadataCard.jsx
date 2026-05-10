@@ -13,9 +13,8 @@ function stripMarkup(value) {
 const DoiMetadataCard = ({ metadata }) => {
   const { t } = useLanguage();
   const cleanAbstract = stripMarkup(metadata.abstract);
-  const doiUrl = metadata.doi
-    ? `https://doi.org/${metadata.doi}`
-    : metadata.source_url;
+  const doiUrl = metadata.doi ? `https://doi.org/${metadata.doi}` : "";
+  const publishedDate = metadata.published_date || metadata.year || "";
 
   const fieldStyle = {
     display: "grid",
@@ -70,15 +69,24 @@ const DoiMetadataCard = ({ metadata }) => {
 
       <div style={{ display: "grid", gap: "12px" }}>
         <div style={fieldStyle}>
+          <span style={labelStyle}>{t("professor.doi.publicationTitle")}</span>
+          <span style={valueStyle}>{metadata.title || t("common.noTitle")}</span>
+        </div>
+
+        <div style={fieldStyle}>
           <span style={labelStyle}>DOI</span>
-          <a
-            href={doiUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
-          >
-            {metadata.doi || t("common.noData")}
-          </a>
+          {doiUrl ? (
+            <a
+              href={doiUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
+            >
+              {metadata.doi}
+            </a>
+          ) : (
+            <span style={valueStyle}>{t("common.noData")}</span>
+          )}
         </div>
 
         <div style={fieldStyle}>
@@ -101,27 +109,12 @@ const DoiMetadataCard = ({ metadata }) => {
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>{t("professor.doi.year")}</span>
-          <span style={valueStyle}>{metadata.year || t("common.noData")}</span>
+          <span style={labelStyle}>{t("professor.doi.publishedDate")}</span>
+          <span style={valueStyle}>{publishedDate || t("common.noData")}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>{t("professor.doi.volume")}</span>
-          <span style={valueStyle}>{metadata.volume || "-"}</span>
-        </div>
-
-        <div style={fieldStyle}>
-          <span style={labelStyle}>{t("professor.doi.issue")}</span>
-          <span style={valueStyle}>{metadata.issue || "-"}</span>
-        </div>
-
-        <div style={fieldStyle}>
-          <span style={labelStyle}>{t("professor.doi.pages")}</span>
-          <span style={valueStyle}>{metadata.pages || "-"}</span>
-        </div>
-
-        <div style={fieldStyle}>
-          <span style={labelStyle}>{t("professor.doi.type")}</span>
+          <span style={labelStyle}>{t("professor.doi.publicationType")}</span>
           <span style={valueStyle}>{metadata.type || "-"}</span>
         </div>
 
@@ -132,14 +125,18 @@ const DoiMetadataCard = ({ metadata }) => {
 
         <div style={fieldStyle}>
           <span style={labelStyle}>{t("professor.doi.link")}</span>
-          <a
-            href={metadata.source_url}
-            target="_blank"
-            rel="noreferrer"
-            style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
-          >
-            {t("professor.doi.openPublication")}
-          </a>
+          {metadata.source_url ? (
+            <a
+              href={metadata.source_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
+            >
+              {metadata.source_url}
+            </a>
+          ) : (
+            <span style={valueStyle}>{t("common.noData")}</span>
+          )}
         </div>
       </div>
     </div>
