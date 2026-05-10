@@ -1741,6 +1741,24 @@ body {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
+.reimbursement-bank-result .reimbursement-detected-bank {
+  width: 100%;
+  max-width: 360px;
+}
+
+.reimbursement-bank-placeholder {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px dashed #d7e6f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #8a99aa;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .reimbursement-detected-bank strong,
 .reimbursement-detected-bank small {
   display: block;

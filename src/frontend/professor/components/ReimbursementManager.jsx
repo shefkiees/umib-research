@@ -96,7 +96,6 @@ const KOSOVO_BANKS = [
   { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["2101", "21"], logoSrc: "/bank-logos/pribank.svg" },
   { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"], logoSrc: "/bank-logos/economic.jpg" },
 ];
-const BANK_OPTIONS = ["", ...KOSOVO_BANKS.map((bank) => bank.name)];
 
 const FORM_STEPS = [
   { id: "basic", label: "Te dhenat baze" },
@@ -657,16 +656,12 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   useEffect(() => {
     setForm((prev) => {
-      if (prev.bankSelectionSource === "manual") {
-        return prev;
-      }
-
       if (!normalizedAccount) {
-        return prev.bankDetectedAutomatically || prev.detectedBankCode
+        return prev.bankName || prev.swiftCode || prev.bankDetectedAutomatically || prev.detectedBankCode || prev.bankSelectionSource
           ? {
               ...prev,
-              bankName: prev.bankSelectionSource === "auto" ? "" : prev.bankName,
-              swiftCode: prev.bankSelectionSource === "auto" ? "" : prev.swiftCode,
+              bankName: "",
+              swiftCode: "",
               detectedBankCode: "",
               bankDetectedAutomatically: false,
               bankSelectionSource: "",
@@ -675,11 +670,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       }
 
       if (!detectedBank) {
-        return prev.bankDetectedAutomatically || prev.detectedBankCode
+        return prev.bankName || prev.swiftCode || prev.bankDetectedAutomatically || prev.detectedBankCode || prev.bankSelectionSource
           ? {
               ...prev,
-              bankName: prev.bankSelectionSource === "auto" ? "" : prev.bankName,
-              swiftCode: prev.bankSelectionSource === "auto" ? "" : prev.swiftCode,
+              bankName: "",
+              swiftCode: "",
               detectedBankCode: "",
               bankDetectedAutomatically: false,
               bankSelectionSource: "",
@@ -887,11 +882,16 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       nextErrors.bankAccountNumber = "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.";
     }
 
-    if (!hasValue(form.bankName)) {
-      nextErrors.bankName = "Zgjidh banken.";
+    const submittedDetectedBank = detectKosovoBankFromAccount(submittedAccount);
+
+    if (submittedDetectedBank) {
+      delete nextErrors.bankName;
+      delete nextErrors.swiftCode;
+    } else if (!hasValue(form.bankName)) {
+      nextErrors.bankName = "Banka nuk u identifikua nga numri i llogarise.";
     }
 
-    if (!isValidSwift(form.swiftCode)) {
+    if (!isValidSwift(submittedDetectedBank?.swift || form.swiftCode)) {
       nextErrors.swiftCode = "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide.";
     }
 
@@ -1421,43 +1421,38 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
         </label>
 
-        <label className="reimbursement-field">
+        <div className="reimbursement-field reimbursement-bank-result">
           <span>Emri i bankes</span>
-          <select
-            value={form.bankName}
-            onChange={handleFieldChange("bankName")}
-            className={form.bankSelectionSource === "auto" ? "reimbursement-autofill-input" : ""}
-          >
-            {BANK_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option || "Zgjidh banken"}
-              </option>
-            ))}
-          </select>
+          {visualBank ? (
+            <div className="reimbursement-detected-bank" aria-live="polite">
+              <span className="reimbursement-bank-logo">
+                {visualBank.logoSrc ? (
+                  <img src={visualBank.logoSrc} alt={`${visualBank.name} logo`} />
+                ) : (
+                  <Landmark size={18} />
+                )}
+              </span>
+              <span>
+                <strong>{visualBank.name}</strong>
+                <small>{visualBank.swift}</small>
+              </span>
+            </div>
+          ) : (
+            <div className="reimbursement-bank-placeholder">Shkruaj numrin e llogarise</div>
+          )}
           {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
-        </label>
+        </div>
 
         <label className="reimbursement-field">
           <span>SWIFT/BIC kodi</span>
-          <input value={form.swiftCode} onChange={handleFieldChange("swiftCode")} placeholder="RBKOXKPR" />
+          <input
+            value={form.swiftCode}
+            readOnly
+            placeholder="Plotesohet automatikisht"
+            className={visualBank ? "reimbursement-autofill-input" : ""}
+          />
           {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{fieldErrors.swiftCode}</small> : null}
         </label>
-
-        {visualBank ? (
-          <div className="reimbursement-detected-bank" aria-live="polite">
-            <span className="reimbursement-bank-logo">
-              {visualBank.logoSrc ? (
-                <img src={visualBank.logoSrc} alt={`${visualBank.name} logo`} />
-              ) : (
-                <Landmark size={18} />
-              )}
-            </span>
-            <span>
-              <strong>{visualBank.name}</strong>
-              <small>{visualBank.swift}</small>
-            </span>
-          </div>
-        ) : null}
 
         {renderInput("Vendi", "bankCountry")}
         {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}

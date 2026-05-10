@@ -648,7 +648,23 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
     });
   }
 
-  if (!isValidSwift(formData.swiftCode)) {
+  const detectedBank = detectKosovoBankFromIban(formData.bankAccountNumber || formData.iban);
+
+  for (let index = errors.length - 1; index >= 0; index -= 1) {
+    if (errors[index].field === "bankName" && (detectedBank || !hasMeaningfulValue(formData.bankName))) {
+      errors.splice(index, 1);
+    }
+
+    if (errors[index]?.field === "swiftCode" && detectedBank) {
+      errors.splice(index, 1);
+    }
+  }
+
+  if (!detectedBank && !hasMeaningfulValue(formData.bankName)) {
+    errors.push({ field: "bankName", message: "Banka nuk u identifikua nga numri i llogarise." });
+  }
+
+  if (!isValidSwift(detectedBank?.swift || formData.swiftCode)) {
     errors.push({ field: "swiftCode", message: "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide." });
   }
 
