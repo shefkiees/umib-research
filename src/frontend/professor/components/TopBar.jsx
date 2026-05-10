@@ -19,6 +19,12 @@ export default function TopBar({
   notifications = [],
   onMarkAllRead,
   onNotificationAction,
+  searchPlaceholder = "Kerko publikime, konferenca ose kerkesa...",
+  notificationsAriaLabel = "Njoftime",
+  notificationsTitle = "Njoftimet",
+  unreadLabel = "pa lexuara",
+  markAllReadLabel = "Sheno si te lexuara",
+  emptyNotificationsLabel = "No notifications available yet.",
 }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -69,7 +75,7 @@ export default function TopBar({
             id="prof-search-input"
             type="text"
             className="prof-search"
-            placeholder="Kerko publikime, konferenca ose kerkesa..."
+            placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(event) => {
               if (typeof onSearchChange === "function") {
@@ -83,7 +89,7 @@ export default function TopBar({
           <button
             className="prof-icon-btn"
             type="button"
-            aria-label="Njoftime"
+            aria-label={notificationsAriaLabel}
             onClick={() => setIsNotificationsOpen((current) => !current)}
           >
             <Bell size={20} />
@@ -91,11 +97,11 @@ export default function TopBar({
           </button>
 
           {isNotificationsOpen ? (
-            <div className="prof-notification-popover" role="dialog" aria-label="Njoftimet">
+            <div className="prof-notification-popover" role="dialog" aria-label={notificationsTitle}>
               <div className="prof-notification-popover-head">
                 <div>
-                  <strong>Njoftimet</strong>
-                  <p>{unreadCount} pa lexuara</p>
+                  <strong>{notificationsTitle}</strong>
+                  <p>{unreadCount} {unreadLabel}</p>
                 </div>
                 <button
                   type="button"
@@ -106,7 +112,7 @@ export default function TopBar({
                     }
                   }}
                 >
-                  Sheno si te lexuara
+                  {markAllReadLabel}
                 </button>
               </div>
 
@@ -134,7 +140,7 @@ export default function TopBar({
                 ) : (
                   <li>
                     <button type="button" disabled>
-                      <p className="prof-notification-title">No notifications available yet.</p>
+                      <p className="prof-notification-title">{emptyNotificationsLabel}</p>
                     </button>
                   </li>
                 )}

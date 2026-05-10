@@ -206,9 +206,21 @@ const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
   language: "sq",
 };
 
-const PROFESSOR_SYSTEM_PREFERENCE_COPY = {
+const SETTINGS_PAGE_TRANSLATIONS = {
   sq: {
-    title: "Preferencat e Sistemit",
+    pageTitle: "Cilesimet",
+    pageDescription: "Konfigurimet kryesore per profilin dhe panelin kerkimor.",
+    profileTitle: "Informacionet e Profilit",
+    fullName: "Emri i plote",
+    academicTitle: "Titulli Akademik",
+    emailAddress: "Adresa Email",
+    orcidId: "ORCID iD",
+    orcidSchool: "Shkolla nga ORCID",
+    orcidAffiliation: "Affiliation nga ORCID",
+    notConnected: "Nuk eshte lidhur",
+    noPublicData: "Nuk ka te dhena publike",
+    updateProfile: "Ndrysho te dhenat",
+    systemTitle: "Preferencat e Sistemit",
     emailLabel: "Njoftime me email",
     emailSubtext: "Merr njoftime per cdo publikim ose rimbursim",
     enabledStatus: "Aktive",
@@ -217,10 +229,62 @@ const PROFESSOR_SYSTEM_PREFERENCE_COPY = {
     languageSubtext: "Zgjidh gjuhen e shfaqjes per kete seksion.",
     albanian: "Shqip",
     english: "English",
-    saved: "Preferencat u ruajten.",
+    preferencesSaved: "Preferencat u ruajten.",
+    securityTitle: "Siguria & Llogaria",
+    securityDescription: "Menaxho sigurine e llogarise suaj kerkimore.",
+    changePassword: "Ndrysho fjalekalimin",
+    integrationsTitle: "API & Integrimet",
+    integrationsDescription: "Lidh profilin tuaj me platformat nderkombetare.",
+    refreshOrcid: "Rifresko nga ORCID",
+    connectOrcid: "Lidhu me ORCID",
+    viewIntegrations: "Shiko Integrimet",
+    searchPlaceholder: "Kerko publikime, konferenca ose kerkesa...",
+    notificationsAriaLabel: "Njoftime",
+    notificationsTitle: "Njoftimet",
+    unreadLabel: "pa lexuara",
+    markAllRead: "Sheno si te lexuara",
+    emptyNotifications: "Nuk ka ende njoftime.",
+    menuEditProfile: "Ndrysho profilin",
+    menuOrcidConnect: "Lidhu me ORCID",
+    menuNotifications: "Njoftime",
+    menuSettings: "Cilesimet",
+    menuIntegrations: "Integrime",
+    menuLogout: "Dil",
+    editProfileTitle: "Ndrysho profilin",
+    editProfileSubtitle: "Perditesoni te dhenat baze te profilit.",
+    closeModal: "Mbyll",
+    profileNote:
+      "Emri, email-i dhe ORCID iD merren automatikisht nga ORCID/llogaria. Ketu ruhen vetem te dhenat lokale te profilit.",
+    nameAndSurname: "Emri dhe mbiemri",
+    role: "Roli",
+    email: "Email",
+    faculty: "Fakulteti",
+    department: "Departamenti",
+    office: "Zyra",
+    orcidDetails: "Detaje nga ORCID",
+    keywords: "Fjale kyce",
+    orcidEducation: "Edukimi nga ORCID",
+    orcidEmployment: "Punesimi nga ORCID",
+    profileSaveError: "Profili nuk u ruajt. Provoni perseri.",
+    linkOrcidForAutofill: "Lidhe me ORCID per te mbushur profilin automatikisht",
+    cancel: "Anulo",
+    saving: "Duke ruajtur...",
+    saveChanges: "Ruaj ndryshimet",
   },
   en: {
-    title: "System Preferences",
+    pageTitle: "Settings",
+    pageDescription: "Core configuration for your profile and research dashboard.",
+    profileTitle: "Profile Information",
+    fullName: "Full Name",
+    academicTitle: "Academic Title",
+    emailAddress: "Email Address",
+    orcidId: "ORCID iD",
+    orcidSchool: "School from ORCID",
+    orcidAffiliation: "Affiliation from ORCID",
+    notConnected: "Not connected",
+    noPublicData: "No public data available",
+    updateProfile: "Update Profile",
+    systemTitle: "System Preferences",
     emailLabel: "Email notifications",
     emailSubtext: "Receive notifications for every publication or reimbursement",
     enabledStatus: "Enabled",
@@ -229,7 +293,47 @@ const PROFESSOR_SYSTEM_PREFERENCE_COPY = {
     languageSubtext: "Choose the display language for this section.",
     albanian: "Albanian",
     english: "English",
-    saved: "Preferences saved.",
+    preferencesSaved: "Preferences saved.",
+    securityTitle: "Security & Account",
+    securityDescription: "Manage the security of your research account.",
+    changePassword: "Change Password",
+    integrationsTitle: "API & Integrations",
+    integrationsDescription: "Connect your profile with international platforms.",
+    refreshOrcid: "Refresh from ORCID",
+    connectOrcid: "Connect with ORCID",
+    viewIntegrations: "View Integrations",
+    searchPlaceholder: "Search publications, conferences, or requests...",
+    notificationsAriaLabel: "Notifications",
+    notificationsTitle: "Notifications",
+    unreadLabel: "unread",
+    markAllRead: "Mark as read",
+    emptyNotifications: "No notifications available yet.",
+    menuEditProfile: "Edit Profile",
+    menuOrcidConnect: "Connect with ORCID",
+    menuNotifications: "Notifications",
+    menuSettings: "Settings",
+    menuIntegrations: "Integrations",
+    menuLogout: "Logout",
+    editProfileTitle: "Edit Profile",
+    editProfileSubtitle: "Update the basic profile information.",
+    closeModal: "Close",
+    profileNote:
+      "Name, email, and ORCID iD are pulled automatically from ORCID/account data. Only local profile details are saved here.",
+    nameAndSurname: "Full name",
+    role: "Role",
+    email: "Email",
+    faculty: "Faculty",
+    department: "Department",
+    office: "Office",
+    orcidDetails: "Details from ORCID",
+    keywords: "Keywords",
+    orcidEducation: "Education from ORCID",
+    orcidEmployment: "Employment from ORCID",
+    profileSaveError: "Profile was not saved. Please try again.",
+    linkOrcidForAutofill: "Connect ORCID to fill your profile automatically",
+    cancel: "Cancel",
+    saving: "Saving...",
+    saveChanges: "Save changes",
   },
 };
 
@@ -315,8 +419,28 @@ export default function ProfessorDashboard() {
   });
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
-  const systemPreferenceCopy =
-    PROFESSOR_SYSTEM_PREFERENCE_COPY[systemPreferences.language] || PROFESSOR_SYSTEM_PREFERENCE_COPY.sq;
+  const settingsText =
+    SETTINGS_PAGE_TRANSLATIONS[systemPreferences.language] || SETTINGS_PAGE_TRANSLATIONS.sq;
+
+  const translatedProfileMenuItems = useMemo(
+    () =>
+      profileMenuItems.map((item) => {
+        const translatedLabels = {
+          EditProfile: settingsText.menuEditProfile,
+          OrcidConnect: settingsText.menuOrcidConnect,
+          Njoftime: settingsText.menuNotifications,
+          Settings: settingsText.menuSettings,
+          Integrime: settingsText.menuIntegrations,
+          Logout: settingsText.menuLogout,
+        };
+
+        return {
+          ...item,
+          label: translatedLabels[item.id] || item.label,
+        };
+      }),
+    [settingsText]
+  );
 
   const updateSystemPreference = useCallback((field, value) => {
     const next = { ...systemPreferences, [field]: value };
@@ -328,7 +452,7 @@ export default function ProfessorDashboard() {
     }
 
     setSystemPreferencesMessage(
-      (PROFESSOR_SYSTEM_PREFERENCE_COPY[next.language] || PROFESSOR_SYSTEM_PREFERENCE_COPY.sq).saved
+      (SETTINGS_PAGE_TRANSLATIONS[next.language] || SETTINGS_PAGE_TRANSLATIONS.sq).preferencesSaved
     );
   }, [systemPreferences]);
 
@@ -535,7 +659,7 @@ export default function ProfessorDashboard() {
     loadPublications({ page: publicationsPage, query: searchQuery });
   }, [loadPublications, publicationsPage, searchQuery]);
 
-  const pageTitle = activePage;
+  const pageTitle = activePage === "Settings" ? settingsText.pageTitle : activePage;
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
@@ -684,7 +808,7 @@ export default function ProfessorDashboard() {
       setIsEditProfileOpen(false);
     } catch (error) {
       console.error("Profile save failed:", error);
-      setProfileError("Profili nuk u ruajt. Provoni perseri.");
+      setProfileError("profile_save_failed");
     } finally {
       setIsProfileSaving(false);
     }
@@ -1463,73 +1587,73 @@ export default function ProfessorDashboard() {
       case "Settings":
         return (
           <div className="prorector-table-section">
-            <h2>Settings</h2>
-            <p>Konfigurimet kryesore për profilin dhe panelin kërkimor.</p>
+            <h2>{settingsText.pageTitle}</h2>
+            <p>{settingsText.pageDescription}</p>
 
             <div className="prorector-settings-grid">
-              {/* Card: Informacionet e Profilit */}
+              {/* Card: Profile information */}
               <article className="prorector-settings-card">
                 <div className="prorector-settings-card-header">
                   <div className="prorector-settings-icon">
                     <Settings size={20} />
                   </div>
-                  <h3>Informacionet e Profilit</h3>
+                  <h3>{settingsText.profileTitle}</h3>
                 </div>
                 <div className="prorector-settings-list">
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">Emri i plotë</span>
+                    <span className="prorector-settings-label">{settingsText.fullName}</span>
                     <strong className="prorector-settings-value">{profile.name}</strong>
                   </div>
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">Titulli Akademik</span>
+                    <span className="prorector-settings-label">{settingsText.academicTitle}</span>
                     <strong className="prorector-settings-value">{profile.role}</strong>
                   </div>
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">Adresa Email</span>
+                    <span className="prorector-settings-label">{settingsText.emailAddress}</span>
                     <strong className="prorector-settings-value">{profile.email}</strong>
                   </div>
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">ORCID iD</span>
-                    <strong className="prorector-settings-value">{profile.orcidId || "Nuk eshte lidhur"}</strong>
+                    <span className="prorector-settings-label">{settingsText.orcidId}</span>
+                    <strong className="prorector-settings-value">{profile.orcidId || settingsText.notConnected}</strong>
                   </div>
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">Shkolla nga ORCID</span>
-                    <strong className="prorector-settings-value">{profile.school || "Nuk ka te dhena publike"}</strong>
+                    <span className="prorector-settings-label">{settingsText.orcidSchool}</span>
+                    <strong className="prorector-settings-value">{profile.school || settingsText.noPublicData}</strong>
                   </div>
                   <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">Affiliation nga ORCID</span>
-                    <strong className="prorector-settings-value">{profile.currentAffiliation || "Nuk ka te dhena publike"}</strong>
+                    <span className="prorector-settings-label">{settingsText.orcidAffiliation}</span>
+                    <strong className="prorector-settings-value">{profile.currentAffiliation || settingsText.noPublicData}</strong>
                   </div>
                   <button className="prorector-settings-edit-btn" onClick={() => handleMenuAction("EditProfile")}>
-                    Ndrysho të dhënat
+                    {settingsText.updateProfile}
                   </button>
                 </div>
               </article>
 
-              {/* Card: Preferencat e Sistemit */}
+              {/* Card: System preferences */}
               <article className="prorector-settings-card">
                 <div className="prorector-settings-card-header">
                   <div className="prorector-settings-icon">
                     <BookOpen size={20} />
                   </div>
-                  <h3>{systemPreferenceCopy.title}</h3>
+                  <h3>{settingsText.systemTitle}</h3>
                 </div>
                 <div className="prorector-settings-options">
                   <div className="prorector-settings-option-item">
                     <div className="prorector-settings-option-info">
-                      <span className="prorector-settings-label">{systemPreferenceCopy.emailLabel}</span>
-                      <p className="prorector-settings-subtext">{systemPreferenceCopy.emailSubtext}</p>
+                      <span className="prorector-settings-label">{settingsText.emailLabel}</span>
+                      <p className="prorector-settings-subtext">{settingsText.emailSubtext}</p>
                       <p className="prorector-settings-subtext">
                         {systemPreferences.emailNotifications
-                          ? systemPreferenceCopy.enabledStatus
-                          : systemPreferenceCopy.disabledStatus}
+                          ? settingsText.enabledStatus
+                          : settingsText.disabledStatus}
                       </p>
                     </div>
                     <label className="prorector-switch">
                       <input
                         type="checkbox"
                         checked={systemPreferences.emailNotifications}
-                        aria-label={systemPreferenceCopy.emailLabel}
+                        aria-label={settingsText.emailLabel}
                         onChange={(event) => updateSystemPreference("emailNotifications", event.target.checked)}
                       />
                       <span className="prorector-slider"></span>
@@ -1538,17 +1662,17 @@ export default function ProfessorDashboard() {
 
                   <div className="prorector-settings-option-item">
                     <div className="prorector-settings-option-info">
-                      <span className="prorector-settings-label">{systemPreferenceCopy.languageLabel}</span>
-                      <p className="prorector-settings-subtext">{systemPreferenceCopy.languageSubtext}</p>
+                      <span className="prorector-settings-label">{settingsText.languageLabel}</span>
+                      <p className="prorector-settings-subtext">{settingsText.languageSubtext}</p>
                     </div>
                     <select
                       className="prorector-settings-select"
                       value={systemPreferences.language}
-                      aria-label={systemPreferenceCopy.languageLabel}
+                      aria-label={settingsText.languageLabel}
                       onChange={(event) => updateSystemPreference("language", event.target.value)}
                     >
-                      <option value="sq">{systemPreferenceCopy.albanian}</option>
-                      <option value="en">{systemPreferenceCopy.english}</option>
+                      <option value="sq">{settingsText.albanian}</option>
+                      <option value="en">{settingsText.english}</option>
                     </select>
                   </div>
                   {systemPreferencesMessage ? (
@@ -1559,32 +1683,32 @@ export default function ProfessorDashboard() {
                 </div>
               </article>
 
-              {/* Card: Siguria */}
+              {/* Card: Security */}
               <article className="prorector-settings-card">
                 <div className="prorector-settings-card-header">
                   <div className="prorector-settings-icon">
                     <ShieldX size={20} />
                   </div>
-                  <h3>Siguria & Llogaria</h3>
+                  <h3>{settingsText.securityTitle}</h3>
                 </div>
                 <div className="prorector-settings-list">
-                  <p className="prorector-settings-subtext">Menaxho sigurinë e dritares tuaj kërkimore.</p>
+                  <p className="prorector-settings-subtext">{settingsText.securityDescription}</p>
                   <button className="prorector-settings-action-btn">
-                    Ndrysho fjalëkalimin
+                    {settingsText.changePassword}
                   </button>
                 </div>
               </article>
 
-              {/* Card: API & Integrimet */}
+              {/* Card: API and integrations */}
               <article className="prorector-settings-card">
                 <div className="prorector-settings-card-header">
                   <div className="prorector-settings-icon">
                     <Link2 size={20} />
                   </div>
-                  <h3>API & Integrimet</h3>
+                  <h3>{settingsText.integrationsTitle}</h3>
                 </div>
                 <div className="prorector-settings-list">
-                  <p className="prorector-settings-subtext">Lidh profilin tuaj me platformat ndërkombëtare.</p>
+                  <p className="prorector-settings-subtext">{settingsText.integrationsDescription}</p>
                   <button
                     type="button"
                     className="prorector-settings-action-btn"
@@ -1592,10 +1716,10 @@ export default function ProfessorDashboard() {
                       window.location.href = apiUrl("/orcid/connect");
                     }}
                   >
-                    {profile.orcidId ? "Rifresko nga ORCID" : "Connect with ORCID"}
+                    {profile.orcidId ? settingsText.refreshOrcid : settingsText.connectOrcid}
                   </button>
                   <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
-                    Shiko Integrimet
+                    {settingsText.viewIntegrations}
                   </button>
                 </div>
               </article>
@@ -1620,7 +1744,7 @@ export default function ProfessorDashboard() {
         <TopBar
           activePage={pageTitle}
           profile={profile}
-          menuItems={profileMenuItems}
+          menuItems={translatedProfileMenuItems}
           notificationCount={unreadNotifications}
           onMenuAction={handleMenuAction}
           searchQuery={searchQuery}
@@ -1628,6 +1752,12 @@ export default function ProfessorDashboard() {
           notifications={notifications}
           onMarkAllRead={markAllNotificationsAsRead}
           onNotificationAction={markNotificationAsRead}
+          searchPlaceholder={settingsText.searchPlaceholder}
+          notificationsAriaLabel={settingsText.notificationsAriaLabel}
+          notificationsTitle={settingsText.notificationsTitle}
+          unreadLabel={settingsText.unreadLabel}
+          markAllReadLabel={settingsText.markAllRead}
+          emptyNotificationsLabel={settingsText.emptyNotifications}
         />
 
         <div className="prof-content">{renderContent()}</div>
@@ -1638,57 +1768,57 @@ export default function ProfessorDashboard() {
           <div className="prof-modal">
             <div className="prof-modal-header">
               <div>
-                <h3 className="prof-modal-title">Edit Profile</h3>
-                <p className="prof-modal-subtitle">Përditësoni të dhënat bazë të profilit.</p>
+                <h3 className="prof-modal-title">{settingsText.editProfileTitle}</h3>
+                <p className="prof-modal-subtitle">{settingsText.editProfileSubtitle}</p>
               </div>
               <button
                 className="prof-modal-close"
                 type="button"
                 onClick={() => setIsEditProfileOpen(false)}
-                aria-label="Mbyll"
+                aria-label={settingsText.closeModal}
               >
                 ×
               </button>
             </div>
             <form className="prof-modal-form" onSubmit={handleProfileSave}>
               <p className="prof-modal-note">
-                Emri, email-i dhe ORCID iD merren automatikisht nga ORCID/llogaria. Ketu ruhen vetem te dhenat lokale te profilit.
+                {settingsText.profileNote}
               </p>
               <div className="prof-form-grid">
                 <label className="prof-form-field">
-                  <span>Emri dhe mbiemri</span>
+                  <span>{settingsText.nameAndSurname}</span>
                   <input value={profileDraft.name} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>Roli</span>
+                  <span>{settingsText.role}</span>
                   <input value={profileDraft.role} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>Email</span>
+                  <span>{settingsText.email}</span>
                   <input type="email" value={profileDraft.email} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>ORCID iD</span>
-                  <input value={profileDraft.orcidId || "Nuk eshte lidhur"} readOnly />
+                  <span>{settingsText.orcidId}</span>
+                  <input value={profileDraft.orcidId || settingsText.notConnected} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>Shkolla nga ORCID</span>
-                  <input value={profileDraft.school || "Nuk ka te dhena publike"} readOnly />
+                  <span>{settingsText.orcidSchool}</span>
+                  <input value={profileDraft.school || settingsText.noPublicData} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>Affiliation nga ORCID</span>
-                  <input value={profileDraft.currentAffiliation || "Nuk ka te dhena publike"} readOnly />
+                  <span>{settingsText.orcidAffiliation}</span>
+                  <input value={profileDraft.currentAffiliation || settingsText.noPublicData} readOnly />
                 </label>
                 <label className="prof-form-field">
-                  <span>Fakulteti</span>
+                  <span>{settingsText.faculty}</span>
                   <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} />
                 </label>
                 <label className="prof-form-field">
-                  <span>Departamenti</span>
+                  <span>{settingsText.department}</span>
                   <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} />
                 </label>
                 <label className="prof-form-field">
-                  <span>Zyra</span>
+                  <span>{settingsText.office}</span>
                   <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} />
                 </label>
               </div>
@@ -1696,10 +1826,10 @@ export default function ProfessorDashboard() {
                 <div className="prof-orcid-details">
                   {profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
                     <div>
-                      <h4>Detaje nga ORCID</h4>
+                      <h4>{settingsText.orcidDetails}</h4>
                       {profileDraft.orcidProfile?.biography ? <p>{profileDraft.orcidProfile.biography}</p> : null}
                       {profileDraft.orcidProfile?.keywords?.length ? (
-                        <p>Keywords: {profileDraft.orcidProfile.keywords.slice(0, 8).join(", ")}</p>
+                        <p>{settingsText.keywords}: {profileDraft.orcidProfile.keywords.slice(0, 8).join(", ")}</p>
                       ) : null}
                       {profileDraft.orcidProfile?.researcherUrls?.slice(0, 3).map((item) => (
                         <p key={`url-${item.url || item.name}`}>{[item.name, item.url].filter(Boolean).join(" | ")}</p>
@@ -1708,7 +1838,7 @@ export default function ProfessorDashboard() {
                   ) : null}
                   {profileDraft.orcidEducations.length ? (
                     <div>
-                      <h4>Edukimi nga ORCID</h4>
+                      <h4>{settingsText.orcidEducation}</h4>
                       {profileDraft.orcidEducations.slice(0, 3).map((item) => (
                         <p key={`education-${item.putCode || formatAffiliation(item)}`}>{formatAffiliation(item)}</p>
                       ))}
@@ -1716,7 +1846,7 @@ export default function ProfessorDashboard() {
                   ) : null}
                   {profileDraft.orcidEmployments.length ? (
                     <div>
-                      <h4>Punesimi nga ORCID</h4>
+                      <h4>{settingsText.orcidEmployment}</h4>
                       {profileDraft.orcidEmployments.slice(0, 3).map((item) => (
                         <p key={`employment-${item.putCode || formatAffiliation(item)}`}>{formatAffiliation(item)}</p>
                       ))}
@@ -1724,18 +1854,18 @@ export default function ProfessorDashboard() {
                   ) : null}
                 </div>
               ) : null}
-              {profileError ? <p className="prof-modal-error" role="alert">{profileError}</p> : null}
+              {profileError ? <p className="prof-modal-error" role="alert">{settingsText.profileSaveError}</p> : null}
               {!profileDraft.orcidId ? (
                 <button type="button" className="prof-orcid-link-btn" onClick={() => handleMenuAction("OrcidConnect")}>
-                  Lidhe me ORCID per te mbushur profilin automatikisht
+                  {settingsText.linkOrcidForAutofill}
                 </button>
               ) : null}
               <div className="prof-modal-actions">
                 <button type="button" className="prof-btn-secondary" onClick={() => setIsEditProfileOpen(false)} disabled={isProfileSaving}>
-                  Anulo
+                  {settingsText.cancel}
                 </button>
                 <button type="submit" className="prof-btn-primary" disabled={isProfileSaving}>
-                  {isProfileSaving ? "Duke ruajtur..." : "Ruaj ndryshimet"}
+                  {isProfileSaving ? settingsText.saving : settingsText.saveChanges}
                 </button>
               </div>
             </form>
