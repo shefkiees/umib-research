@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "../styles/ConferenceManager.css";
 import { apiUrl } from "../../utils/api";
 
@@ -24,20 +24,38 @@ function getConferenceErrorMessage(response, data, action) {
   return data?.message || "Konferencat nuk u perditesuan.";
 }
 
-function ConferenceManager() {
+function ConferenceManager({ searchQuery = "" }) {
   const [conferences, setConferences] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 1,
+  });
 
-  const fetchConferences = async () => {
+  const fetchConferences = useCallback(async ({ nextPage = page, query = searchQuery } = {}) => {
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await fetch(apiUrl("/conferences"), {
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        limit: "25",
+      });
+      const trimmedQuery = query.trim();
+
+      if (trimmedQuery) {
+        params.set("q", trimmedQuery);
+      }
+
+      const response = await fetch(apiUrl(`/conferences?${params.toString()}`), {
         credentials: "include",
       });
       const data = await response.json().catch(() => []);
@@ -46,18 +64,29 @@ function ConferenceManager() {
         throw new Error(getConferenceErrorMessage(response, data, "pare"));
       }
 
-      setConferences(Array.isArray(data) ? data : []);
+      const rows = Array.isArray(data) ? data : data.data;
+      setConferences(Array.isArray(rows) ? rows : []);
+      setPagination({
+        page: data.pagination?.page || nextPage,
+        limit: data.pagination?.limit || 25,
+        total: data.pagination?.total || (Array.isArray(rows) ? rows.length : 0),
+        totalPages: data.pagination?.totalPages || 1,
+      });
     } catch (fetchError) {
       setConferences([]);
       setError(fetchError.message || "Konferencat nuk u ngarkuan.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, searchQuery]);
 
   useEffect(() => {
-    fetchConferences();
-  }, []);
+    setPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchConferences({ nextPage: page, query: searchQuery });
+  }, [fetchConferences, page, searchQuery]);
 
   const handleChange = (event) => {
     setForm({
@@ -72,8 +101,8 @@ function ConferenceManager() {
     setError("");
 
     try {
-      const response = await fetch(apiUrl("/conferences"), {
-        method: "POST",
+      const response = await fetch(apiUrl(editingId ? `/conferences/${editingId}` : "/conferences"), {
+        method: editingId ? "PUT" : "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
@@ -87,7 +116,8 @@ function ConferenceManager() {
       }
 
       setForm(EMPTY_FORM);
-      await fetchConferences();
+      setEditingId("");
+      await fetchConferences({ nextPage: page, query: searchQuery });
     } catch (submitError) {
       setError(submitError.message || "Konferenca nuk u ruajt.");
     } finally {
@@ -95,7 +125,33 @@ function ConferenceManager() {
     }
   };
 
+  const editConference = (conference) => {
+    setEditingId(conference.id);
+    setForm({
+      title: conference.title || "",
+      acronym: conference.acronym || "",
+      field: conference.field || "",
+      location: conference.location || "",
+      submission_deadline: conference.submission_deadline || "",
+      conference_date: conference.conference_date || "",
+      website: conference.website || "",
+    });
+    setError("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId("");
+    setForm(EMPTY_FORM);
+    setError("");
+  };
+
   const deleteConference = async (id) => {
+    const confirmed = window.confirm("A jeni te sigurt qe doni ta fshini kete konference?");
+
+    if (!confirmed) {
+      return;
+    }
+
     setDeletingId(id);
     setError("");
 
@@ -110,7 +166,11 @@ function ConferenceManager() {
         throw new Error(getConferenceErrorMessage(response, data, "fshire"));
       }
 
-      await fetchConferences();
+      if (editingId === id) {
+        cancelEdit();
+      }
+
+      await fetchConferences({ nextPage: page, query: searchQuery });
     } catch (deleteError) {
       setError(deleteError.message || "Konferenca nuk u fshi.");
     } finally {
@@ -228,8 +288,18 @@ function ConferenceManager() {
             className="conference-submit-btn"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Duke ruajtur..." : "+ Shto Konference"}
+            {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto Konference"}
           </button>
+          {editingId ? (
+            <button
+              type="button"
+              className="conference-cancel-btn"
+              onClick={cancelEdit}
+              disabled={isSubmitting}
+            >
+              Anulo
+            </button>
+          ) : null}
         </form>
 
         {error ? (
@@ -295,6 +365,14 @@ function ConferenceManager() {
 
                     <button
                       type="button"
+                      onClick={() => editConference(conf)}
+                      disabled={deletingId === conf.id}
+                    >
+                      Edito
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => deleteConference(conf.id)}
                       disabled={deletingId === conf.id}
                     >
@@ -310,6 +388,25 @@ function ConferenceManager() {
             </div>
           )}
         </div>
+        {pagination.totalPages > 1 ? (
+          <div className="conference-pagination">
+            <button
+              type="button"
+              onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 1))}
+              disabled={pagination.page <= 1 || isLoading}
+            >
+              Mbrapa
+            </button>
+            <span>Faqja {pagination.page} / {pagination.totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setPage((currentPage) => Math.min(currentPage + 1, pagination.totalPages))}
+              disabled={pagination.page >= pagination.totalPages || isLoading}
+            >
+              Para
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );
