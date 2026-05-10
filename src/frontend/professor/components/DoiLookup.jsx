@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import DoiMetadataCard from "./DoiMetadataCard";
 import { apiUrl } from "../../utils/api";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const DoiLookup = ({ onPublicationSaved }) => {
+  const { t } = useLanguage();
   const [doi, setDoi] = useState("");
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,7 +14,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
  const handleFetch = async () => {
   if (!doi.trim()) {
-    setError("Ju lutem shkruani DOI.");
+    setError(t("professor.doi.required"));
     setMetadata(null);
     setSaveStatus("");
     setSavedPublication(null);
@@ -38,7 +40,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
     console.log("Response data:", result);
 
     if (!res.ok) {
-      throw new Error(result.message || "Gabim gjatë marrjes së metadata.");
+      throw new Error(result.message || t("professor.doi.fetchError"));
     }
 
     const nextMetadata = result.data;
@@ -58,15 +60,15 @@ const DoiLookup = ({ onPublicationSaved }) => {
     const saveResult = await saveRes.json().catch(() => ({}));
 
     if (!saveRes.ok) {
-      throw new Error(saveResult.message || "Metadata u mor, por publikimi nuk u ruajt ne Supabase.");
+      throw new Error(saveResult.message || t("professor.doi.saveError"));
     }
 
     setSavedPublication(saveResult.data || null);
-    setSaveStatus("Publikimi u ruajt ne Supabase. DOI do te mbushet automatikisht te Rimbursimet.");
+    setSaveStatus(t("professor.doi.saved"));
     onPublicationSaved?.(saveResult.data || null);
   } catch (err) {
     console.error("Fetch error:", err);
-    setError(err.message || "Ndodhi një gabim.");
+    setError(err.message || t("professor.doi.genericError"));
   } finally {
     setLoading(false);
   }
@@ -80,12 +82,12 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
   return (
     <div style={{ background: "#fff", padding: "20px", borderRadius: "10px" }}>
-      <h3>Kërko publikimin me DOI</h3>
+      <h3>{t("professor.doi.title")}</h3>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
         <input
           type="text"
-          placeholder="Shkruani DOI p.sh. 10.1000/xyz123"
+          placeholder={t("professor.doi.placeholder")}
           value={doi}
           onChange={(e) => setDoi(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -109,16 +111,16 @@ const DoiLookup = ({ onPublicationSaved }) => {
             opacity: loading ? 0.7 : 1
           }}
         >
-          {loading ? "Duke marrë..." : "Merr metadata"}
+          {loading ? t("professor.doi.fetching") : t("professor.doi.fetch")}
         </button>
       </div>
 
-      {loading && <p>Duke ngarkuar të dhënat...</p>}
+      {loading && <p>{t("professor.doi.loading")}</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
       {savedPublication && (
         <p style={{ color: "#475569", marginTop: "-6px" }}>
-          Publikimi: {savedPublication.title || savedPublication.doi}
+          {t("professor.doi.publication")}: {savedPublication.title || savedPublication.doi}
         </p>
       )}
       {metadata && <DoiMetadataCard metadata={metadata} />}

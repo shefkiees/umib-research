@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 function stripMarkup(value) {
   if (!value) return "";
@@ -10,6 +11,7 @@ function stripMarkup(value) {
 }
 
 const DoiMetadataCard = ({ metadata }) => {
+  const { t } = useLanguage();
   const cleanAbstract = stripMarkup(metadata.abstract);
   const doiUrl = metadata.doi
     ? `https://doi.org/${metadata.doi}`
@@ -59,10 +61,10 @@ const DoiMetadataCard = ({ metadata }) => {
             textTransform: "uppercase"
           }}
         >
-          Metadata
+          {t("professor.doi.metadata")}
         </div>
         <h4 style={{ margin: 0, fontSize: "22px", color: "#0f172a" }}>
-          {metadata.title || "Pa titull"}
+          {metadata.title || t("common.noTitle")}
         </h4>
       </div>
 
@@ -75,72 +77,68 @@ const DoiMetadataCard = ({ metadata }) => {
             rel="noreferrer"
             style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
           >
-            {metadata.doi || "Nuk ka të dhëna"}
+            {metadata.doi || t("common.noData")}
           </a>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Autorët</span>
+          <span style={labelStyle}>{t("professor.doi.authors")}</span>
           <span style={valueStyle}>
             {Array.isArray(metadata.authors) && metadata.authors.length > 0
               ? metadata.authors.join(", ")
-              : "Nuk ka autorë"}
+              : t("professor.doi.noAuthors")}
           </span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Journal / Conference</span>
-          <span style={valueStyle}>
-            {metadata.container_title || "Nuk ka të dhëna"}
-          </span>
+          <span style={labelStyle}>{t("professor.doi.journalConference")}</span>
+          <span style={valueStyle}>{metadata.container_title || t("common.noData")}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Publisher</span>
-          <span style={valueStyle}>
-            {metadata.publisher || "Nuk ka të dhëna"}
-          </span>
+          <span style={labelStyle}>{t("professor.doi.publisher")}</span>
+          <span style={valueStyle}>{metadata.publisher || t("common.noData")}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Viti</span>
-          <span style={valueStyle}>{metadata.year || "Nuk ka të dhëna"}</span>
+          <span style={labelStyle}>{t("professor.doi.year")}</span>
+          <span style={valueStyle}>{metadata.year || t("common.noData")}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Volume</span>
+          <span style={labelStyle}>{t("professor.doi.volume")}</span>
           <span style={valueStyle}>{metadata.volume || "-"}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Issue</span>
+          <span style={labelStyle}>{t("professor.doi.issue")}</span>
           <span style={valueStyle}>{metadata.issue || "-"}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Faqet</span>
+          <span style={labelStyle}>{t("professor.doi.pages")}</span>
           <span style={valueStyle}>{metadata.pages || "-"}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Tipi</span>
+          <span style={labelStyle}>{t("professor.doi.type")}</span>
           <span style={valueStyle}>{metadata.type || "-"}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Abstract</span>
+          <span style={labelStyle}>{t("professor.doi.abstract")}</span>
           <span style={valueStyle}>{cleanAbstract || "-"}</span>
         </div>
 
         <div style={fieldStyle}>
-          <span style={labelStyle}>Link</span>
+          <span style={labelStyle}>{t("professor.doi.link")}</span>
           <a
             href={metadata.source_url}
             target="_blank"
             rel="noreferrer"
             style={{ ...valueStyle, color: "#2563eb", textDecoration: "none" }}
           >
-            Hape publikimin
+            {t("professor.doi.openPublication")}
           </a>
         </div>
       </div>

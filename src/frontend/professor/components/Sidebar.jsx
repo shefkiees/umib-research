@@ -6,13 +6,15 @@ import {
 } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function Sidebar({ activePage, onNavigate, setActivePage, onLogout }) {
+  const { t } = useLanguage();
   const menuMain = [
-    { name: "Statistika", icon: <BarChart3 size={18} /> },
-    { name: "Publikime", icon: <BookOpen size={18} /> },
-    { name: "Konferenca", icon: <Calendar size={18} /> },
-    { name: "Rimbursime", icon: <Wallet size={18} /> },
+    { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
+    { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} /> },
+    { name: "Konferenca", label: t("navigation.conferences"), icon: <Calendar size={18} /> },
+    { name: "Rimbursime", label: t("navigation.reimbursements"), icon: <Wallet size={18} /> },
   ];
 
   const handleNavigate = (page) => {
@@ -37,7 +39,7 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
         </div>
 
         <div className="prof-sidebar-section">
-          <span className="prof-sidebar-label">MODULET</span>
+          <span className="prof-sidebar-label">{t("navigation.modules")}</span>
 
           {menuMain.map((item) => (
             <button
@@ -48,7 +50,7 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
               onClick={() => handleNavigate(item.name)}
             >
               <span className="prof-sidebar-icon">{item.icon}</span>
-              <span className="prof-sidebar-text">{item.name}</span>
+              <span className="prof-sidebar-text">{item.label}</span>
             </button>
           ))}
         </div>

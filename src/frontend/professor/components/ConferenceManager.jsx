@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import "../styles/ConferenceManager.css";
 import { apiUrl } from "../../utils/api";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const EMPTY_FORM = {
   title: "",
@@ -14,43 +15,18 @@ const EMPTY_FORM = {
 };
 
 const CONFERENCE_STATUSES = ["Interested", "Planning", "Submitted", "Accepted", "Attended", "Completed"];
-const CONFERENCE_STATUS_LABELS = {
-  Interested: "I interesuar",
-  Planning: "Në planifikim",
-  Submitted: "Dërguar",
-  Accepted: "Pranuar",
-  Attended: "Pjesëmarrë",
-  Completed: "Përfunduar",
-};
-const DEADLINE_FILTERS = [
-  { value: "all", label: "Të gjitha" },
-  { value: "week", label: "Afati këtë javë" },
-  { value: "month", label: "Afati këtë muaj" },
-  { value: "past", label: "Afati ka kaluar" },
-  { value: "none", label: "Pa afat" },
-];
-const WARNING_TRANSLATIONS = {
-  "Metadata extraction failed. You can complete the form manually.": "Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.",
-};
+const DEADLINE_FILTERS = ["all", "week", "month", "past", "none"];
 
-function getConferenceErrorMessage(response, data, action) {
+function getConferenceErrorMessage(response, data, action, t) {
   if (response.status === 401) {
-    return `Sesioni nuk është aktiv. Kyçuni me Google për të ${action} konferenca.`;
+    return t("professor.conferences.unauthorized", { action });
   }
 
   if (response.status === 403) {
-    return "Nuk keni leje për këtë veprim.";
+    return t("professor.conferences.noPermission");
   }
 
-  return data?.message || "Konferencat nuk u përditësuan.";
-}
-
-function getStatusLabel(status) {
-  return CONFERENCE_STATUS_LABELS[status] || status || CONFERENCE_STATUS_LABELS.Interested;
-}
-
-function translateWarning(warning) {
-  return WARNING_TRANSLATIONS[warning] || warning;
+  return data?.message || t("professor.conferences.updateError");
 }
 
 function parseConferenceDate(value) {
@@ -71,36 +47,38 @@ function parseConferenceDate(value) {
   return date;
 }
 
-function formatAlbanianDate(date) {
-  const formatted = new Intl.DateTimeFormat("sq-AL", {
+function formatDisplayDate(date, language) {
+  const locale = language === "en" ? "en-US" : "sq-AL";
+  const formatted = new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(date);
 
-  return formatted.replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase("sq-AL") + word.slice(1));
+  return formatted.replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase(locale) + word.slice(1));
 }
 
-function formatConferenceDate(value, fallback = "Pa datë") {
+function formatConferenceDate(value, fallback, language) {
   const date = parseConferenceDate(value);
 
   if (!date) {
     return fallback;
   }
 
-  return formatAlbanianDate(date);
+  return formatDisplayDate(date, language);
 }
 
-function getDateBadgeParts(value) {
+function getDateBadgeParts(value, language, noDateLabel) {
   const date = parseConferenceDate(value);
+  const locale = language === "en" ? "en-US" : "sq-AL";
 
   if (!date) {
-    return { day: "--", month: "Pa datë" };
+    return { day: "--", month: noDateLabel };
   }
 
   return {
-    day: new Intl.DateTimeFormat("sq-AL", { day: "2-digit" }).format(date),
-    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date).toLocaleUpperCase("sq-AL"),
+    day: new Intl.DateTimeFormat(locale, { day: "2-digit" }).format(date),
+    month: new Intl.DateTimeFormat(locale, { month: "short" }).format(date).toLocaleUpperCase(locale),
   };
 }
 
@@ -109,6 +87,7 @@ function getWorkflowStatusClass(status) {
 }
 
 function ConferenceManager({ searchQuery = "" }) {
+  const { language, t } = useLanguage();
   const [conferences, setConferences] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState("");
@@ -130,6 +109,10 @@ function ConferenceManager({ searchQuery = "" }) {
     total: 0,
     totalPages: 1,
   });
+  const getStatusLabel = useCallback(
+    (status) => t(`professor.conferences.statuses.${status || "Interested"}`),
+    [t]
+  );
 
   const fetchConferences = useCallback(async ({
     nextPage = page,
@@ -165,7 +148,7 @@ function ConferenceManager({ searchQuery = "" }) {
       const data = await response.json().catch(() => []);
 
       if (!response.ok) {
-        throw new Error(getConferenceErrorMessage(response, data, "parë"));
+        throw new Error(getConferenceErrorMessage(response, data, language === "en" ? "view" : "pare", t));
       }
 
       const rows = Array.isArray(data) ? data : data.data;
@@ -178,11 +161,11 @@ function ConferenceManager({ searchQuery = "" }) {
       });
     } catch (fetchError) {
       setConferences([]);
-      setError(fetchError.message || "Konferencat nuk u ngarkuan.");
+      setError(fetchError.message || t("professor.conferences.loadError"));
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, statusFilter, deadlineFilter]);
+  }, [deadlineFilter, language, page, searchQuery, statusFilter, t]);
 
   useEffect(() => {
     setPage(1);
@@ -212,7 +195,7 @@ function ConferenceManager({ searchQuery = "" }) {
     const url = extractUrl.trim();
 
     if (!url) {
-      setExtractMessage("Shkruani linkun e konferencës.");
+      setExtractMessage(t("professor.conferences.enterUrl"));
       setExtractWarnings([]);
       return;
     }
@@ -247,14 +230,14 @@ function ConferenceManager({ searchQuery = "" }) {
       setExtractWarnings(Array.isArray(result.warnings) ? result.warnings : []);
 
       if (!response.ok) {
-        setExtractMessage("Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.");
+        setExtractMessage(t("professor.conferences.extractFailed"));
         return;
       }
 
       if (result.missingFields?.length) {
-        setExtractMessage("Disa të dhëna nuk u identifikuan. Ju lutem plotësojini manualisht.");
+        setExtractMessage(t("professor.conferences.missingExtracted"));
       } else {
-        setExtractMessage("Të dhënat u gjetën. Ju lutem kontrolloni para ruajtjes.");
+        setExtractMessage(t("professor.conferences.extracted"));
       }
     } catch {
       setForm((prev) => ({
@@ -264,7 +247,7 @@ function ConferenceManager({ searchQuery = "" }) {
       }));
       setMissingFields(["title", "submission_deadline", "conference_date", "location"]);
       setExtractWarnings([]);
-      setExtractMessage("Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.");
+      setExtractMessage(t("professor.conferences.extractFailed"));
     } finally {
       setIsExtracting(false);
     }
@@ -287,7 +270,7 @@ function ConferenceManager({ searchQuery = "" }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(getConferenceErrorMessage(response, data, "shtuar"));
+        throw new Error(getConferenceErrorMessage(response, data, language === "en" ? "save" : "shtuar", t));
       }
 
       setForm(EMPTY_FORM);
@@ -299,7 +282,7 @@ function ConferenceManager({ searchQuery = "" }) {
         deadline: deadlineFilter,
       });
     } catch (submitError) {
-      setError(submitError.message || "Konferenca nuk u ruajt.");
+      setError(submitError.message || t("professor.conferences.saveError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -329,7 +312,7 @@ function ConferenceManager({ searchQuery = "" }) {
   };
 
   const deleteConference = async (id) => {
-    const confirmed = window.confirm("A dëshironi ta fshini konferencën?");
+    const confirmed = window.confirm(t("professor.conferences.confirmDelete"));
 
     if (!confirmed) {
       return;
@@ -346,7 +329,7 @@ function ConferenceManager({ searchQuery = "" }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(getConferenceErrorMessage(response, data, "fshirë"));
+        throw new Error(getConferenceErrorMessage(response, data, language === "en" ? "delete" : "fshire", t));
       }
 
       if (editingId === id) {
@@ -360,7 +343,7 @@ function ConferenceManager({ searchQuery = "" }) {
         deadline: deadlineFilter,
       });
     } catch (deleteError) {
-      setError(deleteError.message || "Konferenca nuk u fshi.");
+      setError(deleteError.message || t("professor.conferences.deleteError"));
     } finally {
       setDeletingId("");
     }
@@ -368,7 +351,7 @@ function ConferenceManager({ searchQuery = "" }) {
 
   const getDeadlineStatus = (deadline) => {
     if (!deadline) {
-      return "Pa afat";
+      return t("common.noDeadline");
     }
 
     const today = new Date();
@@ -378,11 +361,11 @@ function ConferenceManager({ searchQuery = "" }) {
       (deadlineDate - today) / (1000 * 60 * 60 * 24)
     );
 
-    if (Number.isNaN(deadlineDate.getTime())) return "Pa afat";
-    if (difference < 0) return "Mbyllur";
-    if (difference <= 7) return "Mbyllet së shpejti";
+    if (Number.isNaN(deadlineDate.getTime())) return t("common.noDeadline");
+    if (difference < 0) return t("common.closed");
+    if (difference <= 7) return t("professor.conferences.closingSoon");
 
-    return "Hapur";
+    return t("common.open");
   };
 
   return (
@@ -390,8 +373,8 @@ function ConferenceManager({ searchQuery = "" }) {
       <section className="conference-panel">
         <div className="conference-import">
           <div className="conference-import-copy">
-            <strong>Importo nga linku</strong>
-            <span>Vendos faqen zyrtare të konferencës për të provuar plotësimin automatik.</span>
+            <strong>{t("professor.conferences.importTitle")}</strong>
+            <span>{t("professor.conferences.importDescription")}</span>
           </div>
           <div className="conference-import-controls">
             <input
@@ -401,7 +384,7 @@ function ConferenceManager({ searchQuery = "" }) {
               placeholder="https://faqja-e-konferences.com"
             />
             <button type="button" onClick={handleExtract} disabled={isExtracting}>
-              {isExtracting ? "Duke nxjerrë të dhënat..." : "Nxirr të dhënat"}
+              {isExtracting ? t("professor.conferences.extracting") : t("professor.conferences.extract")}
             </button>
           </div>
         </div>
@@ -409,25 +392,25 @@ function ConferenceManager({ searchQuery = "" }) {
         {extractMessage ? (
           <div className={`conference-extract-message ${missingFields.length ? "partial" : "success"}`}>
             <strong>{extractMessage}</strong>
-            {extractWarnings.length ? <span>{extractWarnings.map(translateWarning).join(" ")}</span> : null}
+            {extractWarnings.length ? <span>{extractWarnings.join(" ")}</span> : null}
           </div>
         ) : null}
 
         <div className="conference-form-heading">
           <div>
-            <h3>Detajet e konferencës</h3>
-            <p>Kontrolloni dhe plotësoni të dhënat para ruajtjes.</p>
+            <h3>{t("professor.conferences.detailsTitle")}</h3>
+            <p>{t("professor.conferences.detailsDescription")}</p>
           </div>
-          {editingId ? <span>Duke edituar</span> : null}
+          {editingId ? <span>{t("professor.conferences.editing")}</span> : null}
         </div>
 
         <form onSubmit={handleSubmit} className="conference-form">
           <div className={getFieldClass("title")}>
-            <label>Titulli i konferencës</label>
+            <label>{t("professor.conferences.title")}</label>
             <input
               name="title"
               type="text"
-              placeholder="Shkruani titullin e konferencës"
+              placeholder={t("professor.conferences.titlePlaceholder")}
               value={form.title}
               onChange={handleChange}
               required
@@ -435,7 +418,7 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
 
           <div className={getFieldClass("acronym")}>
-            <label>Akronimi</label>
+            <label>{t("professor.conferences.acronym")}</label>
             <input
               name="acronym"
               type="text"
@@ -446,29 +429,29 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
 
           <div className={getFieldClass("field")}>
-            <label>Fusha kërkimore</label>
+            <label>{t("professor.conferences.field")}</label>
             <input
               name="field"
               type="text"
-              placeholder="Shkenca kompjuterike"
+              placeholder={t("professor.conferences.fieldPlaceholder")}
               value={form.field}
               onChange={handleChange}
             />
           </div>
 
           <div className={getFieldClass("location")}>
-            <label>Vendndodhja</label>
+            <label>{t("professor.conferences.location")}</label>
             <input
               name="location"
               type="text"
-              placeholder="Vjenë, Austri"
+              placeholder={t("professor.conferences.locationPlaceholder")}
               value={form.location}
               onChange={handleChange}
             />
           </div>
 
           <div className={getFieldClass("submission_deadline")}>
-            <label>Afati i dorëzimit</label>
+            <label>{t("professor.conferences.submissionDeadline")}</label>
             <input
               name="submission_deadline"
               type="date"
@@ -479,7 +462,7 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
 
           <div className={getFieldClass("conference_date")}>
-            <label>Data e konferencës</label>
+            <label>{t("professor.conferences.conferenceDate")}</label>
             <input
               name="conference_date"
               type="date"
@@ -489,7 +472,7 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
 
           <div className="form-group">
-            <label>Statusi</label>
+            <label>{t("professor.conferences.status")}</label>
             <select
               name="status"
               value={form.status}
@@ -502,7 +485,7 @@ function ConferenceManager({ searchQuery = "" }) {
           </div>
 
           <div className={`${getFieldClass("website")} form-wide`}>
-            <label>Faqja zyrtare</label>
+            <label>{t("professor.conferences.website")}</label>
             <input
               name="website"
               type="url"
@@ -518,7 +501,7 @@ function ConferenceManager({ searchQuery = "" }) {
               className="conference-submit-btn"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Duke ruajtur..." : editingId ? "Ruaj ndryshimet" : "+ Shto konferencë"}
+              {isSubmitting ? t("professor.conferences.saving") : editingId ? t("professor.conferences.saveChanges") : t("professor.conferences.add")}
             </button>
             {editingId ? (
             <button
@@ -527,7 +510,7 @@ function ConferenceManager({ searchQuery = "" }) {
               onClick={cancelEdit}
               disabled={isSubmitting}
             >
-              Anulo
+              {t("professor.conferences.cancel")}
             </button>
             ) : null}
           </div>
@@ -543,14 +526,12 @@ function ConferenceManager({ searchQuery = "" }) {
       <section className="conference-panel">
         <div className="conference-header">
           <div>
-            <h2>Konferencat ekzistuese</h2>
-            <p>
-              Pjesëmarrjet dhe afatet e ardhshme.
-            </p>
+            <h2>{t("professor.conferences.existingTitle")}</h2>
+            <p>{t("professor.conferences.existingDescription")}</p>
           </div>
-          <div className="conference-filters" aria-label="Filtrat e konferencave">
+          <div className="conference-filters" aria-label={t("professor.conferences.filtersLabel")}>
             <label>
-              <span>Statusi</span>
+              <span>{t("common.status")}</span>
               <select
                 value={statusFilter}
                 onChange={(event) => {
@@ -558,14 +539,14 @@ function ConferenceManager({ searchQuery = "" }) {
                   setPage(1);
                 }}
               >
-                <option value="all">Të gjitha</option>
+                <option value="all">{t("common.all")}</option>
                 {CONFERENCE_STATUSES.map((status) => (
                   <option key={status} value={status}>{getStatusLabel(status)}</option>
                 ))}
               </select>
             </label>
             <label>
-              <span>Afati</span>
+              <span>{t("common.deadline")}</span>
               <select
                 value={deadlineFilter}
                 onChange={(event) => {
@@ -574,7 +555,7 @@ function ConferenceManager({ searchQuery = "" }) {
                 }}
               >
                 {DEADLINE_FILTERS.map((filter) => (
-                  <option key={filter.value} value={filter.value}>{filter.label}</option>
+                  <option key={filter} value={filter}>{t(`professor.conferences.deadlineFilters.${filter}`)}</option>
                 ))}
               </select>
             </label>
@@ -583,11 +564,11 @@ function ConferenceManager({ searchQuery = "" }) {
 
         <div className="conference-list">
           {isLoading ? (
-            <div className="conference-empty">Duke ngarkuar konferencat...</div>
+            <div className="conference-empty">{t("professor.conferences.loading")}</div>
           ) : conferences.length ? (
             conferences.map((conf) => {
               const status = getDeadlineStatus(conf.submission_deadline);
-              const dateBadge = getDateBadgeParts(conf.conference_date);
+              const dateBadge = getDateBadgeParts(conf.conference_date, language, t("common.noDeadline"));
 
               return (
                 <div className="conference-card" key={conf.id}>
@@ -602,17 +583,17 @@ function ConferenceManager({ searchQuery = "" }) {
                       {conf.acronym && <span>({conf.acronym})</span>}
                     </h3>
 
-                    <p>Vendndodhja: {conf.location || "Pa vendndodhje"}</p>
+                    <p>{t("professor.conferences.locationLabel")}: {conf.location || t("professor.conferences.noLocation")}</p>
 
                     <div className="conference-meta">
-                      <span>Fusha: {conf.field || "Pa fushë"}</span>
-                      <span>Afati: {formatConferenceDate(conf.submission_deadline, "Pa afat")}</span>
-                      <span>Data: {formatConferenceDate(conf.conference_date)}</span>
+                      <span>{t("professor.conferences.fieldLabel")}: {conf.field || t("professor.conferences.noField")}</span>
+                      <span>{t("professor.conferences.deadlineLabel")}: {formatConferenceDate(conf.submission_deadline, t("common.noDeadline"), language)}</span>
+                      <span>{t("professor.conferences.dateLabel")}: {formatConferenceDate(conf.conference_date, t("common.noDeadline"), language)}</span>
                     </div>
 
                     {conf.website && (
                       <a className="conference-link" href={conf.website} target="_blank" rel="noreferrer">
-                        Vizito faqen
+                        {t("professor.conferences.visitWebsite")}
                       </a>
                     )}
                   </div>
@@ -620,11 +601,11 @@ function ConferenceManager({ searchQuery = "" }) {
                   <div className="conference-actions">
                     <span
                       className={`status-badge ${
-                        status === "Hapur"
+                        status === t("common.open")
                           ? "open"
-                          : status === "Mbyllet së shpejti"
+                          : status === t("professor.conferences.closingSoon")
                             ? "closing-soon"
-                            : status === "Mbyllur"
+                            : status === t("common.closed")
                               ? "closed"
                               : "neutral"
                       }`}
@@ -641,7 +622,7 @@ function ConferenceManager({ searchQuery = "" }) {
                       onClick={() => editConference(conf)}
                       disabled={deletingId === conf.id}
                     >
-                      Edito
+                      {t("common.edit")}
                     </button>
 
                     <button
@@ -650,7 +631,7 @@ function ConferenceManager({ searchQuery = "" }) {
                       onClick={() => deleteConference(conf.id)}
                       disabled={deletingId === conf.id}
                     >
-                      {deletingId === conf.id ? "Duke fshirë..." : "Fshij"}
+                      {deletingId === conf.id ? t("professor.conferences.deleting") : t("common.delete")}
                     </button>
                   </div>
                 </div>
@@ -658,7 +639,7 @@ function ConferenceManager({ searchQuery = "" }) {
             })
           ) : (
             <div className="conference-empty">
-              Nuk u gjet asnjë konferencë.
+              {t("professor.conferences.notFound")}
             </div>
           )}
         </div>
@@ -669,15 +650,15 @@ function ConferenceManager({ searchQuery = "" }) {
               onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 1))}
               disabled={pagination.page <= 1 || isLoading}
             >
-              Mbrapa
+              {t("common.back")}
             </button>
-            <span>Faqja {pagination.page} / {pagination.totalPages}</span>
+            <span>{t("professor.conferences.pageOf", { page: pagination.page, total: pagination.totalPages })}</span>
             <button
               type="button"
               onClick={() => setPage((currentPage) => Math.min(currentPage + 1, pagination.totalPages))}
               disabled={pagination.page >= pagination.totalPages || isLoading}
             >
-              Para
+              {t("common.next")}
             </button>
           </div>
         ) : null}

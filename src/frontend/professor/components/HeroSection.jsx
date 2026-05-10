@@ -1,24 +1,24 @@
 import React from "react";
 import { ArrowRight, BarChart3 } from "lucide-react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function HeroSection({ profile, onPrimaryAction, onSecondaryAction }) {
+  const { t } = useLanguage();
+
   return (
     <section className="prof-hero">
       <div className="prof-hero-copy">
-        <span className="prof-hero-kicker">UMIBRes Research Dashboard</span>
-        <h2>Panel institucional per aktivitetin akademik</h2>
-        <p>
-          Menaxhoni profilin shkencor, publikimet, konferencat dhe rimbursimet ne
-          nje mjedis te thjeshte, profesional dhe te gatshem per API integration.
-        </p>
+        <span className="prof-hero-kicker">{t("professor.dashboard.heroBadge")}</span>
+        <h2>{t("professor.dashboard.heroTitle")}</h2>
+        <p>{t("professor.dashboard.heroDescription")}</p>
 
         <div className="prof-hero-meta">
           <div>
-            <span>Profesori</span>
+            <span>{t("professor.dashboard.professor")}</span>
             <strong>{profile.name}</strong>
           </div>
           <div>
-            <span>Njesia</span>
+            <span>{t("professor.dashboard.faculty")}</span>
             <strong>{profile.faculty}</strong>
           </div>
         </div>
@@ -26,12 +26,12 @@ export default function HeroSection({ profile, onPrimaryAction, onSecondaryActio
 
       <div className="prof-hero-actions">
         <button className="primary-btn" onClick={onPrimaryAction} type="button">
-          Shiko publikimet
+          {t("professor.dashboard.viewPublications")}
           <ArrowRight size={16} />
         </button>
         <button className="secondary-btn" onClick={onSecondaryAction} type="button">
           <BarChart3 size={16} />
-          Hap statistikat
+          {t("professor.dashboard.openStatistics")}
         </button>
       </div>
     </section>

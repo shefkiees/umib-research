@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, User, Settings, Link2, ArrowRight } from "lucide-react";
-
-const fallbackMenuItems = [
-  { id: "EditProfile", label: "Edit Profile", icon: User },
-  { id: "Settings", label: "Settings", icon: Settings },
-  { id: "Integrime", label: "Integrime", icon: Link2 },
-  { id: "Logout", label: "Logout", icon: ArrowRight, tone: "danger" },
-];
+import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function TopBar({
   activePage,
@@ -25,15 +19,23 @@ export default function TopBar({
   unreadLabel = "pa lexuara",
   markAllReadLabel = "Sheno si te lexuara",
   emptyNotificationsLabel = "No notifications available yet.",
+  profileDialogLabel,
 }) {
+  const { t } = useLanguage();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
 
-  const title = activePage || "Statistika";
-  const name = profile?.name || "Professor";
-  const role = profile?.role || "Professor";
+  const title = activePage || t("navigation.statistics");
+  const name = profile?.name || t("professor.profileFallbackName");
+  const role = profile?.role || t("professor.profileFallbackRole");
+  const fallbackMenuItems = [
+    { id: "EditProfile", label: t("topbar.menuEditProfile"), icon: User },
+    { id: "Settings", label: t("topbar.menuSettings"), icon: Settings },
+    { id: "Integrime", label: t("topbar.menuIntegrations"), icon: Link2 },
+    { id: "Logout", label: t("topbar.menuLogout"), icon: ArrowRight, tone: "danger" },
+  ];
   const resolvedMenuItems = menuItems.length ? menuItems : fallbackMenuItems;
   const unreadCount = notifications.length
     ? notifications.filter((item) => !item.isRead).length
@@ -129,7 +131,7 @@ export default function TopBar({
                         }}
                       >
                         <div className="prof-notification-meta">
-                          <span className="prof-notification-tag">{item.category || "Njoftim"}</span>
+                          <span className="prof-notification-tag">{item.category || notificationsAriaLabel}</span>
                           <span>{item.createdAt}</span>
                         </div>
                         <p className="prof-notification-title">{item.title}</p>
@@ -163,7 +165,7 @@ export default function TopBar({
           </button>
 
           {isProfileOpen ? (
-            <div className="prof-popover" role="dialog" aria-label="Profili">
+            <div className="prof-popover" role="dialog" aria-label={profileDialogLabel || t("topbar.profileDialog")}>
               {resolvedMenuItems.map((item) => {
                 const ItemIcon = item.icon || User;
                 const actionId = item.id || item.label;

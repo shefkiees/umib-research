@@ -30,6 +30,7 @@ import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
 import { apiUrl } from "../../utils/api";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 import {
   professorProfile,
@@ -196,145 +197,10 @@ const formatRequestedAmounts = (amounts = []) => {
     .join(" / ") || "0 EUR";
 };
 
-const getStatusLabel = (status) => STATUS_LABELS[status] || status;
-const getRequestTypeLabel = (type) => REQUEST_TYPE_LABELS[type] || type;
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
-const PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY = "professorSystemPreferences";
 
 const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
   emailNotifications: true,
-  language: "sq",
-};
-
-const SETTINGS_PAGE_TRANSLATIONS = {
-  sq: {
-    pageTitle: "Cilesimet",
-    pageDescription: "Konfigurimet kryesore per profilin dhe panelin kerkimor.",
-    profileTitle: "Informacionet e Profilit",
-    fullName: "Emri i plote",
-    academicTitle: "Titulli Akademik",
-    emailAddress: "Adresa Email",
-    orcidId: "ORCID iD",
-    orcidSchool: "Shkolla nga ORCID",
-    orcidAffiliation: "Affiliation nga ORCID",
-    notConnected: "Nuk eshte lidhur",
-    noPublicData: "Nuk ka te dhena publike",
-    updateProfile: "Ndrysho te dhenat",
-    systemTitle: "Preferencat e Sistemit",
-    emailLabel: "Njoftime me email",
-    emailSubtext: "Merr njoftime per cdo publikim ose rimbursim",
-    enabledStatus: "Aktive",
-    disabledStatus: "Joaktive",
-    languageLabel: "Gjuha e nderfaqes",
-    languageSubtext: "Zgjidh gjuhen e shfaqjes per kete seksion.",
-    albanian: "Shqip",
-    english: "English",
-    preferencesSaved: "Preferencat u ruajten.",
-    securityTitle: "Siguria & Llogaria",
-    securityDescription: "Menaxho sigurine e llogarise suaj kerkimore.",
-    changePassword: "Ndrysho fjalekalimin",
-    integrationsTitle: "API & Integrimet",
-    integrationsDescription: "Lidh profilin tuaj me platformat nderkombetare.",
-    refreshOrcid: "Rifresko nga ORCID",
-    connectOrcid: "Lidhu me ORCID",
-    viewIntegrations: "Shiko Integrimet",
-    searchPlaceholder: "Kerko publikime, konferenca ose kerkesa...",
-    notificationsAriaLabel: "Njoftime",
-    notificationsTitle: "Njoftimet",
-    unreadLabel: "pa lexuara",
-    markAllRead: "Sheno si te lexuara",
-    emptyNotifications: "Nuk ka ende njoftime.",
-    menuEditProfile: "Ndrysho profilin",
-    menuOrcidConnect: "Lidhu me ORCID",
-    menuNotifications: "Njoftime",
-    menuSettings: "Cilesimet",
-    menuIntegrations: "Integrime",
-    menuLogout: "Dil",
-    editProfileTitle: "Ndrysho profilin",
-    editProfileSubtitle: "Perditesoni te dhenat baze te profilit.",
-    closeModal: "Mbyll",
-    profileNote:
-      "Emri, email-i dhe ORCID iD merren automatikisht nga ORCID/llogaria. Ketu ruhen vetem te dhenat lokale te profilit.",
-    nameAndSurname: "Emri dhe mbiemri",
-    role: "Roli",
-    email: "Email",
-    faculty: "Fakulteti",
-    department: "Departamenti",
-    office: "Zyra",
-    orcidDetails: "Detaje nga ORCID",
-    keywords: "Fjale kyce",
-    orcidEducation: "Edukimi nga ORCID",
-    orcidEmployment: "Punesimi nga ORCID",
-    profileSaveError: "Profili nuk u ruajt. Provoni perseri.",
-    linkOrcidForAutofill: "Lidhe me ORCID per te mbushur profilin automatikisht",
-    cancel: "Anulo",
-    saving: "Duke ruajtur...",
-    saveChanges: "Ruaj ndryshimet",
-  },
-  en: {
-    pageTitle: "Settings",
-    pageDescription: "Core configuration for your profile and research dashboard.",
-    profileTitle: "Profile Information",
-    fullName: "Full Name",
-    academicTitle: "Academic Title",
-    emailAddress: "Email Address",
-    orcidId: "ORCID iD",
-    orcidSchool: "School from ORCID",
-    orcidAffiliation: "Affiliation from ORCID",
-    notConnected: "Not connected",
-    noPublicData: "No public data available",
-    updateProfile: "Update Profile",
-    systemTitle: "System Preferences",
-    emailLabel: "Email notifications",
-    emailSubtext: "Receive notifications for every publication or reimbursement",
-    enabledStatus: "Enabled",
-    disabledStatus: "Disabled",
-    languageLabel: "Interface language",
-    languageSubtext: "Choose the display language for this section.",
-    albanian: "Albanian",
-    english: "English",
-    preferencesSaved: "Preferences saved.",
-    securityTitle: "Security & Account",
-    securityDescription: "Manage the security of your research account.",
-    changePassword: "Change Password",
-    integrationsTitle: "API & Integrations",
-    integrationsDescription: "Connect your profile with international platforms.",
-    refreshOrcid: "Refresh from ORCID",
-    connectOrcid: "Connect with ORCID",
-    viewIntegrations: "View Integrations",
-    searchPlaceholder: "Search publications, conferences, or requests...",
-    notificationsAriaLabel: "Notifications",
-    notificationsTitle: "Notifications",
-    unreadLabel: "unread",
-    markAllRead: "Mark as read",
-    emptyNotifications: "No notifications available yet.",
-    menuEditProfile: "Edit Profile",
-    menuOrcidConnect: "Connect with ORCID",
-    menuNotifications: "Notifications",
-    menuSettings: "Settings",
-    menuIntegrations: "Integrations",
-    menuLogout: "Logout",
-    editProfileTitle: "Edit Profile",
-    editProfileSubtitle: "Update the basic profile information.",
-    closeModal: "Close",
-    profileNote:
-      "Name, email, and ORCID iD are pulled automatically from ORCID/account data. Only local profile details are saved here.",
-    nameAndSurname: "Full name",
-    role: "Role",
-    email: "Email",
-    faculty: "Faculty",
-    department: "Department",
-    office: "Office",
-    orcidDetails: "Details from ORCID",
-    keywords: "Keywords",
-    orcidEducation: "Education from ORCID",
-    orcidEmployment: "Employment from ORCID",
-    profileSaveError: "Profile was not saved. Please try again.",
-    linkOrcidForAutofill: "Connect ORCID to fill your profile automatically",
-    cancel: "Cancel",
-    saving: "Saving...",
-    saveChanges: "Save changes",
-  },
 };
 
 const hasStatisticMetricData = (rows = []) =>
@@ -344,6 +210,7 @@ const hasStatisticMetricData = (rows = []) =>
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
+  const { language, setLanguage, t, tx } = useLanguage();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -396,42 +263,21 @@ export default function ProfessorDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
-  const [systemPreferences, setSystemPreferences] = useState(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_PROFESSOR_SYSTEM_PREFERENCES;
-    }
-
-    try {
-      const persisted = window.localStorage.getItem(PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY);
-      const parsed = persisted ? JSON.parse(persisted) : {};
-
-      return {
-        ...DEFAULT_PROFESSOR_SYSTEM_PREFERENCES,
-        ...parsed,
-        language: parsed.language === "en" ? "en" : "sq",
-        emailNotifications: Boolean(
-          parsed.emailNotifications ?? DEFAULT_PROFESSOR_SYSTEM_PREFERENCES.emailNotifications
-        ),
-      };
-    } catch {
-      return DEFAULT_PROFESSOR_SYSTEM_PREFERENCES;
-    }
-  });
+  const [systemPreferences, setSystemPreferences] = useState(DEFAULT_PROFESSOR_SYSTEM_PREFERENCES);
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
-  const settingsText =
-    SETTINGS_PAGE_TRANSLATIONS[systemPreferences.language] || SETTINGS_PAGE_TRANSLATIONS.sq;
+  const settingsText = t("professor.settings");
 
   const translatedProfileMenuItems = useMemo(
     () =>
       profileMenuItems.map((item) => {
         const translatedLabels = {
-          EditProfile: settingsText.menuEditProfile,
-          OrcidConnect: settingsText.menuOrcidConnect,
-          Njoftime: settingsText.menuNotifications,
-          Settings: settingsText.menuSettings,
-          Integrime: settingsText.menuIntegrations,
-          Logout: settingsText.menuLogout,
+          EditProfile: t("topbar.menuEditProfile"),
+          OrcidConnect: t("topbar.menuOrcidConnect"),
+          Njoftime: t("topbar.menuNotifications"),
+          Settings: t("topbar.menuSettings"),
+          Integrime: t("topbar.menuIntegrations"),
+          Logout: t("topbar.menuLogout"),
         };
 
         return {
@@ -439,7 +285,7 @@ export default function ProfessorDashboard() {
           label: translatedLabels[item.id] || item.label,
         };
       }),
-    [settingsText]
+    [t]
   );
 
   const updateSystemPreference = useCallback((field, value) => {
@@ -447,14 +293,12 @@ export default function ProfessorDashboard() {
 
     setSystemPreferences(next);
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PROFESSOR_SYSTEM_PREFERENCES_STORAGE_KEY, JSON.stringify(next));
+    if (field === "language") {
+      setLanguage(value);
     }
 
-    setSystemPreferencesMessage(
-      (SETTINGS_PAGE_TRANSLATIONS[next.language] || SETTINGS_PAGE_TRANSLATIONS.sq).preferencesSaved
-    );
-  }, [systemPreferences]);
+    setSystemPreferencesMessage(t("professor.settings.preferencesSaved"));
+  }, [setLanguage, systemPreferences, t]);
 
   useEffect(() => {
     if (!systemPreferencesMessage) {
@@ -581,8 +425,8 @@ export default function ProfessorDashboard() {
         if (isMounted) {
           setStatisticsError(
             error.message === "stats_unauthorized"
-              ? "Statistikat nuk u ngarkuan sepse sesioni nuk u pranua nga API."
-              : "Statistikat nuk u ngarkuan nga Supabase. Provoni perseri."
+              ? "professor.dashboard.statsUnauthorized"
+              : "professor.dashboard.statsLoadError"
           );
           setStatisticsData(DEFAULT_PROFESSOR_STATISTICS);
         }
@@ -647,8 +491,8 @@ export default function ProfessorDashboard() {
       setPublications([]);
       setPublicationsError(
         error.message === "publications_unauthorized"
-          ? "Publikimet nuk u ngarkuan sepse sesioni nuk u pranua nga API."
-          : error.message || "Publikimet nuk u ngarkuan nga Supabase."
+          ? "professor.dashboard.publicationsUnauthorized"
+          : error.message || "professor.dashboard.publicationsLoadError"
       );
     } finally {
       setIsPublicationsLoading(false);
@@ -659,7 +503,22 @@ export default function ProfessorDashboard() {
     loadPublications({ page: publicationsPage, query: searchQuery });
   }, [loadPublications, publicationsPage, searchQuery]);
 
-  const pageTitle = activePage === "Settings" ? settingsText.pageTitle : activePage;
+  const pageTitleMap = {
+    Statistika: t("navigation.statistics"),
+    Publikime: t("navigation.publications"),
+    Konferenca: t("navigation.conferences"),
+    Rimbursime: t("navigation.reimbursements"),
+    Njoftime: t("navigation.notifications"),
+    Settings: t("navigation.settings"),
+    Integrime: t("navigation.integrations"),
+  };
+  const pageTitle = pageTitleMap[activePage] || activePage;
+  const getStatusLabel = useCallback((status) => tx(STATUS_LABELS[status] || status), [tx]);
+  const getRequestTypeLabel = useCallback((type) => tx(REQUEST_TYPE_LABELS[type] || type), [tx]);
+  const formatUiMessage = useCallback(
+    (message) => (String(message || "").includes(".") ? t(message) : tx(message)),
+    [t, tx]
+  );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
@@ -707,7 +566,7 @@ export default function ProfessorDashboard() {
     return statisticsData.publicationsByStatus.filter((row) =>
       `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, statisticsData.publicationsByStatus]);
+  }, [getStatusLabel, normalizedQuery, statisticsData.publicationsByStatus]);
 
   const filteredReimbursementStatuses = useMemo(() => {
     if (!normalizedQuery) {
@@ -717,7 +576,7 @@ export default function ProfessorDashboard() {
     return statisticsData.reimbursementsByStatus.filter((row) =>
       `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, statisticsData.reimbursementsByStatus]);
+  }, [getStatusLabel, normalizedQuery, statisticsData.reimbursementsByStatus]);
 
   const filteredReimbursementTypes = useMemo(() => {
     if (!normalizedQuery) {
@@ -727,7 +586,7 @@ export default function ProfessorDashboard() {
     return statisticsData.reimbursementsByType.filter((row) =>
       `${getRequestTypeLabel(row.type)} ${row.count}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, statisticsData.reimbursementsByType]);
+  }, [getRequestTypeLabel, normalizedQuery, statisticsData.reimbursementsByType]);
 
   const handleMenuAction = (action) => {
     const normalizedAction = String(action || "").trim().toLowerCase();
@@ -982,43 +841,49 @@ export default function ProfessorDashboard() {
     const summary = statisticsData.summary;
     const quickStats = [
       {
-        label: "Publikime aktive",
+        label: t("professor.dashboard.activePublications"),
         value: summary.publicationsTotal,
-        change: `${summary.publicationsApproved} aprovuar | ${summary.publicationsInReview} ne shqyrtim`,
+        change: t("professor.dashboard.approvedInReview", {
+          approved: summary.publicationsApproved,
+          review: summary.publicationsInReview,
+        }),
         icon: <BookOpen size={22} />,
       },
       {
-        label: "Konferenca te planifikuara",
+        label: t("professor.dashboard.plannedConferences"),
         value: summary.conferencesTotal,
-        change: `${summary.upcomingConferences} te ardhshme`,
+        change: t("professor.dashboard.upcomingCount", { count: summary.upcomingConferences }),
         icon: <CalendarDays size={22} />,
       },
       {
-        label: "Rimbursime ne proces",
+        label: t("professor.dashboard.reimbursementsInProcess"),
         value: summary.reimbursementsInReview,
-        change: `${summary.reimbursementsApproved} aprovuar | ${summary.reimbursementsTotal} gjithsej`,
+        change: t("professor.dashboard.approvedTotal", {
+          approved: summary.reimbursementsApproved,
+          total: summary.reimbursementsTotal,
+        }),
         icon: <Wallet size={22} />,
       },
       {
         label: "ORCID",
         value: profile.orcidId ? 1 : 0,
-        change: profile.orcidId ? "Profil i lidhur" : "Nuk eshte lidhur",
+        change: profile.orcidId ? t("professor.dashboard.orcidConnected") : t("common.notConnected"),
         icon: <Link2 size={22} />,
       },
     ];
 
     const quickActions = [
-      { title: "Regjistro publikim", icon: <BookOpen size={20} />, page: "Publikime" },
-      { title: "Dergo kerkese rimbursimi", icon: <Wallet size={20} />, page: "Rimbursime" },
-      { title: "Planifiko konference", icon: <CalendarDays size={20} />, page: "Konferenca" },
-      { title: "Perditeso profilin", icon: <Settings size={20} />, page: "Settings" },
+      { title: t("professor.dashboard.registerPublication"), icon: <BookOpen size={20} />, page: "Publikime" },
+      { title: t("professor.dashboard.submitReimbursement"), icon: <Wallet size={20} />, page: "Rimbursime" },
+      { title: t("professor.dashboard.planConference"), icon: <CalendarDays size={20} />, page: "Konferenca" },
+      { title: t("professor.dashboard.updateProfileAction"), icon: <Settings size={20} />, page: "Settings" },
     ];
 
     const latestPublications = publications.slice(0, 3).map((item) => ({
       id: item.id,
       icon: <BookOpen size={20} />,
       title: item.title,
-      description: [item.journal, item.year].filter(Boolean).join(" | ") || "Publikim nga Supabase",
+      description: [tx(item.journal), item.year].filter(Boolean).join(" | ") || t("professor.dashboard.publicationFromSupabase"),
       time: formatDate(item.createdAt),
     }));
 
@@ -1026,25 +891,22 @@ export default function ProfessorDashboard() {
       <>
         <section className="prof-hero">
           <div>
-            <span className="prof-badge">Academic Research Workflow</span>
-            <h2>Pershendetje {profile.name}</h2>
-            <p>
-              Ke nje pasqyre te unifikuar per publikimet, konferencat, rimbursimet dhe
-              integrimet akademike ne nje vend.
-            </p>
+            <span className="prof-badge">{t("professor.dashboard.heroBadge")}</span>
+            <h2>{t("professor.dashboard.greeting", { name: profile.name })}</h2>
+            <p>{t("professor.dashboard.heroDescription")}</p>
           </div>
           <div className="prof-hero-actions">
             <button className="primary-btn" type="button" onClick={() => setActivePage("Publikime")}>
-              Menaxho publikimet
+              {t("professor.dashboard.managePublications")}
             </button>
             <button className="secondary-btn" type="button" onClick={() => setActivePage("Statistika")}>
-              Shiko statistikat
+              {t("professor.dashboard.viewStats")}
             </button>
           </div>
         </section>
 
         <section>
-          <h3 className="prof-section-title">Pamje e shpejte</h3>
+          <h3 className="prof-section-title">{t("professor.dashboard.quickView")}</h3>
           <div className="prof-stats-grid">
             {quickStats.map((stat) => (
               <article key={stat.label} className="prof-stat-card">
@@ -1065,8 +927,8 @@ export default function ProfessorDashboard() {
           <article className="prof-card">
             <div className="prof-card-header">
               <div>
-                <h3>Aktivitetet e fundit</h3>
-                <p>Levizjet kryesore nga publikimet, konferencat dhe financat.</p>
+                <h3>{t("professor.dashboard.recentActivity")}</h3>
+                <p>{t("professor.dashboard.recentActivityDescription")}</p>
               </div>
             </div>
             <div className="prof-list">
@@ -1083,7 +945,7 @@ export default function ProfessorDashboard() {
                 ))
               ) : (
                 <div className="prof-stats-empty">
-                  {isPublicationsLoading ? "Duke ngarkuar te dhenat..." : "No data available yet."}
+                  {isPublicationsLoading ? t("common.loading") : t("professor.dashboard.noData")}
                 </div>
               )}
             </div>
@@ -1092,8 +954,8 @@ export default function ProfessorDashboard() {
           <article className="prof-card">
             <div className="prof-card-header">
               <div>
-                <h3>Veprime te shpejta</h3>
-                <p>Aksione te perdorura shpesh.</p>
+                <h3>{t("professor.dashboard.quickActions")}</h3>
+                <p>{t("professor.dashboard.quickActionsDescription")}</p>
               </div>
             </div>
             <div className="prof-quick-grid">
@@ -1115,7 +977,7 @@ export default function ProfessorDashboard() {
     );
   };
 
-  const renderListSection = (title, description, rows, rowKey, formatter, emptyText = "No data available yet.") => (
+  const renderListSection = (title, description, rows, rowKey, formatter, emptyText = t("professor.dashboard.noData")) => (
     <article className="prof-card">
       <div className="prof-card-header">
         <div>
@@ -1145,7 +1007,7 @@ export default function ProfessorDashboard() {
   const renderStatisticsBreakdown = (title, description, rows, getLabel, emptyText, hasUnfilteredRows = rows.length > 0) => {
     const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
     const resolvedEmptyText = normalizedQuery && hasUnfilteredRows
-      ? "No results match your search"
+      ? t("professor.dashboard.noSearchResults")
       : emptyText;
 
     return (
@@ -1187,27 +1049,32 @@ export default function ProfessorDashboard() {
     const summary = statisticsData.summary;
     const statCards = [
       {
-        label: "Publikime totale",
+        label: t("professor.dashboard.totalPublicationsCard"),
         value: summary.publicationsTotal,
-        change: `${summary.publicationsApproved} aprovuar | ${summary.publicationsInReview} ne shqyrtim`,
+        change: t("professor.dashboard.approvedInReview", {
+          approved: summary.publicationsApproved,
+          review: summary.publicationsInReview,
+        }),
         icon: <BookOpen size={22} />,
       },
       {
-        label: "Citime nga metadata",
+        label: t("professor.dashboard.citationsFromMetadata"),
         value: summary.citationsTotal,
-        change: "Nga DOI/Crossref kur ekziston fusha e citimeve",
+        change: t("professor.dashboard.citationsDescription"),
         icon: <CheckCircle2 size={22} />,
       },
       {
-        label: "Konferenca",
+        label: t("professor.dashboard.conferences"),
         value: summary.conferencesTotal,
-        change: `${summary.upcomingConferences} te ardhshme`,
+        change: t("professor.dashboard.upcomingCount", { count: summary.upcomingConferences }),
         icon: <CalendarDays size={22} />,
       },
       {
-        label: "Rimbursime",
+        label: t("professor.dashboard.reimbursements"),
         value: summary.reimbursementsTotal,
-        change: `${formatRequestedAmounts(summary.requestedAmounts)} te kerkuara`,
+        change: t("professor.dashboard.requestedAmountChange", {
+          amount: formatRequestedAmounts(summary.requestedAmounts),
+        }),
         icon: <Wallet size={22} />,
       },
     ];
@@ -1216,7 +1083,7 @@ export default function ProfessorDashboard() {
       <div className="prof-statistics-layout">
         {statisticsError ? (
           <div className="prof-stats-message error" role="alert">
-            {statisticsError}
+            {formatUiMessage(statisticsError)}
           </div>
         ) : null}
 
@@ -1238,21 +1105,21 @@ export default function ProfessorDashboard() {
         <article className="prof-card prof-stat-chart-card">
           <div className="prof-card-header">
             <div>
-              <h3>Statistika akademike</h3>
-              <p>Ecuria reale nga Supabase per publikime, citime, konferenca dhe rimbursime.</p>
+              <h3>{t("professor.dashboard.academicStatistics")}</h3>
+              <p>{t("professor.dashboard.academicStatisticsDescription")}</p>
             </div>
             <div className="prof-filter-wrap">
-              <label htmlFor="prof-period-filter">Periudha</label>
+              <label htmlFor="prof-period-filter">{t("professor.dashboard.period")}</label>
               <select
                 id="prof-period-filter"
                 className="prof-filter-select"
                 value={periodRange}
                 onChange={(event) => setPeriodRange(event.target.value)}
               >
-                <option value="1m">1 muaj</option>
-                <option value="2m">2 muaj</option>
-                <option value="6m">6 muaj</option>
-                <option value="12m">12 muaj</option>
+                <option value="1m">{t("professor.dashboard.periodOneMonth")}</option>
+                <option value="2m">{t("professor.dashboard.periodTwoMonths")}</option>
+                <option value="6m">{t("professor.dashboard.periodSixMonths")}</option>
+                <option value="12m">{t("professor.dashboard.periodTwelveMonths")}</option>
               </select>
             </div>
           </div>
@@ -1260,15 +1127,15 @@ export default function ProfessorDashboard() {
           {isStatisticsLoading ? (
             <div className="prof-stats-empty">
               <RefreshCw size={18} className="prof-stats-spin" />
-              {statisticsData.generatedAt ? "Updating statistics..." : "Loading statistics..."}
+              {statisticsData.generatedAt ? t("professor.dashboard.updatingStatistics") : t("professor.dashboard.loadingStatistics")}
             </div>
           ) : statisticsError ? (
             <div className="prof-stats-empty">
-              Statistics could not be loaded. Please try again.
+              {t("professor.dashboard.statisticsUnavailable")}
             </div>
           ) : normalizedQuery && hasStatisticsChartData && !hasFilteredStatisticsChartData ? (
             <div className="prof-stats-empty">
-              No results match your search
+              {t("professor.dashboard.noSearchResults")}
             </div>
           ) : hasFilteredStatisticsChartData ? (
             <div className="prof-stat-chart-wrap">
@@ -1279,45 +1146,45 @@ export default function ProfessorDashboard() {
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-                  <Bar dataKey="citime" name="Citime" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-                  <Bar dataKey="konferenca" name="Konferenca" radius={[8, 8, 0, 0]} fill="#7aa7d3" />
-                  <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
+                  <Bar dataKey="publikime" name={t("professor.dashboard.publications")} radius={[8, 8, 0, 0]} fill="#153a63" />
+                  <Bar dataKey="citime" name={t("professor.dashboard.citations")} radius={[8, 8, 0, 0]} fill="#2e6aa6" />
+                  <Bar dataKey="konferenca" name={t("professor.dashboard.conferences")} radius={[8, 8, 0, 0]} fill="#7aa7d3" />
+                  <Bar dataKey="rimbursime" name={t("professor.dashboard.reimbursements")} radius={[8, 8, 0, 0]} fill="#c9a24f" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="prof-stats-empty">
-              No statistics data available yet
+              {t("professor.dashboard.noStatsData")}
             </div>
           )}
         </article>
 
         <section className="prof-status-grid">
           {renderStatisticsBreakdown(
-            "Publikime sipas statusit",
-            "Shperndarja e publikimeve te ruajtura nga profesori.",
+            t("professor.dashboard.publicationsByStatus"),
+            t("professor.dashboard.publicationsByStatusDescription"),
             filteredPublicationStatuses,
             (row) => getStatusLabel(row.status),
-            "Nuk ka publikime te ruajtura.",
+            t("professor.dashboard.noSavedPublications"),
             statisticsData.publicationsByStatus.length > 0
           )}
 
           {renderStatisticsBreakdown(
-            "Rimbursime sipas statusit",
-            "Gjendja aktuale e kerkesave financiare.",
+            t("professor.dashboard.reimbursementsByStatus"),
+            t("professor.dashboard.reimbursementsByStatusDescription"),
             filteredReimbursementStatuses,
             (row) => getStatusLabel(row.status),
-            "Nuk ka rimbursime te ruajtura.",
+            t("professor.dashboard.noSavedReimbursements"),
             statisticsData.reimbursementsByStatus.length > 0
           )}
 
           {renderStatisticsBreakdown(
-            "Rimbursime sipas llojit",
-            "Kategorite e kerkesave te dorezuara.",
+            t("professor.dashboard.reimbursementsByType"),
+            t("professor.dashboard.reimbursementsByTypeDescription"),
             filteredReimbursementTypes,
             (row) => getRequestTypeLabel(row.type),
-            "Nuk ka lloje rimbursimi per t'u shfaqur.",
+            t("professor.dashboard.noReimbursementTypes"),
             statisticsData.reimbursementsByType.length > 0
           )}
         </section>
@@ -1336,31 +1203,31 @@ export default function ProfessorDashboard() {
           value={publicationDraft.title}
           onChange={handlePublicationDraftChange("title")}
           style={{ width: "100%" }}
-          aria-label="Titulli i publikimit"
+          aria-label={t("professor.dashboard.publicationTitleAria")}
         />
         <input
           value={publicationDraft.venue}
           onChange={handlePublicationDraftChange("venue")}
-          placeholder="Revista / konferenca"
-          aria-label="Revista ose konferenca"
+          placeholder={t("professor.dashboard.venuePlaceholder")}
+          aria-label={t("professor.dashboard.venueAria")}
         />
         <input
           value={publicationDraft.publicationYear}
           onChange={handlePublicationDraftChange("publicationYear")}
-          placeholder="Viti"
+          placeholder={t("professor.dashboard.yearPlaceholder")}
           inputMode="numeric"
-          aria-label="Viti i publikimit"
+          aria-label={t("professor.dashboard.yearPlaceholder")}
         />
         <select
           value={publicationDraft.status}
           onChange={handlePublicationDraftChange("status")}
-          aria-label="Statusi i publikimit"
+          aria-label={t("common.status")}
         >
-          <option value="draft">Draft</option>
-          <option value="submitted">Dorezuar</option>
-          <option value="in_review">Ne shqyrtim</option>
-          <option value="approved">Aprovuar</option>
-          <option value="rejected">Refuzuar</option>
+          <option value="draft">{t("professor.dashboard.draft")}</option>
+          <option value="submitted">{getStatusLabel("submitted")}</option>
+          <option value="in_review">{getStatusLabel("in_review")}</option>
+          <option value="approved">{getStatusLabel("approved")}</option>
+          <option value="rejected">{getStatusLabel("rejected")}</option>
         </select>
       </div>
     );
@@ -1375,7 +1242,7 @@ export default function ProfessorDashboard() {
             className="prof-btn-primary"
             onClick={() => savePublicationEdit(row.id)}
             disabled={publicationActionId === row.id}
-            aria-label="Ruaj publikimin"
+            aria-label={t("common.save")}
           >
             <Save size={15} />
           </button>
@@ -1384,7 +1251,7 @@ export default function ProfessorDashboard() {
             className="prof-btn-secondary"
             onClick={cancelPublicationEdit}
             disabled={publicationActionId === row.id}
-            aria-label="Anulo editimin"
+            aria-label={t("professor.dashboard.cancelEdit")}
           >
             <X size={15} />
           </button>
@@ -1399,7 +1266,7 @@ export default function ProfessorDashboard() {
           type="button"
           className="prof-btn-secondary"
           onClick={() => startPublicationEdit(row)}
-          aria-label="Edito publikimin"
+          aria-label={t("common.edit")}
         >
           <Pencil size={15} />
         </button>
@@ -1408,7 +1275,7 @@ export default function ProfessorDashboard() {
           className="prof-btn-secondary"
           onClick={() => deletePublication(row.id)}
           disabled={publicationActionId === row.id}
-          aria-label="Fshij publikimin"
+          aria-label={t("common.delete")}
         >
           <Trash2 size={15} />
         </button>
@@ -1426,11 +1293,8 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto publikim me DOI</h3>
-                  <p>
-                    Shkruani DOI e publikimit dhe sistemi do të marrë automatikisht
-                    metadata si titulli, autorët, journal/conference, viti dhe të dhëna të tjera.
-                  </p>
+                  <h3>{t("professor.doi.title")}</h3>
+                  <p>{t("professor.dashboard.doiDescription")}</p>
                 </div>
               </div>
 
@@ -1438,18 +1302,20 @@ export default function ProfessorDashboard() {
             </article>
 
             {renderListSection(
-              "Publikime",
-              "Regjistri i publikimeve me statusin aktual.",
+              t("navigation.publications"),
+              t("professor.dashboard.publicationRegistryDescription"),
               filteredPublications,
               "id",
               {
                 icon: <BookOpen size={20} />,
                 title: renderPublicationTitle,
-                description: (row) => `${row.journal} • ${row.year}`,
+                description: (row) => `${tx(row.journal)} • ${row.year}`,
                 status: (row) => row.status,
                 actions: renderPublicationActions,
               },
-              publicationsError || (isPublicationsLoading ? "Duke ngarkuar publikimet nga Supabase..." : "No data available yet.")
+              publicationsError
+                ? formatUiMessage(publicationsError)
+                : (isPublicationsLoading ? t("common.loading") : t("professor.dashboard.noData"))
             )}
             {publicationsPagination.totalPages > 1 ? (
               <div className="prof-modal-actions" style={{ marginTop: "12px" }}>
@@ -1459,10 +1325,13 @@ export default function ProfessorDashboard() {
                   onClick={() => setPublicationsPage((page) => Math.max(page - 1, 1))}
                   disabled={publicationsPagination.page <= 1 || isPublicationsLoading}
                 >
-                  Mbrapa
+                  {t("common.back")}
                 </button>
                 <span style={{ alignSelf: "center", color: "#64748b", fontWeight: 700 }}>
-                  Faqja {publicationsPagination.page} / {publicationsPagination.totalPages}
+                  {t("professor.dashboard.pageOf", {
+                    page: publicationsPagination.page,
+                    total: publicationsPagination.totalPages,
+                  })}
                 </span>
                 <button
                   type="button"
@@ -1470,7 +1339,7 @@ export default function ProfessorDashboard() {
                   onClick={() => setPublicationsPage((page) => Math.min(page + 1, publicationsPagination.totalPages))}
                   disabled={publicationsPagination.page >= publicationsPagination.totalPages || isPublicationsLoading}
                 >
-                  Para
+                  {t("common.next")}
                 </button>
               </div>
             ) : null}
@@ -1483,11 +1352,8 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto dhe menaxho konferenca</h3>
-                  <p>
-                    Regjistro konferenca, afate dorëzimi dhe menaxho
-                    pjesëmarrjet shkencore.
-                  </p>
+                  <h3>{t("professor.dashboard.addConferenceTitle")}</h3>
+                  <p>{t("professor.dashboard.addConferenceDescription")}</p>
                 </div>
               </div>
 
@@ -1512,11 +1378,11 @@ export default function ProfessorDashboard() {
           <article className="prof-card">
             <div className="prof-integration-header">
               <div>
-                <h3>Integrime</h3>
-                <p>Sherbimet e jashtme te lidhura.</p>
+                <h3>{t("professor.dashboard.integrationsTitle")}</h3>
+                <p>{t("professor.dashboard.integrationsDescription")}</p>
               </div>
               <button type="button" className="prof-integration-manage-btn" onClick={() => setActivePage("Settings")}>
-                Menaxho
+                {t("professor.dashboard.manage")}
               </button>
             </div>
             <div className="prof-integration-list">
@@ -1526,10 +1392,10 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prof-integration-copy">
                   <h4>ORCID</h4>
-                  <p>{profile.orcidId || "No data available yet."}</p>
+                  <p>{profile.orcidId || t("professor.dashboard.noIntegrationData")}</p>
                 </div>
                 <span className={`status-badge ${profile.orcidId ? "connected" : "not-connected"}`}>
-                  {profile.orcidId ? "Connected" : "Not connected"}
+                  {profile.orcidId ? t("common.connected") : t("common.notConnected")}
                 </span>
               </article>
             </div>
@@ -1541,8 +1407,8 @@ export default function ProfessorDashboard() {
           <article className="prof-card">
             <div className="prof-card-header">
               <div>
-                <h3>Njoftime</h3>
-                <p>Perditesimet me te rendesishme per afatet dhe dokumentet.</p>
+                <h3>{t("topbar.notificationsTitle")}</h3>
+                <p>{t("professor.dashboard.notificationsDescription")}</p>
               </div>
               <button
                 type="button"
@@ -1550,16 +1416,16 @@ export default function ProfessorDashboard() {
                 onClick={markAllNotificationsAsRead}
                 disabled={unreadNotifications === 0 || notifications.length === 0}
               >
-                Sheno te gjitha si te lexuara
+                {t("topbar.markAllReadPage")}
               </button>
             </div>
             <div className="prof-notification-list">
               {notificationsError ? (
-                <div className="prof-stats-empty" role="alert">{notificationsError}</div>
+                <div className="prof-stats-empty" role="alert">{formatUiMessage(notificationsError)}</div>
               ) : isNotificationsLoading ? (
                 <div className="prof-stats-empty">
                   <RefreshCw size={18} className="prof-stats-spin" />
-                  Loading notifications...
+                  {t("professor.dashboard.loadingNotifications")}
                 </div>
               ) : notifications.length ? (
                 notifications.map((item) => (
@@ -1570,7 +1436,7 @@ export default function ProfessorDashboard() {
                     onClick={() => markNotificationAsRead(item.id)}
                   >
                     <div className="prof-notification-item-head">
-                      <span className="prof-notification-pill">{item.category || "Njoftim"}</span>
+                      <span className="prof-notification-pill">{item.category || t("topbar.notificationsAriaLabel")}</span>
                       <span>{item.createdAt}</span>
                     </div>
                     <h4>{item.title}</h4>
@@ -1578,7 +1444,7 @@ export default function ProfessorDashboard() {
                   </button>
                 ))
               ) : (
-                <div className="prof-stats-empty">No notifications available yet.</div>
+                <div className="prof-stats-empty">{t("topbar.emptyNotifications")}</div>
               )}
             </div>
           </article>
@@ -1667,7 +1533,7 @@ export default function ProfessorDashboard() {
                     </div>
                     <select
                       className="prorector-settings-select"
-                      value={systemPreferences.language}
+                      value={language}
                       aria-label={settingsText.languageLabel}
                       onChange={(event) => updateSystemPreference("language", event.target.value)}
                     >
@@ -1752,12 +1618,13 @@ export default function ProfessorDashboard() {
           notifications={notifications}
           onMarkAllRead={markAllNotificationsAsRead}
           onNotificationAction={markNotificationAsRead}
-          searchPlaceholder={settingsText.searchPlaceholder}
-          notificationsAriaLabel={settingsText.notificationsAriaLabel}
-          notificationsTitle={settingsText.notificationsTitle}
-          unreadLabel={settingsText.unreadLabel}
-          markAllReadLabel={settingsText.markAllRead}
-          emptyNotificationsLabel={settingsText.emptyNotifications}
+          searchPlaceholder={t("topbar.searchPlaceholder")}
+          notificationsAriaLabel={t("topbar.notificationsAriaLabel")}
+          notificationsTitle={t("topbar.notificationsTitle")}
+          unreadLabel={t("topbar.unreadLabel")}
+          markAllReadLabel={t("topbar.markAllRead")}
+          emptyNotificationsLabel={t("topbar.emptyNotifications")}
+          profileDialogLabel={t("topbar.profileDialog")}
         />
 
         <div className="prof-content">{renderContent()}</div>

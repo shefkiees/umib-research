@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Download, FileText, Landmark, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
+import { useLanguage } from "../../i18n/LanguageContext";
 import {
   REIMBURSEMENT_TYPES,
   getAttachmentChecklist,
@@ -493,6 +494,8 @@ function getLatestHistoryLabel(history = []) {
 }
 
 export default function ReimbursementManager({ profile, searchQuery = "", fallbackRows = [] }) {
+  const { t, tx } = useLanguage();
+  const r = t("professor.reimbursements");
   const [selectedType, setSelectedType] = useState("publication");
   const [form, setForm] = useState(() => createDefaultForm());
   const [context, setContext] = useState({
@@ -1227,7 +1230,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (previewError) {
-      setError(previewError.message || "Preview deshtoi.");
+      setError(previewError.message || r.previewFailed);
     } finally {
       setPreviewingDocument("");
     }
@@ -1339,15 +1342,15 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     if (options.type === "textarea") {
       return (
         <label className={className}>
-          <span>{label}</span>
+          <span>{tx(label)}</span>
           <textarea
             value={form[field]}
             onChange={handleFieldChange(field)}
             rows={options.rows || 3}
             required={options.required}
-            placeholder={options.placeholder}
+            placeholder={tx(options.placeholder)}
           />
-          {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
         </label>
       );
     }
@@ -1355,50 +1358,51 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     if (options.type === "select") {
       return (
         <label className={className}>
-          <span>{label}</span>
+          <span>{tx(label)}</span>
           <select value={form[field]} onChange={handleFieldChange(field)} required={options.required}>
             {(options.options || []).map((option) => (
               <option key={option} value={option}>
-                {option || "Zgjidh"}
+                {tx(option) || r.choose}
               </option>
             ))}
           </select>
-          {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
         </label>
       );
     }
 
     return (
       <label className={className}>
-        <span>{label}</span>
+        <span>{tx(label)}</span>
         <input
           type={options.type || "text"}
           value={form[field]}
           onChange={handleFieldChange(field)}
           required={options.required}
           inputMode={options.inputMode}
-          placeholder={options.placeholder}
+          placeholder={tx(options.placeholder)}
           min={options.min}
           step={options.step}
         />
-        {fieldError ? <small className="reimbursement-field-error">{fieldError}</small> : null}
+        {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
       </label>
     );
   };
 
   const renderAutoField = (label, field, type = "text") => (
     <label className="reimbursement-field">
-      <span>{label}</span>
-      <input type={type} value={form[field]} onChange={handleFieldChange(field)} placeholder="Nuk ka te dhena" />
-      {fieldErrors[field] ? <small className="reimbursement-field-error">{fieldErrors[field]}</small> : null}
+      <span>{tx(label)}</span>
+      <input type={type} value={form[field]} onChange={handleFieldChange(field)} placeholder={t("common.noData")} />
+      {fieldErrors[field] ? <small className="reimbursement-field-error">{tx(fieldErrors[field])}</small> : null}
     </label>
   );
 
   const renderSchemaField = (fieldConfig) => (
     <React.Fragment key={fieldConfig.field}>
-      {renderInput(fieldConfig.label, fieldConfig.field, {
+      {renderInput(tx(fieldConfig.label), fieldConfig.field, {
         ...fieldConfig,
         options: fieldConfig.options || FIELD_OPTIONS[fieldConfig.optionsKey] || [],
+        placeholder: tx(fieldConfig.placeholder),
       })}
     </React.Fragment>
   );
@@ -1423,19 +1427,19 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     <div className="reimbursement-form-grid">
       {context.publications.length ? (
         <label className="reimbursement-field reimbursement-wide">
-          <span>Publikim nga databaza</span>
+          <span>{r.choosePublication}</span>
           <select value={form.publicationId} onChange={handlePublicationSelect}>
-            <option value="">Zgjidh publikim te ruajtur</option>
+            <option value="">{r.choosePublication}</option>
             {context.publications.map((publication) => (
               <option key={publication.id} value={publication.id}>
-                {publication.title || publication.doi || "Publikim pa titull"}
+                {publication.title || publication.doi || r.publicationWithoutTitle}
               </option>
             ))}
           </select>
         </label>
       ) : (
         <div className="reimbursement-info reimbursement-wide">
-          Publikimet e importuara nga ORCID/DOI shfaqen ketu. Nese publikimi mungon, perdor DOI lookup dhe ploteso fushat manualisht.
+          {r.noSavedPublication}
         </div>
       )}
 
@@ -1445,7 +1449,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           <input value={form.doi} onChange={handleFieldChange("doi")} placeholder="10.xxxx/xxxxx" />
           <button type="button" onClick={handleDoiLookup} disabled={isDoiLoading}>
             {isDoiLoading ? <Loader2 size={16} className="reimbursement-spin" /> : <Search size={16} />}
-            Merr metadata
+            {r.getMetadata}
           </button>
         </div>
       </label>
@@ -1460,9 +1464,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     <div className="reimbursement-form-grid">
       {context.conferences.length ? (
         <label className="reimbursement-field reimbursement-wide">
-          <span>Konference nga databaza</span>
+          <span>{t("navigation.conferences")}</span>
           <select value={form.conferenceId} onChange={handleConferenceSelect}>
-            <option value="">Zgjidh konference/simpozium</option>
+            <option value="">{r.choose}</option>
             {context.conferences.map((conference) => (
               <option key={conference.id} value={conference.id}>
                 {[conference.title, conference.location, conference.conferenceDate].filter(Boolean).join(" | ")}
@@ -1480,26 +1484,26 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderTeamMember = (member, index) => (
     <div className="reimbursement-team-card" key={`team-member-${index}`}>
       <div className="reimbursement-team-head">
-        <strong>Anetari {index + 1}</strong>
-        <button type="button" onClick={() => removeTeamMember(index)} aria-label="Largo anetarin">
+        <strong>{t("professor.reimbursements.member", { index: index + 1 })}</strong>
+        <button type="button" onClick={() => removeTeamMember(index)} aria-label={r.removeMember}>
           <Trash2 size={15} />
         </button>
       </div>
       <div className="reimbursement-form-grid">
         <label className="reimbursement-field">
-          <span>Emri dhe mbiemri</span>
+          <span>{r.name}</span>
           <input value={member.name} onChange={handleTeamMemberChange(index, "name")} />
         </label>
         <label className="reimbursement-field">
-          <span>Grada/thirrja shkencore</span>
+          <span>{r.scientificGrade}</span>
           <input value={member.scientificGrade} onChange={handleTeamMemberChange(index, "scientificGrade")} />
         </label>
         <label className="reimbursement-field">
-          <span>Njesia akademike</span>
+          <span>{r.academicUnit}</span>
           <input value={member.academicUnit} onChange={handleTeamMemberChange(index, "academicUnit")} />
         </label>
         <label className="reimbursement-field">
-          <span>Telefoni</span>
+          <span>{r.phone}</span>
           <input value={member.phone} onChange={handleTeamMemberChange(index, "phone")} />
         </label>
         <label className="reimbursement-field">
@@ -1507,11 +1511,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           <input type="email" value={member.email} onChange={handleTeamMemberChange(index, "email")} />
         </label>
         <label className="reimbursement-field">
-          <span>Specializimi</span>
+          <span>{r.specialization}</span>
           <input value={member.specialization} onChange={handleTeamMemberChange(index, "specialization")} />
         </label>
         <label className="reimbursement-field reimbursement-wide">
-          <span>Kontributi ne projekt</span>
+          <span>{r.contribution}</span>
           <textarea value={member.contribution} onChange={handleTeamMemberChange(index, "contribution")} rows={2} />
         </label>
       </div>
@@ -1521,26 +1525,26 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderWorkPlanItem = (item, index) => (
     <div className="reimbursement-table-card" key={`work-plan-${index}`}>
       <div className="reimbursement-team-head">
-        <strong>Aktiviteti {index + 1}</strong>
-        <button type="button" onClick={() => removeWorkPlanItem(index)} aria-label="Largo aktivitetin">
+        <strong>{r.activity} {index + 1}</strong>
+        <button type="button" onClick={() => removeWorkPlanItem(index)} aria-label={r.removeActivity}>
           <Trash2 size={15} />
         </button>
       </div>
       <div className="reimbursement-form-grid">
         <label className="reimbursement-field reimbursement-wide">
-          <span>Aktiviteti</span>
+          <span>{r.activity}</span>
           <input value={item.activity} onChange={handleWorkPlanItemChange(index, "activity")} />
         </label>
         <label className="reimbursement-field">
-          <span>Afati</span>
+          <span>{r.deadline}</span>
           <input type="date" value={item.deadline} onChange={handleWorkPlanItemChange(index, "deadline")} />
         </label>
         <label className="reimbursement-field">
-          <span>Personi pergjegjes</span>
+          <span>{r.responsiblePerson}</span>
           <input value={item.responsiblePerson} onChange={handleWorkPlanItemChange(index, "responsiblePerson")} />
         </label>
         <label className="reimbursement-field reimbursement-wide">
-          <span>Rezultati i pritur</span>
+          <span>{r.expectedResult}</span>
           <input value={item.expectedResult} onChange={handleWorkPlanItemChange(index, "expectedResult")} />
         </label>
       </div>
@@ -1550,38 +1554,38 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderCostItem = (item, index) => (
     <div className="reimbursement-table-card" key={`cost-item-${index}`}>
       <div className="reimbursement-team-head">
-        <strong>Kosto {index + 1}</strong>
-        <button type="button" onClick={() => removeCostItem(index)} aria-label="Largo koston">
+        <strong>{r.addCost} {index + 1}</strong>
+        <button type="button" onClick={() => removeCostItem(index)} aria-label={r.removeCost}>
           <Trash2 size={15} />
         </button>
       </div>
       <div className="reimbursement-form-grid">
         <label className="reimbursement-field reimbursement-wide">
-          <span>Artikulli / sherbimi</span>
+          <span>{r.item}</span>
           <input value={item.item} onChange={handleCostItemChange(index, "item")} />
         </label>
         <label className="reimbursement-field">
-          <span>Kategoria</span>
+          <span>{r.category}</span>
           <select value={item.category || "materialCost"} onChange={handleCostItemChange(index, "category")}>
             {COST_CATEGORY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>{tx(option.label)}</option>
             ))}
           </select>
         </label>
         <label className="reimbursement-field">
-          <span>Sasia</span>
+          <span>{r.quantity}</span>
           <input inputMode="decimal" value={item.quantity} onChange={handleCostItemChange(index, "quantity")} />
         </label>
         <label className="reimbursement-field">
-          <span>Cmimi njesi</span>
+          <span>{r.unitCost}</span>
           <input inputMode="decimal" value={item.unitCost} onChange={handleCostItemChange(index, "unitCost")} />
         </label>
         <label className="reimbursement-field">
-          <span>Totali</span>
+          <span>{r.total}</span>
           <input inputMode="decimal" value={item.totalCost} onChange={handleCostItemChange(index, "totalCost")} />
         </label>
         <label className="reimbursement-field reimbursement-wide">
-          <span>Pershkrimi</span>
+          <span>{r.description}</span>
           <input value={item.description} onChange={handleCostItemChange(index, "description")} />
         </label>
       </div>
@@ -1594,54 +1598,54 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
       <div className="reimbursement-wide reimbursement-subsection">
         <div className="reimbursement-subsection-head">
-          <strong>Ekipi hulumtues</strong>
+          <strong>{r.teamMembers}</strong>
           <button type="button" onClick={addTeamMember}>
             <Plus size={15} />
-            Shto anetar
+            {r.addMember}
           </button>
         </div>
         <div className="reimbursement-team-grid">
           {form.teamMembers.map(renderTeamMember)}
         </div>
-        {fieldErrors.teamMembers ? <small className="reimbursement-field-error">{fieldErrors.teamMembers}</small> : null}
+        {fieldErrors.teamMembers ? <small className="reimbursement-field-error">{tx(fieldErrors.teamMembers)}</small> : null}
       </div>
 
       {getSectionFields("projectInfo").map(renderSchemaField)}
 
       <div className="reimbursement-wide reimbursement-subsection">
         <div className="reimbursement-subsection-head">
-          <strong>Plani i punes</strong>
+          <strong>{r.workPlan}</strong>
           <button type="button" onClick={addWorkPlanItem}>
             <Plus size={15} />
-            Shto aktivitet
+            {r.addActivity}
           </button>
         </div>
         <div className="reimbursement-team-grid">
           {(form.workPlanItems || createDefaultWorkPlanItems()).map(renderWorkPlanItem)}
         </div>
-        {fieldErrors.workPlanItems ? <small className="reimbursement-field-error">{fieldErrors.workPlanItems}</small> : null}
+        {fieldErrors.workPlanItems ? <small className="reimbursement-field-error">{tx(fieldErrors.workPlanItems)}</small> : null}
       </div>
 
       {getSectionFields("budget").map(renderSchemaField)}
 
       <div className="reimbursement-wide reimbursement-budget-total">
-        <span>Ndarja 40/30/20/10</span>
+        <span>{r.budgetDistribution}</span>
         <strong>{formatMoneyPreview(getProjectBudgetDistributionTotal(form), form.currency)}</strong>
-        {fieldErrors.requestedFromUibm ? <small className="reimbursement-field-error">{fieldErrors.requestedFromUibm}</small> : null}
+        {fieldErrors.requestedFromUibm ? <small className="reimbursement-field-error">{tx(fieldErrors.requestedFromUibm)}</small> : null}
       </div>
 
       <div className="reimbursement-wide reimbursement-subsection">
         <div className="reimbursement-subsection-head">
-          <strong>Pershkrimi i kostos</strong>
+          <strong>{r.costDescription}</strong>
           <button type="button" onClick={addCostItem}>
             <Plus size={15} />
-            Shto kosto
+            {r.addCost}
           </button>
         </div>
         <div className="reimbursement-team-grid">
           {(form.costItems || createDefaultCostItems()).map(renderCostItem)}
         </div>
-        {fieldErrors.costItems ? <small className="reimbursement-field-error">{fieldErrors.costItems}</small> : null}
+        {fieldErrors.costItems ? <small className="reimbursement-field-error">{tx(fieldErrors.costItems)}</small> : null}
       </div>
 
       {getSectionFields("metadata").map(renderSchemaField)}
@@ -1664,7 +1668,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     <div className="reimbursement-bank-panel">
       <div className="reimbursement-bank-grid">
         <label className="reimbursement-field">
-          <span>Shuma e kerkuar</span>
+          <span>{r.amount}</span>
           <input
             type="number"
             min="0.01"
@@ -1675,30 +1679,30 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             required
             placeholder="0.00"
           />
-          {amountPreview ? <small className="reimbursement-helper">Totali: {amountPreview}</small> : null}
-          {fieldErrors.amount ? <small className="reimbursement-field-error">{fieldErrors.amount}</small> : null}
+          {amountPreview ? <small className="reimbursement-helper">{r.total}: {amountPreview}</small> : null}
+          {fieldErrors.amount ? <small className="reimbursement-field-error">{tx(fieldErrors.amount)}</small> : null}
         </label>
 
-        {renderInput("Valuta", "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
+        {renderInput(r.currency, "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
 
         {bankRequired ? (
           <>
-            {renderInput("Shuma me fjale", "amountWords", { wide: true, required: true, placeholder: "p.sh. Nje mije e dyqind euro" })}
-            {renderInput("Emri dhe mbiemri i aplikantit", "bankApplicantName", { required: true })}
+            {renderInput(r.amountWords, "amountWords", { wide: true, required: true, placeholder: r.amountWordsPlaceholder })}
+            {renderInput(r.bankApplicantName, "bankApplicantName", { required: true })}
 
             <label className="reimbursement-field">
-              <span>Numri i llogarise bankare / IBAN</span>
+              <span>{r.bankAccount}</span>
               <input
                 value={form.bankAccountNumber}
                 onChange={handleFieldChange("bankAccountNumber")}
-                placeholder="Numri vendor ose XK..."
+                placeholder={r.bankAccountPlaceholder}
                 autoComplete="off"
               />
-              {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
+              {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{tx(fieldErrors.bankAccountNumber)}</small> : null}
             </label>
 
             <div className="reimbursement-field reimbursement-bank-result">
-              <span>Emri i bankes</span>
+              <span>{r.bankName}</span>
               {visualBank ? (
                 <div className="reimbursement-detected-bank" aria-live="polite">
                   <span className="reimbursement-bank-logo">
@@ -1714,31 +1718,31 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   </span>
                 </div>
               ) : (
-                <div className="reimbursement-bank-placeholder">Shkruaj numrin e llogarise</div>
+                <div className="reimbursement-bank-placeholder">{r.writeAccount}</div>
               )}
-              {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
+              {fieldErrors.bankName ? <small className="reimbursement-field-error">{tx(fieldErrors.bankName)}</small> : null}
             </div>
 
             <label className="reimbursement-field">
-              <span>SWIFT/BIC kodi</span>
+              <span>{r.swift}</span>
               <input
                 value={form.swiftCode}
                 readOnly
-                placeholder="Plotesohet automatikisht"
+                placeholder={r.autofill}
                 className={visualBank ? "reimbursement-autofill-input" : ""}
               />
-              {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{fieldErrors.swiftCode}</small> : null}
+              {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{tx(fieldErrors.swiftCode)}</small> : null}
             </label>
 
-            {renderInput("Vendi", "bankCountry")}
+            {renderInput(r.country, "bankCountry")}
           </>
         ) : null}
 
-        {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}
-        {renderInput("Numri i fatures", "invoiceNumber")}
-        {renderInput("Link dokumentesh", "attachmentUrl", { placeholder: "URL e fatures ose dokumenteve" })}
-        {renderInput("Pershkrimi / Arsyeja", "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
-        {renderInput("Shenime shtese", "notes", { wide: true, type: "textarea", rows: 3 })}
+        {renderInput(r.expenseDate, "expenseDate", { type: "date" })}
+        {renderInput(r.invoiceNumber, "invoiceNumber")}
+        {renderInput(r.documentLink, "attachmentUrl", { placeholder: r.documentLinkPlaceholder })}
+        {renderInput(r.purpose, "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
+        {renderInput(r.notes, "notes", { wide: true, type: "textarea", rows: 3 })}
       </div>
     </div>
   );
@@ -1752,8 +1756,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     return (
       <div className="reimbursement-upload-box">
         <div className="reimbursement-checklist-head">
-          <strong>Checklist</strong>
-          <span>{completedRequired}/{requiredTotal} obligative</span>
+          <strong>{r.checklistLabel}</strong>
+          <span>{t("professor.reimbursements.requiredCount", { done: completedRequired, total: requiredTotal })}</span>
         </div>
 
         <div className="reimbursement-document-checklist">
@@ -1765,10 +1769,10 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                 onChange={handleDocumentChecklistChange(item.id)}
               />
               <span>
-                {item.label}
-                {item.required ? <small>Obligative</small> : <small>Opsionale</small>}
+                {tx(item.label)}
+                {item.required ? <small>{t("common.required")}</small> : <small>{t("common.optional")}</small>}
                 {fieldErrors[`documentChecklist.${item.id}`] ? (
-                  <small className="reimbursement-field-error">{fieldErrors[`documentChecklist.${item.id}`]}</small>
+                  <small className="reimbursement-field-error">{tx(fieldErrors[`documentChecklist.${item.id}`])}</small>
                 ) : null}
               </span>
             </label>
@@ -1776,7 +1780,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
 
         <label className="reimbursement-upload-label">
-          <span>Ngarko fajlla</span>
+          <span>{r.uploadFiles}</span>
           <input
             type="file"
             multiple
@@ -1793,7 +1797,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             ))}
           </div>
         ) : (
-          <p>PDF, JPG, PNG ose DOCX.</p>
+          <p>{r.fileTypes}</p>
         )}
       </div>
     );
@@ -1810,7 +1814,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           <div className="reimbursement-timeline-item" key={item.id || `${item.status}-${item.createdAt}`}>
             <span className="reimbursement-timeline-dot" />
             <div>
-              <strong>{item.statusLabel || STATUS_LABELS[item.status] || item.status}</strong>
+              <strong>{tx(item.statusLabel || STATUS_LABELS[item.status] || item.status)}</strong>
               <p>
                 {[normalizeDate(item.createdAt), item.actorRoleLabel || item.actorRole, item.actorName]
                   .filter(Boolean)
@@ -1839,7 +1843,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             disabled={downloadingDocument === `${request.id}-${attachment.id}`}
           >
             <Download size={14} />
-            {downloadingDocument === `${request.id}-${attachment.id}` ? "Duke shkarkuar..." : attachment.filename}
+            {downloadingDocument === `${request.id}-${attachment.id}` ? r.downloading : attachment.filename}
           </button>
         ))}
       </div>
@@ -1851,33 +1855,33 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       <article className="prof-card reimbursement-flow-card">
         <div className="reimbursement-flow-header">
           <div>
-            <h3>{editingRequest ? "Edito kerkesen" : "Kerkese e re per financim"}</h3>
-            {editingRequest ? <p>Po punon ne kerkesen {editingRequest.documentNumber || editingRequest.title}.</p> : null}
+            <h3>{editingRequest ? r.titleEdit : r.titleNew}</h3>
+            {editingRequest ? <p>{t("professor.reimbursements.editingDescription", { title: editingRequest.documentNumber || editingRequest.title })}</p> : null}
           </div>
           {editingRequest ? (
             <button type="button" className="reimbursement-download-btn" onClick={handleCancelEdit}>
-              Anulo editimin
+              {r.cancelEdit}
             </button>
           ) : null}
         </div>
 
         <form className="reimbursement-form" onSubmit={handleSubmit}>
-          <div className="reimbursement-stepper" aria-label="Hapat e formularit te rimbursimit">
+          <div className="reimbursement-stepper" aria-label={r.stepperLabel}>
             {FORM_STEPS.map((step, index) => (
               <div
                 key={step.id}
                 className={`reimbursement-step ${stepStates[step.id] ? "is-complete" : ""}`}
               >
-                <span>{stepStates[step.id] ? "OK" : index + 1}</span>
-                <strong>{step.label}</strong>
+                <span>{stepStates[step.id] ? t("common.ok") : index + 1}</span>
+                <strong>{tx(step.label)}</strong>
               </div>
             ))}
           </div>
 
-          <aside className="reimbursement-side-checklist" aria-label="Checklist i plotesimit">
+          <aside className="reimbursement-side-checklist" aria-label={r.checklistLabel}>
             {FORM_STEPS.map((step) => (
               <span key={step.id} className={stepStates[step.id] ? "is-complete" : ""}>
-                {stepStates[step.id] ? "OK" : "--"} {step.label}
+                {stepStates[step.id] ? t("common.ok") : t("common.none")} {tx(step.label)}
               </span>
             ))}
           </aside>
@@ -1886,8 +1890,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Sparkles size={18} />
               <div>
-                <h4>Te dhenat baze</h4>
-                <p>Zgjidh llojin e kerkeses dhe verifiko te dhenat e aplikuesit para dergimit.</p>
+                <h4>{r.basicTitle}</h4>
+                <p>{r.basicDescription}</p>
               </div>
             </div>
 
@@ -1899,8 +1903,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   className={`reimbursement-type-card ${selectedType === type.id ? "active" : ""}`}
                   onClick={() => handleTypeSelect(type.id)}
                 >
-                  <strong>{type.label}</strong>
-                  <span>{type.description}</span>
+                  <strong>{tx(type.label)}</strong>
+                  <span>{tx(type.description)}</span>
                 </button>
               ))}
             </div>
@@ -1908,7 +1912,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             {isLoadingContext ? (
               <div className="reimbursement-loading">
                 <Loader2 size={18} className="reimbursement-spin" />
-                Duke ngarkuar te dhenat automatike...
+                {r.loadingContext}
               </div>
             ) : (
               renderApplicantFields()
@@ -1919,8 +1923,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <FileText size={18} />
               <div>
-                <h4>Te dhenat akademike</h4>
-                <p>{selectedTypeConfig.label}: fushat shfaqen sipas formularit zyrtar perkates.</p>
+                <h4>{r.academicTitle}</h4>
+                <p>{t("professor.reimbursements.academicDescription", { type: tx(selectedTypeConfig.label) })}</p>
               </div>
             </div>
 
@@ -1931,8 +1935,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Wallet size={18} />
               <div>
-                <h4>{bankRequired ? "Te dhenat bankare dhe financiare" : "Te dhenat financiare"}</h4>
-                <p>{bankRequired ? "Shuma, banka dhe SWIFT validohen para dergimit final." : "F3 ruan vetem te dhenat financiare qe ka formulari zyrtar."}</p>
+                <h4>{bankRequired ? r.financeBankTitle : r.financeTitle}</h4>
+                <p>{bankRequired ? r.financeBankDescription : r.financeDescription}</p>
               </div>
             </div>
 
@@ -1943,8 +1947,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Upload size={18} />
               <div>
-                <h4>Dokumentet mbeshtetese</h4>
-                <p>Ngarko dokumentet zyrtare ose vendos nje link mbeshtetes per shqyrtim.</p>
+                <h4>{r.documentsTitle}</h4>
+                <p>{r.documentsDescription}</p>
               </div>
             </div>
 
@@ -1955,14 +1959,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <FileText size={18} />
               <div>
-                <h4>Review / Preview</h4>
-                <p>Kontrollo dokumentin zyrtar para dergimit.</p>
+                <h4>{r.reviewTitle}</h4>
+                <p>{r.reviewDescription}</p>
               </div>
             </div>
             <div className="reimbursement-review-panel">
-              <span><strong>Formulari:</strong> {selectedTypeConfig.code} - {selectedTypeConfig.requestLabel}</span>
-              <span><strong>Shuma:</strong> {amountPreview || "Pa shume"}</span>
-              <span><strong>Banka:</strong> {bankRequired ? visualBank?.name || "Pa banke" : "Nuk kerkohet per F3"}</span>
+              <span><strong>{r.form}:</strong> {selectedTypeConfig.code} - {tx(selectedTypeConfig.requestLabel)}</span>
+              <span><strong>{r.amount}:</strong> {amountPreview || r.noAmount}</span>
+              <span><strong>{r.bank}:</strong> {bankRequired ? visualBank?.name || r.noBank : r.bankNotRequired}</span>
               <div className="reimbursement-preview-actions">
                 <button
                   type="button"
@@ -1971,7 +1975,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   disabled={previewingDocument === "docx" || isSubmitting}
                 >
                   <FileText size={16} />
-                  {previewingDocument === "docx" ? "DOCX..." : "Preview DOCX"}
+                  {previewingDocument === "docx" ? r.generatingDocx : r.previewDocx}
                 </button>
                 <button
                   type="button"
@@ -1980,7 +1984,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   disabled={previewingDocument === "pdf" || isSubmitting}
                 >
                   <FileText size={16} />
-                  {previewingDocument === "pdf" ? "PDF..." : "Preview PDF"}
+                  {previewingDocument === "pdf" ? r.generatingPdf : r.previewPdf}
                 </button>
               </div>
             </div>
@@ -1988,13 +1992,13 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
           <div className="reimbursement-action-bar">
             <div className="reimbursement-action-feedback">
-              {error ? <p className="reimbursement-message error" role="alert">{error}</p> : null}
+              {error ? <p className="reimbursement-message error" role="alert">{tx(error)}</p> : null}
               {success ? (
                 <div className="reimbursement-message success">
                   <span>
                     {success.status === "draft"
-                      ? "Draft-i u ruajt ne databaze."
-                      : "Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan."}
+                      ? r.draftSaved
+                      : r.requestSaved}
                   </span>
                   <div className="reimbursement-message-actions">
                     <button
@@ -2019,11 +2023,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-actions">
               <button type="button" className="prof-btn-secondary" onClick={handleSaveDraft} disabled={isSubmitting || isLoadingContext}>
                 <Save size={16} />
-                {isSubmitting ? "Duke ruajtur..." : "Ruaje si draft"}
+                {isSubmitting ? r.saving : r.saveDraft}
               </button>
               <button type="submit" className="prof-btn-primary" disabled={isSubmitting || isLoadingContext}>
                 <Upload size={16} />
-                {isSubmitting ? "Duke derguar..." : "Dergo per shqyrtim"}
+                {isSubmitting ? r.submitting : r.submit}
               </button>
             </div>
           </div>
@@ -2033,8 +2037,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       <article className="prof-card reimbursement-list-card">
         <div className="prof-card-header">
           <div>
-            <h3>Rimbursimet e derguara</h3>
-            <p>Kerkesat e ruajtura ne databaze me historikun e statusit dhe dokumentet perkatese.</p>
+            <h3>{r.sentTitle}</h3>
+            <p>{r.sentDescription}</p>
           </div>
         </div>
 
@@ -2048,13 +2052,13 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                 <div className="prof-list-content">
                   <h4>{request.title}</h4>
                   <p>
-                    {[request.requestTypeLabel, formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
+                    {[tx(request.requestTypeLabel), formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
                       .filter(Boolean)
                       .join(" | ")}
                   </p>
                   {request.statusHistory?.length ? (
                     <p className="reimbursement-history-line">
-                      Historiku i fundit: {getLatestHistoryLabel(request.statusHistory)}
+                      {r.latestHistory}: {tx(getLatestHistoryLabel(request.statusHistory))}
                     </p>
                   ) : null}
                   {renderAttachments(request)}
@@ -2062,7 +2066,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                 </div>
                 <div className="reimbursement-request-actions">
                   <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
-                    {request.statusLabel || STATUS_LABELS[request.status] || request.status}
+                    {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
                   </span>
                   {!request.isLegacy ? (
                     <>
@@ -2072,7 +2076,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                           className="reimbursement-download-btn"
                           onClick={() => handleEditRequest(request)}
                         >
-                          Edito
+                          {r.edit}
                         </button>
                       ) : null}
                       <button
@@ -2100,7 +2104,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             ))
           ) : (
             <div className="reimbursement-empty">
-              Nuk ka ende kerkesa rimbursimi per kete profesor.
+              {r.empty}
             </div>
           )}
         </div>
