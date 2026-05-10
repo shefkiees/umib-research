@@ -96,13 +96,29 @@ create table if not exists conferences (
   submission_deadline date,
   conference_date date,
   website text,
+  status text not null default 'Interested'
+    check (status in ('Interested', 'Planning', 'Submitted', 'Accepted', 'Attended', 'Completed')),
   created_by uuid references users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table conferences add column if not exists status text not null default 'Interested';
+alter table conferences drop constraint if exists conferences_status_check;
+alter table conferences add constraint conferences_status_check
+check (status in ('Interested', 'Planning', 'Submitted', 'Accepted', 'Attended', 'Completed'));
+
 create index if not exists conferences_submission_deadline_idx
 on conferences (submission_deadline);
+
+create index if not exists conferences_created_by_idx
+on conferences (created_by);
+
+create index if not exists conferences_created_by_deadline_idx
+on conferences (created_by, submission_deadline, created_at desc);
+
+create index if not exists conferences_created_by_status_idx
+on conferences (created_by, status);
 
 drop trigger if exists conferences_set_updated_at on conferences;
 create trigger conferences_set_updated_at
@@ -151,6 +167,13 @@ create table if not exists publications (
 
 create index if not exists publications_owner_id_idx
 on publications (owner_id);
+
+create unique index if not exists publications_owner_doi_unique_idx
+on publications (owner_id, doi)
+where doi is not null;
+
+create index if not exists publications_owner_updated_at_idx
+on publications (owner_id, updated_at desc, created_at desc);
 
 drop trigger if exists publications_set_updated_at on publications;
 create trigger publications_set_updated_at

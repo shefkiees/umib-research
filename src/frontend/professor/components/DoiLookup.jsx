@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import DoiMetadataCard from "./DoiMetadataCard";
 import { apiUrl } from "../../utils/api";
 
-const DoiLookup = () => {
+const DoiLookup = ({ onPublicationSaved }) => {
   const [doi, setDoi] = useState("");
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,6 +63,7 @@ const DoiLookup = () => {
 
     setSavedPublication(saveResult.data || null);
     setSaveStatus("Publikimi u ruajt ne Supabase. DOI do te mbushet automatikisht te Rimbursimet.");
+    onPublicationSaved?.(saveResult.data || null);
   } catch (err) {
     console.error("Fetch error:", err);
     setError(err.message || "Ndodhi një gabim.");

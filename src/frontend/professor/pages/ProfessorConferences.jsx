@@ -8,7 +8,7 @@ export default function ProfessorConferences() {
         <div className="prof-card-header">
           <div>
             <h3>Konferenca</h3>
-            <p>Menaxho konferencat dhe afatet e aplikimit.</p>
+            <p>Menaxho konferencat dhe afatet e dorëzimit.</p>
           </div>
         </div>
 
