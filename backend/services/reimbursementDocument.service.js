@@ -15,6 +15,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { getDocxLabelMap } from "../../shared/reimbursementSchema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_DIR = path.resolve(__dirname, "..", "templates");
@@ -41,6 +42,18 @@ const EMPTY_VALUE = "-";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function hasMeaningfulValue(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasMeaningfulValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasMeaningfulValue);
+  }
+
+  return normalizeText(value) !== "";
 }
 
 function formatDate(value) {
@@ -85,6 +98,33 @@ function arrayText(items, formatter) {
     .map(normalizeText)
     .filter(Boolean)
     .join("\n");
+}
+
+function formatWorkPlanItems(items) {
+  return arrayText(items, (item, index) => {
+    const parts = [
+      `Aktiviteti ${index + 1}: ${normalizeText(item?.activity)}`,
+      `Afati: ${normalizeText(item?.deadline)}`,
+      `Pergjegjes: ${normalizeText(item?.responsiblePerson)}`,
+      `Rezultati: ${normalizeText(item?.expectedResult)}`,
+    ].filter((part) => !part.endsWith(": "));
+
+    return parts.join(" | ");
+  });
+}
+
+function formatCostItems(items) {
+  return arrayText(items, (item, index) => {
+    const parts = [
+      `${index + 1}. ${normalizeText(item?.item) || "Artikull/sherbim"}`,
+      `Sasia: ${normalizeText(item?.quantity)}`,
+      `Cmimi njesi: ${normalizeText(item?.unitCost)}`,
+      `Totali: ${normalizeText(item?.totalCost)}`,
+      `Pershkrimi: ${normalizeText(item?.description)}`,
+    ].filter((part) => !part.endsWith(": "));
+
+    return parts.join(" | ");
+  });
 }
 
 function createField(label, field) {
@@ -214,6 +254,8 @@ function getProjectSections(data) {
 
     return values.join(" | ");
   });
+  const workPlan = formatWorkPlanItems(data.requestData?.workPlanItems) || valueOf(data, "workPlan");
+  const costItems = formatCostItems(data.requestData?.costItems) || valueOf(data, "detailedCostDescription");
 
   return [
     {
@@ -236,7 +278,7 @@ function getProjectSections(data) {
         createField("Pershkrim gjitheperfshires i projekt-propozimit dhe plani i hulumtimit", "projectDescription"),
         createField("Fjale kyce per projektin", "projectKeywords"),
         createField("Ndikimi dhe arsyeshmeria e projektit", "projectImpact"),
-        createField("Plani i punes dhe afatet kohore", "workPlan"),
+        { label: "Plani i punes dhe afatet kohore", value: workPlan },
       ],
     },
     {
@@ -248,7 +290,7 @@ function getProjectSections(data) {
         createField("Kosto administrative (30%)", "administrativeCost"),
         createField("Kosto te personelit (20%)", "personnelCost"),
         createField("Kostot e tjera (10%)", "otherCosts"),
-        createField("Pershkrimi i detajuar i kostos", "detailedCostDescription"),
+        { label: "Pershkrimi i detajuar i kostos", value: costItems },
         createField("Shuma e kerkuar per rimbursim", "amount"),
       ],
     },
@@ -455,6 +497,8 @@ function getTemplateValues(data) {
       ].filter(Boolean).join(" | "))
       .filter(Boolean)
       .join("; ");
+    const workPlanSummary = formatWorkPlanItems(data.requestData?.workPlanItems);
+    const costSummary = formatCostItems(data.requestData?.costItems);
 
     return {
       ...baseValues,
@@ -470,14 +514,14 @@ function getTemplateValues(data) {
       projectDescription: templateValue(data, "projectDescription"),
       projectKeywords: templateValue(data, "projectKeywords"),
       projectImpact: templateValue(data, "projectImpact"),
-      workPlan: templateValue(data, "workPlan"),
+      workPlan: workPlanSummary || templateValue(data, "workPlan"),
       totalProjectCost: templateValue(data, "totalProjectCost"),
       requestedFromUibm: templateValue(data, "requestedFromUibm"),
       materialCost: templateValue(data, "materialCost"),
       administrativeCost: templateValue(data, "administrativeCost"),
       personnelCost: templateValue(data, "personnelCost"),
       otherCosts: templateValue(data, "otherCosts"),
-      detailedCostDescription: templateValue(data, "detailedCostDescription"),
+      detailedCostDescription: costSummary || templateValue(data, "detailedCostDescription"),
     };
   }
 
@@ -506,89 +550,7 @@ function getTemplateValues(data) {
 }
 
 function getTemplateLabelMap(data) {
-  if (data.requestType === "conference") {
-    return {
-      "EMRI DHE MBIEMRI:": "applicantName",
-      "THIRRJA SHKENCORE:": "scientificTitle",
-      "NJËSIA AKADEMIKE:": "applicantFaculty",
-      "THIRRJA AKADEMIKE:": "academicTitle",
-      "AUTORI KRYESOR:": "mainAuthor",
-      "BASHKËPJESËMARRËSI:": "coParticipant",
-      "EMËRTIMI I NGJARJES:": "conferenceTitle",
-      "VENDI DHE DATA:": "eventPlaceDate",
-      "ORGANIZATORI:": "organizer",
-      "FTESA DHE PROGRAMI:": "invitationProgram",
-      "ABSTRAKTI DHE TITULLI I PUNIMIT:": "abstractTitle",
-      "KONFIRMIMI I PRANIMIT TË PUNIMIT:": "acceptanceConfirmation",
-      "AUTORËT E PUNIMIT (AFFILIATION):": "authorsAffiliation",
-      "FOLES ME KUMTESË/POSTER:": "speakerWithPaperPoster",
-      "NGJARJE ARTISTIKE/ SPORTIVE:": "artisticSportEvent",
-      "KRYESUES/PANELIST": "chairPanelist",
-      "LINKU I PUBLIKIMIT TË NGJARJES:": "eventPublicationLink",
-      "EMRI BANKËS:": "bankName",
-      "NUMRI I LLOGARISË BANKARE:": "bankAccountNumber",
-      "SWIFT KODI:": "swiftCode",
-      "VENDI:": "bankCountry",
-      "SHUMA E KËRKUAR:": "amount",
-      "SHËNO ME FJALË:": "amountWords",
-    };
-  }
-
-  if (data.requestType === "project") {
-    return {
-      "Titulli i projektit": "projectTitle",
-      "Kohëzgjatja e projektit (në muaj)": "projectDurationMonths",
-      "Njësia Akademike e UIBM-së që aplikon": "applyingUnit",
-      "Emri i Dekanit": "deanName",
-      "Vendi": "deanPlace",
-      "Numri i telefonit": "deanPhone",
-      "Email adresa": "deanEmail",
-      "Faqja e internetit/rrjeti social": "deanWebsite",
-      "Të dhënat për anëtarët e ekipit hulumtues": "teamMembers",
-      "Përshkrim gjithëpërfshirës i projekt-propozimit dhe plani i hulumtimit": "projectDescription",
-      "Fjalë kyçe për projektin": "projectKeywords",
-      "Ndikimi dhe arsyeshmëria e projektit": "projectImpact",
-      "Plani i punës dhe afatet kohore": "workPlan",
-      "Kosto totale e projektit": "totalProjectCost",
-      "Shuma e kërkuar nga UIBM": "requestedFromUibm",
-      "Kosto materiale": "materialCost",
-      "Kosto administrative": "administrativeCost",
-      "Kosto të personelit": "personnelCost",
-      "Kostot e tjera": "otherCosts",
-      "Përshkrimi i detajuar i kostos": "detailedCostDescription",
-    };
-  }
-
-  return {
-    "EMRI DHE MBIEMRI:": "applicantName",
-    "THIRRJA SHKENCORE:": "scientificTitle",
-    "NJËSIA AKADEMIKE": "applicantFaculty",
-    "THIRRJA AKADEMIKE:": "academicTitle",
-    "AUTOR KRYESOR:": "mainAuthor",
-    "AUTOR KORRESPONDENT:": "correspondingAuthor",
-    "BASHKAUTORËT:": "coauthors",
-    "PËRKATËSIA E AUTORIT (AFFILATION):": "affiliation",
-    "TITULLI I PUNIMIT:": "publicationTitle",
-    "DOI:": "doi",
-    "EMRI REVISTËS:": "journal",
-    "SHTËPIA BOTUESE": "publisher",
-    "INDEKSIMI NË PLATFORMËN:": "indexingPlatform",
-    "IMPAKT FAKTORI (IF):": "impactFactor",
-    "SCOPUS (Q1-Q": "scopusQuartile",
-    "DATA E PRANIMIT:": "acceptanceDate",
-    "DATA E PUBLIKIMIT:": "publicationDate",
-    "LINKU I PUBLIKIMIT:": "publicationLink",
-    "DËSHMIA E REGJISTRIMIT TË PUNIMIT SHKENCOR NË DATABAZËN E PUNIMEVE SHKENCORE TË UIBM": "uibmDatabaseEvidence",
-    "LINKU I KONFERENCËS:": "conferenceLink",
-    "VENDI I KONFERENCËS:": "conferenceLocation",
-    "DATA:": "conferencePresentationDate",
-    "EMRI BANKËS:": "bankName",
-    "NUMRI I LLOGARISË BANKARE:": "bankAccountNumber",
-    "SWIFT KODI:": "swiftCode",
-    "VENDI:": "bankCountry",
-    "SHUMA E KËRKUAR:": "amount",
-    "SHËNO ME FJALË:": "amountWords",
-  };
+  return getDocxLabelMap(data.requestType);
 }
 
 function replaceTemplateMarkers(xml, values) {
@@ -671,24 +633,33 @@ async function buildTemplateDocx(data) {
     }
 
     if (replacementCount === 0) {
+      console.warn(`[reimbursements] official DOCX template ${getTypeCode(data.requestType)} had no replacements; using fallback document.`);
       return null;
     }
 
-    return zip.generateAsync({ type: "nodebuffer" });
+    const buffer = await zip.generateAsync({ type: "nodebuffer" });
+    console.info(`[reimbursements] official DOCX template ${getTypeCode(data.requestType)} used with ${replacementCount} replacements.`);
+    return { buffer, replacementCount, templatePath };
   } catch (error) {
-    console.warn("Official reimbursement DOCX template fill failed, falling back to generated document:", error.message);
+    console.error(`[reimbursements] official DOCX template ${getTypeCode(data.requestType)} failed; using fallback document:`, error);
     return null;
   }
 }
 
-export async function buildReimbursementDocx(row) {
+export async function buildReimbursementDocxWithMetadata(row) {
   const data = prepareDocumentData(row);
-  const templateBuffer = await buildTemplateDocx(data);
+  const templateResult = await buildTemplateDocx(data);
 
-  if (templateBuffer) {
-    return templateBuffer;
+  if (templateResult?.buffer) {
+    return {
+      buffer: templateResult.buffer,
+      source: "official",
+      replacementCount: templateResult.replacementCount,
+      templatePath: templateResult.templatePath,
+    };
   }
 
+  console.warn(`[reimbursements] fallback DOCX generated for ${getTypeCode(data.requestType)}.`);
   const title = FORM_TITLES[data.requestType] || "FORMULAR RIMBURSIMI";
   const children = [
     createDocxParagraph("Universiteti \"Isa Boletini\" - Mitrovice", {
@@ -733,7 +704,17 @@ export async function buildReimbursementDocx(row) {
     ],
   });
 
-  return Packer.toBuffer(document);
+  return {
+    buffer: await Packer.toBuffer(document),
+    source: "fallback",
+    replacementCount: 0,
+    templatePath: null,
+  };
+}
+
+export async function buildReimbursementDocx(row) {
+  const result = await buildReimbursementDocxWithMetadata(row);
+  return result.buffer;
 }
 
 function addPdfSection(pdf, title, fields, data) {
