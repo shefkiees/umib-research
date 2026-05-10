@@ -7,6 +7,10 @@ const router = express.Router();
 const MAX_LIMIT = 50;
 const EXTRACT_TIMEOUT_MS = 8000;
 const EXTRACT_MAX_BYTES = 1024 * 1024;
+const EXTRACT_MAX_REDIRECTS = 5;
+const EXTRACT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const EXTRACT_RATE_LIMIT_MAX = 10;
+const extractionRateLimits = new Map();
 const VALID_CONFERENCE_STATUSES = new Set([
   "Interested",
   "Planning",
@@ -16,6 +20,7 @@ const VALID_CONFERENCE_STATUSES = new Set([
   "Completed",
 ]);
 const DEADLINE_STATUSES = new Set(["open", "closing_soon", "closed"]);
+const DEADLINE_FILTERS = new Set(["week", "month", "past", "none"]);
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -140,6 +145,42 @@ function parseExternalUrl(input) {
   }
 }
 
+function getExtractionRateLimitKey(req) {
+  return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip || req.socket?.remoteAddress || "unknown"}`;
+}
+
+function checkExtractionRateLimit(req) {
+  const now = Date.now();
+  const key = getExtractionRateLimitKey(req);
+  const existing = extractionRateLimits.get(key) || [];
+  const recent = existing.filter((timestamp) => now - timestamp < EXTRACT_RATE_LIMIT_WINDOW_MS);
+
+  if (recent.length >= EXTRACT_RATE_LIMIT_MAX) {
+    extractionRateLimits.set(key, recent);
+    return {
+      limited: true,
+      retryAfterMs: EXTRACT_RATE_LIMIT_WINDOW_MS - (now - recent[0]),
+    };
+  }
+
+  recent.push(now);
+  extractionRateLimits.set(key, recent);
+
+  if (extractionRateLimits.size > 1000) {
+    for (const [entryKey, timestamps] of extractionRateLimits.entries()) {
+      const active = timestamps.filter((timestamp) => now - timestamp < EXTRACT_RATE_LIMIT_WINDOW_MS);
+
+      if (active.length) {
+        extractionRateLimits.set(entryKey, active);
+      } else {
+        extractionRateLimits.delete(entryKey);
+      }
+    }
+  }
+
+  return { limited: false, retryAfterMs: 0 };
+}
+
 function isPrivateIp(address) {
   if (!address) return true;
 
@@ -148,16 +189,27 @@ function isPrivateIp(address) {
     return (
       parts[0] === 10 ||
       parts[0] === 127 ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
       (parts[0] === 169 && parts[1] === 254) ||
       (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
       (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) ||
       parts[0] === 0
     );
   }
 
   if (net.isIPv6(address)) {
     const normalized = address.toLowerCase();
-    return normalized === "::1" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:");
+    const ipv4Mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+
+    return (
+      normalized === "::" ||
+      normalized === "::1" ||
+      normalized.startsWith("fc") ||
+      normalized.startsWith("fd") ||
+      normalized.startsWith("fe80:") ||
+      (ipv4Mapped && isPrivateIp(ipv4Mapped[1]))
+    );
   }
 
   return true;
@@ -166,7 +218,21 @@ function isPrivateIp(address) {
 async function assertPublicUrl(url) {
   const host = url.hostname.toLowerCase();
 
-  if (["localhost", "local"].includes(host) || host.endsWith(".local") || host.endsWith(".internal")) {
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+    return "URL duhet te jete http ose https dhe pa kredenciale.";
+  }
+
+  if (
+    ["localhost", "local"].includes(host) ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".localdomain") ||
+    host.endsWith(".internal") ||
+    host.endsWith(".lan") ||
+    host.endsWith(".corp") ||
+    host.endsWith(".home") ||
+    (!net.isIP(host) && !host.includes("."))
+  ) {
     return "URL lokale/private nuk lejohen.";
   }
 
@@ -185,6 +251,63 @@ async function assertPublicUrl(url) {
   }
 
   return "";
+}
+
+function sanitizeUrlForLog(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = value instanceof URL ? new URL(value.href) : new URL(String(value));
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.href;
+  } catch {
+    return "[invalid-url]";
+  }
+}
+
+function logExtractionAttempt({ req, originalUrl, finalUrl = "", success, reason = "" }) {
+  const details = {
+    userId: req.user?.id || null,
+    originalUrl: sanitizeUrlForLog(originalUrl),
+    finalUrl: sanitizeUrlForLog(finalUrl),
+    success,
+    reason,
+  };
+
+  if (success) {
+    console.info("conference_metadata_extract", details);
+  } else {
+    console.warn("conference_metadata_extract", details);
+  }
+}
+
+class ExtractionError extends Error {
+  constructor(code, message, status = 422) {
+    super(message);
+    this.name = "ExtractionError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function buildExtractionErrorResponse({ code = "extract_failed", message, website }) {
+  return {
+    error: code,
+    message: message || "Metadata nuk mund te nxirret. Plotesoni te dhenat manualisht.",
+    data: {
+      website: website || "",
+      status: "Interested",
+    },
+    missingFields: ["title", "submission_deadline", "conference_date", "location"],
+    confidence: "low",
+    warnings: ["Metadata extraction failed. You can complete the form manually."],
+    sourceUrl: website || "",
+  };
 }
 
 function decodeHtml(value) {
@@ -277,29 +400,79 @@ async function fetchHtml(url) {
   const timeoutId = setTimeout(() => controller.abort(), EXTRACT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url.href, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "UMIBres conference metadata extractor",
-      },
-    });
+    let currentUrl = new URL(url.href);
+    let response;
+
+    for (let redirectCount = 0; redirectCount <= EXTRACT_MAX_REDIRECTS; redirectCount += 1) {
+      const privateUrlError = await assertPublicUrl(currentUrl);
+
+      if (privateUrlError) {
+        throw new ExtractionError("blocked_url", privateUrlError, 400);
+      }
+
+      try {
+        response = await fetch(currentUrl.href, {
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            Accept: "text/html,application/xhtml+xml",
+            "User-Agent": "UMIBres conference metadata extractor",
+          },
+        });
+      } catch (error) {
+        if (error.name === "AbortError") {
+          throw new ExtractionError("extract_timeout", "Faqja nuk u pergjigj ne kohe.");
+        }
+
+        throw new ExtractionError("extract_unavailable", "Faqja nuk mund te lexohet.");
+      }
+
+      if (![301, 302, 303, 307, 308].includes(response.status)) {
+        break;
+      }
+
+      const location = response.headers.get("location");
+
+      if (!location) {
+        throw new ExtractionError("extract_failed", "Redirect nuk ishte valid.");
+      }
+
+      const nextUrl = new URL(location, currentUrl);
+      const privateRedirectError = await assertPublicUrl(nextUrl);
+
+      if (privateRedirectError) {
+        throw new ExtractionError("blocked_url", privateRedirectError, 400);
+      }
+
+      currentUrl = nextUrl;
+      response = null;
+    }
+
+    if (!response) {
+      throw new ExtractionError("too_many_redirects", "URL beri shume redirect-e.");
+    }
+
+    const resolvedUrl = new URL(response.url || currentUrl.href);
+    const finalUrlError = await assertPublicUrl(resolvedUrl);
+
+    if (finalUrlError) {
+      throw new ExtractionError("blocked_url", finalUrlError, 400);
+    }
 
     if (!response.ok) {
-      throw new Error(`Faqja ktheu status ${response.status}.`);
+      throw new ExtractionError("extract_failed", "Faqja nuk ktheu pergjigje te suksesshme.");
     }
 
     const contentType = response.headers.get("content-type") || "";
 
     if (contentType && !contentType.toLowerCase().includes("html")) {
-      throw new Error("URL nuk ktheu faqe HTML.");
+      throw new ExtractionError("not_html", "URL nuk ktheu faqe HTML.");
     }
 
     const reader = response.body?.getReader();
 
     if (!reader) {
-      throw new Error("Faqja nuk mund te lexohet.");
+      throw new ExtractionError("extract_failed", "Faqja nuk mund te lexohet.");
     }
 
     const chunks = [];
@@ -313,7 +486,7 @@ async function fetchHtml(url) {
       received += value.byteLength;
 
       if (received > EXTRACT_MAX_BYTES) {
-        throw new Error("Faqja eshte shume e madhe per ekstraktim.");
+        throw new ExtractionError("response_too_large", "Faqja eshte shume e madhe per ekstraktim.");
       }
 
       chunks.push(value);
@@ -327,7 +500,10 @@ async function fetchHtml(url) {
       offset += chunk.byteLength;
     }
 
-    return new TextDecoder("utf-8").decode(bytes);
+    return {
+      html: new TextDecoder("utf-8").decode(bytes),
+      finalUrl: resolvedUrl.href,
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -375,37 +551,88 @@ function buildExtraction(html, sourceUrl) {
 }
 
 router.post("/extract", requireAuthenticatedUser, async (req, res) => {
+  const rateLimit = checkExtractionRateLimit(req);
+
+  if (rateLimit.limited) {
+    const retryAfterSeconds = Math.max(Math.ceil(rateLimit.retryAfterMs / 1000), 1);
+    res.set("Retry-After", String(retryAfterSeconds));
+    res.status(429).json({
+      error: "rate_limited",
+      message: "Keni bere shume kerkesa per ekstraktim. Provoni perseri me vone.",
+    });
+    logExtractionAttempt({
+      req,
+      originalUrl: req.body?.url,
+      success: false,
+      reason: "rate_limited",
+    });
+    return;
+  }
+
   const parsed = parseExternalUrl(req.body?.url);
+  let finalUrl = "";
 
   if (parsed.error) {
-    res.status(400).json({ error: "invalid_url", message: parsed.error });
+    res.status(400).json(buildExtractionErrorResponse({
+      code: "invalid_url",
+      message: parsed.error,
+      website: normalizeText(req.body?.url),
+    }));
+    logExtractionAttempt({
+      req,
+      originalUrl: req.body?.url,
+      success: false,
+      reason: "invalid_url",
+    });
     return;
   }
 
   const privateUrlError = await assertPublicUrl(parsed.url);
 
   if (privateUrlError) {
-    res.status(400).json({ error: "blocked_url", message: privateUrlError });
+    res.status(400).json(buildExtractionErrorResponse({
+      code: "blocked_url",
+      message: privateUrlError,
+      website: parsed.url.href,
+    }));
+    logExtractionAttempt({
+      req,
+      originalUrl: parsed.url.href,
+      success: false,
+      reason: "blocked_url",
+    });
     return;
   }
 
   try {
-    const html = await fetchHtml(parsed.url);
-    res.json(buildExtraction(html, parsed.url.href));
-  } catch (error) {
-    console.error("POST /api/conferences/extract failed:", error);
-    res.status(422).json({
-      error: "extract_failed",
-      message: error.message || "Metadata nuk mund te nxirret.",
-      data: {
-        website: parsed.url.href,
-        status: "Interested",
-      },
-      missingFields: ["title", "submission_deadline", "conference_date", "location"],
-      confidence: "low",
-      warnings: ["Metadata extraction failed. You can complete the form manually."],
-      sourceUrl: parsed.url.href,
+    const result = await fetchHtml(parsed.url);
+    finalUrl = result.finalUrl;
+    res.json(buildExtraction(result.html, parsed.url.href));
+    logExtractionAttempt({
+      req,
+      originalUrl: parsed.url.href,
+      finalUrl,
+      success: true,
     });
+  } catch (error) {
+    const code = error instanceof ExtractionError ? error.code : "extract_failed";
+    const status = error instanceof ExtractionError ? error.status : 422;
+    const message = error instanceof ExtractionError
+      ? error.message
+      : "Metadata nuk mund te nxirret. Plotesoni te dhenat manualisht.";
+
+    logExtractionAttempt({
+      req,
+      originalUrl: parsed.url.href,
+      finalUrl,
+      success: false,
+      reason: code,
+    });
+    res.status(status).json(buildExtractionErrorResponse({
+      code,
+      message,
+      website: finalUrl || parsed.url.href,
+    }));
   }
 });
 
@@ -414,6 +641,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query);
   const q = normalizeText(req.query.q || req.query.search);
   const status = normalizeText(req.query.status);
+  const deadline = normalizeText(req.query.deadline);
   const filters = ["created_by = $1"];
   const params = [req.user.id];
 
@@ -422,7 +650,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     filters.push(`(title ilike $${params.length} or acronym ilike $${params.length} or field ilike $${params.length} or location ilike $${params.length} or website ilike $${params.length} or status ilike $${params.length})`);
   }
 
-  if (status) {
+  if (status && status !== "all") {
     if (DEADLINE_STATUSES.has(status)) {
       if (status === "closed") {
         filters.push("submission_deadline < current_date");
@@ -437,6 +665,23 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     } else {
       res.status(400).json({ error: "invalid_status", message: "Statusi i konferences nuk eshte valid." });
       return;
+    }
+  }
+
+  if (deadline && deadline !== "all") {
+    if (!DEADLINE_FILTERS.has(deadline)) {
+      res.status(400).json({ error: "invalid_deadline", message: "Filtri i afatit nuk eshte valid." });
+      return;
+    }
+
+    if (deadline === "week") {
+      filters.push("submission_deadline >= current_date and submission_deadline <= current_date + interval '7 days'");
+    } else if (deadline === "month") {
+      filters.push("submission_deadline >= current_date and submission_deadline <= current_date + interval '1 month'");
+    } else if (deadline === "past") {
+      filters.push("submission_deadline < current_date");
+    } else if (deadline === "none") {
+      filters.push("submission_deadline is null");
     }
   }
 

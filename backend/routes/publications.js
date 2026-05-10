@@ -1,10 +1,19 @@
 import express from "express";
 import db from "../config/db.js";
+import {
+  DoiLookupError,
+  getVerifiedDoiMetadata,
+  isValidDoi,
+  normalizeDoi,
+  normalizeYear,
+} from "../services/doiMetadata.service.js";
 
 const router = express.Router();
 const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
-const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
 const MAX_LIMIT = 50;
+const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const DOI_IMPORT_RATE_LIMIT_MAX = 20;
+const doiImportRateLimits = new Map();
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -15,35 +24,8 @@ function requireAuthenticatedUser(req, res, next) {
   next();
 }
 
-function normalizeDoi(input) {
-  if (!input) {
-    return "";
-  }
-
-  return decodeURIComponent(String(input))
-    .trim()
-    .replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
-    .replace(/^doi:\s*/i, "")
-    .trim()
-    .toLowerCase();
-}
-
 function normalizeText(value) {
   return String(value ?? "").trim();
-}
-
-function isValidDoi(value) {
-  return DOI_PATTERN.test(value);
-}
-
-function normalizeYear(value) {
-  if (value === "" || value === null || value === undefined) {
-    return null;
-  }
-
-  const year = Number(value);
-  const currentYear = new Date().getUTCFullYear() + 1;
-  return Number.isInteger(year) && year >= 1900 && year <= currentYear ? year : null;
 }
 
 function parsePagination(query = {}) {
@@ -103,25 +85,6 @@ function validatePublicationPayload(body = {}, options = {}) {
   };
 }
 
-function normalizeMetadata(metadata = {}, doi) {
-  return {
-    doi,
-    title: normalizeText(metadata.title),
-    authors: Array.isArray(metadata.authors) ? metadata.authors : [],
-    container_title: normalizeText(metadata.container_title),
-    publisher: normalizeText(metadata.publisher),
-    published_date: normalizeText(metadata.published_date),
-    year: normalizeYear(metadata.year),
-    volume: normalizeText(metadata.volume),
-    issue: normalizeText(metadata.issue),
-    pages: normalizeText(metadata.pages),
-    type: normalizeText(metadata.type),
-    abstract: normalizeText(metadata.abstract),
-    source_url: normalizeText(metadata.source_url) || `https://doi.org/${doi}`,
-    raw_json: metadata.raw_json || metadata.rawJson || {},
-  };
-}
-
 function mapPublication(row) {
   return {
     id: row.id,
@@ -137,43 +100,44 @@ function mapPublication(row) {
   };
 }
 
-async function upsertMetadata(client, metadata) {
-  await client.query(
-    `insert into publication_metadata
-     (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, type, abstract, source_url, raw_json)
-     values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
-     on conflict (doi) do update set
-       title = excluded.title,
-       authors = excluded.authors,
-       container_title = excluded.container_title,
-       publisher = excluded.publisher,
-       published_date = excluded.published_date,
-       year = excluded.year,
-       volume = excluded.volume,
-       issue = excluded.issue,
-       pages = excluded.pages,
-       type = excluded.type,
-       abstract = excluded.abstract,
-       source_url = excluded.source_url,
-       raw_json = excluded.raw_json,
-       updated_at = now()`,
-    [
-      metadata.doi,
-      metadata.title,
-      JSON.stringify(metadata.authors),
-      metadata.container_title,
-      metadata.publisher,
-      metadata.published_date,
-      metadata.year,
-      metadata.volume,
-      metadata.issue,
-      metadata.pages,
-      metadata.type,
-      metadata.abstract,
-      metadata.source_url,
-      JSON.stringify(metadata.raw_json),
-    ]
-  );
+function getDoiImportRateLimitKey(req) {
+  return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip || req.socket?.remoteAddress || "unknown"}`;
+}
+
+function checkDoiImportRateLimit(req) {
+  const now = Date.now();
+  const key = getDoiImportRateLimitKey(req);
+  const existing = doiImportRateLimits.get(key) || [];
+  const recent = existing.filter((timestamp) => now - timestamp < DOI_IMPORT_RATE_LIMIT_WINDOW_MS);
+
+  if (recent.length >= DOI_IMPORT_RATE_LIMIT_MAX) {
+    doiImportRateLimits.set(key, recent);
+    return {
+      limited: true,
+      retryAfterMs: DOI_IMPORT_RATE_LIMIT_WINDOW_MS - (now - recent[0]),
+    };
+  }
+
+  recent.push(now);
+  doiImportRateLimits.set(key, recent);
+
+  if (doiImportRateLimits.size > 1000) {
+    for (const [entryKey, timestamps] of doiImportRateLimits.entries()) {
+      const active = timestamps.filter((timestamp) => now - timestamp < DOI_IMPORT_RATE_LIMIT_WINDOW_MS);
+
+      if (active.length) {
+        doiImportRateLimits.set(entryKey, active);
+      } else {
+        doiImportRateLimits.delete(entryKey);
+      }
+    }
+  }
+
+  return { limited: false, retryAfterMs: 0 };
+}
+
+function sendPublicationError(res, status, error, message, extra = {}) {
+  res.status(status).json({ error, message, ...extra });
 }
 
 router.get("/", requireAuthenticatedUser, async (req, res) => {
@@ -242,44 +206,53 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 });
 
 router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
-  const doi = normalizeDoi(req.body?.doi || req.body?.metadata?.doi);
+  const rateLimit = checkDoiImportRateLimit(req);
 
-  if (!doi || !isValidDoi(doi)) {
-    res.status(400).json({ error: "invalid_doi", message: "DOI nuk eshte valid." });
+  if (rateLimit.limited) {
+    const retryAfterSeconds = Math.max(Math.ceil(rateLimit.retryAfterMs / 1000), 1);
+    res.set("Retry-After", String(retryAfterSeconds));
+    sendPublicationError(res, 429, "rate_limited", "Keni bere shume kerkesa per import nga DOI. Provoni perseri me vone.");
     return;
   }
 
-  const metadata = normalizeMetadata(req.body?.metadata, doi);
+  const doi = normalizeDoi(req.body?.doi || req.body?.metadata?.doi);
+
+  if (!doi || !isValidDoi(doi)) {
+    sendPublicationError(res, 400, "invalid_doi", "DOI nuk eshte valid.");
+    return;
+  }
+
   const client = await db.connect();
 
   try {
     await client.query("begin");
 
-    if (metadata.title || metadata.container_title || metadata.publisher || metadata.year) {
-      await upsertMetadata(client, metadata);
+    const existingResult = await client.query(
+      `select id, doi, title, venue, publication_year, status, created_at, updated_at
+       from publications
+       where owner_id = $1 and doi = $2
+       limit 1`,
+      [req.user.id, doi]
+    );
+
+    if (existingResult.rows[0]) {
+      await client.query("commit");
+      sendPublicationError(res, 409, "duplicate_publication", "Ky publikim ekziston tashme ne listen tuaj.", {
+        data: mapPublication(existingResult.rows[0]),
+        duplicate: true,
+      });
+      return;
     }
 
-    const metadataResult = await client.query(
-      `select doi, title, container_title, publisher, year, source_url
-       from publication_metadata
-       where doi = $1
-       limit 1`,
-      [doi]
-    );
-    const storedMetadata = metadataResult.rows[0] || metadata;
-    const title = normalizeText(storedMetadata.title) || doi;
-    const venue = normalizeText(storedMetadata.container_title);
-    const publicationYear = normalizeYear(storedMetadata.year);
+    const { metadata } = await getVerifiedDoiMetadata(client, doi);
+    const title = normalizeText(metadata.title) || doi;
+    const venue = normalizeText(metadata.container_title);
+    const publicationYear = normalizeYear(metadata.year);
 
     const result = await client.query(
       `insert into publications
        (owner_id, doi, title, venue, publication_year, status)
        values ($1, $2, $3, $4, $5, 'draft')
-       on conflict (owner_id, doi) where doi is not null do update set
-         title = excluded.title,
-         venue = excluded.venue,
-         publication_year = excluded.publication_year,
-         updated_at = now()
        returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
       [req.user.id, doi, title, venue || null, publicationYear]
     );
@@ -289,8 +262,19 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
     res.status(201).json({ data: mapPublication(result.rows[0]) });
   } catch (error) {
     await client.query("rollback").catch(() => {});
+
+    if (error instanceof DoiLookupError) {
+      sendPublicationError(res, error.status, error.code, error.message);
+      return;
+    }
+
+    if (error.code === "23505") {
+      sendPublicationError(res, 409, "duplicate_publication", "Ky publikim ekziston tashme ne listen tuaj.");
+      return;
+    }
+
     console.error("POST /api/publications/from-doi failed:", error);
-    res.status(500).json({ error: "save_failed" });
+    sendPublicationError(res, 500, "save_failed", "Publikimi nuk u ruajt.");
   } finally {
     client.release();
   }

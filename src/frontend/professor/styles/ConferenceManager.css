@@ -12,6 +12,13 @@
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
+.conference-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .conference-header h2 {
   font-size: 18px;
   font-weight: 800;
@@ -24,6 +31,43 @@
   font-size: 13px;
   line-height: 1.45;
   margin: 0 0 16px;
+}
+
+.conference-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.conference-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 150px;
+}
+
+.conference-filters span {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.conference-filters select {
+  height: 36px;
+  border: 1px solid #d5e0ec;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #fbfdff;
+  color: #0f172a;
+  outline: none;
+}
+
+.conference-filters select:focus {
+  border-color: #2458d3;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(36, 88, 211, 0.1);
 }
 
 .conference-form-heading {
@@ -535,6 +579,16 @@
 @media (max-width: 700px) {
   .conference-panel {
     padding: 16px;
+  }
+
+  .conference-header,
+  .conference-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .conference-filters label {
+    min-width: 0;
   }
 
   .conference-form {

@@ -22,6 +22,13 @@ const CONFERENCE_STATUS_LABELS = {
   Attended: "Pjesëmarrë",
   Completed: "Përfunduar",
 };
+const DEADLINE_FILTERS = [
+  { value: "all", label: "Të gjitha" },
+  { value: "week", label: "Afati këtë javë" },
+  { value: "month", label: "Afati këtë muaj" },
+  { value: "past", label: "Afati ka kaluar" },
+  { value: "none", label: "Pa afat" },
+];
 const WARNING_TRANSLATIONS = {
   "Metadata extraction failed. You can complete the form manually.": "Nxjerrja e të dhënave dështoi. Mund ta plotësoni formularin manualisht.",
 };
@@ -46,38 +53,54 @@ function translateWarning(warning) {
   return WARNING_TRANSLATIONS[warning] || warning;
 }
 
-function formatConferenceDate(value) {
-  if (!value) {
-    return "Pa date";
+function parseConferenceDate(value) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return null;
   }
 
-  const date = new Date(`${value}T00:00:00`);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)
+    ? new Date(`${normalizedValue}T00:00:00`)
+    : new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return null;
   }
 
-  return new Intl.DateTimeFormat("sq-AL", {
-    day: "2-digit",
-    month: "short",
+  return date;
+}
+
+function formatAlbanianDate(date) {
+  const formatted = new Intl.DateTimeFormat("sq-AL", {
+    day: "numeric",
+    month: "long",
     year: "numeric",
   }).format(date);
+
+  return formatted.replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase("sq-AL") + word.slice(1));
+}
+
+function formatConferenceDate(value, fallback = "Pa datë") {
+  const date = parseConferenceDate(value);
+
+  if (!date) {
+    return fallback;
+  }
+
+  return formatAlbanianDate(date);
 }
 
 function getDateBadgeParts(value) {
-  if (!value) {
-    return { day: "--", month: "Pa datë" };
-  }
+  const date = parseConferenceDate(value);
 
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
+  if (!date) {
     return { day: "--", month: "Pa datë" };
   }
 
   return {
     day: new Intl.DateTimeFormat("sq-AL", { day: "2-digit" }).format(date),
-    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date),
+    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date).toLocaleUpperCase("sq-AL"),
   };
 }
 
@@ -99,6 +122,8 @@ function ConferenceManager({ searchQuery = "" }) {
   const [extractWarnings, setExtractWarnings] = useState([]);
   const [missingFields, setMissingFields] = useState([]);
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [deadlineFilter, setDeadlineFilter] = useState("all");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 25,
@@ -106,7 +131,12 @@ function ConferenceManager({ searchQuery = "" }) {
     totalPages: 1,
   });
 
-  const fetchConferences = useCallback(async ({ nextPage = page, query = searchQuery } = {}) => {
+  const fetchConferences = useCallback(async ({
+    nextPage = page,
+    query = searchQuery,
+    status = statusFilter,
+    deadline = deadlineFilter,
+  } = {}) => {
     setIsLoading(true);
     setError("");
 
@@ -119,6 +149,14 @@ function ConferenceManager({ searchQuery = "" }) {
 
       if (trimmedQuery) {
         params.set("q", trimmedQuery);
+      }
+
+      if (status !== "all") {
+        params.set("status", status);
+      }
+
+      if (deadline !== "all") {
+        params.set("deadline", deadline);
       }
 
       const response = await fetch(apiUrl(`/conferences?${params.toString()}`), {
@@ -144,15 +182,20 @@ function ConferenceManager({ searchQuery = "" }) {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery]);
+  }, [page, searchQuery, statusFilter, deadlineFilter]);
 
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
 
   useEffect(() => {
-    fetchConferences({ nextPage: page, query: searchQuery });
-  }, [fetchConferences, page, searchQuery]);
+    fetchConferences({
+      nextPage: page,
+      query: searchQuery,
+      status: statusFilter,
+      deadline: deadlineFilter,
+    });
+  }, [fetchConferences, page, searchQuery, statusFilter, deadlineFilter]);
 
   const handleChange = (event) => {
     setForm({
@@ -249,7 +292,12 @@ function ConferenceManager({ searchQuery = "" }) {
 
       setForm(EMPTY_FORM);
       setEditingId("");
-      await fetchConferences({ nextPage: page, query: searchQuery });
+      await fetchConferences({
+        nextPage: page,
+        query: searchQuery,
+        status: statusFilter,
+        deadline: deadlineFilter,
+      });
     } catch (submitError) {
       setError(submitError.message || "Konferenca nuk u ruajt.");
     } finally {
@@ -305,7 +353,12 @@ function ConferenceManager({ searchQuery = "" }) {
         cancelEdit();
       }
 
-      await fetchConferences({ nextPage: page, query: searchQuery });
+      await fetchConferences({
+        nextPage: page,
+        query: searchQuery,
+        status: statusFilter,
+        deadline: deadlineFilter,
+      });
     } catch (deleteError) {
       setError(deleteError.message || "Konferenca nuk u fshi.");
     } finally {
@@ -495,6 +548,37 @@ function ConferenceManager({ searchQuery = "" }) {
               Pjesëmarrjet dhe afatet e ardhshme.
             </p>
           </div>
+          <div className="conference-filters" aria-label="Filtrat e konferencave">
+            <label>
+              <span>Statusi</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">Të gjitha</option>
+                {CONFERENCE_STATUSES.map((status) => (
+                  <option key={status} value={status}>{getStatusLabel(status)}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Afati</span>
+              <select
+                value={deadlineFilter}
+                onChange={(event) => {
+                  setDeadlineFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                {DEADLINE_FILTERS.map((filter) => (
+                  <option key={filter.value} value={filter.value}>{filter.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className="conference-list">
@@ -503,7 +587,7 @@ function ConferenceManager({ searchQuery = "" }) {
           ) : conferences.length ? (
             conferences.map((conf) => {
               const status = getDeadlineStatus(conf.submission_deadline);
-              const dateBadge = getDateBadgeParts(conf.conference_date || conf.submission_deadline);
+              const dateBadge = getDateBadgeParts(conf.conference_date);
 
               return (
                 <div className="conference-card" key={conf.id}>
@@ -518,11 +602,11 @@ function ConferenceManager({ searchQuery = "" }) {
                       {conf.acronym && <span>({conf.acronym})</span>}
                     </h3>
 
-                    <p>{conf.location || "Pa vendndodhje"}</p>
+                    <p>Vendndodhja: {conf.location || "Pa vendndodhje"}</p>
 
                     <div className="conference-meta">
-                      <span>{conf.field || "Pa fushë"}</span>
-                      <span>Afati: {formatConferenceDate(conf.submission_deadline)}</span>
+                      <span>Fusha: {conf.field || "Pa fushë"}</span>
+                      <span>Afati: {formatConferenceDate(conf.submission_deadline, "Pa afat")}</span>
                       <span>Data: {formatConferenceDate(conf.conference_date)}</span>
                     </div>
 
