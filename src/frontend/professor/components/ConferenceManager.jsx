@@ -72,11 +72,15 @@ function formatConferenceDate(value) {
 }
 
 function getDateBadgeParts(value) {
-  if (!value) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
     return { day: "--", month: "Pa datë" };
   }
 
-  const date = new Date(`${value}T00:00:00`);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)
+    ? new Date(`${normalizedValue}T00:00:00`)
+    : new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
     return { day: "--", month: "Pa datë" };
@@ -571,7 +575,7 @@ function ConferenceManager({ searchQuery = "" }) {
           ) : conferences.length ? (
             conferences.map((conf) => {
               const status = getDeadlineStatus(conf.submission_deadline);
-              const dateBadge = getDateBadgeParts(conf.conference_date || conf.submission_deadline);
+              const dateBadge = getDateBadgeParts(conf.conference_date);
 
               return (
                 <div className="conference-card" key={conf.id}>
