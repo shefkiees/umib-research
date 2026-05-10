@@ -76,7 +76,19 @@
   cursor: pointer;
 }
 
+.conference-cancel-btn {
+  height: 44px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .conference-submit-btn:disabled,
+.conference-cancel-btn:disabled,
 .conference-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
@@ -198,13 +210,46 @@
 }
 
 .conference-actions button {
-  border: none;
-  background: #fee2e2;
-  color: #991b1b;
+  border: 1px solid #cbd8e8;
+  background: #ffffff;
+  color: #174a7b;
   padding: 9px 14px;
   border-radius: 10px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.conference-actions button:last-child {
+  border: none;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.conference-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.conference-pagination button {
+  min-height: 38px;
+  border: 1px solid #cbd8e8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #174a7b;
+  padding: 0 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.conference-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 @media (max-width: 1100px) {
