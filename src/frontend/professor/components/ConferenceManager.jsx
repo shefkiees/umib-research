@@ -53,29 +53,11 @@ function translateWarning(warning) {
   return WARNING_TRANSLATIONS[warning] || warning;
 }
 
-function formatConferenceDate(value) {
-  if (!value) {
-    return "Pa date";
-  }
-
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("sq-AL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function getDateBadgeParts(value) {
+function parseConferenceDate(value) {
   const normalizedValue = String(value || "").trim();
 
   if (!normalizedValue) {
-    return { day: "--", month: "Pa datë" };
+    return null;
   }
 
   const date = /^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)
@@ -83,12 +65,42 @@ function getDateBadgeParts(value) {
     : new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatAlbanianDate(date) {
+  const formatted = new Intl.DateTimeFormat("sq-AL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+  return formatted.replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase("sq-AL") + word.slice(1));
+}
+
+function formatConferenceDate(value, fallback = "Pa datë") {
+  const date = parseConferenceDate(value);
+
+  if (!date) {
+    return fallback;
+  }
+
+  return formatAlbanianDate(date);
+}
+
+function getDateBadgeParts(value) {
+  const date = parseConferenceDate(value);
+
+  if (!date) {
     return { day: "--", month: "Pa datë" };
   }
 
   return {
     day: new Intl.DateTimeFormat("sq-AL", { day: "2-digit" }).format(date),
-    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date),
+    month: new Intl.DateTimeFormat("sq-AL", { month: "short" }).format(date).toLocaleUpperCase("sq-AL"),
   };
 }
 
@@ -590,11 +602,11 @@ function ConferenceManager({ searchQuery = "" }) {
                       {conf.acronym && <span>({conf.acronym})</span>}
                     </h3>
 
-                    <p>{conf.location || "Pa vendndodhje"}</p>
+                    <p>Vendndodhja: {conf.location || "Pa vendndodhje"}</p>
 
                     <div className="conference-meta">
-                      <span>{conf.field || "Pa fushë"}</span>
-                      <span>Afati: {formatConferenceDate(conf.submission_deadline)}</span>
+                      <span>Fusha: {conf.field || "Pa fushë"}</span>
+                      <span>Afati: {formatConferenceDate(conf.submission_deadline, "Pa afat")}</span>
                       <span>Data: {formatConferenceDate(conf.conference_date)}</span>
                     </div>
 
