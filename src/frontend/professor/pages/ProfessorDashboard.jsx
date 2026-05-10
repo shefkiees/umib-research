@@ -30,6 +30,7 @@ import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
 import { apiUrl } from "../../utils/api";
+import { isSupabaseAuthConfigured, sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 import {
@@ -259,6 +260,11 @@ export default function ProfessorDashboard() {
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [passwordResetEmail, setPasswordResetEmail] = useState("");
+  const [isPasswordResetSending, setIsPasswordResetSending] = useState(false);
+  const [passwordResetMessage, setPasswordResetMessage] = useState("");
+  const [passwordResetError, setPasswordResetError] = useState("");
   const [hasAuthenticatedSession, setHasAuthenticatedSession] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
@@ -670,6 +676,42 @@ export default function ProfessorDashboard() {
       setProfileError("profile_save_failed");
     } finally {
       setIsProfileSaving(false);
+    }
+  };
+
+  const openPasswordResetModal = () => {
+    setPasswordResetEmail(profile.email || "");
+    setPasswordResetMessage("");
+    setPasswordResetError("");
+    setIsPasswordResetOpen(true);
+  };
+
+  const handlePasswordResetSubmit = async (event) => {
+    event.preventDefault();
+    setPasswordResetMessage("");
+    setPasswordResetError("");
+
+    const trimmedEmail = passwordResetEmail.trim();
+
+    if (!trimmedEmail) {
+      setPasswordResetError(settingsText.emailRequired);
+      return;
+    }
+
+    if (!isSupabaseAuthConfigured) {
+      setPasswordResetError(settingsText.supabaseNotConfigured);
+      return;
+    }
+
+    setIsPasswordResetSending(true);
+
+    try {
+      await sendPasswordResetEmail(trimmedEmail);
+      setPasswordResetMessage(settingsText.resetLinkSent);
+    } catch {
+      setPasswordResetError(settingsText.resetLinkError);
+    } finally {
+      setIsPasswordResetSending(false);
     }
   };
 
@@ -1559,7 +1601,11 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prorector-settings-list">
                   <p className="prorector-settings-subtext">{settingsText.securityDescription}</p>
-                  <button className="prorector-settings-action-btn">
+                  <button
+                    type="button"
+                    className="prorector-settings-action-btn"
+                    onClick={openPasswordResetModal}
+                  >
                     {settingsText.changePassword}
                   </button>
                 </div>
@@ -1733,6 +1779,63 @@ export default function ProfessorDashboard() {
                 </button>
                 <button type="submit" className="prof-btn-primary" disabled={isProfileSaving}>
                   {isProfileSaving ? settingsText.saving : settingsText.saveChanges}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isPasswordResetOpen ? (
+        <div className="prof-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="password-reset-title">
+          <div className="prof-modal prof-password-reset-modal">
+            <div className="prof-modal-header">
+              <div>
+                <h3 className="prof-modal-title" id="password-reset-title">{settingsText.changePassword}</h3>
+                <p className="prof-modal-subtitle">{settingsText.changePasswordSubtitle}</p>
+              </div>
+              <button
+                className="prof-modal-close"
+                type="button"
+                onClick={() => setIsPasswordResetOpen(false)}
+                aria-label={settingsText.closeModal}
+                disabled={isPasswordResetSending}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="prof-modal-form" onSubmit={handlePasswordResetSubmit}>
+              <label className="prof-form-field">
+                <span>{settingsText.enterEmail}</span>
+                <input
+                  type="email"
+                  value={passwordResetEmail}
+                  autoComplete="email"
+                  onChange={(event) => setPasswordResetEmail(event.target.value)}
+                  disabled={isPasswordResetSending}
+                  required
+                />
+              </label>
+
+              {passwordResetError ? <p className="prof-modal-error" role="alert">{passwordResetError}</p> : null}
+              {passwordResetMessage ? <p className="prof-modal-success" role="status">{passwordResetMessage}</p> : null}
+
+              <div className="prof-modal-actions">
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => setIsPasswordResetOpen(false)}
+                  disabled={isPasswordResetSending}
+                >
+                  {settingsText.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="prof-btn-primary"
+                  disabled={isPasswordResetSending || !passwordResetEmail.trim()}
+                >
+                  {isPasswordResetSending ? settingsText.sendingResetLink : settingsText.sendResetLink}
                 </button>
               </div>
             </form>

@@ -934,7 +934,8 @@ body {
 }
 
 .prof-modal-note,
-.prof-modal-error {
+.prof-modal-error,
+.prof-modal-success {
   margin: 0;
   border-radius: 10px;
   padding: 12px 14px;
@@ -954,10 +955,20 @@ body {
   border: 1px solid #fecdd3;
 }
 
+.prof-modal-success {
+  background: #ecfdf3;
+  color: #047857;
+  border: 1px solid #bbf7d0;
+}
+
 .prof-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.prof-form-grid.single {
+  grid-template-columns: 1fr;
 }
 
 .prof-form-field {
@@ -1061,6 +1072,22 @@ body {
 .prof-btn-primary:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+.prof-password-reset-modal {
+  width: min(520px, 92vw);
+}
+
+.prof-reset-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
+}
+
+.prof-reset-card {
+  width: min(520px, 92vw);
 }
 
 /* ===== GENERIC CARD ===== */

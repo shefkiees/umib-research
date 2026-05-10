@@ -4,6 +4,7 @@ import LoginForm from "./frontend/LoginForm";
 import HomePage from "./frontend/HomePage";
 import { apiUrl } from "./frontend/utils/api";
 import ProfessorDashboard from "./frontend/professor/pages/ProfessorDashboard";
+import ResetPasswordPage from "./frontend/auth/ResetPasswordPage";
 import ProRectorDashboard from "./frontend/ProRector/pages/ProRectorDashboard";
 import CommitteeDashboard from "./frontend/committee/pages/CommitteeDashboard";
 import NotificationsPage from "./frontend/committee/pages/NotificationsPage";
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/*" element={<GoogleAuthRedirect />} />
           <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
           <Route path="/prorector/dashboard" element={<ProRectorDashboard />} />
