@@ -8,6 +8,7 @@
     "build": "vite build",
     "db:schema": "node backend/scripts/apply-schema.js",
     "lint": "eslint .",
+    "test:reimbursements": "node backend/scripts/reimbursement-docx-smoke.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.8.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
