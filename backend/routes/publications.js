@@ -2,6 +2,9 @@ import express from "express";
 import db from "../config/db.js";
 
 const router = express.Router();
+const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
+const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
+const MAX_LIMIT = 50;
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -21,16 +24,83 @@ function normalizeDoi(input) {
     .trim()
     .replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
     .replace(/^doi:\s*/i, "")
-    .trim();
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeText(value) {
   return String(value ?? "").trim();
 }
 
+function isValidDoi(value) {
+  return DOI_PATTERN.test(value);
+}
+
 function normalizeYear(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
   const year = Number(value);
-  return Number.isInteger(year) ? year : null;
+  const currentYear = new Date().getUTCFullYear() + 1;
+  return Number.isInteger(year) && year >= 1900 && year <= currentYear ? year : null;
+}
+
+function parsePagination(query = {}) {
+  const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 25, 1), MAX_LIMIT);
+
+  return {
+    page,
+    limit,
+    offset: (page - 1) * limit,
+  };
+}
+
+function validatePublicationPayload(body = {}, options = {}) {
+  const title = normalizeText(body.title);
+  const venue = normalizeText(body.venue || body.journal);
+  const status = normalizeText(body.status || "draft");
+  const publicationYear = normalizeYear(body.publicationYear ?? body.publication_year);
+  const errors = [];
+
+  if (!title) {
+    errors.push({ field: "title", message: "Titulli i publikimit eshte obligativ." });
+  }
+
+  if (title.length > 500) {
+    errors.push({ field: "title", message: "Titulli i publikimit eshte shume i gjate." });
+  }
+
+  if (venue.length > 300) {
+    errors.push({ field: "venue", message: "Revista/konferenca eshte shume e gjate." });
+  }
+
+  if ((body.publicationYear ?? body.publication_year) && publicationYear === null) {
+    errors.push({ field: "publicationYear", message: "Viti i publikimit nuk eshte valid." });
+  }
+
+  if (!VALID_PUBLICATION_STATUSES.has(status)) {
+    errors.push({ field: "status", message: "Statusi i publikimit nuk eshte valid." });
+  }
+
+  if (options.requireDoi) {
+    const doi = normalizeDoi(body.doi || body.metadata?.doi);
+
+    if (!doi || !isValidDoi(doi)) {
+      errors.push({ field: "doi", message: "DOI nuk eshte valid." });
+    }
+  }
+
+  return {
+    errors,
+    values: {
+      title,
+      venue,
+      publicationYear,
+      status,
+    },
+  };
 }
 
 function normalizeMetadata(metadata = {}, doi) {
@@ -107,18 +177,64 @@ async function upsertMetadata(client, metadata) {
 }
 
 router.get("/", requireAuthenticatedUser, async (req, res) => {
+  const { page, limit, offset } = parsePagination(req.query);
+  const q = normalizeText(req.query.q || req.query.search);
+  const status = normalizeText(req.query.status);
+  const filters = ["p.owner_id = $1"];
+  const params = [req.user.id];
+
+  if (q) {
+    params.push(`%${q}%`);
+    filters.push(`(p.title ilike $${params.length} or p.venue ilike $${params.length} or p.doi ilike $${params.length} or m.publisher ilike $${params.length} or m.container_title ilike $${params.length})`);
+  }
+
+  if (status) {
+    if (!VALID_PUBLICATION_STATUSES.has(status)) {
+      res.status(400).json({ error: "invalid_status", message: "Statusi i publikimit nuk eshte valid." });
+      return;
+    }
+
+    params.push(status);
+    filters.push(`p.status = $${params.length}`);
+  }
+
+  const whereClause = filters.join(" and ");
+
   try {
-    const { rows } = await db.query(
-      `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
-              m.container_title, m.publisher, m.year, m.source_url
+    const dataParams = [...params, limit, offset];
+    const limitParam = dataParams.length - 1;
+    const offsetParam = dataParams.length;
+    const [listResult, countResult] = await Promise.all([
+      db.query(
+        `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
+                m.container_title, m.publisher, m.year, m.source_url
+         from publications p
+         left join publication_metadata m on m.doi = p.doi
+         where ${whereClause}
+         order by p.updated_at desc, p.created_at desc
+         limit $${limitParam} offset $${offsetParam}`,
+        dataParams
+      ),
+      db.query(
+        `select count(*)::int as total
        from publications p
        left join publication_metadata m on m.doi = p.doi
-       where p.owner_id = $1
-       order by p.updated_at desc, p.created_at desc`,
-      [req.user.id]
-    );
+       where ${whereClause}`,
+        params
+      ),
+    ]);
 
-    res.json(rows.map(mapPublication));
+    const total = Number(countResult.rows[0]?.total || 0);
+
+    res.json({
+      data: listResult.rows.map(mapPublication),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(Math.ceil(total / limit), 1),
+      },
+    });
   } catch (error) {
     console.error("GET /api/publications failed:", error);
     res.status(500).json({ error: "list_failed" });
@@ -128,7 +244,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
   const doi = normalizeDoi(req.body?.doi || req.body?.metadata?.doi);
 
-  if (!doi) {
+  if (!doi || !isValidDoi(doi)) {
     res.status(400).json({ error: "invalid_doi", message: "DOI nuk eshte valid." });
     return;
   }
@@ -155,43 +271,89 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
     const venue = normalizeText(storedMetadata.container_title);
     const publicationYear = normalizeYear(storedMetadata.year);
 
-    const existingResult = await client.query(
-      `select id
-       from publications
-       where owner_id = $1 and doi = $2
-       order by updated_at desc
-       limit 1`,
-      [req.user.id, doi]
+    const result = await client.query(
+      `insert into publications
+       (owner_id, doi, title, venue, publication_year, status)
+       values ($1, $2, $3, $4, $5, 'draft')
+       on conflict (owner_id, doi) where doi is not null do update set
+         title = excluded.title,
+         venue = excluded.venue,
+         publication_year = excluded.publication_year,
+         updated_at = now()
+       returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
+      [req.user.id, doi, title, venue || null, publicationYear]
     );
-
-    const result = existingResult.rows[0]
-      ? await client.query(
-          `update publications
-           set title = $3,
-               venue = $4,
-               publication_year = $5,
-               updated_at = now()
-           where id = $1 and owner_id = $2
-           returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
-          [existingResult.rows[0].id, req.user.id, title, venue || null, publicationYear]
-        )
-      : await client.query(
-          `insert into publications
-           (owner_id, doi, title, venue, publication_year, status)
-           values ($1, $2, $3, $4, $5, 'draft')
-           returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
-          [req.user.id, doi, title, venue || null, publicationYear]
-        );
 
     await client.query("commit");
 
-    res.status(existingResult.rows[0] ? 200 : 201).json({ data: mapPublication(result.rows[0]) });
+    res.status(201).json({ data: mapPublication(result.rows[0]) });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("POST /api/publications/from-doi failed:", error);
     res.status(500).json({ error: "save_failed" });
   } finally {
     client.release();
+  }
+});
+
+router.put("/:id", requireAuthenticatedUser, async (req, res) => {
+  const { errors, values } = validatePublicationPayload(req.body);
+
+  if (errors.length) {
+    res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
+    return;
+  }
+
+  try {
+    const { rows } = await db.query(
+      `update publications
+       set title = $3,
+           venue = $4,
+           publication_year = $5,
+           status = $6,
+           updated_at = now()
+       where id = $1 and owner_id = $2
+       returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
+      [
+        req.params.id,
+        req.user.id,
+        values.title,
+        values.venue || null,
+        values.publicationYear,
+        values.status,
+      ]
+    );
+
+    if (!rows[0]) {
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    res.json({ data: mapPublication(rows[0]) });
+  } catch (error) {
+    console.error("PUT /api/publications/:id failed:", error);
+    res.status(500).json({ error: "update_failed" });
+  }
+});
+
+router.delete("/:id", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const result = await db.query(
+      `delete from publications
+       where id = $1 and owner_id = $2
+       returning id`,
+      [req.params.id, req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    res.json({ message: "Deleted" });
+  } catch (error) {
+    console.error("DELETE /api/publications/:id failed:", error);
+    res.status(500).json({ error: "delete_failed" });
   }
 });
 
