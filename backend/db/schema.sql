@@ -96,10 +96,17 @@ create table if not exists conferences (
   submission_deadline date,
   conference_date date,
   website text,
+  status text not null default 'Interested'
+    check (status in ('Interested', 'Planning', 'Submitted', 'Accepted', 'Attended', 'Completed')),
   created_by uuid references users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table conferences add column if not exists status text not null default 'Interested';
+alter table conferences drop constraint if exists conferences_status_check;
+alter table conferences add constraint conferences_status_check
+check (status in ('Interested', 'Planning', 'Submitted', 'Accepted', 'Attended', 'Completed'));
 
 create index if not exists conferences_submission_deadline_idx
 on conferences (submission_deadline);
@@ -109,6 +116,9 @@ on conferences (created_by);
 
 create index if not exists conferences_created_by_deadline_idx
 on conferences (created_by, submission_deadline, created_at desc);
+
+create index if not exists conferences_created_by_status_idx
+on conferences (created_by, status);
 
 drop trigger if exists conferences_set_updated_at on conferences;
 create trigger conferences_set_updated_at
