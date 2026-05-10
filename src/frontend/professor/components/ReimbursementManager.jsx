@@ -1,24 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Download, FileText, Landmark, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
+import {
+  REIMBURSEMENT_TYPES,
+  getAttachmentChecklist,
+  getReimbursementSchema,
+  getReimbursementType,
+  getRequiredFields,
+  requiresBank,
+} from "../../../../shared/reimbursementSchema.js";
 
-const REQUEST_TYPES = [
-  {
-    id: "publication",
-    label: "F1 - Publikime shkencore",
-    description: "Financim i publikimit shkencor.",
-  },
-  {
-    id: "conference",
-    label: "F2 - Konferenca dhe simpoziume",
-    description: "Pjesemarrje, prezantim, poster ,aktivitet shkencor.",
-  },
-  {
-    id: "project",
-    label: "F3 - Projekte shkencore",
-    description: "Projekt-propozim, ekip hulumtues, plan pune dhe buxhet.",
-  },
-];
+const REQUEST_TYPES = REIMBURSEMENT_TYPES;
 
 const STATUS_LABELS = {
   draft: "Draft",
@@ -30,51 +22,6 @@ const STATUS_LABELS = {
   approved: "Aprovuar final",
   rejected: "Refuzuar",
   paid: "Paguar",
-};
-
-const REQUIRED_FIELDS = {
-  common: {
-    applicantName: "Emri dhe mbiemri eshte obligativ.",
-    applicantEmail: "Email-i eshte obligativ.",
-    applicantFaculty: "Njesia akademike eshte obligative.",
-    amount: "Shuma e kerkuar eshte obligative.",
-    currency: "Valuta eshte obligative.",
-    purpose: "Pershkrimi/arsyeja eshte obligative.",
-    bankApplicantName: "Emri i aplikantit ne banke eshte obligativ.",
-    bankName: "Emri i bankes eshte obligativ.",
-    bankAccountNumber: "Numri i llogarise bankare/IBAN eshte obligativ.",
-  },
-  publication: {
-    publicationTitle: "Titulli i punimit eshte obligativ.",
-    mainAuthor: "Autori kryesor eshte obligativ.",
-    affiliation: "Affiliation eshte obligativ.",
-    journal: "Emri i revistes eshte obligativ.",
-    publisher: "Shtepia botuese eshte obligative.",
-    indexingPlatform: "Indeksimi ne platforme eshte obligativ.",
-    publicationLink: "Linku i publikimit eshte obligativ.",
-  },
-  conference: {
-    conferenceTitle: "Emertimi i ngjarjes eshte obligativ.",
-    eventPlaceDate: "Vendi dhe data jane obligative.",
-    organizer: "Organizatori eshte obligativ.",
-    invitationProgram: "Ftesa/programi eshte obligativ.",
-    abstractTitle: "Abstrakti dhe titulli i punimit jane obligative.",
-    acceptanceConfirmation: "Konfirmimi i pranimit eshte obligativ.",
-    participationType: "Lloji i pjesemarrjes eshte obligativ.",
-  },
-  project: {
-    projectTitle: "Titulli i projektit eshte obligativ.",
-    projectDurationMonths: "Kohezgjatja e projektit eshte obligative.",
-    applyingUnit: "Njesia akademike aplikuese eshte obligative.",
-    deanName: "Emri i dekanit eshte obligativ.",
-    projectDescription: "Pershkrimi i projekt-propozimit eshte obligativ.",
-    projectKeywords: "Fjalet kyce jane obligative.",
-    projectImpact: "Ndikimi/arsyeshmeria e projektit eshte obligative.",
-    workPlan: "Plani i punes eshte obligativ.",
-    totalProjectCost: "Kosto totale e projektit eshte obligative.",
-    requestedFromUibm: "Shuma e kerkuar nga UIBM eshte obligative.",
-    detailedCostDescription: "Pershkrimi i detajuar i kostos eshte obligativ.",
-  },
 };
 
 const ALLOWED_ATTACHMENT_TYPES = [
@@ -107,6 +54,20 @@ const FORM_STEPS = [
 const PARTICIPATION_OPTIONS = ["Prezantim", "Poster", "Pjesemarrje", "Keynote", "Panelist", "Kryesues"];
 const YES_NO_OPTIONS = ["", "Po", "Jo"];
 const SCOPUS_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "Jo e indeksuar", "Nuk aplikohet"];
+const SPEAKER_TYPE_OPTIONS = ["", "Kumtese", "Poster", "Jo"];
+const FIELD_OPTIONS = {
+  participation: PARTICIPATION_OPTIONS,
+  yesNo: YES_NO_OPTIONS,
+  scopus: SCOPUS_OPTIONS,
+  speakerType: SPEAKER_TYPE_OPTIONS,
+};
+
+const COST_CATEGORY_OPTIONS = [
+  { value: "materialCost", label: "Materiale 40%" },
+  { value: "administrativeCost", label: "Administrative 30%" },
+  { value: "personnelCost", label: "Personel 20%" },
+  { value: "otherCosts", label: "Tjera 10%" },
+];
 
 const EMPTY_TEAM_MEMBER = {
   name: "",
@@ -116,6 +77,22 @@ const EMPTY_TEAM_MEMBER = {
   email: "",
   specialization: "",
   contribution: "",
+};
+
+const EMPTY_WORK_PLAN_ITEM = {
+  activity: "",
+  deadline: "",
+  responsiblePerson: "",
+  expectedResult: "",
+};
+
+const EMPTY_COST_ITEM = {
+  item: "",
+  category: "materialCost",
+  quantity: "",
+  unitCost: "",
+  totalCost: "",
+  description: "",
 };
 
 const DEFAULT_FORM_VALUES = {
@@ -210,10 +187,19 @@ const DEFAULT_FORM_VALUES = {
   personnelCost: "",
   otherCosts: "",
   detailedCostDescription: "",
+  documentChecklist: {},
 };
 
 function createDefaultTeamMembers() {
   return [{ ...EMPTY_TEAM_MEMBER }];
+}
+
+function createDefaultWorkPlanItems() {
+  return [{ ...EMPTY_WORK_PLAN_ITEM }];
+}
+
+function createDefaultCostItems() {
+  return [{ ...EMPTY_COST_ITEM }];
 }
 
 function resolveProfile(contextProfile, profile) {
@@ -246,6 +232,9 @@ function createDefaultForm(profile = {}) {
     ...DEFAULT_FORM_VALUES,
     ...getAutoFieldDefaults(profile),
     teamMembers: createDefaultTeamMembers(),
+    workPlanItems: createDefaultWorkPlanItems(),
+    costItems: createDefaultCostItems(),
+    documentChecklist: {},
   };
 }
 
@@ -294,6 +283,40 @@ function hasValue(value) {
   }
 
   return String(value ?? "").trim() !== "";
+}
+
+function toNumber(value) {
+  const number = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatNumericValue(value) {
+  const number = toNumber(value);
+  return number === null ? "" : String(Math.round(number * 100) / 100);
+}
+
+function hasCompleteWorkPlanItem(items) {
+  return Array.isArray(items) && items.some((item) =>
+    hasValue(item.activity)
+    && hasValue(item.deadline)
+    && hasValue(item.responsiblePerson)
+    && hasValue(item.expectedResult)
+  );
+}
+
+function hasCompleteCostItem(items) {
+  return Array.isArray(items) && items.some((item) =>
+    hasValue(item.item)
+    && hasValue(item.quantity)
+    && hasValue(item.unitCost)
+    && hasValue(item.totalCost)
+  );
+}
+
+function getProjectBudgetDistributionTotal(form) {
+  return ["materialCost", "administrativeCost", "personnelCost", "otherCosts"]
+    .map((field) => toNumber(form[field]) || 0)
+    .reduce((total, value) => total + value, 0);
 }
 
 function normalizeIban(value) {
@@ -483,6 +506,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDoiLoading, setIsDoiLoading] = useState(false);
   const [downloadingDocument, setDownloadingDocument] = useState("");
+  const [previewingDocument, setPreviewingDocument] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [editingRequest, setEditingRequest] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -496,7 +520,10 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     [context.profile, profile]
   );
 
-  const selectedTypeConfig = REQUEST_TYPES.find((item) => item.id === selectedType) || REQUEST_TYPES[0];
+  const selectedTypeConfig = getReimbursementType(selectedType);
+  const selectedTypeSchema = getReimbursementSchema(selectedType);
+  const selectedAttachmentChecklist = getAttachmentChecklist(selectedType);
+  const bankRequired = requiresBank(selectedType);
   const normalizedAccount = useMemo(() => normalizeIban(form.bankAccountNumber || form.iban), [form.bankAccountNumber, form.iban]);
   const isAccountNumberValid = useMemo(() => isValidBankAccountIdentifier(normalizedAccount), [normalizedAccount]);
   const detectedBank = useMemo(() => detectKosovoBankFromAccount(normalizedAccount), [normalizedAccount]);
@@ -515,12 +542,16 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       academic: hasValue(form[academicMainField]),
       financial:
         Number(String(form.amount || "").replace(",", ".")) > 0
-        && isAccountNumberValid
-        && hasValue(form.bankName)
-        && isValidSwift(form.swiftCode),
-      documents: selectedFiles.length > 0 || hasValue(form.attachmentUrl),
+        && (
+          bankRequired
+            ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode) && hasValue(form.amountWords)
+            : hasValue(form.requestedFromUibm) && hasCompleteCostItem(form.costItems)
+        ),
+      documents: selectedAttachmentChecklist
+        .filter((item) => item.required)
+        .every((item) => Boolean(form.documentChecklist?.[item.id])),
     };
-  }, [form, isAccountNumberValid, selectedFiles.length, selectedType]);
+  }, [bankRequired, form, isAccountNumberValid, selectedAttachmentChecklist, selectedType]);
 
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
@@ -656,6 +687,19 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   useEffect(() => {
     setForm((prev) => {
+      if (!bankRequired) {
+        return prev.bankName || prev.swiftCode || prev.bankDetectedAutomatically || prev.detectedBankCode || prev.bankSelectionSource
+          ? {
+              ...prev,
+              bankName: "",
+              swiftCode: "",
+              detectedBankCode: "",
+              bankDetectedAutomatically: false,
+              bankSelectionSource: "",
+            }
+          : prev;
+      }
+
       if (!normalizedAccount) {
         return prev.bankName || prev.swiftCode || prev.bankDetectedAutomatically || prev.detectedBankCode || prev.bankSelectionSource
           ? {
@@ -715,7 +759,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         swiftCode: detectedBank ? "" : prev.swiftCode,
       };
     });
-  }, [detectedBank, normalizedAccount]);
+  }, [bankRequired, detectedBank, normalizedAccount]);
 
   const handleFieldChange = (field) => (event) => {
     const nextValue = event.target.value;
@@ -754,6 +798,55 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }));
   };
 
+  const handleWorkPlanItemChange = (index, field) => (event) => {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      workPlanItems: (prev.workPlanItems || createDefaultWorkPlanItems()).map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      ),
+    }));
+    setFieldErrors((prev) => ({ ...prev, workPlanItems: "" }));
+  };
+
+  const handleCostItemChange = (index, field) => (event) => {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      costItems: (prev.costItems || createDefaultCostItems()).map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
+
+        const nextItem = { ...item, [field]: value };
+        const quantity = field === "quantity" ? value : nextItem.quantity;
+        const unitCost = field === "unitCost" ? value : nextItem.unitCost;
+        const quantityNumber = toNumber(quantity);
+        const unitCostNumber = toNumber(unitCost);
+
+        if (quantityNumber !== null && unitCostNumber !== null) {
+          nextItem.totalCost = formatNumericValue(quantityNumber * unitCostNumber);
+        }
+
+        return nextItem;
+      }),
+    }));
+    setFieldErrors((prev) => ({ ...prev, costItems: "" }));
+  };
+
+  const handleDocumentChecklistChange = (id) => (event) => {
+    setForm((prev) => ({
+      ...prev,
+      documentChecklist: {
+        ...(prev.documentChecklist || {}),
+        [id]: event.target.checked,
+      },
+    }));
+    setFieldErrors((prev) => ({ ...prev, [`documentChecklist.${id}`]: "" }));
+  };
+
   const addTeamMember = () => {
     setForm((prev) => ({
       ...prev,
@@ -770,8 +863,45 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }));
   };
 
+  const addWorkPlanItem = () => {
+    setForm((prev) => ({
+      ...prev,
+      workPlanItems: [...(prev.workPlanItems || []), { ...EMPTY_WORK_PLAN_ITEM }],
+    }));
+  };
+
+  const removeWorkPlanItem = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      workPlanItems: (prev.workPlanItems || []).length > 1
+        ? prev.workPlanItems.filter((_, itemIndex) => itemIndex !== index)
+        : createDefaultWorkPlanItems(),
+    }));
+  };
+
+  const addCostItem = () => {
+    setForm((prev) => ({
+      ...prev,
+      costItems: [...(prev.costItems || []), { ...EMPTY_COST_ITEM }],
+    }));
+  };
+
+  const removeCostItem = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      costItems: (prev.costItems || []).length > 1
+        ? prev.costItems.filter((_, itemIndex) => itemIndex !== index)
+        : createDefaultCostItems(),
+    }));
+  };
+
   const handleTypeSelect = (typeId) => {
     setSelectedType(typeId);
+    setForm((prev) => ({
+      ...prev,
+      documentChecklist: {},
+    }));
+    setFieldErrors({});
     setError("");
     setSuccess(null);
   };
@@ -845,16 +975,19 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       return Object.keys(nextErrors).length === 0;
     }
 
-    const required = {
-      ...REQUIRED_FIELDS.common,
-      ...(REQUIRED_FIELDS[selectedType] || {}),
-    };
-
-    Object.entries(required).forEach(([field, message]) => {
+    getRequiredFields(selectedType).forEach(([field, message]) => {
       if (!hasValue(form[field])) {
         nextErrors[field] = message;
       }
     });
+
+    selectedAttachmentChecklist
+      .filter((item) => item.required)
+      .forEach((item) => {
+        if (!form.documentChecklist?.[item.id]) {
+          nextErrors[`documentChecklist.${item.id}`] = `Konfirmo dokumentin mbeshtetes: ${item.label}.`;
+        }
+      });
 
     if (selectedType === "project") {
       const hasTeamMember = form.teamMembers?.some((member) => hasValue(member.name) && hasValue(member.email));
@@ -872,27 +1005,48 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       nextErrors.amount = "Shuma e kerkuar duhet te jete numer pozitiv.";
     }
 
-    const submittedAccount = form.bankAccountNumber || form.iban;
+    if (bankRequired) {
+      const submittedAccount = form.bankAccountNumber || form.iban;
 
-    if (submittedAccount && !isValidBankAccountIdentifier(submittedAccount)) {
-      nextErrors.bankAccountNumber = "IBAN nuk është valid. Kontrollo numrin e llogarisë bankare.";
+      if (submittedAccount && !isValidBankAccountIdentifier(submittedAccount)) {
+        nextErrors.bankAccountNumber = "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.";
+      }
+
+      const submittedDetectedBank = detectKosovoBankFromAccount(submittedAccount);
+
+      if (submittedDetectedBank) {
+        delete nextErrors.bankName;
+        delete nextErrors.swiftCode;
+      } else if (!hasValue(form.bankName)) {
+        nextErrors.bankName = "Banka nuk u identifikua nga numri i llogarise.";
+      }
+
+      if (!isValidSwift(submittedDetectedBank?.swift || form.swiftCode)) {
+        nextErrors.swiftCode = "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide.";
+      }
     }
 
-    if (submittedAccount && nextErrors.bankAccountNumber) {
-      nextErrors.bankAccountNumber = "Shkruaj IBAN valid te Kosoves ose numer vendor numerik te llogarise.";
-    }
+    if (selectedType === "project") {
+      if (!hasCompleteWorkPlanItem(form.workPlanItems)) {
+        nextErrors.workPlanItems = "Shto se paku nje aktivitet te plote ne planin e punes.";
+      }
 
-    const submittedDetectedBank = detectKosovoBankFromAccount(submittedAccount);
+      if (!hasCompleteCostItem(form.costItems)) {
+        nextErrors.costItems = "Shto se paku nje rresht te plote ne pershkrimin e kostos.";
+      }
 
-    if (submittedDetectedBank) {
-      delete nextErrors.bankName;
-      delete nextErrors.swiftCode;
-    } else if (!hasValue(form.bankName)) {
-      nextErrors.bankName = "Banka nuk u identifikua nga numri i llogarise.";
-    }
+      const requested = toNumber(form.requestedFromUibm);
+      const budgetTotal = getProjectBudgetDistributionTotal(form);
 
-    if (!isValidSwift(submittedDetectedBank?.swift || form.swiftCode)) {
-      nextErrors.swiftCode = "SWIFT/BIC duhet te kete 8 ose 11 karaktere valide.";
+      ["materialCost", "administrativeCost", "personnelCost", "otherCosts"].forEach((field) => {
+        if (toNumber(form[field]) === null) {
+          nextErrors[field] = "Kjo fushe buxhetore eshte obligative.";
+        }
+      });
+
+      if (requested !== null && Math.abs(budgetTotal - requested) > 0.01) {
+        nextErrors.requestedFromUibm = "Ndarja 40/30/20/10 duhet te barazohet me shumen e kerkuar nga UIBM.";
+      }
     }
 
     setFieldErrors(nextErrors);
@@ -1031,6 +1185,54 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }
   };
 
+  const handlePreviewDocument = async (format) => {
+    if (!validateForm("submit")) {
+      setError("Ploteso fushat obligative para preview.");
+      return;
+    }
+
+    setPreviewingDocument(format);
+    setError("");
+
+    try {
+      const response = await fetch(apiUrl(`/reimbursements/preview/${format}`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestType: selectedType,
+          formData: form,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+
+        if (Array.isArray(result.errors)) {
+          setFieldErrors(result.errors.reduce((acc, item) => ({ ...acc, [item.field]: item.message }), {}));
+        }
+
+        throw new Error(result.message || `${format.toUpperCase()} preview nuk u krijua.`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `preview-${selectedType}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (previewError) {
+      setError(previewError.message || "Preview deshtoi.");
+    } finally {
+      setPreviewingDocument("");
+    }
+  };
+
   const handleDownloadAttachment = async (request, attachment) => {
     if (!attachment?.id) {
       return;
@@ -1102,6 +1304,15 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
         ? request.requestData.teamMembers
         : createDefaultTeamMembers(),
+      workPlanItems: Array.isArray(request.requestData?.workPlanItems) && request.requestData.workPlanItems.length
+        ? request.requestData.workPlanItems
+        : createDefaultWorkPlanItems(),
+      costItems: Array.isArray(request.requestData?.costItems) && request.requestData.costItems.length
+        ? request.requestData.costItems
+        : createDefaultCostItems(),
+      documentChecklist: request.requestData?.documentChecklist && typeof request.requestData.documentChecklist === "object"
+        ? request.requestData.documentChecklist
+        : {},
     };
 
     setSelectedType(nextType);
@@ -1179,8 +1390,21 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     <label className="reimbursement-field">
       <span>{label}</span>
       <input type={type} value={form[field]} onChange={handleFieldChange(field)} placeholder="Nuk ka te dhena" />
+      {fieldErrors[field] ? <small className="reimbursement-field-error">{fieldErrors[field]}</small> : null}
     </label>
   );
+
+  const renderSchemaField = (fieldConfig) => (
+    <React.Fragment key={fieldConfig.field}>
+      {renderInput(fieldConfig.label, fieldConfig.field, {
+        ...fieldConfig,
+        options: fieldConfig.options || FIELD_OPTIONS[fieldConfig.optionsKey] || [],
+      })}
+    </React.Fragment>
+  );
+
+  const getSectionFields = (sectionId) =>
+    selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
   const renderApplicantFields = () => (
     <div className="reimbursement-form-grid">
@@ -1226,25 +1450,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
       </label>
 
-      {renderInput("Autor kryesor", "mainAuthor")}
-      {renderInput("Autor korrespondent", "correspondingAuthor")}
-      {renderInput("Bashkautoret", "coauthors", { wide: true, placeholder: "Ndaji me presje ose rreshta" })}
-      {renderInput("Perkatesia e autorit (affiliation)", "affiliation", { wide: true })}
-      {renderInput("Titulli i punimit", "publicationTitle", { wide: true, required: true })}
-      {renderInput("Emri i revistes", "journal")}
-      {renderInput("Shtepia botuese", "publisher")}
-      {renderInput("Indeksim ne platforme", "indexingPlatform", { placeholder: "Scopus, Web of Science, DOAJ..." })}
-      {renderInput("Impact faktori (IF)", "impactFactor")}
-      {renderInput("Scopus (Q1-Q4)", "scopusQuartile", { type: "select", options: SCOPUS_OPTIONS })}
-      {renderInput("Data e pranimit", "acceptanceDate", { type: "date" })}
-      {renderInput("Data e publikimit", "publicationDate", { type: "date" })}
-      {renderInput("Linku i publikimit", "publicationLink", { wide: true, placeholder: "https://..." })}
-      {renderInput("Deshmia e regjistrimit ne databazen UIBM", "uibmDatabaseEvidence", { wide: true, placeholder: "URL ose shenim" })}
-      {renderInput("Detajet e konferences/simpoziumit (nese aplikohet)", "publicationConferenceDetails", { wide: true })}
-      {renderInput("Linku i konferences", "conferenceLink", { placeholder: "https://..." })}
-      {renderInput("Vendi i konferences", "conferenceLocation")}
-      {renderInput("Data e prezantimit", "conferencePresentationDate", { type: "date" })}
-      {renderInput("Tarifa e publikimit", "publicationFee", { placeholder: "p.sh. 450 EUR" })}
+      {getSectionFields("authors").map(renderSchemaField)}
+      {getSectionFields("publicationDetails").map(renderSchemaField)}
+      {getSectionFields("publicationConference").map(renderSchemaField)}
     </div>
   );
 
@@ -1264,25 +1472,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </label>
       ) : null}
 
-      {renderInput("Autori kryesor", "mainAuthor")}
-      {renderInput("Bashkepjesemarresi", "coParticipant")}
-      {renderInput("Emertimi i ngjarjes", "conferenceTitle", { wide: true, required: true })}
-      {renderInput("Vendi dhe data", "eventPlaceDate", { placeholder: "p.sh. Tirane, 12.06.2026" })}
-      {renderInput("Lokacioni", "location")}
-      {renderInput("Data e eventit", "conferenceDate", { type: "date" })}
-      {renderInput("Organizatori", "organizer", { wide: true })}
-      {renderInput("Ftesa dhe programi", "invitationProgram", { wide: true, placeholder: "URL ose pershkrim" })}
-      {renderInput("Abstrakti dhe titulli i punimit", "abstractTitle", { wide: true, type: "textarea", rows: 3 })}
-      {renderInput("Konfirmimi i pranimit te punimit", "acceptanceConfirmation", { wide: true, placeholder: "URL ose shenim" })}
-      {renderInput("Autoret e punimit (affiliation)", "authorsAffiliation", { wide: true })}
-      {renderInput("Foles me kumtese/poster", "speakerWithPaperPoster", { type: "select", options: ["", "Kumtese", "Poster", "Jo"] })}
-      {renderInput("Lloji i pjesemarrjes", "participationType", { type: "select", options: PARTICIPATION_OPTIONS })}
-      {renderInput("Kryesues/panelist", "chairPanelist", { type: "select", options: YES_NO_OPTIONS })}
-      {renderInput("Ngjarje artistike/sportive", "artisticSportEvent", { type: "select", options: YES_NO_OPTIONS })}
-      {renderInput("Linku i publikimit te ngjarjes", "eventPublicationLink", { wide: true, placeholder: "https://..." })}
-      {renderInput("Kosto regjistrimi", "registrationFee", { placeholder: "p.sh. 220 EUR" })}
-      {renderInput("Kosto udhetimi", "travelCost", { placeholder: "p.sh. 180 EUR" })}
-      {renderInput("Kosto akomodimi", "accommodationCost", { placeholder: "p.sh. 300 EUR" })}
+      {getSectionFields("participants").map(renderSchemaField)}
+      {getSectionFields("conferenceDetails").map(renderSchemaField)}
     </div>
   );
 
@@ -1327,16 +1518,79 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </div>
   );
 
+  const renderWorkPlanItem = (item, index) => (
+    <div className="reimbursement-table-card" key={`work-plan-${index}`}>
+      <div className="reimbursement-team-head">
+        <strong>Aktiviteti {index + 1}</strong>
+        <button type="button" onClick={() => removeWorkPlanItem(index)} aria-label="Largo aktivitetin">
+          <Trash2 size={15} />
+        </button>
+      </div>
+      <div className="reimbursement-form-grid">
+        <label className="reimbursement-field reimbursement-wide">
+          <span>Aktiviteti</span>
+          <input value={item.activity} onChange={handleWorkPlanItemChange(index, "activity")} />
+        </label>
+        <label className="reimbursement-field">
+          <span>Afati</span>
+          <input type="date" value={item.deadline} onChange={handleWorkPlanItemChange(index, "deadline")} />
+        </label>
+        <label className="reimbursement-field">
+          <span>Personi pergjegjes</span>
+          <input value={item.responsiblePerson} onChange={handleWorkPlanItemChange(index, "responsiblePerson")} />
+        </label>
+        <label className="reimbursement-field reimbursement-wide">
+          <span>Rezultati i pritur</span>
+          <input value={item.expectedResult} onChange={handleWorkPlanItemChange(index, "expectedResult")} />
+        </label>
+      </div>
+    </div>
+  );
+
+  const renderCostItem = (item, index) => (
+    <div className="reimbursement-table-card" key={`cost-item-${index}`}>
+      <div className="reimbursement-team-head">
+        <strong>Kosto {index + 1}</strong>
+        <button type="button" onClick={() => removeCostItem(index)} aria-label="Largo koston">
+          <Trash2 size={15} />
+        </button>
+      </div>
+      <div className="reimbursement-form-grid">
+        <label className="reimbursement-field reimbursement-wide">
+          <span>Artikulli / sherbimi</span>
+          <input value={item.item} onChange={handleCostItemChange(index, "item")} />
+        </label>
+        <label className="reimbursement-field">
+          <span>Kategoria</span>
+          <select value={item.category || "materialCost"} onChange={handleCostItemChange(index, "category")}>
+            {COST_CATEGORY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="reimbursement-field">
+          <span>Sasia</span>
+          <input inputMode="decimal" value={item.quantity} onChange={handleCostItemChange(index, "quantity")} />
+        </label>
+        <label className="reimbursement-field">
+          <span>Cmimi njesi</span>
+          <input inputMode="decimal" value={item.unitCost} onChange={handleCostItemChange(index, "unitCost")} />
+        </label>
+        <label className="reimbursement-field">
+          <span>Totali</span>
+          <input inputMode="decimal" value={item.totalCost} onChange={handleCostItemChange(index, "totalCost")} />
+        </label>
+        <label className="reimbursement-field reimbursement-wide">
+          <span>Pershkrimi</span>
+          <input value={item.description} onChange={handleCostItemChange(index, "description")} />
+        </label>
+      </div>
+    </div>
+  );
+
   const renderProjectFields = () => (
     <div className="reimbursement-form-grid">
-      {renderInput("Titulli i projektit", "projectTitle", { wide: true, required: true })}
-      {renderInput("Kohezgjatja e projektit (ne muaj)", "projectDurationMonths", { inputMode: "numeric" })}
-      {renderInput("Njesia akademike e UIBM-se qe aplikon", "applyingUnit")}
-      {renderInput("Emri i dekanit", "deanName")}
-      {renderInput("Vendi", "deanPlace")}
-      {renderInput("Numri i telefonit", "deanPhone")}
-      {renderInput("Email adresa", "deanEmail", { type: "email" })}
-      {renderInput("Faqja e internetit/rrjeti social", "deanWebsite", { placeholder: "https://..." })}
+      {getSectionFields("administration").map(renderSchemaField)}
 
       <div className="reimbursement-wide reimbursement-subsection">
         <div className="reimbursement-subsection-head">
@@ -1352,26 +1606,45 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         {fieldErrors.teamMembers ? <small className="reimbursement-field-error">{fieldErrors.teamMembers}</small> : null}
       </div>
 
-      {renderInput("Pershkrimi i projekt-propozimit dhe plani i hulumtimit", "projectDescription", {
-        wide: true,
-        type: "textarea",
-        rows: 4,
-      })}
-      {renderInput("Fjale kyce per projektin", "projectKeywords", { wide: true })}
-      {renderInput("Ndikimi dhe arsyeshmeria e projektit", "projectImpact", { wide: true, type: "textarea", rows: 3 })}
-      {renderInput("Plani i punes dhe afatet kohore", "workPlan", { wide: true, type: "textarea", rows: 3 })}
-      {renderInput("Kosto totale e projektit (EUR)", "totalProjectCost", { inputMode: "decimal" })}
-      {renderInput("Shuma e kerkuar nga UIBM (EUR)", "requestedFromUibm", { inputMode: "decimal" })}
-      {renderInput("Kosto materiale (40%)", "materialCost", { inputMode: "decimal" })}
-      {renderInput("Kosto administrative (30%)", "administrativeCost", { inputMode: "decimal" })}
-      {renderInput("Kosto te personelit (20%)", "personnelCost", { inputMode: "decimal" })}
-      {renderInput("Kostot e tjera (10%)", "otherCosts", { inputMode: "decimal" })}
-      {renderInput("Pershkrimi i detajuar i kostos", "detailedCostDescription", { wide: true, type: "textarea", rows: 3 })}
-      {renderInput("Kodi / Thirrja", "projectCode")}
-      {renderInput("Roli ne projekt", "projectRole", { placeholder: "p.sh. PI, bashkepunetor" })}
-      {renderInput("Periudha", "projectPeriod", { placeholder: "p.sh. Jan 2026 - Qer 2026" })}
-      {renderInput("Institucioni / Financuesi", "fundingBody")}
-      {renderInput("Linja buxhetore", "budgetLine", { wide: true })}
+      {getSectionFields("projectInfo").map(renderSchemaField)}
+
+      <div className="reimbursement-wide reimbursement-subsection">
+        <div className="reimbursement-subsection-head">
+          <strong>Plani i punes</strong>
+          <button type="button" onClick={addWorkPlanItem}>
+            <Plus size={15} />
+            Shto aktivitet
+          </button>
+        </div>
+        <div className="reimbursement-team-grid">
+          {(form.workPlanItems || createDefaultWorkPlanItems()).map(renderWorkPlanItem)}
+        </div>
+        {fieldErrors.workPlanItems ? <small className="reimbursement-field-error">{fieldErrors.workPlanItems}</small> : null}
+      </div>
+
+      {getSectionFields("budget").map(renderSchemaField)}
+
+      <div className="reimbursement-wide reimbursement-budget-total">
+        <span>Ndarja 40/30/20/10</span>
+        <strong>{formatMoneyPreview(getProjectBudgetDistributionTotal(form), form.currency)}</strong>
+        {fieldErrors.requestedFromUibm ? <small className="reimbursement-field-error">{fieldErrors.requestedFromUibm}</small> : null}
+      </div>
+
+      <div className="reimbursement-wide reimbursement-subsection">
+        <div className="reimbursement-subsection-head">
+          <strong>Pershkrimi i kostos</strong>
+          <button type="button" onClick={addCostItem}>
+            <Plus size={15} />
+            Shto kosto
+          </button>
+        </div>
+        <div className="reimbursement-team-grid">
+          {(form.costItems || createDefaultCostItems()).map(renderCostItem)}
+        </div>
+        {fieldErrors.costItems ? <small className="reimbursement-field-error">{fieldErrors.costItems}</small> : null}
+      </div>
+
+      {getSectionFields("metadata").map(renderSchemaField)}
     </div>
   );
 
@@ -1407,54 +1680,60 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </label>
 
         {renderInput("Valuta", "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
-        {renderInput("Shuma me fjale", "amountWords", { wide: true, placeholder: "p.sh. Nje mije e dyqind euro" })}
-        {renderInput("Emri dhe mbiemri i aplikantit", "bankApplicantName")}
 
-        <label className="reimbursement-field">
-          <span>Numri i llogarise bankare / IBAN</span>
-          <input
-            value={form.bankAccountNumber}
-            onChange={handleFieldChange("bankAccountNumber")}
-            placeholder="Numri vendor ose XK..."
-            autoComplete="off"
-          />
-          {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
-        </label>
+        {bankRequired ? (
+          <>
+            {renderInput("Shuma me fjale", "amountWords", { wide: true, required: true, placeholder: "p.sh. Nje mije e dyqind euro" })}
+            {renderInput("Emri dhe mbiemri i aplikantit", "bankApplicantName", { required: true })}
 
-        <div className="reimbursement-field reimbursement-bank-result">
-          <span>Emri i bankes</span>
-          {visualBank ? (
-            <div className="reimbursement-detected-bank" aria-live="polite">
-              <span className="reimbursement-bank-logo">
-                {visualBank.logoSrc ? (
-                  <img src={visualBank.logoSrc} alt={`${visualBank.name} logo`} />
-                ) : (
-                  <Landmark size={18} />
-                )}
-              </span>
-              <span>
-                <strong>{visualBank.name}</strong>
-                <small>{visualBank.swift}</small>
-              </span>
+            <label className="reimbursement-field">
+              <span>Numri i llogarise bankare / IBAN</span>
+              <input
+                value={form.bankAccountNumber}
+                onChange={handleFieldChange("bankAccountNumber")}
+                placeholder="Numri vendor ose XK..."
+                autoComplete="off"
+              />
+              {fieldErrors.bankAccountNumber ? <small className="reimbursement-field-error">{fieldErrors.bankAccountNumber}</small> : null}
+            </label>
+
+            <div className="reimbursement-field reimbursement-bank-result">
+              <span>Emri i bankes</span>
+              {visualBank ? (
+                <div className="reimbursement-detected-bank" aria-live="polite">
+                  <span className="reimbursement-bank-logo">
+                    {visualBank.logoSrc ? (
+                      <img src={visualBank.logoSrc} alt={`${visualBank.name} logo`} />
+                    ) : (
+                      <Landmark size={18} />
+                    )}
+                  </span>
+                  <span>
+                    <strong>{visualBank.name}</strong>
+                    <small>{visualBank.swift}</small>
+                  </span>
+                </div>
+              ) : (
+                <div className="reimbursement-bank-placeholder">Shkruaj numrin e llogarise</div>
+              )}
+              {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
             </div>
-          ) : (
-            <div className="reimbursement-bank-placeholder">Shkruaj numrin e llogarise</div>
-          )}
-          {fieldErrors.bankName ? <small className="reimbursement-field-error">{fieldErrors.bankName}</small> : null}
-        </div>
 
-        <label className="reimbursement-field">
-          <span>SWIFT/BIC kodi</span>
-          <input
-            value={form.swiftCode}
-            readOnly
-            placeholder="Plotesohet automatikisht"
-            className={visualBank ? "reimbursement-autofill-input" : ""}
-          />
-          {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{fieldErrors.swiftCode}</small> : null}
-        </label>
+            <label className="reimbursement-field">
+              <span>SWIFT/BIC kodi</span>
+              <input
+                value={form.swiftCode}
+                readOnly
+                placeholder="Plotesohet automatikisht"
+                className={visualBank ? "reimbursement-autofill-input" : ""}
+              />
+              {fieldErrors.swiftCode ? <small className="reimbursement-field-error">{fieldErrors.swiftCode}</small> : null}
+            </label>
 
-        {renderInput("Vendi", "bankCountry")}
+            {renderInput("Vendi", "bankCountry")}
+          </>
+        ) : null}
+
         {renderInput("Data e shpenzimit", "expenseDate", { type: "date" })}
         {renderInput("Numri i fatures", "invoiceNumber")}
         {renderInput("Link dokumentesh", "attachmentUrl", { placeholder: "URL e fatures ose dokumenteve" })}
@@ -1464,30 +1743,61 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </div>
   );
 
-  const renderAttachmentUpload = () => (
-    <div className="reimbursement-upload-box">
-      <label className="reimbursement-upload-label">
-        <span>Dokumente mbeshtetese</span>
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={handleFileChange}
-        />
-      </label>
-      {selectedFiles.length ? (
-        <div className="reimbursement-file-list">
-          {selectedFiles.map((file) => (
-            <span key={`${file.name}-${file.size}`}>
-              {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
-            </span>
+  const renderAttachmentUpload = () => {
+    const completedRequired = selectedAttachmentChecklist
+      .filter((item) => item.required)
+      .filter((item) => form.documentChecklist?.[item.id]).length;
+    const requiredTotal = selectedAttachmentChecklist.filter((item) => item.required).length;
+
+    return (
+      <div className="reimbursement-upload-box">
+        <div className="reimbursement-checklist-head">
+          <strong>Checklist</strong>
+          <span>{completedRequired}/{requiredTotal} obligative</span>
+        </div>
+
+        <div className="reimbursement-document-checklist">
+          {selectedAttachmentChecklist.map((item) => (
+            <label key={item.id} className="reimbursement-check-item">
+              <input
+                type="checkbox"
+                checked={Boolean(form.documentChecklist?.[item.id])}
+                onChange={handleDocumentChecklistChange(item.id)}
+              />
+              <span>
+                {item.label}
+                {item.required ? <small>Obligative</small> : <small>Opsionale</small>}
+                {fieldErrors[`documentChecklist.${item.id}`] ? (
+                  <small className="reimbursement-field-error">{fieldErrors[`documentChecklist.${item.id}`]}</small>
+                ) : null}
+              </span>
+            </label>
           ))}
         </div>
-      ) : (
-        <p>Lejohen PDF, JPG, PNG dhe DOCX. Fajllat ruhen me kerkesen dhe shihen nga komisioni/prorektori.</p>
-      )}
-    </div>
-  );
+
+        <label className="reimbursement-upload-label">
+          <span>Ngarko fajlla</span>
+          <input
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={handleFileChange}
+          />
+        </label>
+        {selectedFiles.length ? (
+          <div className="reimbursement-file-list">
+            {selectedFiles.map((file) => (
+              <span key={`${file.name}-${file.size}`}>
+                {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p>PDF, JPG, PNG ose DOCX.</p>
+        )}
+      </div>
+    );
+  };
 
   const renderStatusTimeline = (history = []) => {
     if (!history.length) {
@@ -1564,6 +1874,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             ))}
           </div>
 
+          <aside className="reimbursement-side-checklist" aria-label="Checklist i plotesimit">
+            {FORM_STEPS.map((step) => (
+              <span key={step.id} className={stepStates[step.id] ? "is-complete" : ""}>
+                {stepStates[step.id] ? "OK" : "--"} {step.label}
+              </span>
+            ))}
+          </aside>
+
           <section className="reimbursement-section">
             <div className="reimbursement-section-head">
               <Sparkles size={18} />
@@ -1613,8 +1931,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Wallet size={18} />
               <div>
-                <h4>Te dhenat financiare/bankare</h4>
-                <p>IBAN, banka, SWIFT dhe shuma validohen para dergimit final.</p>
+                <h4>{bankRequired ? "Te dhenat bankare dhe financiare" : "Te dhenat financiare"}</h4>
+                <p>{bankRequired ? "Shuma, banka dhe SWIFT validohen para dergimit final." : "F3 ruan vetem te dhenat financiare qe ka formulari zyrtar."}</p>
               </div>
             </div>
 
@@ -1631,6 +1949,41 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             </div>
 
             {renderAttachmentUpload()}
+          </section>
+
+          <section className="reimbursement-section">
+            <div className="reimbursement-section-head">
+              <FileText size={18} />
+              <div>
+                <h4>Review / Preview</h4>
+                <p>Kontrollo dokumentin zyrtar para dergimit.</p>
+              </div>
+            </div>
+            <div className="reimbursement-review-panel">
+              <span><strong>Formulari:</strong> {selectedTypeConfig.code} - {selectedTypeConfig.requestLabel}</span>
+              <span><strong>Shuma:</strong> {amountPreview || "Pa shume"}</span>
+              <span><strong>Banka:</strong> {bankRequired ? visualBank?.name || "Pa banke" : "Nuk kerkohet per F3"}</span>
+              <div className="reimbursement-preview-actions">
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => handlePreviewDocument("docx")}
+                  disabled={previewingDocument === "docx" || isSubmitting}
+                >
+                  <FileText size={16} />
+                  {previewingDocument === "docx" ? "DOCX..." : "Preview DOCX"}
+                </button>
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => handlePreviewDocument("pdf")}
+                  disabled={previewingDocument === "pdf" || isSubmitting}
+                >
+                  <FileText size={16} />
+                  {previewingDocument === "pdf" ? "PDF..." : "Preview PDF"}
+                </button>
+              </div>
+            </div>
           </section>
 
           <div className="reimbursement-action-bar">
