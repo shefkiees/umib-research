@@ -110,6 +110,12 @@ const DoiLookup = ({ onPublicationSaved }) => {
     }
   };
 
+  const handleCancelPreview = () => {
+    setMetadata(null);
+    setError("");
+    setSaveStatus("");
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !loading && !saving) {
       handleFetch();
@@ -118,8 +124,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
   return (
     <div style={{ background: "#fff", padding: "20px", borderRadius: "10px" }}>
-      <h3>{t("professor.doi.title")}</h3>
-
       <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
         <input
           type="text"
@@ -160,28 +164,47 @@ const DoiLookup = ({ onPublicationSaved }) => {
       {error && <p style={{ color: "red" }}>{error}</p>}
       {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
       {metadata && (
-        <>
-          <DoiMetadataCard metadata={metadata} />
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || loading}
-              style={{
-                padding: "10px 16px",
-                border: "none",
-                borderRadius: "6px",
-                background: "#153a63",
-                color: "#fff",
-                cursor: saving || loading ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                opacity: saving || loading ? 0.7 : 1
-              }}
-            >
-              {saving ? t("professor.doi.saving") : t("professor.doi.savePublication")}
-            </button>
-          </div>
-        </>
+        <DoiMetadataCard
+          metadata={metadata}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleCancelPreview}
+                disabled={saving}
+                style={{
+                  padding: "9px 15px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  background: "#ffffff",
+                  color: "#153a63",
+                  cursor: saving ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  opacity: saving ? 0.7 : 1
+                }}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || loading}
+                style={{
+                  padding: "9px 15px",
+                  border: "none",
+                  borderRadius: "6px",
+                  background: "#153a63",
+                  color: "#fff",
+                  cursor: saving || loading ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  opacity: saving || loading ? 0.7 : 1
+                }}
+              >
+                {saving ? t("professor.doi.saving") : t("professor.doi.savePublication")}
+              </button>
+            </>
+          }
+        />
       )}
     </div>
   );
