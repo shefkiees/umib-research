@@ -1,0 +1,452 @@
+/* Stats */
+.admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.admin-stat-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.admin-stat-title {
+    color: #5f738d;
+    font-size: 0.98rem;
+    font-weight: 500;
+}
+
+.admin-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-tone-neutral {
+    color: #1f4f84;
+    background: #e8eff7;
+}
+
+.admin-tone-success {
+    color: #18924c;
+    background: #dff2e8;
+}
+
+.admin-tone-danger {
+    color: #d53333;
+    background: #fbe5e5;
+}
+
+.admin-tone-warning {
+    color: #be8c21;
+    background: #f7f1df;
+}
+
+.admin-stat-card h3 {
+    margin: 14px 0 8px;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.admin-stat-card p {
+    margin: 0;
+    color: #627892;
+    font-size: 0.98rem;
+}
+
+/* Layout grids */
+.admin-grid-2 {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 22px;
+}
+
+.admin-grid-roles,
+.admin-roles-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.admin-roles-grid {
+    gap: 16px;
+    padding: 0 20px 20px;
+}
+
+/* Roles */
+.admin-role-card {
+    background: #fbfdff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: var(--transition);
+}
+
+.admin-role-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+}
+
+.admin-role-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+}
+
+.admin-role-card p {
+    margin: 0;
+    color: var(--text-light);
+}
+
+.admin-role-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.admin-role-card-header h4 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.admin-role-card-header p {
+    margin: 6px 0 0;
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+.admin-role-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-role-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #f4f7fd;
+    color: var(--text-dark);
+    font-size: 0.93rem;
+    font-weight: 600;
+}
+
+.admin-role-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.admin-role-tags span {
+    background: #eef3f8;
+    color: #365a84;
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-size: 0.83rem;
+    font-weight: 600;
+}
+
+/* Audit */
+.admin-audit-section .admin-page-head {
+    margin-bottom: 18px;
+}
+
+.admin-audit-list {
+    display: grid;
+    gap: 12px;
+    padding: 0 20px 20px;
+}
+
+.admin-audit-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: #ffffff;
+    border: 1px solid #e7eaf3;
+    border-radius: 18px;
+    padding: 16px 18px;
+}
+
+.admin-audit-item-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.admin-audit-item-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #ffffff;
+}
+
+.admin-audit-item-icon svg {
+    display: block;
+}
+
+.admin-audit-item-icon--auth {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.admin-audit-item-icon--success,
+.admin-audit-item-icon--submissions {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.admin-audit-item-icon--shield,
+.admin-audit-item-icon--users {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.admin-audit-item-icon--metadata {
+    background: #e0f2fe;
+    color: #035d9f;
+}
+
+.admin-audit-item-icon--logout {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.admin-audit-item-text h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.admin-audit-item-text p {
+    margin: 6px 0 0;
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+.admin-audit-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.admin-audit-item-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #f3f6ff;
+    color: #1f4f84;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.admin-audit-item-time {
+    color: var(--text-light);
+    font-size: 0.92rem;
+}
+
+/* Logs */
+.admin-log-list {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-log-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fbfdff;
+}
+
+.admin-log-row strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 1rem;
+}
+
+.admin-log-row p {
+    margin: 0;
+    color: var(--text-light);
+}
+
+.admin-log-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.admin-log-chip {
+    border: 1px solid #d9e2ed;
+    background: #f7fafd;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    color: #244a76;
+    font-size: 0.84rem;
+}
+
+/* Alerts */
+.admin-alert-list {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-alert-item {
+    border-radius: 14px;
+    padding: 16px 18px;
+    border-left: 4px solid transparent;
+}
+
+.admin-alert-item h4 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+}
+
+.admin-alert-item p {
+    margin: 0;
+    color: #566a83;
+}
+
+.admin-alert-item.danger {
+    background: #fdf0f0;
+    border-left-color: #d53333;
+}
+
+.admin-alert-item.warning {
+    background: #fbf6e8;
+    border-left-color: #d29a1f;
+}
+
+.admin-alert-item.success {
+    background: #ecf8f0;
+    border-left-color: #1b8c4f;
+}
+
+/* Backups */
+.admin-backup-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.admin-backup-card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-backup-card-top {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.admin-backup-card-top--end {
+    justify-content: flex-end;
+}
+
+.admin-backup-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    color: #ffffff;
+}
+
+.admin-backup-card-icon--success {
+    background: #dbf4e9;
+    color: #0f6a3a;
+}
+
+.admin-backup-card-icon--active {
+    background: #e8f5ff;
+    color: #175f9a;
+}
+
+.admin-backup-card-icon--warning {
+    background: #fef4df;
+    color: #b26b00;
+}
+
+.admin-backup-card h3 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.admin-backup-card p {
+    margin: 0;
+    color: var(--text-light);
+}
+
+.admin-backup-card-status {
+    display: inline-flex;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #fff4d9;
+    color: #b26b00;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.admin-backup-card strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 1.75rem;
+    color: var(--text-dark);
+}
+
+/* Responsive */
+@media (max-width: 1360px) {
+    .admin-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-backup-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1120px) {
+    .admin-grid-2,
+    .admin-grid-roles,
+    .admin-roles-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .admin-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

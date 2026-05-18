@@ -5,6 +5,7 @@ import AdminSidebar from "../components/AdminSidebar";
 import AdminTopbar from "../components/AdminTopbar";
 import BackupSection from "../components/BackupSection";
 import "../styles/AdminDashboard.css";
+import "../styles/AdminSection.css";
 
 const usersData = [
   { id: "USR-001", name: "Prof. Arben Hoxha", email: "a.hoxha@umib.edu", role: "Professor", status: "Active", faculty: "FSHN" },
