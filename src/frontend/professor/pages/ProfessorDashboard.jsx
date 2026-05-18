@@ -1387,36 +1387,15 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>{t("professor.dashboard.registerPublication")}</h3>
-                  <p>Shkruani DOI dhe shtypni “Merr metadata” qe publikimi te ruhet automatikisht.</p>
+                  <h3>Shto publikim me DOI</h3>
+                  <p>
+                    Shkruani DOI e publikimit dhe sistemi do te marre automatikisht
+                    metadata si titulli, autoret, journal/conference, viti dhe te dhena te tjera.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  className="prof-btn-secondary"
-                  onClick={() => {
-                    setIsManualPublicationOpen((isOpen) => !isOpen);
-                    setPublicationsError("");
-                  }}
-                >
-                  {isManualPublicationOpen ? "Close form" : "Fill publication manually"}
-                </button>
               </div>
 
               <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
-
-              {isManualPublicationOpen ? (
-                <PublicationForm
-                  value={manualPublicationDraft}
-                  onChange={setManualPublicationDraft}
-                  onSubmit={saveManualPublication}
-                  onCancel={() => {
-                    resetManualPublicationDraft();
-                    setIsManualPublicationOpen(false);
-                  }}
-                  submitLabel="Save publication"
-                  submitting={publicationActionId === "manual"}
-                />
-              ) : null}
             </article>
 
             {editingPublicationId ? (

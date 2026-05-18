@@ -21,6 +21,7 @@ export function normalizeDoi(input) {
       .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "")
       .replace(/^doi:\s*/i, "")
       .split(/[?#]/)[0]
+      .replace(/[.,;:]+$/g, "")
       .trim()
       .toLowerCase();
   } catch {

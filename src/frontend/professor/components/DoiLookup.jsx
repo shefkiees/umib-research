@@ -37,8 +37,17 @@ const DoiLookup = ({ onPublicationSaved }) => {
     setSaveStatus("");
   };
 
+  const normalizeDoiInput = (value) =>
+    String(value || "")
+      .trim()
+      .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "")
+      .replace(/^doi:\s*/i, "")
+      .split(/[?#]/)[0]
+      .replace(/[.,;:]+$/g, "")
+      .trim();
+
   const handleFetch = async () => {
-    const trimmedDoi = doi.trim();
+    const trimmedDoi = normalizeDoiInput(doi);
 
     if (!trimmedDoi) {
       setError(t("professor.doi.required"));
@@ -53,6 +62,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
       resetMessages();
       setMetadata(null);
       setSavedPublication(null);
+      setDoi(trimmedDoi);
 
       const res = await fetch(apiUrl(`/doi/${encodeURIComponent(trimmedDoi)}`));
       const result = await res.json().catch(() => ({}));
