@@ -10,6 +10,7 @@ import CommitteeDashboard from "./frontend/committee/pages/CommitteeDashboard";
 import NotificationsPage from "./frontend/committee/pages/NotificationsPage";
 import CommitteeSettings from "./frontend/committee/pages/CommitteeSettings";
 import ProfessorConferences from "./frontend/professor/pages/ProfessorConferences";
+import AdminDashboard from "./frontend/admin/pages/AdminDashboard";
 import { LanguageProvider } from "./frontend/i18n/LanguageContext";
 
 function GoogleAuthRedirect() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
           <Route path="/prorector/dashboard" element={<ProRectorDashboard />} />
           <Route path="/committee/dashboard" element={<CommitteeDashboard />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/committee/notifications" element={<NotificationsPage />} />
           <Route path="/committee/settings" element={<CommitteeSettings />} />
           <Route path="/professor/conferences" element={<ProfessorConferences />} />
