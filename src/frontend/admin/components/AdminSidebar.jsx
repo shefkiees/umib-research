@@ -4,8 +4,9 @@ import {
   ShieldCheck,
   ClipboardList,
   Database,
-  GraduationCap,
 } from "lucide-react";
+import umibLogo from "../../../assets/umiblogo.jpg";
+import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
   { label: "Përdoruesit", route: "Përdoruesit", icon: Users },
@@ -20,10 +21,10 @@ export default function AdminSidebar({ activePage, onNavigate, navLabels }) {
       <div className="admin-sidebar-top">
         <div className="admin-brand">
           <span className="admin-brand-icon">
-            <GraduationCap size={20} />
+            <TransparentLogo src={umibLogo} alt="UMIB logo" className="admin-brand-logo" threshold={196} />
           </span>
           <div className="admin-brand-text">
-            <h2>UMIBRes</h2>
+            <h2>UMIBRES</h2>
             <p>Admin Console</p>
           </div>
         </div>
