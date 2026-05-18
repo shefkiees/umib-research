@@ -353,6 +353,50 @@ const PUBLICATION_SELECT_SQL = `
   ), '[]'::jsonb) as attachments
 `;
 
+const LEGACY_PUBLICATION_SELECT_SQL = `
+  p.id, p.owner_id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
+  m.container_title, m.publisher, m.year, m.source_url
+`;
+
+let unifiedPublicationSchemaCache = null;
+
+async function hasUnifiedPublicationSchema(dbOrClient) {
+  if (unifiedPublicationSchemaCache !== null) {
+    return unifiedPublicationSchemaCache;
+  }
+
+  const columnsResult = await dbOrClient.query(
+    `select column_name
+     from information_schema.columns
+     where table_schema = current_schema()
+       and table_name = 'publications'
+       and column_name in (
+         'abstract',
+         'publication_type',
+         'publisher',
+         'publication_date',
+         'source_url',
+         'volume',
+         'issue',
+         'pages',
+         'issn',
+         'isbn',
+         'metadata_source',
+         'metadata_verified',
+         'external_metadata_id'
+       )`
+  );
+  const tablesResult = await dbOrClient.query(
+    `select table_name
+     from information_schema.tables
+     where table_schema = current_schema()
+       and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
+  );
+
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 13 && tablesResult.rows.length === 4;
+  return unifiedPublicationSchemaCache;
+}
+
 async function replacePublicationChildren(client, publicationId, values) {
   await Promise.all([
     client.query("delete from publication_authors where publication_id = $1", [publicationId]),
@@ -415,12 +459,30 @@ async function replacePublicationChildren(client, publicationId, values) {
 }
 
 async function fetchPublicationById(client, publicationId, ownerId) {
+  const isUnified = await hasUnifiedPublicationSchema(client);
+
   const { rows } = await client.query(
-    `select ${PUBLICATION_SELECT_SQL}
+    `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
+     ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
      where p.id = $1 and p.owner_id = $2
      limit 1`,
     [publicationId, ownerId]
+  );
+
+  return rows[0] || null;
+}
+
+async function fetchPublicationByDoi(client, ownerId, doi) {
+  const isUnified = await hasUnifiedPublicationSchema(client);
+
+  const { rows } = await client.query(
+    `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
+     from publications p
+     ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+     where p.owner_id = $1 and p.doi = $2
+     limit 1`,
+    [ownerId, doi]
   );
 
   return rows[0] || null;
@@ -492,6 +554,51 @@ function metadataToPublicationPayload(metadata = {}) {
 }
 
 async function createPublication(client, ownerId, values) {
+  const isUnified = await hasUnifiedPublicationSchema(client);
+
+  if (!isUnified) {
+    const existing = values.doi ? await fetchPublicationByDoi(client, ownerId, values.doi) : null;
+
+    if (existing) {
+      await client.query(
+        `update publications
+         set title = $3,
+             venue = $4,
+             publication_year = $5,
+             status = $6,
+             updated_at = now()
+         where id = $1 and owner_id = $2`,
+        [
+          existing.id,
+          ownerId,
+          values.title,
+          values.venue || null,
+          values.publicationYear,
+          values.status,
+        ]
+      );
+
+      return fetchPublicationById(client, existing.id, ownerId);
+    }
+
+    const { rows } = await client.query(
+      `insert into publications
+       (owner_id, doi, title, venue, publication_year, status)
+       values ($1, $2, $3, $4, $5, $6)
+       returning id`,
+      [
+        ownerId,
+        values.doi,
+        values.title,
+        values.venue || null,
+        values.publicationYear,
+        values.status,
+      ]
+    );
+
+    return fetchPublicationById(client, rows[0].id, ownerId);
+  }
+
   const { rows } = await client.query(
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
@@ -535,17 +642,6 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 
   if (q) {
     params.push(`%${q}%`);
-    filters.push(`(
-      p.title ilike $${params.length}
-      or p.venue ilike $${params.length}
-      or p.publisher ilike $${params.length}
-      or p.doi ilike $${params.length}
-      or p.abstract ilike $${params.length}
-      or p.publication_type ilike $${params.length}
-      or cast(p.publication_year as text) ilike $${params.length}
-      or exists (select 1 from publication_authors pa where pa.publication_id = p.id and pa.full_name ilike $${params.length})
-      or exists (select 1 from publication_indexing pi where pi.publication_id = p.id and pi.source ilike $${params.length})
-    )`);
   }
 
   if (status) {
@@ -558,17 +654,35 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     filters.push(`p.status = $${params.length}`);
   }
 
-  const whereClause = filters.join(" and ");
-
   try {
+    const isUnified = await hasUnifiedPublicationSchema(db);
+
+    if (q) {
+      filters.push(isUnified
+        ? `(
+            p.title ilike $${params.length}
+            or p.venue ilike $${params.length}
+            or p.publisher ilike $${params.length}
+            or p.doi ilike $${params.length}
+            or p.abstract ilike $${params.length}
+            or p.publication_type ilike $${params.length}
+            or cast(p.publication_year as text) ilike $${params.length}
+            or exists (select 1 from publication_authors pa where pa.publication_id = p.id and pa.full_name ilike $${params.length})
+            or exists (select 1 from publication_indexing pi where pi.publication_id = p.id and pi.source ilike $${params.length})
+          )`
+        : `(p.title ilike $${params.length} or p.venue ilike $${params.length} or p.doi ilike $${params.length} or m.publisher ilike $${params.length} or m.container_title ilike $${params.length})`);
+    }
+
+    const resolvedWhereClause = filters.join(" and ");
     const dataParams = [...params, limit, offset];
     const limitParam = dataParams.length - 1;
     const offsetParam = dataParams.length;
     const [listResult, countResult] = await Promise.all([
       db.query(
-        `select ${PUBLICATION_SELECT_SQL}
+        `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
          from publications p
-         where ${whereClause}
+         ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+         where ${resolvedWhereClause}
          order by p.updated_at desc, p.created_at desc
          limit $${limitParam} offset $${offsetParam}`,
         dataParams
@@ -576,7 +690,8 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
       db.query(
         `select count(*)::int as total
          from publications p
-         where ${whereClause}`,
+         ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+         where ${resolvedWhereClause}`,
         params
       ),
     ]);
@@ -650,18 +765,12 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
   try {
     await client.query("begin");
 
-    const existingResult = await client.query(
-      `select ${PUBLICATION_SELECT_SQL}
-       from publications p
-       where p.owner_id = $1 and p.doi = $2
-       limit 1`,
-      [req.user.id, doi]
-    );
+    const existingPublication = await fetchPublicationByDoi(client, req.user.id, doi);
 
-    if (existingResult.rows[0]) {
+    if (existingPublication) {
       await client.query("commit");
-      sendPublicationError(res, 409, "duplicate_publication", "Ky publikim ekziston tashme ne listen tuaj.", {
-        data: mapPublication(existingResult.rows[0]),
+      res.status(200).json({
+        data: mapPublication(existingPublication),
         duplicate: true,
       });
       return;
@@ -713,52 +822,72 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
   try {
     await client.query("begin");
 
-    const { rows } = await client.query(
-      `update publications
-       set doi = $3,
-           title = $4,
-           abstract = $5,
-           publication_type = $6,
-           venue = $7,
-           publisher = $8,
-           publication_date = $9::date,
-           publication_year = $10,
-           source_url = $11,
-           volume = $12,
-           issue = $13,
-           pages = $14,
-           issn = $15,
-           isbn = $16,
-           status = $17,
-           metadata_source = $18,
-           metadata_verified = $19,
-           external_metadata_id = $20,
-           updated_at = now()
-       where id = $1 and owner_id = $2
-       returning id`,
-      [
-        req.params.id,
-        req.user.id,
-        values.doi,
-        values.title,
-        values.abstract,
-        values.publicationType,
-        values.venue || null,
-        values.publisher,
-        values.publicationDate,
-        values.publicationYear,
-        values.sourceUrl,
-        values.volume,
-        values.issue,
-        values.pages,
-        values.issn,
-        values.isbn,
-        values.status,
-        values.metadataSource,
-        values.metadataVerified,
-        values.externalMetadataId,
-      ]
-    );
+    const isUnified = await hasUnifiedPublicationSchema(client);
+    const { rows } = isUnified
+      ? await client.query(
+          `update publications
+           set doi = $3,
+               title = $4,
+               abstract = $5,
+               publication_type = $6,
+               venue = $7,
+               publisher = $8,
+               publication_date = $9::date,
+               publication_year = $10,
+               source_url = $11,
+               volume = $12,
+               issue = $13,
+               pages = $14,
+               issn = $15,
+               isbn = $16,
+               status = $17,
+               metadata_source = $18,
+               metadata_verified = $19,
+               external_metadata_id = $20,
+               updated_at = now()
+           where id = $1 and owner_id = $2
+           returning id`,
+          [
+            req.params.id,
+            req.user.id,
+            values.doi,
+            values.title,
+            values.abstract,
+            values.publicationType,
+            values.venue || null,
+            values.publisher,
+            values.publicationDate,
+            values.publicationYear,
+            values.sourceUrl,
+            values.volume,
+            values.issue,
+            values.pages,
+            values.issn,
+            values.isbn,
+            values.status,
+            values.metadataSource,
+            values.metadataVerified,
+            values.externalMetadataId,
+          ]
+        )
+      : await client.query(
+          `update publications
+           set title = $3,
+               venue = $4,
+               publication_year = $5,
+               status = $6,
+               updated_at = now()
+           where id = $1 and owner_id = $2
+           returning id`,
+          [
+            req.params.id,
+            req.user.id,
+            values.title,
+            values.venue || null,
+            values.publicationYear,
+            values.status,
+          ]
+        );
 
     if (!rows[0]) {
       await client.query("rollback");
@@ -766,7 +895,9 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    await replacePublicationChildren(client, rows[0].id, values);
+    if (isUnified) {
+      await replacePublicationChildren(client, rows[0].id, values);
+    }
     const row = await fetchPublicationById(client, rows[0].id, req.user.id);
     await client.query("commit");
     res.json({ data: mapPublication(row) });
