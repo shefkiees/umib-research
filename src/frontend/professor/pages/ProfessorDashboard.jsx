@@ -26,9 +26,12 @@ import {
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
-import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
+import PublicationForm, {
+  createEmptyPublicationDraft,
+  publicationToDraft,
+} from "../components/PublicationForm";
 import { apiUrl } from "../../utils/api";
 import { sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -128,10 +131,27 @@ const mapPublicationRow = (row = {}) => ({
   id: row.id || row.doi || row.title,
   doi: row.doi || "",
   title: row.title || "Pa titull",
+  abstract: row.abstract || "",
+  publicationType: row.publicationType || row.publication_type || "",
   journal: row.venue || row.publisher || "Pa reviste/konference",
+  venue: row.venue || "",
+  publisher: row.publisher || "",
+  publicationDate: row.publicationDate || row.publication_date || "",
   year: row.publicationYear || row.publication_year || "",
+  publicationYear: row.publicationYear || row.publication_year || "",
   status: row.status || "draft",
   sourceUrl: row.sourceUrl || row.source_url || "",
+  volume: row.volume || "",
+  issue: row.issue || "",
+  pages: row.pages || "",
+  issn: row.issn || "",
+  isbn: row.isbn || "",
+  authors: Array.isArray(row.authors) ? row.authors : [],
+  indexing: Array.isArray(row.indexing) ? row.indexing : [],
+  attachments: Array.isArray(row.attachments) ? row.attachments : [],
+  metadataSource: row.metadataSource || row.metadata_source || "manual",
+  metadataVerified: Boolean(row.metadataVerified ?? row.metadata_verified),
+  externalMetadataId: row.externalMetadataId || row.external_metadata_id || "",
   createdAt: row.createdAt || row.created_at || null,
 });
 
@@ -253,18 +273,8 @@ export default function ProfessorDashboard() {
   });
   const [editingPublicationId, setEditingPublicationId] = useState("");
   const [isManualPublicationOpen, setIsManualPublicationOpen] = useState(false);
-  const [publicationDraft, setPublicationDraft] = useState({
-    title: "",
-    venue: "",
-    publicationYear: "",
-    status: "draft",
-  });
-  const [manualPublicationDraft, setManualPublicationDraft] = useState({
-    title: "",
-    venue: "",
-    publicationYear: "",
-    status: "draft",
-  });
+  const [publicationDraft, setPublicationDraft] = useState(createEmptyPublicationDraft);
+  const [manualPublicationDraft, setManualPublicationDraft] = useState(createEmptyPublicationDraft);
   const [publicationActionId, setPublicationActionId] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
@@ -845,44 +855,20 @@ export default function ProfessorDashboard() {
 
   const startPublicationEdit = (publication) => {
     setEditingPublicationId(publication.id);
-    setPublicationDraft({
-      title: publication.title || "",
-      venue: publication.journal || "",
-      publicationYear: publication.year || "",
-      status: publication.status || "draft",
-    });
+    setPublicationDraft(publicationToDraft(publication));
     setPublicationsError("");
   };
 
   const cancelPublicationEdit = () => {
     setEditingPublicationId("");
-    setPublicationDraft({
-      title: "",
-      venue: "",
-      publicationYear: "",
-      status: "draft",
-    });
-  };
-
-  const handlePublicationDraftChange = (field) => (event) => {
-    setPublicationDraft((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleManualPublicationDraftChange = (field) => (event) => {
-    setManualPublicationDraft((prev) => ({ ...prev, [field]: event.target.value }));
+    setPublicationDraft(createEmptyPublicationDraft());
   };
 
   const resetManualPublicationDraft = () => {
-    setManualPublicationDraft({
-      title: "",
-      venue: "",
-      publicationYear: "",
-      status: "draft",
-    });
+    setManualPublicationDraft(createEmptyPublicationDraft());
   };
 
-  const saveManualPublication = async (event) => {
-    event.preventDefault();
+  const saveManualPublication = async () => {
     setPublicationActionId("manual");
     setPublicationsError("");
 
@@ -1337,44 +1323,7 @@ export default function ProfessorDashboard() {
   };
 
   const renderPublicationTitle = (row) => {
-    if (editingPublicationId !== row.id) {
-      return row.title;
-    }
-
-    return (
-      <div style={{ display: "grid", gap: "8px", maxWidth: "620px" }}>
-        <input
-          value={publicationDraft.title}
-          onChange={handlePublicationDraftChange("title")}
-          style={{ width: "100%" }}
-          aria-label={t("professor.dashboard.publicationTitleAria")}
-        />
-        <input
-          value={publicationDraft.venue}
-          onChange={handlePublicationDraftChange("venue")}
-          placeholder={t("professor.dashboard.venuePlaceholder")}
-          aria-label={t("professor.dashboard.venueAria")}
-        />
-        <input
-          value={publicationDraft.publicationYear}
-          onChange={handlePublicationDraftChange("publicationYear")}
-          placeholder={t("professor.dashboard.yearPlaceholder")}
-          inputMode="numeric"
-          aria-label={t("professor.dashboard.yearPlaceholder")}
-        />
-        <select
-          value={publicationDraft.status}
-          onChange={handlePublicationDraftChange("status")}
-          aria-label={t("common.status")}
-        >
-          <option value="draft">{t("professor.dashboard.draft")}</option>
-          <option value="submitted">{getStatusLabel("submitted")}</option>
-          <option value="in_review">{getStatusLabel("in_review")}</option>
-          <option value="approved">{getStatusLabel("approved")}</option>
-          <option value="rejected">{getStatusLabel("rejected")}</option>
-        </select>
-      </div>
-    );
+    return row.title;
   };
 
   const renderPublicationActions = (row) => {
@@ -1437,8 +1386,8 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>{t("professor.doi.title")}</h3>
-                  <p>{t("professor.dashboard.doiDescription")}</p>
+                  <h3>{t("professor.dashboard.registerPublication")}</h3>
+                  <p>Use DOI as a prefill helper or fill the same publication form manually.</p>
                 </div>
                 <button
                   type="button"
@@ -1448,78 +1397,44 @@ export default function ProfessorDashboard() {
                     setPublicationsError("");
                   }}
                 >
-                  {isManualPublicationOpen ? "Mbyll formen" : "Shto manualisht"}
+                  {isManualPublicationOpen ? "Close form" : "Fill publication manually"}
                 </button>
               </div>
 
               {isManualPublicationOpen ? (
-                <form className="prof-manual-publication-form" onSubmit={saveManualPublication}>
-                  <div className="prof-form-grid">
-                    <label className="prof-form-field">
-                      <span>Titulli</span>
-                      <input
-                        value={manualPublicationDraft.title}
-                        onChange={handleManualPublicationDraftChange("title")}
-                        placeholder="Titulli i publikimit"
-                        required
-                      />
-                    </label>
-                    <label className="prof-form-field">
-                      <span>Revista / Konferenca</span>
-                      <input
-                        value={manualPublicationDraft.venue}
-                        onChange={handleManualPublicationDraftChange("venue")}
-                        placeholder="Emri i revistes ose konferences"
-                      />
-                    </label>
-                    <label className="prof-form-field">
-                      <span>Viti</span>
-                      <input
-                        value={manualPublicationDraft.publicationYear}
-                        onChange={handleManualPublicationDraftChange("publicationYear")}
-                        placeholder="2026"
-                        inputMode="numeric"
-                      />
-                    </label>
-                    <label className="prof-form-field">
-                      <span>Statusi</span>
-                      <select
-                        value={manualPublicationDraft.status}
-                        onChange={handleManualPublicationDraftChange("status")}
-                      >
-                        <option value="draft">{t("professor.dashboard.draft")}</option>
-                        <option value="submitted">{getStatusLabel("submitted")}</option>
-                        <option value="in_review">{getStatusLabel("in_review")}</option>
-                        <option value="approved">{getStatusLabel("approved")}</option>
-                        <option value="rejected">{getStatusLabel("rejected")}</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="prof-modal-actions">
-                    <button
-                      type="button"
-                      className="prof-btn-secondary"
-                      onClick={() => {
-                        resetManualPublicationDraft();
-                        setIsManualPublicationOpen(false);
-                      }}
-                      disabled={publicationActionId === "manual"}
-                    >
-                      {t("common.cancel")}
-                    </button>
-                    <button
-                      type="submit"
-                      className="prof-btn-primary"
-                      disabled={publicationActionId === "manual"}
-                    >
-                      {publicationActionId === "manual" ? t("common.loading") : "Ruaj publikimin"}
-                    </button>
-                  </div>
-                </form>
+                <PublicationForm
+                  value={manualPublicationDraft}
+                  onChange={setManualPublicationDraft}
+                  onSubmit={saveManualPublication}
+                  onCancel={() => {
+                    resetManualPublicationDraft();
+                    setIsManualPublicationOpen(false);
+                  }}
+                  submitLabel="Save publication"
+                  submitting={publicationActionId === "manual"}
+                />
               ) : null}
-
-              <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
             </article>
+
+            {editingPublicationId ? (
+              <article className="prof-card" style={{ marginBottom: "20px" }}>
+                <div className="prof-card-header">
+                  <div>
+                    <h3>Edit publication</h3>
+                    <p>All publication records use the same metadata fields, whether DOI-assisted or manual.</p>
+                  </div>
+                </div>
+                <PublicationForm
+                  value={publicationDraft}
+                  onChange={setPublicationDraft}
+                  onSubmit={() => savePublicationEdit(editingPublicationId)}
+                  onCancel={cancelPublicationEdit}
+                  submitLabel="Save changes"
+                  submitting={publicationActionId === editingPublicationId}
+                  mode="edit"
+                />
+              </article>
+            ) : null}
 
             {renderListSection(
               t("navigation.publications"),
