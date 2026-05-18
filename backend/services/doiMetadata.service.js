@@ -67,6 +67,8 @@ function mapMetadata(data, doi) {
     volume: normalizeText(data.volume),
     issue: normalizeText(data.issue),
     pages: normalizeText(data.page),
+    issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
+    isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type: normalizeText(data.type),
     abstract: normalizeText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
@@ -77,7 +79,7 @@ function mapMetadata(data, doi) {
 export async function getCachedDoiMetadata(db, doi) {
   const { rows } = await db.query(
     `select doi, title, authors, container_title, publisher, published_date, year,
-            volume, issue, pages, type, abstract, source_url, raw_json, created_at, updated_at
+            volume, issue, pages, issn, isbn, type, abstract, source_url, raw_json, created_at, updated_at
      from publication_metadata
      where doi = $1
      limit 1`,
@@ -90,8 +92,8 @@ export async function getCachedDoiMetadata(db, doi) {
 export async function upsertDoiMetadata(dbOrClient, metadata) {
   await dbOrClient.query(
     `insert into publication_metadata
-     (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, type, abstract, source_url, raw_json)
-     values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
+     (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, issn, isbn, type, abstract, source_url, raw_json)
+     values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)
      on conflict (doi) do update set
        title = excluded.title,
        authors = excluded.authors,
@@ -102,6 +104,8 @@ export async function upsertDoiMetadata(dbOrClient, metadata) {
        volume = excluded.volume,
        issue = excluded.issue,
        pages = excluded.pages,
+       issn = excluded.issn,
+       isbn = excluded.isbn,
        type = excluded.type,
        abstract = excluded.abstract,
        source_url = excluded.source_url,
@@ -118,6 +122,8 @@ export async function upsertDoiMetadata(dbOrClient, metadata) {
       metadata.volume,
       metadata.issue,
       metadata.pages,
+      metadata.issn,
+      metadata.isbn,
       metadata.type,
       metadata.abstract,
       metadata.source_url,

@@ -136,6 +136,8 @@ create table if not exists publication_metadata (
   volume text not null default '',
   issue text not null default '',
   pages text not null default '',
+  issn text not null default '',
+  isbn text not null default '',
   type text not null default '',
   abstract text not null default '',
   source_url text not null default '',
@@ -143,6 +145,9 @@ create table if not exists publication_metadata (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table publication_metadata add column if not exists issn text not null default '';
+alter table publication_metadata add column if not exists isbn text not null default '';
 
 create index if not exists publication_metadata_year_idx
 on publication_metadata (year);
@@ -155,15 +160,69 @@ for each row execute function set_updated_at();
 create table if not exists publications (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid references users(id) on delete set null,
-  doi text references publication_metadata(doi) on delete set null,
+  doi text,
   title text not null,
+  abstract text not null default '',
+  publication_type text not null default '',
   venue text,
+  publisher text not null default '',
+  publication_date date,
   publication_year integer,
+  source_url text not null default '',
+  volume text not null default '',
+  issue text not null default '',
+  pages text not null default '',
+  issn text not null default '',
+  isbn text not null default '',
+  metadata_source text not null default 'manual',
+  metadata_verified boolean not null default false,
+  external_metadata_id text references publication_metadata(doi) on delete set null,
   status text not null default 'draft'
     check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table publications drop constraint if exists publications_doi_fkey;
+alter table publications add column if not exists abstract text not null default '';
+alter table publications add column if not exists publication_type text not null default '';
+alter table publications add column if not exists publisher text not null default '';
+alter table publications add column if not exists publication_date date;
+alter table publications add column if not exists source_url text not null default '';
+alter table publications add column if not exists volume text not null default '';
+alter table publications add column if not exists issue text not null default '';
+alter table publications add column if not exists pages text not null default '';
+alter table publications add column if not exists issn text not null default '';
+alter table publications add column if not exists isbn text not null default '';
+alter table publications add column if not exists metadata_source text not null default 'manual';
+alter table publications add column if not exists metadata_verified boolean not null default false;
+alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
+
+update publications p
+set
+  abstract = coalesce(nullif(p.abstract, ''), m.abstract, ''),
+  publication_type = coalesce(nullif(p.publication_type, ''), m.type, ''),
+  publisher = coalesce(nullif(p.publisher, ''), m.publisher, ''),
+  publication_date = coalesce(
+    p.publication_date,
+    case
+      when m.published_date ~ '^\d{4}-\d{1,2}-\d{1,2}$' then m.published_date::date
+      when m.published_date ~ '^\d{4}-\d{1,2}$' then (m.published_date || '-01')::date
+      when m.year is not null then make_date(m.year, 1, 1)
+      else null
+    end
+  ),
+  source_url = coalesce(nullif(p.source_url, ''), m.source_url, ''),
+  volume = coalesce(nullif(p.volume, ''), m.volume, ''),
+  issue = coalesce(nullif(p.issue, ''), m.issue, ''),
+  pages = coalesce(nullif(p.pages, ''), m.pages, ''),
+  issn = coalesce(nullif(p.issn, ''), m.issn, ''),
+  isbn = coalesce(nullif(p.isbn, ''), m.isbn, ''),
+  metadata_source = case when p.metadata_source = 'manual' and p.doi is not null then 'doi' else p.metadata_source end,
+  metadata_verified = case when p.doi is not null then true else p.metadata_verified end,
+  external_metadata_id = coalesce(p.external_metadata_id, p.doi)
+from publication_metadata m
+where p.doi = m.doi;
 
 create index if not exists publications_owner_id_idx
 on publications (owner_id);
@@ -174,6 +233,89 @@ where doi is not null;
 
 create index if not exists publications_owner_updated_at_idx
 on publications (owner_id, updated_at desc, created_at desc);
+
+create index if not exists publications_owner_year_idx
+on publications (owner_id, publication_year);
+
+create index if not exists publications_owner_type_idx
+on publications (owner_id, publication_type);
+
+create table if not exists publication_authors (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid not null references publications(id) on delete cascade,
+  full_name text not null default '',
+  given_name text not null default '',
+  family_name text not null default '',
+  orcid text not null default '',
+  affiliation text not null default '',
+  is_main_author boolean not null default false,
+  is_corresponding_author boolean not null default false,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists publication_authors_publication_idx
+on publication_authors (publication_id, position, created_at);
+
+create table if not exists publication_identifiers (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid not null references publications(id) on delete cascade,
+  identifier_type text not null,
+  identifier_value text not null,
+  created_at timestamptz not null default now(),
+  unique (publication_id, identifier_type, identifier_value)
+);
+
+create index if not exists publication_identifiers_publication_idx
+on publication_identifiers (publication_id);
+
+create table if not exists publication_indexing (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid not null references publications(id) on delete cascade,
+  source text not null default '',
+  quartile text not null default '',
+  impact_factor text not null default '',
+  indexed_url text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists publication_indexing_publication_idx
+on publication_indexing (publication_id);
+
+create table if not exists publication_attachments (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid not null references publications(id) on delete cascade,
+  file_url text not null default '',
+  file_type text not null default '',
+  uploaded_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists publication_attachments_publication_idx
+on publication_attachments (publication_id, uploaded_at desc);
+
+drop trigger if exists publication_authors_set_updated_at on publication_authors;
+create trigger publication_authors_set_updated_at
+before update on publication_authors
+for each row execute function set_updated_at();
+
+drop trigger if exists publication_indexing_set_updated_at on publication_indexing;
+create trigger publication_indexing_set_updated_at
+before update on publication_indexing
+for each row execute function set_updated_at();
+
+insert into publication_authors (publication_id, full_name, position)
+select p.id, author_name, author_position
+from publications p
+join publication_metadata m on m.doi = p.doi
+cross join lateral jsonb_array_elements_text(m.authors) with ordinality as author(author_name, author_position)
+where not exists (
+  select 1
+  from publication_authors pa
+  where pa.publication_id = p.id
+);
 
 drop trigger if exists publications_set_updated_at on publications;
 create trigger publications_set_updated_at
@@ -316,6 +458,10 @@ alter table departments enable row level security;
 alter table conferences enable row level security;
 alter table publication_metadata enable row level security;
 alter table publications enable row level security;
+alter table publication_authors enable row level security;
+alter table publication_identifiers enable row level security;
+alter table publication_indexing enable row level security;
+alter table publication_attachments enable row level security;
 alter table reimbursements enable row level security;
 alter table reimbursement_status_history enable row level security;
 alter table reimbursement_attachments enable row level security;
