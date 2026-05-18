@@ -980,7 +980,8 @@ body {
   font-weight: 600;
 }
 
-.prof-form-field input {
+.prof-form-field input,
+.prof-form-field select {
   height: 44px;
   border-radius: 10px;
   border: 1px solid #d8e2ee;
@@ -990,7 +991,8 @@ body {
   color: var(--text-dark);
 }
 
-.prof-form-field input:focus {
+.prof-form-field input:focus,
+.prof-form-field select:focus {
   outline: none;
   border-color: #2563eb;
   background: #ffffff;
@@ -1134,6 +1136,16 @@ body {
   margin: 0;
   color: var(--text-light);
   font-size: 0.9rem;
+}
+
+.prof-manual-publication-form {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .prof-filter-wrap {

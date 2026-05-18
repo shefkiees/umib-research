@@ -252,7 +252,14 @@ export default function ProfessorDashboard() {
     totalPages: 1,
   });
   const [editingPublicationId, setEditingPublicationId] = useState("");
+  const [isManualPublicationOpen, setIsManualPublicationOpen] = useState(false);
   const [publicationDraft, setPublicationDraft] = useState({
+    title: "",
+    venue: "",
+    publicationYear: "",
+    status: "draft",
+  });
+  const [manualPublicationDraft, setManualPublicationDraft] = useState({
     title: "",
     venue: "",
     publicationYear: "",
@@ -861,6 +868,50 @@ export default function ProfessorDashboard() {
     setPublicationDraft((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const handleManualPublicationDraftChange = (field) => (event) => {
+    setManualPublicationDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const resetManualPublicationDraft = () => {
+    setManualPublicationDraft({
+      title: "",
+      venue: "",
+      publicationYear: "",
+      status: "draft",
+    });
+  };
+
+  const saveManualPublication = async (event) => {
+    event.preventDefault();
+    setPublicationActionId("manual");
+    setPublicationsError("");
+
+    try {
+      const response = await fetch(apiUrl("/publications"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(manualPublicationDraft),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Publikimi nuk u ruajt.");
+      }
+
+      resetManualPublicationDraft();
+      setIsManualPublicationOpen(false);
+      setPublicationsPage(1);
+      await loadPublications({ page: 1, query: searchQuery });
+    } catch (error) {
+      setPublicationsError(error.message || "Publikimi nuk u ruajt.");
+    } finally {
+      setPublicationActionId("");
+    }
+  };
+
   const savePublicationEdit = async (id) => {
     setPublicationActionId(id);
     setPublicationsError("");
@@ -1389,7 +1440,83 @@ export default function ProfessorDashboard() {
                   <h3>{t("professor.doi.title")}</h3>
                   <p>{t("professor.dashboard.doiDescription")}</p>
                 </div>
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={() => {
+                    setIsManualPublicationOpen((isOpen) => !isOpen);
+                    setPublicationsError("");
+                  }}
+                >
+                  {isManualPublicationOpen ? "Mbyll formen" : "Shto manualisht"}
+                </button>
               </div>
+
+              {isManualPublicationOpen ? (
+                <form className="prof-manual-publication-form" onSubmit={saveManualPublication}>
+                  <div className="prof-form-grid">
+                    <label className="prof-form-field">
+                      <span>Titulli</span>
+                      <input
+                        value={manualPublicationDraft.title}
+                        onChange={handleManualPublicationDraftChange("title")}
+                        placeholder="Titulli i publikimit"
+                        required
+                      />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>Revista / Konferenca</span>
+                      <input
+                        value={manualPublicationDraft.venue}
+                        onChange={handleManualPublicationDraftChange("venue")}
+                        placeholder="Emri i revistes ose konferences"
+                      />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>Viti</span>
+                      <input
+                        value={manualPublicationDraft.publicationYear}
+                        onChange={handleManualPublicationDraftChange("publicationYear")}
+                        placeholder="2026"
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>Statusi</span>
+                      <select
+                        value={manualPublicationDraft.status}
+                        onChange={handleManualPublicationDraftChange("status")}
+                      >
+                        <option value="draft">{t("professor.dashboard.draft")}</option>
+                        <option value="submitted">{getStatusLabel("submitted")}</option>
+                        <option value="in_review">{getStatusLabel("in_review")}</option>
+                        <option value="approved">{getStatusLabel("approved")}</option>
+                        <option value="rejected">{getStatusLabel("rejected")}</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="prof-modal-actions">
+                    <button
+                      type="button"
+                      className="prof-btn-secondary"
+                      onClick={() => {
+                        resetManualPublicationDraft();
+                        setIsManualPublicationOpen(false);
+                      }}
+                      disabled={publicationActionId === "manual"}
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      className="prof-btn-primary"
+                      disabled={publicationActionId === "manual"}
+                    >
+                      {publicationActionId === "manual" ? t("common.loading") : "Ruaj publikimin"}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
 
               <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
             </article>
