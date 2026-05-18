@@ -988,9 +988,8 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
     const [publicationsResult, conferencesResult] = await Promise.all([
       db.query(
         `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
-                m.container_title, m.publisher, m.year, m.source_url
+                p.publisher, p.source_url
          from publications p
-         left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`,
