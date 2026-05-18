@@ -148,6 +148,12 @@ create table if not exists publication_metadata (
 
 alter table publication_metadata add column if not exists issn text not null default '';
 alter table publication_metadata add column if not exists isbn text not null default '';
+alter table publication_metadata add column if not exists volume text not null default '';
+alter table publication_metadata add column if not exists issue text not null default '';
+alter table publication_metadata add column if not exists pages text not null default '';
+alter table publication_metadata add column if not exists type text not null default '';
+alter table publication_metadata add column if not exists abstract text not null default '';
+alter table publication_metadata add column if not exists raw_json jsonb not null default '{}'::jsonb;
 
 create index if not exists publication_metadata_year_idx
 on publication_metadata (year);
