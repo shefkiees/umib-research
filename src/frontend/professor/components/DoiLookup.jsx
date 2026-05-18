@@ -8,9 +8,9 @@ const DoiLookup = ({ onPublicationSaved }) => {
   const [doi, setDoi] = useState("");
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [savedPublication, setSavedPublication] = useState(null);
 
   const getDoiMessage = (result = {}, fallbackKey = "professor.doi.genericError") => {
     if (result.error === "invalid_doi") {
@@ -44,6 +44,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
       setError(t("professor.doi.required"));
       setMetadata(null);
       setSaveStatus("");
+      setSavedPublication(null);
       return;
     }
 
@@ -51,6 +52,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
       setLoading(true);
       resetMessages();
       setMetadata(null);
+      setSavedPublication(null);
 
       const res = await fetch(apiUrl(`/doi/${encodeURIComponent(trimmedDoi)}`));
       const result = await res.json().catch(() => ({}));
@@ -63,24 +65,8 @@ const DoiLookup = ({ onPublicationSaved }) => {
         throw new Error(t("professor.doi.notFound"));
       }
 
-      setMetadata(result.data);
-      setSaveStatus(t("professor.doi.previewReady"));
-    } catch (err) {
-      setError(err.message || t("professor.doi.genericError"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!metadata) {
-      setError(t("professor.doi.previewMissing"));
-      return;
-    }
-
-    try {
-      setSaving(true);
-      resetMessages();
+      const nextMetadata = result.data;
+      setMetadata(nextMetadata);
 
       const saveRes = await fetch(apiUrl("/publications/from-doi"), {
         method: "POST",
@@ -89,8 +75,8 @@ const DoiLookup = ({ onPublicationSaved }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          doi: metadata.doi || doi.trim(),
-          metadata,
+          doi: nextMetadata.doi || trimmedDoi,
+          metadata: nextMetadata,
         }),
       });
       const saveResult = await saveRes.json().catch(() => ({}));
@@ -99,25 +85,19 @@ const DoiLookup = ({ onPublicationSaved }) => {
         throw new Error(getDoiMessage(saveResult, "professor.doi.saveError"));
       }
 
-      setMetadata(null);
       setDoi("");
+      setSavedPublication(saveResult.data || null);
       setSaveStatus(t("professor.doi.saved"));
       await onPublicationSaved?.(saveResult.data || null);
     } catch (err) {
       setError(err.message || t("professor.doi.genericError"));
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const handleCancelPreview = () => {
-    setMetadata(null);
-    setError("");
-    setSaveStatus("");
-  };
-
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !loading && !saving) {
+    if (e.key === "Enter" && !loading) {
       handleFetch();
     }
   };
@@ -133,9 +113,10 @@ const DoiLookup = ({ onPublicationSaved }) => {
             setDoi(e.target.value);
             setMetadata(null);
             setSaveStatus("");
+            setSavedPublication(null);
           }}
           onKeyDown={handleKeyDown}
-          disabled={loading || saving}
+          disabled={loading}
           style={{
             flex: 1,
             padding: "10px",
@@ -145,15 +126,15 @@ const DoiLookup = ({ onPublicationSaved }) => {
         />
         <button
           onClick={handleFetch}
-          disabled={loading || saving}
+          disabled={loading}
           style={{
             padding: "10px 16px",
             border: "none",
             borderRadius: "6px",
             background: "#2563eb",
             color: "#fff",
-            cursor: loading || saving ? "not-allowed" : "pointer",
-            opacity: loading || saving ? 0.7 : 1
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1
           }}
         >
           {loading ? t("professor.doi.fetching") : t("professor.doi.fetch")}
@@ -163,49 +144,12 @@ const DoiLookup = ({ onPublicationSaved }) => {
       {loading && <p>{t("professor.doi.loading")}</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
-      {metadata && (
-        <DoiMetadataCard
-          metadata={metadata}
-          actions={
-            <>
-              <button
-                type="button"
-                onClick={handleCancelPreview}
-                disabled={saving}
-                style={{
-                  padding: "9px 15px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "6px",
-                  background: "#ffffff",
-                  color: "#153a63",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  fontWeight: 700,
-                  opacity: saving ? 0.7 : 1
-                }}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving || loading}
-                style={{
-                  padding: "9px 15px",
-                  border: "none",
-                  borderRadius: "6px",
-                  background: "#153a63",
-                  color: "#fff",
-                  cursor: saving || loading ? "not-allowed" : "pointer",
-                  fontWeight: 700,
-                  opacity: saving || loading ? 0.7 : 1
-                }}
-              >
-                {saving ? t("professor.doi.saving") : t("professor.doi.savePublication")}
-              </button>
-            </>
-          }
-        />
+      {savedPublication && (
+        <p style={{ color: "#475569", marginTop: "-6px" }}>
+          Publikimi: {savedPublication.title || savedPublication.doi}
+        </p>
       )}
+      {metadata && <DoiMetadataCard metadata={metadata} />}
     </div>
   );
 };
