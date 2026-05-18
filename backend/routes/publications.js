@@ -205,6 +205,36 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   }
 });
 
+router.post("/", requireAuthenticatedUser, async (req, res) => {
+  const { errors, values } = validatePublicationPayload(req.body);
+
+  if (errors.length) {
+    res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
+    return;
+  }
+
+  try {
+    const { rows } = await db.query(
+      `insert into publications
+       (owner_id, doi, title, venue, publication_year, status)
+       values ($1, null, $2, $3, $4, $5)
+       returning id, doi, title, venue, publication_year, status, created_at, updated_at`,
+      [
+        req.user.id,
+        values.title,
+        values.venue || null,
+        values.publicationYear,
+        values.status,
+      ]
+    );
+
+    res.status(201).json({ data: mapPublication(rows[0]) });
+  } catch (error) {
+    console.error("POST /api/publications failed:", error);
+    sendPublicationError(res, 500, "save_failed", "Publikimi nuk u ruajt.");
+  }
+});
+
 router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
   const rateLimit = checkDoiImportRateLimit(req);
 
