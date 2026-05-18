@@ -1,0 +1,59 @@
+import React from "react";
+import {
+  Users,
+  ShieldCheck,
+  ClipboardList,
+  Database,
+  GraduationCap,
+} from "lucide-react";
+
+const mainItems = [
+  { label: "Përdoruesit", route: "Përdoruesit", icon: Users },
+  { label: "Rolet", route: "Rolet", icon: ShieldCheck },
+  { label: "Audit Logs", route: "Audit Logs", icon: ClipboardList },
+  { label: "Backup", route: "Backup", icon: Database },
+];
+
+export default function AdminSidebar({ activePage, onNavigate, navLabels }) {
+  return (
+    <aside className="admin-sidebar">
+      <div className="admin-sidebar-top">
+        <div className="admin-brand">
+          <span className="admin-brand-icon">
+            <GraduationCap size={20} />
+          </span>
+          <div className="admin-brand-text">
+            <h2>UMIBRes</h2>
+            <p>Admin Console</p>
+          </div>
+        </div>
+
+        <div className="admin-sidebar-section">
+          <span className="admin-sidebar-label">MODULET</span>
+
+          <nav className="admin-nav" aria-label="Modulet navigimi">
+            {mainItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.route}
+                  className={`admin-nav-item ${
+                    activePage === item.route ? "is-active" : ""
+                  }`}
+                  type="button"
+                  onClick={() => onNavigate(item.route)}
+                >
+                  <span className="admin-nav-left">
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    </aside>
+  );
+}
