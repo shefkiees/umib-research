@@ -9,7 +9,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [saveStatus, setSaveStatus] = useState("");
   const [savedPublication, setSavedPublication] = useState(null);
 
   const getDoiMessage = (result = {}, fallbackKey = "professor.doi.genericError") => {
@@ -34,7 +33,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
   const resetMessages = () => {
     setError("");
-    setSaveStatus("");
   };
 
   const normalizeDoiInput = (value) =>
@@ -52,7 +50,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
     if (!trimmedDoi) {
       setError(t("professor.doi.required"));
       setMetadata(null);
-      setSaveStatus("");
       setSavedPublication(null);
       return;
     }
@@ -97,7 +94,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
       setDoi("");
       setSavedPublication(saveResult.data || null);
-      setSaveStatus(t("professor.doi.saved"));
       await onPublicationSaved?.(saveResult.data || null);
     } catch (err) {
       setError(err.message || t("professor.doi.genericError"));
@@ -122,7 +118,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
           onChange={(e) => {
             setDoi(e.target.value);
             setMetadata(null);
-            setSaveStatus("");
             setSavedPublication(null);
           }}
           onKeyDown={handleKeyDown}
@@ -153,7 +148,6 @@ const DoiLookup = ({ onPublicationSaved }) => {
 
       {loading && <p>{t("professor.doi.loading")}</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
-      {saveStatus && <p style={{ color: "#16803f", fontWeight: 700 }}>{saveStatus}</p>}
       {savedPublication && (
         <p style={{ color: "#475569", marginTop: "-6px" }}>
           Publikimi: {savedPublication.title || savedPublication.doi}
