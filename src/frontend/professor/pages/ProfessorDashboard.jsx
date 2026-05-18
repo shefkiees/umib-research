@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
+import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
 import PublicationForm, {
@@ -1387,7 +1388,7 @@ export default function ProfessorDashboard() {
               <div className="prof-card-header">
                 <div>
                   <h3>{t("professor.dashboard.registerPublication")}</h3>
-                  <p>Use DOI as a prefill helper or fill the same publication form manually.</p>
+                  <p>Shkruani DOI dhe shtypni “Merr metadata” qe publikimi te ruhet automatikisht.</p>
                 </div>
                 <button
                   type="button"
@@ -1400,6 +1401,8 @@ export default function ProfessorDashboard() {
                   {isManualPublicationOpen ? "Close form" : "Fill publication manually"}
                 </button>
               </div>
+
+              <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
 
               {isManualPublicationOpen ? (
                 <PublicationForm
