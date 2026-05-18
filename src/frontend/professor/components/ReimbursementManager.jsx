@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Landmark, Loader2, Plus, Save, Search, Sparkles, Trash2, Upload, Wallet } from "lucide-react";
+import { BookOpen, Download, FileText, Landmark, Loader2, Plus, Save, Search, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -1888,7 +1888,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
           <section className="reimbursement-section">
             <div className="reimbursement-section-head">
-              <Sparkles size={18} />
+              <BookOpen size={18} />
               <div>
                 <h4>{r.basicTitle}</h4>
                 <p>{r.basicDescription}</p>
