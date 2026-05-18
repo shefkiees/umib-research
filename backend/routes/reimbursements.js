@@ -420,6 +420,25 @@ function mapPublicationRow(row) {
   };
 }
 
+let publicationContextSchemaCache = null;
+
+async function hasPublicationContextColumns(dbOrClient) {
+  if (publicationContextSchemaCache !== null) {
+    return publicationContextSchemaCache;
+  }
+
+  const { rows } = await dbOrClient.query(
+    `select count(*)::int as count
+     from information_schema.columns
+     where table_schema = current_schema()
+       and table_name = 'publications'
+       and column_name in ('publisher', 'source_url')`
+  );
+
+  publicationContextSchemaCache = Number(rows[0]?.count || 0) === 2;
+  return publicationContextSchemaCache;
+}
+
 function mapConferenceRow(row) {
   return {
     id: row.id,
@@ -985,16 +1004,24 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const [publicationsResult, conferencesResult] = await Promise.all([
-      db.query(
-        `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
+    const hasPublicationColumns = await hasPublicationContextColumns(db);
+    const publicationsQuery = hasPublicationColumns
+      ? `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
                 p.publisher, p.source_url
          from publications p
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
-         limit 100`,
-        [req.user.id]
-      ),
+         limit 100`
+      : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
+                m.publisher, m.source_url
+         from publications p
+         left join publication_metadata m on m.doi = p.doi
+         where p.owner_id = $1
+         order by p.updated_at desc, p.created_at desc
+         limit 100`;
+
+    const [publicationsResult, conferencesResult] = await Promise.all([
+      db.query(publicationsQuery, [req.user.id]),
       db.query(
         `select id, title, acronym, field, location, submission_deadline, conference_date, website
          from conferences
