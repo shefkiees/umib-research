@@ -313,15 +313,58 @@ before update on publication_indexing
 for each row execute function set_updated_at();
 
 insert into publication_authors (publication_id, full_name, position)
-select p.id, author_name, author_position
+select p.id, trim(both '"' from author_item.value::text), author_item.author_position
 from publications p
 join publication_metadata m on m.doi = p.doi
-cross join lateral jsonb_array_elements_text(m.authors) with ordinality as author(author_name, author_position)
+cross join lateral jsonb_array_elements(m.authors) with ordinality as author_item(value, author_position)
 where not exists (
   select 1
   from publication_authors pa
   where pa.publication_id = p.id
-);
+)
+and jsonb_typeof(author_item.value) = 'string';
+
+update publications p
+set publication_type = case replace(lower(m.type), '-', '_')
+  when 'article_journal' then 'journal_article'
+  when 'journal_article' then 'journal_article'
+  when 'proceedings_article' then 'conference_paper'
+  when 'conference_paper' then 'conference_paper'
+  when 'book' then 'book'
+  when 'book_chapter' then 'chapter'
+  when 'chapter' then 'chapter'
+  when 'posted_content' then 'accepted_in_press'
+  when 'preprint' then 'accepted_in_press'
+  else publication_type
+end
+from publication_metadata m
+where m.doi = coalesce(p.external_metadata_id, p.doi)
+  and (
+    nullif(p.publication_type, '') is null
+    or p.publication_type = m.type
+    or p.publication_type not in ('journal_article', 'conference_paper', 'book', 'chapter', 'accepted_in_press')
+  );
+
+insert into publication_authors
+  (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, position)
+select
+  p.id,
+  coalesce(nullif(author_item.value->>'fullName', ''), nullif(author_item.value->>'full_name', ''), nullif(author_item.value->>'name', ''), trim(both '"' from author_item.value::text)),
+  coalesce(author_item.value->>'givenName', author_item.value->>'given_name', ''),
+  coalesce(author_item.value->>'familyName', author_item.value->>'family_name', ''),
+  regexp_replace(coalesce(author_item.value->>'orcid', ''), '^https?://orcid\.org/', ''),
+  coalesce(author_item.value->>'affiliation', ''),
+  author_item.author_position = 1,
+  author_item.author_position
+from publications p
+join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+cross join lateral jsonb_array_elements(m.authors) with ordinality as author_item(value, author_position)
+where not exists (
+  select 1
+  from publication_authors pa
+  where pa.publication_id = p.id
+)
+and jsonb_typeof(author_item.value) = 'object';
 
 drop trigger if exists publications_set_updated_at on publications;
 create trigger publications_set_updated_at

@@ -1391,6 +1391,11 @@ export default function ProfessorDashboard() {
                 submitLabel="Ruaj publikimin"
                 submitting={publicationActionId === "manual"}
                 canReview={canReviewPublications}
+                currentUserAuthor={{
+                  name: profile.name,
+                  orcid: profile.orcidId,
+                  affiliation: profile.currentAffiliation || profile.faculty,
+                }}
               />
             </article>
 
@@ -1411,6 +1416,11 @@ export default function ProfessorDashboard() {
                   submitting={publicationActionId === editingPublicationId}
                   mode="edit"
                   canReview={canReviewPublications}
+                  currentUserAuthor={{
+                    name: profile.name,
+                    orcid: profile.orcidId,
+                    affiliation: profile.currentAffiliation || profile.faculty,
+                  }}
                 />
               </article>
             ) : null}

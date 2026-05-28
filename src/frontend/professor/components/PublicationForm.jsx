@@ -59,29 +59,19 @@ export const createEmptyPublicationDraft = () => ({
 });
 
 function normalizePublicationAuthors(authors = []) {
-  let hasMainAuthor = false;
-  let hasCorrespondingAuthor = false;
+  const normalizedAuthors = authors.map((author) => (typeof author === "string" ? { fullName: author } : author || {}));
+  const mainAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isMainAuthor ?? author.is_main_author));
+  const correspondingAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author));
 
-  return authors.map((author) => {
-    const isMainAuthor = Boolean(author.isMainAuthor ?? author.is_main_author) && !hasMainAuthor;
-    const isCorrespondingAuthor = Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author) && !hasCorrespondingAuthor;
-
-    if (isMainAuthor) {
-      hasMainAuthor = true;
-    }
-
-    if (isCorrespondingAuthor) {
-      hasCorrespondingAuthor = true;
-    }
-
+  return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
-      fullName: author.fullName || author.full_name || "",
-      givenName: author.givenName || author.given_name || "",
-      familyName: author.familyName || author.family_name || "",
-      orcid: author.orcid || "",
-      affiliation: author.affiliation || "",
-      isMainAuthor,
-      isCorrespondingAuthor,
+      fullName: normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "",
+      givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
+      familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
+      orcid: normalizedAuthor.orcid || "",
+      affiliation: normalizedAuthor.affiliation || "",
+      isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
+      isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
     };
   });
 }
@@ -139,7 +129,41 @@ function normalizeDoiType(value) {
   return map[normalized] || "";
 }
 
-function metadataToDraft(metadata = {}) {
+function normalizeName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthorIndex = 0) {
+  const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
+  const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
+  const matchesCurrentUser = currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
+
+  return {
+    ...EMPTY_AUTHOR,
+    fullName,
+    givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
+    familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
+    orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
+    affiliation: normalizedAuthor.affiliation || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
+    isMainAuthor: index === mainAuthorIndex,
+    isCorrespondingAuthor: Boolean(normalizedAuthor.isCorrespondingAuthor ?? normalizedAuthor.is_corresponding_author),
+  };
+}
+
+function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
+  const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const matchedAuthorIndex = authors.findIndex((author) => {
+    const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
+    const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
+    return currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
+  });
+  const mainAuthorIndex = matchedAuthorIndex >= 0 ? matchedAuthorIndex : 0;
+
   return {
     title: metadata.title || "",
     abstract: metadata.abstract || "",
@@ -157,9 +181,7 @@ function metadataToDraft(metadata = {}) {
     pages: metadata.pages || "",
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
-    authors: Array.isArray(metadata.authors)
-      ? metadata.authors.map((name, index) => ({ ...EMPTY_AUTHOR, fullName: name, isMainAuthor: index === 0 }))
-      : [],
+    authors: authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, mainAuthorIndex)),
     metadataSource: "doi",
     metadataVerified: true,
     externalMetadataId: metadata.doi || "",
@@ -181,6 +203,7 @@ const PublicationForm = ({
   submitting = false,
   mode = "create",
   canReview = false,
+  currentUserAuthor = {},
 }) => {
   const { t } = useLanguage();
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
@@ -269,7 +292,7 @@ const PublicationForm = ({
 
       onChange({
         ...value,
-        ...metadataToDraft(result.data),
+        ...metadataToDraft(result.data, currentUserAuthor),
         status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
       });
       setDoiLookupValue(result.data.doi || doi);

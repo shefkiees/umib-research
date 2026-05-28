@@ -334,10 +334,24 @@ function getArrayField(row, field) {
   }
 }
 
+function getPublicationAuthors(row) {
+  const authors = getArrayField(row, "authors");
+
+  if (authors.length) {
+    return authors;
+  }
+
+  return getArrayField(row, "metadata_authors").map((author, index) =>
+    metadataAuthorToPublicationAuthor(author, index)
+  );
+}
+
 function mapPublication(row) {
   const evidenceLinks = getArrayField(row, "evidence_links").length
     ? getArrayField(row, "evidence_links")
     : getArrayField(row, "attachments");
+  const authors = getPublicationAuthors(row);
+  const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
 
   return {
     id: row.id,
@@ -345,8 +359,8 @@ function mapPublication(row) {
     owner_id: row.owner_id || null,
     title: row.title || "",
     abstract: normalizeAbstractText(row.abstract),
-    publicationType: row.publication_type || "",
-    publication_type: row.publication_type || "",
+    publicationType,
+    publication_type: publicationType,
     venue: row.venue || "",
     publisher: row.publisher || "",
     publicationDate: row.publication_date || null,
@@ -361,7 +375,7 @@ function mapPublication(row) {
     pages: row.pages || "",
     issn: row.issn || "",
     isbn: row.isbn || "",
-    authors: getArrayField(row, "authors").map((author) => ({
+    authors: authors.map((author) => ({
       fullName: author.full_name || author.fullName || "",
       full_name: author.full_name || author.fullName || "",
       givenName: author.given_name || author.givenName || "",
@@ -435,6 +449,7 @@ const PUBLICATION_SELECT_SQL = `
   p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.isbn, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
+  m.type as metadata_type, m.authors as metadata_authors,
   coalesce((
     select jsonb_agg(jsonb_build_object(
       'full_name', pa.full_name,
@@ -479,7 +494,7 @@ const PUBLICATION_SELECT_SQL = `
 
 const LEGACY_PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
-  m.container_title, m.publisher, m.year, m.source_url
+  m.container_title, m.publisher, m.year, m.type as metadata_type, m.authors as metadata_authors, m.source_url
 `;
 
 let unifiedPublicationSchemaCache = null;
@@ -588,7 +603,7 @@ async function fetchPublicationById(client, publicationId, ownerId) {
   const { rows } = await client.query(
     `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
-     ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+     ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
      where p.id = $1
        and ($2::uuid is null or p.owner_id = $2)
      limit 1`,
@@ -616,7 +631,7 @@ async function fetchPublicationByDoi(client, ownerId, doi) {
   const { rows } = await client.query(
     `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
-     ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+     ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
      where p.owner_id = $1 and p.doi = $2
      limit 1`,
     [ownerId, doi]
@@ -656,10 +671,55 @@ function extractFirstArrayValue(value) {
   return Array.isArray(value) ? normalizeText(value[0]) : normalizeText(value);
 }
 
-function metadataToPublicationPayload(metadata = {}) {
+function normalizeComparableName(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function metadataAuthorName(author) {
+  if (typeof author === "string") return normalizeText(author);
+  return normalizeText(author?.fullName || author?.full_name || author?.name);
+}
+
+function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, mainAuthorIndex = 0) {
+  if (typeof author === "string") {
+    return {
+      fullName: normalizeText(author),
+      givenName: "",
+      familyName: "",
+      orcid: "",
+      affiliation: "",
+      isMainAuthor: index === mainAuthorIndex,
+      isCorrespondingAuthor: false,
+      position: index + 1,
+    };
+  }
+
+  return {
+    fullName: normalizeText(author?.fullName || author?.full_name || author?.name),
+    givenName: normalizeText(author?.givenName || author?.given_name),
+    familyName: normalizeText(author?.familyName || author?.family_name),
+    orcid: normalizeText(author?.orcid) || (index === mainAuthorIndex ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : ""),
+    affiliation: normalizeText(author?.affiliation),
+    isMainAuthor: index === mainAuthorIndex,
+    isCorrespondingAuthor: Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author),
+    position: Number.isInteger(Number(author?.position)) ? Number(author.position) : index + 1,
+  };
+}
+
+function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const raw = metadata.raw_json || {};
   const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
+  const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
+  const matchedAuthorIndex = currentUserName
+    ? metadataAuthors.findIndex((author) => normalizeComparableName(metadataAuthorName(author)) === currentUserName)
+    : -1;
+  const mainAuthorIndex = matchedAuthorIndex >= 0 ? matchedAuthorIndex : 0;
 
   return {
     doi: metadata.doi || "",
@@ -679,9 +739,9 @@ function metadataToPublicationPayload(metadata = {}) {
     issn,
     isbn,
     status: "draft",
-    authors: Array.isArray(metadata.authors)
-      ? metadata.authors.map((name, index) => ({ fullName: name, position: index + 1 }))
-      : [],
+    authors: metadataAuthors.map((author, index) =>
+      metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)
+    ),
     indexing: [],
     evidenceLinks: [],
     attachments: [],
@@ -817,7 +877,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
       db.query(
         `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
          from publications p
-         ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+         ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
          where ${resolvedWhereClause}
          order by p.updated_at desc, p.created_at desc
          limit $${limitParam} offset $${offsetParam}`,
@@ -826,7 +886,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
       db.query(
         `select count(*)::int as total
          from publications p
-         ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
+         ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
          where ${resolvedWhereClause}`,
         params
       ),
@@ -913,9 +973,9 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const { metadata } = await getVerifiedDoiMetadata(client, doi);
-    const prefill = metadataToPublicationPayload(metadata);
     const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+    const { metadata } = await getVerifiedDoiMetadata(client, doi);
+    const prefill = metadataToPublicationPayload(metadata, currentUser);
     const { errors, values } = normalizePublicationPayload(
       { ...prefill, ...(req.body?.publication || {}) },
       { user: currentUser }

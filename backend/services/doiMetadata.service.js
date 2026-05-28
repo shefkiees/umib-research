@@ -60,13 +60,45 @@ export function normalizeYear(value) {
   return Number.isInteger(year) && year >= 1900 && year <= currentYear ? year : null;
 }
 
+function normalizeOrcid(value) {
+  return normalizeText(value)
+    .replace(/^https?:\/\/orcid\.org\//i, "")
+    .trim();
+}
+
+function normalizeAffiliations(value) {
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  return value
+    .map((item) => normalizeText(item?.name || item))
+    .filter(Boolean)
+    .join("; ");
+}
+
 function mapMetadata(data, doi) {
   const title = Array.isArray(data.title) ? data.title[0] || "" : data.title || "";
   const containerTitle = Array.isArray(data["container-title"])
     ? data["container-title"][0] || ""
     : data["container-title"] || "";
   const authors = Array.isArray(data.author)
-    ? data.author.map((author) => [author.given, author.family].filter(Boolean).join(" ").trim()).filter(Boolean)
+    ? data.author
+      .map((author, index) => {
+        const fullName = [author.given, author.family].filter(Boolean).join(" ").trim() || normalizeText(author.name);
+
+        return {
+          fullName,
+          givenName: normalizeText(author.given),
+          familyName: normalizeText(author.family),
+          orcid: normalizeOrcid(author.ORCID || author.orcid),
+          affiliation: normalizeAffiliations(author.affiliation),
+          isMainAuthor: index === 0,
+          isCorrespondingAuthor: false,
+          position: index + 1,
+        };
+      })
+      .filter((author) => author.fullName || author.orcid || author.affiliation)
     : [];
   const dateParts = data.issued?.["date-parts"]?.[0] || [];
 
