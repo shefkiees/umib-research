@@ -208,7 +208,6 @@ const PublicationForm = ({
 }) => {
   const { t } = useLanguage();
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
-  const [doiMessage, setDoiMessage] = useState("");
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
@@ -274,7 +273,6 @@ const PublicationForm = ({
 
     setIsLookingUpDoi(true);
     setDoiError("");
-    setDoiMessage("");
 
     try {
       const response = await fetch(apiUrl(`/doi/${encodeURIComponent(doi)}`));
@@ -290,7 +288,6 @@ const PublicationForm = ({
         status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
       });
       setDoiLookupValue(result.data.doi || doi);
-      setDoiMessage("Metadatat u ngarkuan. Kontrolloni fushat para ruajtjes.");
     } catch (error) {
       setDoiError(error.message || "Kërkimi i DOI dështoi. Mund të vazhdoni manualisht.");
       onChange({ ...value, doi, metadataSource: "manual", metadataVerified: false });
@@ -337,7 +334,6 @@ const PublicationForm = ({
         </div>
       </div>
 
-      {doiMessage ? <p className="publication-form-message success">{doiMessage}</p> : null}
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
 
       <div className="prof-form-grid">
@@ -424,12 +420,10 @@ const PublicationForm = ({
         {(value.authors || []).length ? (
           <div className="publication-authors-grid" role="group" aria-label="Lista e autorëve">
             <div className="publication-authors-head" aria-hidden="true">
-              <span>Renditja</span>
+              <span>#</span>
               <span>Emri i plotë</span>
               <span>ORCID</span>
-              <span>Institucioni / Afiliacioni</span>
-              <span>Roli</span>
-              <span>Autor korrespondent</span>
+              <span>Korrespondent</span>
               <span>Veprim</span>
             </div>
             {(value.authors || []).map((author, index) => (
@@ -446,21 +440,13 @@ const PublicationForm = ({
                   onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
                   placeholder="ORCID"
                 />
-                <input
-                  value={author.affiliation}
-                  onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-                  placeholder="Institucioni / Afiliacioni"
-                />
-                <span className={`publication-author-role ${index === 0 ? "primary" : ""}`}>
-                  {index === 0 ? "Autor kryesor" : "Bashkautor"}
-                </span>
                 <label className="publication-author-check">
                   <input
                     type="checkbox"
                     checked={author.isCorrespondingAuthor}
                     onChange={(event) => setAuthorField(index, "isCorrespondingAuthor", event.target.checked)}
+                    aria-label={`Shëno autorin ${index + 1} si korrespondent`}
                   />
-                  <span>Autor korrespondent</span>
                 </label>
                 <button
                   type="button"

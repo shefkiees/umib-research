@@ -108,14 +108,6 @@ const STATUS_LABELS = {
 
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 
-const PUBLICATION_TYPE_LABELS = {
-  journal_article: "Artikull në revistë",
-  conference_paper: "Punim konference",
-  book: "Libër",
-  chapter: "Kapitull libri",
-  accepted_in_press: "I pranuar / në botim",
-};
-
 const formatDate = (value) => {
   if (!value) {
     return "";
@@ -1246,8 +1238,6 @@ export default function ProfessorDashboard() {
     return row.title;
   };
 
-  const getPublicationTypeLabel = (type) => PUBLICATION_TYPE_LABELS[type] || "Pa tip të përcaktuar";
-
   const formatPublicationAuthors = (authors = []) => {
     const names = authors
       .map((author) => author.fullName || author.full_name)
@@ -1292,7 +1282,6 @@ export default function ProfessorDashboard() {
 
     return (
       <div className="publication-row-actions">
-        {renderStatus(row.status)}
         <button
           type="button"
           className="prof-btn-secondary"
@@ -1318,12 +1307,9 @@ export default function ProfessorDashboard() {
     <article className="prof-card publication-registry-card">
       <div className="prof-card-header publication-registry-header">
         <div>
-          <h3>Regjistri i publikimeve</h3>
-          <p>Publikimet e regjistruara, metadata kryesore dhe statusi i shqyrtimit.</p>
+          <h3>Arkiva e Publikimeve</h3>
+          <p>Publikimet akademike të regjistruara në platformë.</p>
         </div>
-        <span className="publication-count-pill">
-          {filteredPublications.length} publikime
-        </span>
       </div>
 
       {publicationsError ? (
@@ -1336,26 +1322,26 @@ export default function ProfessorDashboard() {
           {t("common.loading")}
         </div>
       ) : filteredPublications.length ? (
-        <div className="publication-table" role="table" aria-label="Regjistri i publikimeve">
+        <div className="publication-table" role="table" aria-label="Arkiva e Publikimeve">
           <div className="publication-table-head" role="row">
             <span>Publikimi</span>
             <span>Autorët</span>
-            <span>Tipi / Viti</span>
-            <span>Statusi dhe veprimet</span>
+            <span>Viti</span>
+            <span>Veprimet</span>
           </div>
           {filteredPublications.map((row) => (
             <div className="publication-table-row" role="row" key={row.id}>
               <div className="publication-title-cell">
                 <h4>{renderPublicationTitle(row)}</h4>
-                <p>{[row.doi ? `DOI: ${row.doi}` : "", row.journal, row.sourceUrl ? "Ka vegëz" : ""].filter(Boolean).join(" • ") || "Pa të dhëna shtesë"}</p>
+                <p>{[row.doi ? `DOI: ${row.doi}` : "", row.journal].filter(Boolean).join(" • ") || "Pa të dhëna shtesë"}</p>
               </div>
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">Autorët</span>
                 {formatPublicationAuthors(row.authors)}
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">Tipi / Viti</span>
-                {[getPublicationTypeLabel(row.publicationType), row.year].filter(Boolean).join(" • ")}
+                <span className="publication-mobile-label">Viti</span>
+                {row.year || "Pa vit"}
               </div>
               <div className="publication-actions-cell">
                 {renderPublicationActions(row)}
@@ -1379,8 +1365,8 @@ export default function ProfessorDashboard() {
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto publikim shkencor</h3>
-                  <p>Plotësoni të dhënat kryesore ose përdorni DOI për t'i marrë automatikisht metadatat.</p>
+                  <h3>Shto Publikim Shkencor</h3>
+                  <p>Shtoni publikime akademike dhe menaxhoni aktivitetin shkencor në platformën UMIB.</p>
                 </div>
               </div>
 
