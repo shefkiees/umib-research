@@ -1112,9 +1112,7 @@ body {
 .publication-form-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 .publication-form-section-header {
@@ -1132,10 +1130,11 @@ body {
 }
 
 .publication-doi-lookup {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) auto;
+  align-items: stretch;
+  gap: 0;
+  width: min(100%, 620px);
 }
 
 .publication-doi-lookup input,
@@ -1149,7 +1148,17 @@ body {
 }
 
 .publication-doi-lookup input {
-  min-width: min(280px, 100%);
+  width: 100%;
+  min-width: 0;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+}
+
+.publication-doi-lookup button {
+  border-radius: 0 8px 8px 0;
+  min-height: 40px;
+  padding-inline: 14px;
+  white-space: nowrap;
 }
 
 .publication-form input:read-only,
@@ -2633,6 +2642,17 @@ body {
   .publication-doi-lookup input,
   .publication-doi-lookup button {
     width: 100%;
+  }
+
+  .publication-doi-lookup {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .publication-doi-lookup input,
+  .publication-doi-lookup button {
+    border-radius: 8px;
+    border-right: 1px solid #d9e0e8;
   }
 
   .publication-table-head {
