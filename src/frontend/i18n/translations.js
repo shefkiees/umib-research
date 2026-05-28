@@ -211,10 +211,10 @@ export const translations = {
     },
     navigation: {
       modules: "MODULET",
-      statistics: "Statistika",
+      statistics: "Statistikat",
       publications: "Publikime",
       conferences: "Konferenca",
-      reimbursements: "Rimbursime",
+      reimbursements: "Rimbursimet",
       notifications: "Njoftime",
       settings: "Cilesimet",
       integrations: "Integrime",
