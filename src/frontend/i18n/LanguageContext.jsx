@@ -1,15 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { LANGUAGE_STORAGE_KEY, legacyText, translations } from "./translations";
+import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, legacyText, translations } from "./translations";
 
 const LanguageContext = createContext(null);
 
 function normalizeLanguage(value) {
-  return value === "en" ? "en" : "sq";
+  return value === "en" ? "en" : DEFAULT_LANGUAGE;
 }
 
 function getInitialLanguage() {
   if (typeof window === "undefined") {
-    return "sq";
+    return DEFAULT_LANGUAGE;
   }
 
   return normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY));
