@@ -805,6 +805,32 @@ body {
   color: #be123c;
 }
 
+.prof-stats-message.publication-error-alert {
+  width: fit-content;
+  max-width: min(520px, 100%);
+  margin: 2px 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 650;
+  box-shadow: 0 10px 24px rgba(146, 64, 14, 0.08);
+  animation: publication-alert-enter 180ms ease-out;
+}
+
+@keyframes publication-alert-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .prof-stats-empty {
   min-height: 160px;
   display: flex;

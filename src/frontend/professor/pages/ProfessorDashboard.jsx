@@ -42,6 +42,14 @@ import {
 } from "../data/dashboardData";
 import "../styles/ProfessorDashboard.css";
 
+const AUTO_DISMISS_PUBLICATION_ERROR_MS = 3200;
+
+const PUBLICATION_ERROR_MESSAGES = {
+  duplicate_publication: "Publikimi është regjistruar më parë në arkivën tuaj.",
+  "Ky publikim ekziston tashme ne listen tuaj.": "Publikimi është regjistruar më parë në arkivën tuaj.",
+  "Ky publikim ekziston tashmë në listën tuaj.": "Publikimi është regjistruar më parë në arkivën tuaj.",
+};
+
 const normalizeProfile = (user = {}) => ({
   name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
   role: user.academicTitle || user.academic_title || professorProfile.role || "Professor",
@@ -482,6 +490,16 @@ export default function ProfessorDashboard() {
     setPublicationsPage(1);
   }, [searchQuery]);
 
+  useEffect(() => {
+    if (!publicationsError) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setPublicationsError(""), AUTO_DISMISS_PUBLICATION_ERROR_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [publicationsError]);
+
   const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
     setIsPublicationsLoading(true);
     setPublicationsError("");
@@ -549,7 +567,18 @@ export default function ProfessorDashboard() {
   const pageTitle = pageTitleMap[activePage] || activePage;
   const getStatusLabel = useCallback((status) => tx(STATUS_LABELS[status] || status), [tx]);
   const formatUiMessage = useCallback(
-    (message) => (String(message || "").includes(".") ? t(message) : tx(message)),
+    (message) => {
+      const normalizedMessage = String(message || "").trim();
+      const mappedMessage = PUBLICATION_ERROR_MESSAGES[normalizedMessage];
+
+      if (mappedMessage) {
+        return mappedMessage;
+      }
+
+      const looksLikeTranslationKey = /^[a-z][\w-]*(\.[\w-]+)+$/i.test(normalizedMessage);
+
+      return looksLikeTranslationKey ? t(normalizedMessage) : tx(normalizedMessage);
+    },
     [t, tx]
   );
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -1313,7 +1342,7 @@ export default function ProfessorDashboard() {
       </div>
 
       {publicationsError ? (
-        <div className="prof-stats-message error" role="alert">{formatUiMessage(publicationsError)}</div>
+        <div className="prof-stats-message publication-error-alert" role="alert">{formatUiMessage(publicationsError)}</div>
       ) : null}
 
       {isPublicationsLoading ? (
