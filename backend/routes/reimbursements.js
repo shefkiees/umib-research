@@ -529,15 +529,17 @@ function safeJsonArray(value) {
 }
 
 function authorDisplayName(author = {}) {
+  const safeAuthor = author || {};
+
   return normalizeText(
-    author.fullName
-    || author.full_name
-    || [author.givenName || author.given_name, author.familyName || author.family_name].filter(Boolean).join(" ")
+    safeAuthor.fullName
+    || safeAuthor.full_name
+    || [safeAuthor.givenName || safeAuthor.given_name, safeAuthor.familyName || safeAuthor.family_name].filter(Boolean).join(" ")
   );
 }
 
 function authorAffiliation(author = {}) {
-  return normalizeText(author.affiliation);
+  return normalizeText((author || {}).affiliation);
 }
 
 function publicationToReadOnlyRequestData(publication) {
@@ -547,7 +549,7 @@ function publicationToReadOnlyRequestData(publication) {
 
   const authors = Array.isArray(publication.authors) ? publication.authors : [];
   const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
-  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || null;
+  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
   const mainAuthorName = authorDisplayName(mainAuthor);
   const coauthors = authors
     .filter((author) => {

@@ -287,22 +287,24 @@ function normalizeInputDate(value) {
 }
 
 function authorName(author = {}) {
+  const safeAuthor = author || {};
+
   return String(
-    author.fullName
-    || author.full_name
-    || [author.givenName || author.given_name, author.familyName || author.family_name].filter(Boolean).join(" ")
+    safeAuthor.fullName
+    || safeAuthor.full_name
+    || [safeAuthor.givenName || safeAuthor.given_name, safeAuthor.familyName || safeAuthor.family_name].filter(Boolean).join(" ")
     || ""
   ).trim();
 }
 
 function authorAffiliation(author = {}) {
-  return String(author.affiliation || "").trim();
+  return String((author || {}).affiliation || "").trim();
 }
 
 function getPublicationAuthorFields(publication) {
   const authors = Array.isArray(publication?.authors) ? publication.authors : [];
   const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
-  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || null;
+  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
   const mainName = authorName(mainAuthor);
   const correspondingName = authorName(correspondingAuthor);
   const coauthors = authors
