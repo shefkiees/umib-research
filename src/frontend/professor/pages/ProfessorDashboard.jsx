@@ -26,7 +26,6 @@ import {
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
-import DoiLookup from "../components/DoiLookup";
 import ConferenceManager from "../components/ConferenceManager";
 import ReimbursementManager from "../components/ReimbursementManager";
 import PublicationForm, {
@@ -266,7 +265,6 @@ export default function ProfessorDashboard() {
     totalPages: 1,
   });
   const [editingPublicationId, setEditingPublicationId] = useState("");
-  const [isManualPublicationOpen, setIsManualPublicationOpen] = useState(false);
   const [publicationDraft, setPublicationDraft] = useState(createEmptyPublicationDraft);
   const [manualPublicationDraft, setManualPublicationDraft] = useState(createEmptyPublicationDraft);
   const [publicationActionId, setPublicationActionId] = useState("");
@@ -851,7 +849,6 @@ export default function ProfessorDashboard() {
       }
 
       resetManualPublicationDraft();
-      setIsManualPublicationOpen(false);
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
     } catch (error) {
@@ -1280,15 +1277,18 @@ export default function ProfessorDashboard() {
             <article className="prof-card" style={{ marginBottom: "20px" }}>
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto publikim me DOI</h3>
-                  <p>
-                    Shkruani DOI e publikimit dhe sistemi do te marre automatikisht
-                    metadata si titulli, autoret, journal/conference, viti dhe te dhena te tjera.
-                  </p>
+                  <h3>Shto publikim</h3>
+                  <p>Plotesoni te dhenat e publikimit ose perdorni DOI per t'i mbushur automatikisht fushat.</p>
                 </div>
               </div>
 
-              <DoiLookup onPublicationSaved={() => loadPublications({ page: 1, query: searchQuery })} />
+              <PublicationForm
+                value={manualPublicationDraft}
+                onChange={setManualPublicationDraft}
+                onSubmit={saveManualPublication}
+                submitLabel="Ruaj publikimin"
+                submitting={publicationActionId === "manual"}
+              />
             </article>
 
             {editingPublicationId ? (
