@@ -327,16 +327,52 @@ const PublicationForm = ({
             <Plus size={15} /> Add author
           </button>
         </div>
-        {value.authors.map((author, index) => (
-          <div className="publication-nested-row" key={`author-${index}`}>
-            <input value={author.fullName} onChange={(event) => setCollectionItem("authors", index, "fullName", event.target.value)} placeholder="Full name" />
-            <input value={author.orcid} onChange={(event) => setCollectionItem("authors", index, "orcid", event.target.value)} placeholder="ORCID" />
-            <input value={author.affiliation} onChange={(event) => setCollectionItem("authors", index, "affiliation", event.target.value)} placeholder="Affiliation" />
-            <label><input type="checkbox" checked={author.isMainAuthor} onChange={(event) => setCollectionItem("authors", index, "isMainAuthor", event.target.checked)} /> Main</label>
-            <label><input type="checkbox" checked={author.isCorrespondingAuthor} onChange={(event) => setCollectionItem("authors", index, "isCorrespondingAuthor", event.target.checked)} /> Corresponding</label>
-            <button type="button" className="prof-btn-secondary" onClick={() => removeCollectionItem("authors", index)} aria-label="Remove author"><Trash2 size={15} /></button>
-          </div>
-        ))}
+        <div className="publication-authors-grid">
+          {value.authors.map((author, index) => (
+            <article className="publication-author-card" key={`author-${index}`}>
+              <div className="publication-author-card-header">
+                <div className="publication-author-title">
+                  <span>Author {index + 1}</span>
+                  <strong>{author.fullName || "Unnamed author"}</strong>
+                </div>
+                <div className="publication-author-badges">
+                  {author.isMainAuthor ? <span className="publication-author-badge">Main author</span> : null}
+                  {author.isCorrespondingAuthor ? <span className="publication-author-badge">Corresponding</span> : null}
+                </div>
+              </div>
+
+              <div className="publication-author-fields">
+                <label>
+                  <span>Full name</span>
+                  <input value={author.fullName} onChange={(event) => setCollectionItem("authors", index, "fullName", event.target.value)} placeholder="Full name" />
+                </label>
+                <label>
+                  <span>ORCID</span>
+                  <input value={author.orcid} onChange={(event) => setCollectionItem("authors", index, "orcid", event.target.value)} placeholder="ORCID" />
+                </label>
+                <label className="publication-author-wide">
+                  <span>Affiliation</span>
+                  <input value={author.affiliation} onChange={(event) => setCollectionItem("authors", index, "affiliation", event.target.value)} placeholder="Affiliation" />
+                </label>
+              </div>
+
+              <div className="publication-author-footer">
+                <label className="publication-author-check">
+                  <input type="checkbox" checked={author.isMainAuthor} onChange={(event) => setCollectionItem("authors", index, "isMainAuthor", event.target.checked)} />
+                  <span>Main author</span>
+                </label>
+                <label className="publication-author-check">
+                  <input type="checkbox" checked={author.isCorrespondingAuthor} onChange={(event) => setCollectionItem("authors", index, "isCorrespondingAuthor", event.target.checked)} />
+                  <span>Corresponding author</span>
+                </label>
+                <button type="button" className="publication-author-remove" onClick={() => removeCollectionItem("authors", index)} aria-label="Remove author">
+                  <Trash2 size={15} />
+                  Remove
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className="publication-form-section">
