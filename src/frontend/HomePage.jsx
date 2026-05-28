@@ -31,6 +31,13 @@ export default function HomePage() {
             <a href="#services">Rreth Portalit</a>
             <a href="#services">Statistikat</a>
             <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
+            <a
+              href="https://app.powerbi.com/view?r=eyJrIjoiZTNmOGQwZDItZGRkZS00ZDdkLThlNDEtODQxMzcwZDZmNzA3IiwidCI6ImM1ZjBjNjkyLWYyYjYtNDlmOS1iMGI5LWFlY2E1MDI0ZmY5MSIsImMiOjl9"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Punime Shkencore
+            </a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
               <Lock size={16} style={{ marginRight: '8px' }} />
               Hyr në Portal
