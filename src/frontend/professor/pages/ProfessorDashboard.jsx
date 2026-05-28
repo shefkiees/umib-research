@@ -1195,13 +1195,13 @@ export default function ProfessorDashboard() {
         icon: <CheckCircle2 size={22} />,
       },
       {
-        label: t("professor.dashboard.conferences"),
+        label: t("professor.dashboard.totalConferencesCard"),
         value: summary.conferencesTotal,
         change: t("professor.dashboard.upcomingCount", { count: summary.upcomingConferences }),
         icon: <CalendarDays size={22} />,
       },
       {
-        label: t("professor.dashboard.reimbursements"),
+        label: t("professor.dashboard.totalReimbursementsCard"),
         value: summary.reimbursementsTotal,
         change: t("professor.dashboard.requestedAmountChange", {
           amount: formatRequestedAmounts(summary.requestedAmounts),

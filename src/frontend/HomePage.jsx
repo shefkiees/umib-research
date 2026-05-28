@@ -30,6 +30,7 @@ export default function HomePage() {
           <div className="nav-menu">
             <a href="#services">Rreth Portalit</a>
             <a href="#services">Statistikat</a>
+            <a href="https://app.powerbi.com/view?r=eyJrIjoiYWViNWM0ZTAtZDA0NS00MDEyLTg5NTUtMWU0OGUzODg1MGRmIiwidCI6ImMwMzRjM2I0LWQwMmItNDM2MS04M2YwLTNiMWI5ZWE0MzcwYyIsImMiOjh9">Punime Shkencore</a>
             <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
             <a
               href="https://app.powerbi.com/view?r=eyJrIjoiZTNmOGQwZDItZGRkZS00ZDdkLThlNDEtODQxMzcwZDZmNzA3IiwidCI6ImM1ZjBjNjkyLWYyYjYtNDlmOS1iMGI5LWFlY2E1MDI0ZmY5MSIsImMiOjl9"
