@@ -145,7 +145,6 @@ export default function HomePage() {
             <div className="footer-links">
               <a href="#">Privatësia</a>
               <a href="#">Kushtet e Përdorimit</a>
-              <a href="#">Help Desk</a>
             </div>
           </div>
           <div className="footer-bottom">
