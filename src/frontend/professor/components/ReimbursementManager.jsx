@@ -1530,7 +1530,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       {renderAutoField("Email", "applicantEmail", "email")}
       {renderAutoField("Njesia akademike", "applicantFaculty")}
       {renderAutoField("Departamenti", "applicantDepartment")}
-      {renderAutoField("Zyra", "applicantOffice")}
       {renderAutoField("ORCID iD", "applicantOrcidId")}
       {renderInput("Thirrja shkencore", "scientificTitle")}
       {renderInput("Thirrja akademike", "academicTitle")}
