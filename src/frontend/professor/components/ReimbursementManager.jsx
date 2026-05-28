@@ -814,6 +814,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       applicantDepartment: prev.applicantDepartment || defaults.applicantDepartment,
       applicantOffice: prev.applicantOffice || defaults.applicantOffice,
       applicantOrcidId: prev.applicantOrcidId || defaults.applicantOrcidId,
+      scientificTitle: prev.scientificTitle || defaults.scientificTitle,
+      academicTitle: prev.academicTitle || defaults.academicTitle,
       bankApplicantName: prev.bankApplicantName || defaults.bankApplicantName,
       applyingUnit: prev.applyingUnit || defaults.applyingUnit,
     }));
