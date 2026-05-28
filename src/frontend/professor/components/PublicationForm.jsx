@@ -244,6 +244,20 @@ const PublicationForm = ({
     setFormError("");
   };
 
+  const setPrimaryAuthorName = (fullName) => {
+    const authors = value.authors || [];
+    const nextAuthors = authors.length
+      ? authors.map((author, index) => (index === 0 ? { ...author, fullName } : author))
+      : [{ ...EMPTY_AUTHOR, fullName }];
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    setFormError("");
+  };
+
   const removeAuthor = (index) => {
     const nextAuthors = (value.authors || []).filter((_, authorIndex) => authorIndex !== index);
 
@@ -300,6 +314,9 @@ const PublicationForm = ({
   };
 
   const statusOptions = canReview ? REVIEW_STATUS_OPTIONS : PROFESSOR_STATUS_OPTIONS;
+  const authors = value.authors || [];
+  const primaryAuthor = authors[0] || EMPTY_AUTHOR;
+  const coauthors = authors.slice(1);
 
   return (
     <form className="publication-form" onSubmit={submit}>
@@ -403,51 +420,63 @@ const PublicationForm = ({
             <h4>Autorët dhe Bashkautorët</h4>
             <p>Shto autorët sipas renditjes akademike të publikimit. Autori i parë konsiderohet zakonisht autor kryesor, ndërsa autorët tjerë ruhen si bashkautorë.</p>
           </div>
-          {!isDoiImported ? <button type="button" className="prof-btn-secondary" onClick={addAuthor}>
-            <Plus size={15} /> Shto autor
-          </button> : null}
         </div>
-        {(value.authors || []).length ? (
-          <div className={`publication-authors-grid ${isDoiImported ? "publication-authors-grid--readonly" : ""}`} role="group" aria-label="Lista e autorëve">
-            <div className="publication-authors-head" aria-hidden="true">
-              <span>#</span>
-              <span>Emri i plotë</span>
-              <span>ORCID</span>
-              {!isDoiImported ? <span>Veprim</span> : null}
+        <div className={`publication-authors-list ${isDoiImported ? "publication-authors-list--readonly" : ""}`} role="group" aria-label="Lista e autorëve">
+          <label className="publication-author-field">
+            <span>Autori</span>
+            <input
+              value={primaryAuthor.fullName}
+              onChange={(event) => setPrimaryAuthorName(event.target.value)}
+              placeholder="Emri i plotë"
+              required
+              readOnly={isDoiImported}
+            />
+          </label>
+
+          <div className="publication-coauthors-block">
+            <div className="publication-coauthors-header">
+              <span>Bashkautorët</span>
+              {!isDoiImported ? (
+                <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
+                  <Plus size={14} aria-hidden="true" />
+                  Shto bashkautor
+                </button>
+              ) : null}
             </div>
-            {(value.authors || []).map((author, index) => (
-              <div className="publication-author-row" key={`author-${index}`}>
-                <div className="publication-author-index">{index + 1}</div>
-                <input
-                  value={author.fullName}
-                  onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
-                  placeholder="Emri i plotë"
-                  required={index === 0}
-                  readOnly={isDoiImported}
-                />
-                <input
-                  value={author.orcid}
-                  onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
-                  placeholder="ORCID"
-                  readOnly={isDoiImported}
-                />
-                {!isDoiImported ? <button
-                  type="button"
-                  className="publication-remove-button"
-                  onClick={() => removeAuthor(index)}
-                  aria-label={`Largo autorin ${index + 1}`}
-                >
-                  <Trash2 size={14} aria-hidden="true" />
-                  <span>Largo</span>
-                </button> : null}
+
+            {coauthors.length ? (
+              <div className="publication-coauthors-list">
+                {coauthors.map((author, index) => {
+                  const authorIndex = index + 1;
+
+                  return (
+                    <div className="publication-coauthor-row" key={`coauthor-${authorIndex}`}>
+                      <input
+                        value={author.fullName}
+                        onChange={(event) => setAuthorField(authorIndex, "fullName", event.target.value)}
+                        placeholder="Emri i plotë"
+                        readOnly={isDoiImported}
+                      />
+                      {!isDoiImported ? (
+                        <button
+                          type="button"
+                          className="publication-remove-button"
+                          onClick={() => removeAuthor(authorIndex)}
+                          aria-label={`Largo bashkautorin ${index + 1}`}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                          <span>Largo</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            ) : (
+              <p className="publication-empty-coauthors">Nuk ka bashkautorë të shtuar.</p>
+            )}
           </div>
-        ) : (
-          <div className="publication-empty-authors">
-            Nuk është shtuar ende asnjë autor.
-          </div>
-        )}
+        </div>
         {formError ? <p className="publication-form-message error" role="alert">{formError}</p> : null}
       </div>
 
