@@ -138,6 +138,7 @@ export default function HomePage() {
         <div className="container">
           <div className="footer-content">
             <div className="footer-brand">
+              <TransparentLogo src={UMIBLogo} alt="Logo e Fakultetit" className="footer-logo" />
               <p>Universiteti "Isa Boletini" Mitrovicë<br />Portali i Kërkimit Shkencor</p>
             </div>
           </div>
