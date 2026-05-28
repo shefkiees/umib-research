@@ -367,7 +367,7 @@ const PublicationForm = ({
           <input value={value.volume} onChange={updateField("volume")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Numri</span>
+          <span>Numri i artikullit</span>
           <input value={value.issue} onChange={updateField("issue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
