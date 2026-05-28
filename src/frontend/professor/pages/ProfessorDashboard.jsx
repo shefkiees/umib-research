@@ -50,22 +50,42 @@ const PUBLICATION_ERROR_MESSAGES = {
   "Ky publikim ekziston tashmë në listën tuaj.": "Publikimi është regjistruar më parë në arkivën tuaj.",
 };
 
-const normalizeProfile = (user = {}) => ({
-  name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
-  role: user.academicTitle || user.academic_title || professorProfile.role || "Professor",
-  appRole: user.role || "professor",
-  email: user.email || professorProfile.email,
-  faculty: user.faculty || professorProfile.faculty,
-  department: user.department || professorProfile.department,
-  office: user.office || professorProfile.office,
-  orcidId: user.orcidId || user.orcid_id || null,
-  school: user.school || "",
-  currentAffiliation: user.currentAffiliation || "",
-  orcidProfile: user.orcidProfile || {},
-  orcidEducations: Array.isArray(user.orcidEducations) ? user.orcidEducations : [],
-  orcidEmployments: Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [],
-  orcidLastSyncedAt: user.orcidLastSyncedAt || null,
-});
+const pickFirstText = (...values) =>
+  values.find((value) => typeof value === "string" && value.trim())?.trim() || "";
+
+const pickOrcidTitle = (items = []) => {
+  const firstItem = Array.isArray(items) ? items.find(Boolean) : null;
+
+  if (!firstItem) {
+    return "";
+  }
+
+  return pickFirstText(firstItem.roleTitle, firstItem.title, firstItem.position, firstItem.department);
+};
+
+const normalizeProfile = (user = {}) => {
+  const orcidEducations = Array.isArray(user.orcidEducations) ? user.orcidEducations : [];
+  const orcidEmployments = Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [];
+
+  return {
+    name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
+    role: user.role || professorProfile.role || "Professor",
+    appRole: user.role || "professor",
+    email: user.email || professorProfile.email,
+    academicTitle: user.academicTitle || user.academic_title || professorProfile.academicTitle || pickOrcidTitle(orcidEmployments),
+    scientificTitle: user.scientificTitle || user.scientific_title || professorProfile.scientificTitle || pickOrcidTitle(orcidEducations),
+    faculty: user.faculty || professorProfile.faculty,
+    department: user.department || professorProfile.department,
+    office: user.office || professorProfile.office,
+    orcidId: user.orcidId || user.orcid_id || null,
+    school: user.school || "",
+    currentAffiliation: user.currentAffiliation || "",
+    orcidProfile: user.orcidProfile || {},
+    orcidEducations,
+    orcidEmployments,
+    orcidLastSyncedAt: user.orcidLastSyncedAt || null,
+  };
+};
 
 const formatAffiliation = (item = {}) => {
   const location = [item.city, item.region, item.country].filter(Boolean).join(", ");
@@ -694,6 +714,8 @@ export default function ProfessorDashboard() {
           faculty: profileDraft.faculty,
           department: profileDraft.department,
           office: profileDraft.office,
+          academicTitle: profileDraft.academicTitle,
+          scientificTitle: profileDraft.scientificTitle,
         }),
       });
 
@@ -1813,6 +1835,14 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.department}</span>
                   <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} />
+                </label>
+                <label className="prof-form-field">
+                  <span>{settingsText.academicTitle}</span>
+                  <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} />
+                </label>
+                <label className="prof-form-field">
+                  <span>{settingsText.scientificTitle}</span>
+                  <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} />
                 </label>
               </div>
               {profileDraft.orcidEducations.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (

@@ -18,6 +18,8 @@ create table if not exists users (
   password_hash text not null default '',
   role text not null default 'professor'
     check (role in ('professor', 'committee', 'prorector', 'admin')),
+  academic_title text,
+  scientific_title text,
   faculty text,
   department text,
   office text,
@@ -30,6 +32,8 @@ create table if not exists users (
 );
 
 alter table users add column if not exists orcid_id text;
+alter table users add column if not exists academic_title text;
+alter table users add column if not exists scientific_title text;
 alter table users add column if not exists office text;
 alter table users add column if not exists orcid_profile jsonb not null default '{}'::jsonb;
 alter table users add column if not exists orcid_educations jsonb not null default '[]'::jsonb;

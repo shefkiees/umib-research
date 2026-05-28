@@ -102,6 +102,8 @@ function mapUserRowToProfile(row) {
     email: row.email,
     name: row.full_name || row.email || "",
     role: row.role,
+    academicTitle: row.academic_title || "",
+    scientificTitle: row.scientific_title || "",
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
@@ -122,7 +124,7 @@ router.get("/me", async (req, res) => {
     }
 
     const result = await db.query(
-      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office,
+      `SELECT id, google_id, orcid_id, email, full_name, role, academic_title, scientific_title, faculty, department, office,
               orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at
        FROM users
        WHERE id = $1
@@ -168,6 +170,8 @@ router.put("/me", async (req, res) => {
     const nextFaculty = String(req.body?.faculty || "").trim();
     const nextDepartment = String(req.body?.department || "").trim();
     const nextOffice = String(req.body?.office || "").trim();
+    const nextAcademicTitle = String(req.body?.academicTitle || req.body?.academic_title || "").trim();
+    const nextScientificTitle = String(req.body?.scientificTitle || req.body?.scientific_title || "").trim();
 
     const result = await db.query(
       `UPDATE users
@@ -178,9 +182,11 @@ router.put("/me", async (req, res) => {
            faculty = $3,
            department = $4,
            office = $5,
+           academic_title = $6,
+           scientific_title = $7,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office,
+       RETURNING id, google_id, orcid_id, email, full_name, role, academic_title, scientific_title, faculty, department, office,
                  orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at`,
       [
         req.user.id,
@@ -188,6 +194,8 @@ router.put("/me", async (req, res) => {
         nextFaculty || null,
         nextDepartment || null,
         nextOffice || null,
+        nextAcademicTitle || null,
+        nextScientificTitle || null,
       ]
     );
 

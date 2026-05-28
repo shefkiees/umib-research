@@ -29,6 +29,8 @@ export const profileMenuItems = [
 export const professorProfile = {
   name: "",
   role: "Professor",
+  academicTitle: "",
+  scientificTitle: "",
   faculty: "",
   department: "",
   employeeId: "",
