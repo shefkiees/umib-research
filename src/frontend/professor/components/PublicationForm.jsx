@@ -407,7 +407,7 @@ const PublicationForm = ({
         <div className="publication-form-section-header">
           <div>
             <h4>Autorët dhe Bashkautorët</h4>
-            <p>Shto autorët sipas renditjes akademike të publikimit. Autori i parë konsiderohet zakonisht autor kryesor, ndërsa autorët tjerë ruhen si bashkautorë.</p>
+            <p>Shto autorët që kanë kontribuar në këtë publikim shkencor.</p>
           </div>
         </div>
         <div className={`publication-authors-list ${isDoiImported ? "publication-authors-list--readonly" : ""}`} role="group" aria-label="Lista e autorëve">
