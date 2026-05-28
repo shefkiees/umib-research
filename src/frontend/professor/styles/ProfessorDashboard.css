@@ -1369,7 +1369,7 @@ body {
 .publication-table-head,
 .publication-table-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.7fr) minmax(180px, 1fr) minmax(150px, 0.8fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(260px, 1.7fr) minmax(180px, 1fr) minmax(110px, 0.55fr);
   gap: 14px;
   align-items: center;
 }

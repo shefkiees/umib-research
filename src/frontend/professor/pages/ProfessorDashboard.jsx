@@ -1356,7 +1356,6 @@ export default function ProfessorDashboard() {
             <span>Publikimi</span>
             <span>Autorët</span>
             <span>Viti</span>
-            <span>Veprimet</span>
           </div>
           {filteredPublications.map((row) => (
             <div className="publication-table-row" role="row" key={row.id}>
@@ -1371,9 +1370,6 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">Viti</span>
                 {row.year || "Pa vit"}
-              </div>
-              <div className="publication-actions-cell">
-                {renderPublicationActions(row)}
               </div>
             </div>
           ))}
