@@ -788,55 +788,6 @@ body {
   height: 292px;
 }
 
-.prof-status-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.prof-stat-breakdown-card {
-  min-height: 220px;
-}
-
-.prof-stat-breakdown-list {
-  display: grid;
-  gap: 14px;
-}
-
-.prof-stat-breakdown-row {
-  display: grid;
-  gap: 8px;
-}
-
-.prof-stat-breakdown-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #17324f;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
-.prof-stat-breakdown-top strong {
-  color: #0f1f32;
-  font-size: 1rem;
-}
-
-.prof-stat-progress {
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: #e7eef6;
-}
-
-.prof-stat-progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #153a63, #2e6aa6);
-}
-
 .prof-stats-message,
 .prof-stats-empty {
   border-radius: 14px;
@@ -2447,10 +2398,6 @@ body {
 @media (max-width: 1280px) {
   .prof-stats-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .prof-status-grid {
-    grid-template-columns: 1fr;
   }
 
   .prof-grid-two {

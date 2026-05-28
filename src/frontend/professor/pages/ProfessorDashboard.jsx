@@ -107,13 +107,6 @@ const STATUS_LABELS = {
   unknown: "Pa status",
 };
 
-const REQUEST_TYPE_LABELS = {
-  publication: "Publikime",
-  conference: "Konferenca",
-  project: "Projekte",
-  unknown: "Te tjera",
-};
-
 const formatDate = (value) => {
   if (!value) {
     return "";
@@ -232,8 +225,6 @@ const hasStatisticMetricData = (rows = []) =>
   rows.some((row) =>
     STATISTIC_METRIC_KEYS.some((key) => Number(row[key] || 0) > 0)
   );
-
-const isVisibleDashboardStatus = (row = {}) => String(row.status || "").toLowerCase() !== "draft";
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -553,7 +544,6 @@ export default function ProfessorDashboard() {
   };
   const pageTitle = pageTitleMap[activePage] || activePage;
   const getStatusLabel = useCallback((status) => tx(STATUS_LABELS[status] || status), [tx]);
-  const getRequestTypeLabel = useCallback((type) => tx(REQUEST_TYPE_LABELS[type] || type), [tx]);
   const formatUiMessage = useCallback(
     (message) => (String(message || "").includes(".") ? t(message) : tx(message)),
     [t, tx]
@@ -596,40 +586,6 @@ export default function ProfessorDashboard() {
     () => hasStatisticMetricData(filteredStatisticsChartData),
     [filteredStatisticsChartData]
   );
-
-  const filteredPublicationStatuses = useMemo(() => {
-    const visibleStatuses = statisticsData.publicationsByStatus.filter(isVisibleDashboardStatus);
-
-    if (!normalizedQuery) {
-      return visibleStatuses;
-    }
-
-    return visibleStatuses.filter((row) =>
-      `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [getStatusLabel, normalizedQuery, statisticsData.publicationsByStatus]);
-
-  const filteredReimbursementStatuses = useMemo(() => {
-    const visibleStatuses = statisticsData.reimbursementsByStatus.filter(isVisibleDashboardStatus);
-
-    if (!normalizedQuery) {
-      return visibleStatuses;
-    }
-
-    return visibleStatuses.filter((row) =>
-      `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [getStatusLabel, normalizedQuery, statisticsData.reimbursementsByStatus]);
-
-  const filteredReimbursementTypes = useMemo(() => {
-    if (!normalizedQuery) {
-      return statisticsData.reimbursementsByType;
-    }
-
-    return statisticsData.reimbursementsByType.filter((row) =>
-      `${getRequestTypeLabel(row.type)} ${row.count}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [getRequestTypeLabel, normalizedQuery, statisticsData.reimbursementsByType]);
 
   const handleMenuAction = (action) => {
     const normalizedAction = String(action || "").trim().toLowerCase();
@@ -1141,47 +1097,6 @@ export default function ProfessorDashboard() {
     </article>
   );
 
-  const renderStatisticsBreakdown = (title, description, rows, getLabel, emptyText, hasUnfilteredRows = rows.length > 0) => {
-    const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
-    const resolvedEmptyText = normalizedQuery && hasUnfilteredRows
-      ? t("professor.dashboard.noSearchResults")
-      : emptyText;
-
-    return (
-      <article className="prof-card prof-stat-breakdown-card">
-        <div className="prof-card-header">
-          <div>
-            <h3>{title}</h3>
-            <p>{description}</p>
-          </div>
-        </div>
-        {rows.length ? (
-          <div className="prof-stat-breakdown-list">
-            {rows.map((row) => {
-              const count = Number(row.count || 0);
-              const percent = total > 0 ? Math.round((count / total) * 100) : 0;
-              const label = getLabel(row);
-
-              return (
-                <div className="prof-stat-breakdown-row" key={label}>
-                  <div className="prof-stat-breakdown-top">
-                    <span>{label}</span>
-                    <strong>{count}</strong>
-                  </div>
-                  <div className="prof-stat-progress" aria-hidden="true">
-                    <span style={{ width: `${percent}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="prof-stats-empty">{resolvedEmptyText}</div>
-        )}
-      </article>
-    );
-  };
-
   const renderStatistics = () => {
     const summary = statisticsData.summary;
     const statCards = [
@@ -1297,34 +1212,6 @@ export default function ProfessorDashboard() {
           )}
         </article>
 
-        <section className="prof-status-grid">
-          {renderStatisticsBreakdown(
-            t("professor.dashboard.publicationsByStatus"),
-            t("professor.dashboard.publicationsByStatusDescription"),
-            filteredPublicationStatuses,
-            (row) => getStatusLabel(row.status),
-            t("professor.dashboard.noSavedPublications"),
-            statisticsData.publicationsByStatus.length > 0
-          )}
-
-          {renderStatisticsBreakdown(
-            t("professor.dashboard.reimbursementsByStatus"),
-            t("professor.dashboard.reimbursementsByStatusDescription"),
-            filteredReimbursementStatuses,
-            (row) => getStatusLabel(row.status),
-            t("professor.dashboard.noSavedReimbursements"),
-            statisticsData.reimbursementsByStatus.length > 0
-          )}
-
-          {renderStatisticsBreakdown(
-            t("professor.dashboard.reimbursementsByType"),
-            t("professor.dashboard.reimbursementsByTypeDescription"),
-            filteredReimbursementTypes,
-            (row) => getRequestTypeLabel(row.type),
-            t("professor.dashboard.noReimbursementTypes"),
-            statisticsData.reimbursementsByType.length > 0
-          )}
-        </section>
       </div>
     );
   };
