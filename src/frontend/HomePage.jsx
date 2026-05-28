@@ -30,7 +30,6 @@ export default function HomePage() {
           <div className="nav-menu">
             <a href="#about">Rreth Portalit</a>
             <a href="#services">Statistikat</a>
-            <a href="#contact">Kontakti</a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
               <Lock size={16} style={{ marginRight: '8px' }} />
               Hyr në Portal
@@ -44,7 +43,7 @@ export default function HomePage() {
         <div className="container">
           <div className="hero-content">
             <h1>Zhvillo Kërkimin Shkencor në UMIB</h1>
-            <p>Botime, konferenca dhe kërkim shkencor në një platformë.</p>
+            <p>Platformë për menaxhimin dhe organizimin e aktiviteteve kërkimore dhe akademike të stafit të UMIB.</p>
             <div className="hero-actions">
               <button className="btn-gold" onClick={() => navigate("/login")}>Fillo Tani</button>
               <button className="btn-outline" onClick={() => document.getElementById('services').scrollIntoView({ behavior: 'smooth' })}>Shiko Statistikat</button>
