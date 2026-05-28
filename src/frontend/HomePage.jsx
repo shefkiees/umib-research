@@ -6,9 +6,6 @@ import {
   Users, 
   Globe, 
   ChevronRight, 
-  Mail, 
-  MapPin, 
-  PhoneCall,
   Lock
 } from "lucide-react";
 import UMIBLogo from "../assets/umiblogo.jpg";
@@ -133,44 +130,6 @@ export default function HomePage() {
               <p>Analizoni performancën e fakulteteve në kohë reale përmes dashboardeve të avancuara dhe raporteve analitike.</p>
               <button className="service-link">Mëso më shumë <ChevronRight size={16} /></button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CONTACT SECTION */}
-      <section className="contact-section" id="contact">
-        <div className="container">
-          <div className="contact-card">
-            <div className="contact-info">
-              <h2>Na Kontaktoni</h2>
-              <p>Keni pyetje rreth portalit apo keni nevojë për ndihmë teknike? Stafi ynë është këtu për t'ju mbështetur.</p>
-              <div className="info-list">
-                <div className="info-item">
-                  <MapPin size={20} className="info-icon" />
-                  <span>Mitrovicë, Kosovë</span>
-                </div>
-                <div className="info-item">
-                  <Mail size={20} className="info-icon" />
-                  <span>info@umib.net</span>
-                </div>
-                <div className="info-item">
-                  <PhoneCall size={20} className="info-icon" />
-                  <span>+383 (0) 28 535 725</span>
-                </div>
-              </div>
-            </div>
-            <form className="contact-form">
-              <div className="form-group">
-                <input type="text" placeholder="Emri dhe Mbiemri" className="form-input" />
-              </div>
-              <div className="form-group">
-                <input type="email" placeholder="Email-i Zyrtar" className="form-input" />
-              </div>
-              <div className="form-group">
-                <textarea placeholder="Mesazhi juaj..." className="form-textarea"></textarea>
-              </div>
-              <button type="submit" className="btn-navy">Dërgo Mesazhin</button>
-            </form>
           </div>
         </div>
       </section>
