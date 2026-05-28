@@ -1808,7 +1808,9 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.reimbursement-field input:read-only {
+.reimbursement-field input:read-only,
+.reimbursement-field textarea:read-only,
+.reimbursement-field select:disabled {
   color: #64748b;
   background: #eef2f7;
 }

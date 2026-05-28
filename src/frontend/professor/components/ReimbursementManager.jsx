@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { BookOpen, Download, FileText, Landmark, Loader2, Plus, Save, Search, Trash2, Upload, Wallet } from "lucide-react";
+import { BookOpen, Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -70,6 +70,31 @@ const COST_CATEGORY_OPTIONS = [
   { value: "otherCosts", label: "Tjera 10%" },
 ];
 
+const PUBLICATION_READ_ONLY_FIELDS = new Set([
+  "doi",
+  "publicationTitle",
+  "publicationType",
+  "venue",
+  "journal",
+  "publisher",
+  "publicationDate",
+  "publicationYear",
+  "publicationLink",
+  "mainAuthor",
+  "correspondingAuthor",
+  "coauthors",
+  "affiliation",
+  "indexingPlatform",
+  "impactFactor",
+  "scopusQuartile",
+  "volume",
+  "issue",
+  "pages",
+  "issn",
+  "isbn",
+  "abstract",
+]);
+
 const EMPTY_TEAM_MEMBER = {
   name: "",
   scientificGrade: "",
@@ -126,8 +151,11 @@ const DEFAULT_FORM_VALUES = {
   publicationId: "",
   doi: "",
   publicationTitle: "",
+  publicationType: "",
+  venue: "",
   journal: "",
   publisher: "",
+  abstract: "",
   publicationYear: "",
   publicationFee: "",
   affiliation: "",
@@ -137,6 +165,11 @@ const DEFAULT_FORM_VALUES = {
   acceptanceDate: "",
   publicationDate: "",
   publicationLink: "",
+  volume: "",
+  issue: "",
+  pages: "",
+  issn: "",
+  isbn: "",
   uibmDatabaseEvidence: "",
   mainAuthor: "",
   correspondingAuthor: "",
@@ -224,7 +257,6 @@ function getAutoFieldDefaults(profile) {
     applicantOrcidId: profile.orcidId || "",
     bankApplicantName: profile.name || "",
     applyingUnit: profile.faculty || "",
-    affiliation: profile.faculty || "",
   };
 }
 
@@ -239,20 +271,111 @@ function createDefaultForm(profile = {}) {
   };
 }
 
+function normalizeInputDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const text = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function authorName(author = {}) {
+  return String(
+    author.fullName
+    || author.full_name
+    || [author.givenName || author.given_name, author.familyName || author.family_name].filter(Boolean).join(" ")
+    || ""
+  ).trim();
+}
+
+function authorAffiliation(author = {}) {
+  return String(author.affiliation || "").trim();
+}
+
+function getPublicationAuthorFields(publication) {
+  const authors = Array.isArray(publication?.authors) ? publication.authors : [];
+  const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
+  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || null;
+  const mainName = authorName(mainAuthor);
+  const correspondingName = authorName(correspondingAuthor);
+  const coauthors = authors
+    .filter((author) => authorName(author) && authorName(author) !== mainName)
+    .map(authorName)
+    .join("; ");
+  const affiliation = authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author)));
+
+  return {
+    mainAuthor: mainName,
+    correspondingAuthor: correspondingName,
+    coauthors,
+    affiliation,
+  };
+}
+
+function getPublicationIndexingFields(publication) {
+  const indexing = Array.isArray(publication?.indexing) ? publication.indexing : [];
+  const indexingPlatform = indexing
+    .map((item) => item.source || "")
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .join(", ");
+  const impactFactor = indexing.find((item) => item.impactFactor || item.impact_factor)?.impactFactor
+    || indexing.find((item) => item.impactFactor || item.impact_factor)?.impact_factor
+    || "";
+  const scopusQuartile = indexing.find((item) => item.quartile)?.quartile || "";
+
+  return {
+    indexingPlatform,
+    impactFactor,
+    scopusQuartile,
+  };
+}
+
 function applyPublicationToForm(prev, publication) {
   if (!publication) {
-    return prev;
+    const next = { ...prev };
+    PUBLICATION_READ_ONLY_FIELDS.forEach((field) => {
+      next[field] = "";
+    });
+    return next;
   }
+
+  const authors = getPublicationAuthorFields(publication);
+  const indexing = getPublicationIndexingFields(publication);
+  const venue = publication.venue || publication.journal || "";
 
   return {
     ...prev,
     publicationId: publication.id ? String(publication.id) : prev.publicationId,
-    doi: publication.doi || prev.doi,
-    publicationTitle: publication.title || prev.publicationTitle,
-    journal: publication.venue || prev.journal,
-    publisher: publication.publisher || prev.publisher,
-    publicationYear: publication.publicationYear || prev.publicationYear,
-    publicationLink: publication.sourceUrl || prev.publicationLink,
+    doi: publication.doi || "",
+    publicationTitle: publication.title || "",
+    publicationType: publication.publicationType || publication.publication_type || "",
+    venue,
+    journal: venue,
+    publisher: publication.publisher || "",
+    abstract: publication.abstract || "",
+    publicationDate: normalizeInputDate(publication.publicationDate || publication.publication_date),
+    publicationYear: publication.publicationYear || publication.publication_year || publication.year || "",
+    publicationLink: publication.sourceUrl || publication.source_url || "",
+    volume: publication.volume || "",
+    issue: publication.issue || "",
+    pages: publication.pages || "",
+    issn: publication.issn || "",
+    isbn: publication.isbn || "",
+    mainAuthor: authors.mainAuthor,
+    correspondingAuthor: authors.correspondingAuthor,
+    coauthors: authors.coauthors,
+    affiliation: authors.affiliation || "",
+    indexingPlatform: indexing.indexingPlatform,
+    impactFactor: indexing.impactFactor,
+    scopusQuartile: indexing.scopusQuartile,
   };
 }
 
@@ -507,7 +630,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [isLoadingContext, setIsLoadingContext] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDoiLoading, setIsDoiLoading] = useState(false);
   const [downloadingDocument, setDownloadingDocument] = useState("");
   const [previewingDocument, setPreviewingDocument] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -663,7 +785,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       applicantOrcidId: prev.applicantOrcidId || defaults.applicantOrcidId,
       bankApplicantName: prev.bankApplicantName || defaults.bankApplicantName,
       applyingUnit: prev.applyingUnit || defaults.applyingUnit,
-      affiliation: prev.affiliation || defaults.affiliation,
     }));
     setHasHydratedAutoFields(true);
   }, [effectiveProfile, hasHydratedAutoFields, isLoadingContext]);
@@ -766,6 +887,10 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const handleFieldChange = (field) => (event) => {
     const nextValue = event.target.value;
+
+    if (selectedType === "publication" && PUBLICATION_READ_ONLY_FIELDS.has(field)) {
+      return;
+    }
 
     setForm((prev) => {
       const nextForm = { ...prev, [field]: nextValue };
@@ -914,6 +1039,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     const selectedPublication = context.publications.find((item) => String(item.id) === publicationId);
 
     setForm((prev) => applyPublicationToForm({ ...prev, publicationId }, selectedPublication));
+    setFieldErrors((prev) => ({ ...prev, publicationId: "" }));
   };
 
   const handleConferenceSelect = (event) => {
@@ -930,40 +1056,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       eventPlaceDate: placeDate || prev.eventPlaceDate,
       eventPublicationLink: selectedConference?.website || prev.eventPublicationLink,
     }));
-  };
-
-  const handleDoiLookup = async () => {
-    if (!form.doi.trim()) {
-      setError("Shkruani DOI per te marre metadata.");
-      return;
-    }
-
-    setIsDoiLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(apiUrl(`/doi/${encodeURIComponent(form.doi.trim())}`));
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Metadata per DOI nuk u gjeten.");
-      }
-
-      const metadata = result.data || {};
-
-      setForm((prev) => ({
-        ...prev,
-        publicationTitle: metadata.title || prev.publicationTitle,
-        journal: metadata.container_title || prev.journal,
-        publisher: metadata.publisher || prev.publisher,
-        publicationYear: metadata.year || prev.publicationYear,
-        publicationLink: metadata.source_url || prev.publicationLink,
-      }));
-    } catch (lookupError) {
-      setError(lookupError.message || "DOI lookup deshtoi.");
-    } finally {
-      setIsDoiLoading(false);
-    }
   };
 
   const validateForm = (action) => {
@@ -1336,7 +1428,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   };
 
   const renderInput = (label, field, options = {}) => {
-    const className = options.wide ? "reimbursement-field reimbursement-wide" : "reimbursement-field";
+    const className = [
+      "reimbursement-field",
+      options.wide ? "reimbursement-wide" : "",
+      options.readOnly ? "reimbursement-readonly-field" : "",
+    ].filter(Boolean).join(" ");
     const fieldError = fieldErrors[field];
 
     if (options.type === "textarea") {
@@ -1349,6 +1445,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             rows={options.rows || 3}
             required={options.required}
             placeholder={tx(options.placeholder)}
+            readOnly={options.readOnly}
+            aria-readonly={options.readOnly || undefined}
           />
           {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
         </label>
@@ -1359,7 +1457,13 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       return (
         <label className={className}>
           <span>{tx(label)}</span>
-          <select value={form[field]} onChange={handleFieldChange(field)} required={options.required}>
+          <select
+            value={form[field]}
+            onChange={handleFieldChange(field)}
+            required={options.required}
+            disabled={options.readOnly}
+            aria-readonly={options.readOnly || undefined}
+          >
             {(options.options || []).map((option) => (
               <option key={option} value={option}>
                 {tx(option) || r.choose}
@@ -1383,6 +1487,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           placeholder={tx(options.placeholder)}
           min={options.min}
           step={options.step}
+          readOnly={options.readOnly}
+          aria-readonly={options.readOnly || undefined}
         />
         {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
       </label>
@@ -1397,15 +1503,21 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </label>
   );
 
-  const renderSchemaField = (fieldConfig) => (
-    <React.Fragment key={fieldConfig.field}>
-      {renderInput(tx(fieldConfig.label), fieldConfig.field, {
-        ...fieldConfig,
-        options: fieldConfig.options || FIELD_OPTIONS[fieldConfig.optionsKey] || [],
-        placeholder: tx(fieldConfig.placeholder),
-      })}
-    </React.Fragment>
-  );
+  const renderSchemaField = (fieldConfig) => {
+    const isPublicationReadOnly = selectedType === "publication"
+      && (fieldConfig.source === "publication" || PUBLICATION_READ_ONLY_FIELDS.has(fieldConfig.field));
+
+    return (
+      <React.Fragment key={fieldConfig.field}>
+        {renderInput(tx(fieldConfig.label), fieldConfig.field, {
+          ...fieldConfig,
+          readOnly: Boolean(fieldConfig.readOnly || isPublicationReadOnly),
+          options: fieldConfig.options || FIELD_OPTIONS[fieldConfig.optionsKey] || [],
+          placeholder: tx(fieldConfig.placeholder),
+        })}
+      </React.Fragment>
+    );
+  };
 
   const getSectionFields = (sectionId) =>
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
@@ -1436,23 +1548,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               </option>
             ))}
           </select>
+          {fieldErrors.publicationId ? <small className="reimbursement-field-error">{tx(fieldErrors.publicationId)}</small> : null}
         </label>
       ) : (
         <div className="reimbursement-info reimbursement-wide">
           {r.noSavedPublication}
+          {fieldErrors.publicationId ? <small className="reimbursement-field-error">{tx(fieldErrors.publicationId)}</small> : null}
         </div>
       )}
-
-      <label className="reimbursement-field reimbursement-doi-field">
-        <span>DOI</span>
-        <div className="reimbursement-inline-control">
-          <input value={form.doi} onChange={handleFieldChange("doi")} placeholder="10.xxxx/xxxxx" />
-          <button type="button" onClick={handleDoiLookup} disabled={isDoiLoading}>
-            {isDoiLoading ? <Loader2 size={16} className="reimbursement-spin" /> : <Search size={16} />}
-            {r.getMetadata}
-          </button>
-        </div>
-      </label>
 
       {getSectionFields("authors").map(renderSchemaField)}
       {getSectionFields("publicationDetails").map(renderSchemaField)}

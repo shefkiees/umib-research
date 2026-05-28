@@ -84,6 +84,34 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
 
+const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
+  "doi",
+  "publicationTitle",
+  "publicationType",
+  "venue",
+  "journal",
+  "publisher",
+  "publicationDate",
+  "publicationYear",
+  "publicationLink",
+  "mainAuthor",
+  "correspondingAuthor",
+  "coauthors",
+  "affiliation",
+  "indexingPlatform",
+  "impactFactor",
+  "scopusQuartile",
+  "volume",
+  "issue",
+  "pages",
+  "issn",
+  "isbn",
+  "abstract",
+  "authors",
+  "indexing",
+  "publicationAttachments",
+]);
+
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -408,15 +436,32 @@ function parseOptionalInteger(value) {
 }
 
 function mapPublicationRow(row) {
+  const authors = safeJsonArray(row.authors);
+  const indexing = safeJsonArray(row.indexing);
+
   return {
     id: row.id,
     doi: row.doi || "",
     title: row.title || "",
+    abstract: row.abstract || "",
+    publicationType: row.publication_type || row.publicationType || "",
+    publication_type: row.publication_type || row.publicationType || "",
     venue: row.venue || row.container_title || "",
     publisher: row.publisher || "",
+    publicationDate: formatDate(row.publication_date || row.publicationDate || row.published_date),
+    publication_date: formatDate(row.publication_date || row.publicationDate || row.published_date),
     publicationYear: row.publication_year || row.year || "",
+    publication_year: row.publication_year || row.year || "",
     status: row.status || "",
     sourceUrl: row.source_url || "",
+    source_url: row.source_url || "",
+    volume: row.volume || "",
+    issue: row.issue || "",
+    pages: row.pages || "",
+    issn: row.issn || "",
+    isbn: row.isbn || "",
+    authors,
+    indexing,
   };
 }
 
@@ -432,10 +477,29 @@ async function hasPublicationContextColumns(dbOrClient) {
      from information_schema.columns
      where table_schema = current_schema()
        and table_name = 'publications'
-       and column_name in ('publisher', 'source_url')`
+       and column_name in (
+         'abstract',
+         'publication_type',
+         'publisher',
+         'publication_date',
+         'source_url',
+         'volume',
+         'issue',
+         'pages',
+         'issn',
+         'isbn'
+       )`
+  );
+  const tableResult = await dbOrClient.query(
+    `select count(*)::int as count
+     from information_schema.tables
+     where table_schema = current_schema()
+       and table_name in ('publication_authors', 'publication_indexing')`
   );
 
-  publicationContextSchemaCache = Number(rows[0]?.count || 0) === 2;
+  publicationContextSchemaCache =
+    Number(rows[0]?.count || 0) === 10
+    && Number(tableResult.rows[0]?.count || 0) === 2;
   return publicationContextSchemaCache;
 }
 
@@ -459,6 +523,185 @@ function safeJsonArray(value) {
   } catch {
     return [];
   }
+}
+
+function authorDisplayName(author = {}) {
+  return normalizeText(
+    author.fullName
+    || author.full_name
+    || [author.givenName || author.given_name, author.familyName || author.family_name].filter(Boolean).join(" ")
+  );
+}
+
+function authorAffiliation(author = {}) {
+  return normalizeText(author.affiliation);
+}
+
+function publicationToReadOnlyRequestData(publication) {
+  if (!publication) {
+    return {};
+  }
+
+  const authors = Array.isArray(publication.authors) ? publication.authors : [];
+  const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
+  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || null;
+  const mainAuthorName = authorDisplayName(mainAuthor);
+  const coauthors = authors
+    .filter((author) => {
+      const name = authorDisplayName(author);
+      return name && name !== mainAuthorName;
+    })
+    .map(authorDisplayName)
+    .join("; ");
+  const indexing = Array.isArray(publication.indexing) ? publication.indexing : [];
+  const indexingPlatform = indexing
+    .map((item) => normalizeText(item.source))
+    .filter(Boolean)
+    .join(", ");
+  const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
+  const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
+  const venue = normalizeText(publication.venue || publication.journal);
+
+  return {
+    publicationId: publication.id ? String(publication.id) : "",
+    doi: normalizeText(publication.doi),
+    publicationTitle: normalizeText(publication.title),
+    publicationType: normalizeText(publication.publicationType || publication.publication_type),
+    venue,
+    journal: venue,
+    publisher: normalizeText(publication.publisher),
+    publicationDate: formatDate(publication.publicationDate || publication.publication_date),
+    publicationYear: normalizeText(publication.publicationYear || publication.publication_year || publication.year),
+    publicationLink: normalizeText(publication.sourceUrl || publication.source_url),
+    volume: normalizeText(publication.volume),
+    issue: normalizeText(publication.issue),
+    pages: normalizeText(publication.pages),
+    issn: normalizeText(publication.issn),
+    isbn: normalizeText(publication.isbn),
+    abstract: normalizeText(publication.abstract),
+    mainAuthor: mainAuthorName,
+    correspondingAuthor: authorDisplayName(correspondingAuthor),
+    coauthors,
+    affiliation: authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author))),
+    indexingPlatform,
+    impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
+    scopusQuartile: normalizeText(firstQuartile?.quartile),
+  };
+}
+
+function stripPublicationReadOnlyFields(formData) {
+  return Object.entries(formData || {}).reduce((acc, [field, value]) => {
+    if (!PUBLICATION_READ_ONLY_FORM_FIELDS.has(field)) {
+      acc[field] = value;
+    }
+
+    return acc;
+  }, {});
+}
+
+function mergePublicationReadOnlyData(requestData, publication) {
+  if (!publication) {
+    return requestData || {};
+  }
+
+  return {
+    ...(requestData || {}),
+    ...publicationToReadOnlyRequestData(publication),
+  };
+}
+
+async function selectPublicationForReimbursement(dbOrClient, ownerId, publicationId) {
+  if (!publicationId) {
+    return null;
+  }
+
+  const hasPublicationColumns = await hasPublicationContextColumns(dbOrClient);
+  const result = hasPublicationColumns
+    ? await dbOrClient.query(
+        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue,
+                p.publisher, p.publication_date, p.publication_year, p.status,
+                p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'id', pa.id,
+                        'fullName', pa.full_name,
+                        'givenName', pa.given_name,
+                        'familyName', pa.family_name,
+                        'orcid', pa.orcid,
+                        'affiliation', pa.affiliation,
+                        'isMainAuthor', pa.is_main_author,
+                        'isCorrespondingAuthor', pa.is_corresponding_author,
+                        'position', pa.position
+                      )
+                      order by pa.position asc, pa.created_at asc
+                    )
+                    from publication_authors pa
+                    where pa.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as authors,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'id', pi.id,
+                        'source', pi.source,
+                        'quartile', pi.quartile,
+                        'impactFactor', pi.impact_factor,
+                        'indexedUrl', pi.indexed_url
+                      )
+                      order by pi.created_at asc
+                    )
+                    from publication_indexing pi
+                    where pi.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as indexing
+         from publications p
+         where p.id = $1
+           and ($2::uuid is null or p.owner_id = $2)
+         limit 1`,
+        [publicationId, ownerId || null]
+      )
+    : await dbOrClient.query(
+        `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
+                m.container_title, m.publisher, m.published_date as publication_date,
+                m.year, m.source_url, m.type as publication_type, m.abstract,
+                m.volume, m.issue, m.pages, m.issn, m.isbn
+         from publications p
+         left join publication_metadata m on m.doi = p.doi
+         where p.id = $1
+           and ($2::uuid is null or p.owner_id = $2)
+         limit 1`,
+        [publicationId, ownerId || null]
+      );
+
+  return result.rows[0] ? mapPublicationRow(result.rows[0]) : null;
+}
+
+async function hydrateReimbursementRowForPublication(dbOrClient, row) {
+  if (!row || row.request_type !== "publication") {
+    return row;
+  }
+
+  const requestData = row.request_data || {};
+  const publicationId = row.publication_id || parseOptionalUuid(requestData.publicationId);
+  const publication = await selectPublicationForReimbursement(dbOrClient, row.owner_id, publicationId);
+
+  if (!publication) {
+    return row;
+  }
+
+  return {
+    ...row,
+    request_data: mergePublicationReadOnlyData(requestData, publication),
+  };
+}
+
+async function hydrateReimbursementRowsForPublication(dbOrClient, rows) {
+  return Promise.all(rows.map((row) => hydrateReimbursementRowForPublication(dbOrClient, row)));
 }
 
 function normalizeStatusHistory(value) {
@@ -524,7 +767,8 @@ function mapReimbursementRow(row) {
 }
 
 function buildHistorySelect(whereClause) {
-  return `select r.id, r.owner_id, r.title, r.amount, r.currency, r.status, r.request_type, r.request_data,
+  return `select r.id, r.owner_id, r.publication_id, r.conference_id,
+                 r.title, r.amount, r.currency, r.status, r.request_type, r.request_data,
                  r.document_number, r.document_filename, r.document_docx_filename,
                  r.submitted_at, r.created_at, r.updated_at,
                  u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty, u.department as owner_department,
@@ -580,7 +824,7 @@ async function selectReimbursementWithHistoryById(id, client = db) {
     [id]
   );
 
-  return result.rows[0] || null;
+  return hydrateReimbursementRowForPublication(client, result.rows[0] || null);
 }
 
 async function canAccessReimbursement(row, user) {
@@ -746,14 +990,23 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
   return errors;
 }
 
-function buildRequestPayload(user, requestType, formData) {
+function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
+  const writableFormData = requestType === "publication"
+    ? stripPublicationReadOnlyFields(formData)
+    : formData;
+  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+
+  if (requestType === "publication") {
+    writableFormData.publicationId = publicationId || "";
+  }
+
   const autoFields = buildEditableAutoFields(user, formData);
-  const amount = parseAmount(formData.amount);
-  const currency = normalizeCurrency(formData.currency);
-  const banking = normalizeBankingData(formData, amount, currency);
+  const amount = parseAmount(writableFormData.amount);
+  const currency = normalizeCurrency(writableFormData.currency);
+  const banking = normalizeBankingData(writableFormData, amount, currency);
   const requestData = {
-    ...formData,
-    amount: amount === null ? normalizeText(formData.amount) : String(amount),
+    ...writableFormData,
+    amount: amount === null ? normalizeText(writableFormData.amount) : String(amount),
     currency,
     amountWords: banking.amountInWords,
     bankApplicantName: banking.applicantName,
@@ -772,11 +1025,13 @@ function buildRequestPayload(user, requestType, formData) {
     requestType,
     requestTypeLabel: REQUEST_TYPES[requestType],
   };
-  const title = buildRequestTitle(requestType, requestData);
-  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+  const documentRequestData = requestType === "publication"
+    ? mergePublicationReadOnlyData(requestData, linkedRecords.publication)
+    : requestData;
+  const title = buildRequestTitle(requestType, documentRequestData);
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
 
-  return { requestData, title, amount, currency, publicationId, conferenceId };
+  return { requestData, documentRequestData, title, amount, currency, publicationId, conferenceId };
 }
 
 function buildPreviewRow(user, requestType, payload) {
@@ -790,7 +1045,7 @@ function buildPreviewRow(user, requestType, payload) {
     currency: payload.currency,
     status: "submitted",
     request_type: requestType,
-    request_data: payload.requestData,
+    request_data: payload.documentRequestData || payload.requestData,
     document_number: `PREVIEW-${getCurrentUserProfile(user).id || "RIMBURSIM"}`,
     submitted_at: now,
     created_at: now,
@@ -835,7 +1090,8 @@ async function notifyOwner(client, reimbursementId, ownerId, status, note) {
 async function createGeneratedDocuments(client, row) {
   const documentNumber =
     row.document_number || `RIM-${formatDocumentDate(row.submitted_at || row.created_at)}-${String(row.id).slice(0, 8).toUpperCase()}`;
-  const rowForDocuments = { ...row, document_number: documentNumber };
+  const hydratedRow = await hydrateReimbursementRowForPublication(client, row);
+  const rowForDocuments = { ...hydratedRow, document_number: documentNumber };
   const filenames = getReimbursementDocumentFilenames(rowForDocuments);
   const [pdfBuffer, docxBuffer] = await Promise.all([
     buildReimbursementPdf(rowForDocuments),
@@ -851,7 +1107,7 @@ async function createGeneratedDocuments(client, row) {
          generated_docx = $6,
          updated_at = now()
      where id = $1
-     returning id, owner_id, title, amount, currency, status, request_type, request_data,
+     returning id, owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data,
                document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
     [row.id, documentNumber, filenames.pdf, filenames.docx, pdfBuffer, docxBuffer]
   );
@@ -860,18 +1116,19 @@ async function createGeneratedDocuments(client, row) {
 }
 
 async function ensureGeneratedDocument(row, format) {
+  const sourceRow = await hydrateReimbursementRowForPublication(db, row);
   const documentNumber =
-    row.document_number || `RIM-${formatDocumentDate(row.submitted_at || row.created_at)}-${String(row.id).slice(0, 8).toUpperCase()}`;
+    sourceRow.document_number || `RIM-${formatDocumentDate(sourceRow.submitted_at || sourceRow.created_at)}-${String(sourceRow.id).slice(0, 8).toUpperCase()}`;
   const filenames = getReimbursementDocumentFilenames({
-    ...row,
+    ...sourceRow,
     document_number: documentNumber,
   });
 
   if (format === "docx") {
-    const filename = row.document_docx_filename || filenames.docx;
-    const buffer = row.generated_docx || (await buildReimbursementDocx({ ...row, document_number: documentNumber }));
+    const filename = sourceRow.document_docx_filename || filenames.docx;
+    const buffer = sourceRow.generated_docx || (await buildReimbursementDocx({ ...sourceRow, document_number: documentNumber }));
 
-    if (!row.generated_docx || !row.document_docx_filename || !row.document_number) {
+    if (!sourceRow.generated_docx || !sourceRow.document_docx_filename || !sourceRow.document_number) {
       await db.query(
         `update reimbursements
          set document_number = coalesce(document_number, $2),
@@ -879,17 +1136,17 @@ async function ensureGeneratedDocument(row, format) {
              generated_docx = coalesce(generated_docx, $4),
              updated_at = now()
          where id = $1`,
-        [row.id, documentNumber, filename, buffer]
+        [sourceRow.id, documentNumber, filename, buffer]
       );
     }
 
     return { buffer, filename };
   }
 
-  const filename = row.document_filename || filenames.pdf;
-  const buffer = row.generated_pdf || (await buildReimbursementPdf({ ...row, document_number: documentNumber }));
+  const filename = sourceRow.document_filename || filenames.pdf;
+  const buffer = sourceRow.generated_pdf || (await buildReimbursementPdf({ ...sourceRow, document_number: documentNumber }));
 
-  if (!row.generated_pdf || !row.document_filename || !row.document_number) {
+  if (!sourceRow.generated_pdf || !sourceRow.document_filename || !sourceRow.document_number) {
     await db.query(
       `update reimbursements
        set document_number = coalesce(document_number, $2),
@@ -897,7 +1154,7 @@ async function ensureGeneratedDocument(row, format) {
            generated_pdf = coalesce(generated_pdf, $4),
            updated_at = now()
        where id = $1`,
-      [row.id, documentNumber, filename, buffer]
+      [sourceRow.id, documentNumber, filename, buffer]
     );
   }
 
@@ -1006,14 +1263,55 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
 
     const hasPublicationColumns = await hasPublicationContextColumns(db);
     const publicationsQuery = hasPublicationColumns
-      ? `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
-                p.publisher, p.source_url
+      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue,
+                p.publisher, p.publication_date, p.publication_year, p.status,
+                p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'id', pa.id,
+                        'fullName', pa.full_name,
+                        'givenName', pa.given_name,
+                        'familyName', pa.family_name,
+                        'orcid', pa.orcid,
+                        'affiliation', pa.affiliation,
+                        'isMainAuthor', pa.is_main_author,
+                        'isCorrespondingAuthor', pa.is_corresponding_author,
+                        'position', pa.position
+                      )
+                      order by pa.position asc, pa.created_at asc
+                    )
+                    from publication_authors pa
+                    where pa.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as authors,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'id', pi.id,
+                        'source', pi.source,
+                        'quartile', pi.quartile,
+                        'impactFactor', pi.impact_factor,
+                        'indexedUrl', pi.indexed_url
+                      )
+                      order by pi.created_at asc
+                    )
+                    from publication_indexing pi
+                    where pi.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as indexing
          from publications p
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`
       : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
-                m.publisher, m.source_url
+                m.container_title, m.publisher, m.published_date as publication_date,
+                m.year, m.source_url, m.type as publication_type, m.abstract,
+                m.volume, m.issue, m.pages, m.issn, m.isbn
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
@@ -1076,8 +1374,9 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
        order by coalesce(r.submitted_at, r.created_at) desc`,
       scope.params
     );
+    const hydratedRows = await hydrateReimbursementRowsForPublication(db, rows);
 
-    res.json(rows.map(mapReimbursementRow));
+    res.json(hydratedRows.map(mapReimbursementRow));
   } catch (error) {
     console.error("GET /api/reimbursements failed:", error);
     res.status(500).json({ error: "list_failed" });
@@ -1113,7 +1412,20 @@ router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const payload = buildRequestPayload(user, requestType, formData);
+    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+    const linkedPublication = publicationId
+      ? await selectPublicationForReimbursement(db, req.user.id, publicationId)
+      : null;
+
+    if (requestType === "publication" && !linkedPublication) {
+      res.status(400).json({
+        error: "publication_not_found",
+        message: "Publikimi i zgjedhur nuk u gjet.",
+      });
+      return;
+    }
+
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
     const previewRow = buildPreviewRow(user, requestType, payload);
     const filenames = getReimbursementDocumentFilenames(previewRow);
     const buffer = format === "docx"
@@ -1163,18 +1475,34 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const payload = buildRequestPayload(user, requestType, formData);
   const status = asDraft ? "draft" : "submitted";
   const client = await db.connect();
 
   try {
     await client.query("begin");
 
+    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+    const linkedPublication = publicationId
+      ? await selectPublicationForReimbursement(client, req.user.id, publicationId)
+      : null;
+
+    if (requestType === "publication" && !asDraft && !linkedPublication) {
+      await client.query("rollback");
+      res.status(400).json({
+        error: "publication_not_found",
+        message: "Publikimi i zgjedhur nuk u gjet.",
+      });
+      return;
+    }
+
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
+
     const insertResult = await client.query(
       `insert into reimbursements
        (owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data, submitted_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, case when $7 = 'submitted' then now() else null end)
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
+                 publication_id, conference_id,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
       [
         req.user.id,
@@ -1242,7 +1570,6 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const payload = buildRequestPayload(user, requestType, formData);
   const client = await db.connect();
 
   try {
@@ -1274,6 +1601,21 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     }
 
     const nextStatus = isSubmit ? "submitted" : current.status === "needs_correction" ? "needs_correction" : "draft";
+    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+    const linkedPublication = publicationId
+      ? await selectPublicationForReimbursement(client, req.user.id, publicationId)
+      : null;
+
+    if (requestType === "publication" && isSubmit && !linkedPublication) {
+      await client.query("rollback");
+      res.status(400).json({
+        error: "publication_not_found",
+        message: "Publikimi i zgjedhur nuk u gjet.",
+      });
+      return;
+    }
+
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
     const updateResult = await client.query(
       `update reimbursements
        set publication_id = $2,
@@ -1288,6 +1630,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
            updated_at = now()
        where id = $1
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
+                 publication_id, conference_id,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
       [
         current.id,
@@ -1337,6 +1680,7 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
 
     const currentResult = await client.query(
       `select id, owner_id, status, request_type, request_data, title, amount, currency,
+              publication_id, conference_id,
               document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at
        from reimbursements
        where id = $1
@@ -1379,6 +1723,7 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
            updated_at = now()
        where id = $1
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
+                 publication_id, conference_id,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
       [current.id]
     );
@@ -1609,6 +1954,7 @@ router.get("/:id/pdf", requireAuthenticatedUser, async (req, res) => {
   try {
     const { rows } = await db.query(
       `select id, owner_id, title, amount, currency, status, request_type, request_data,
+              publication_id, conference_id,
               document_number, document_filename, document_docx_filename, generated_pdf,
               submitted_at, created_at
        from reimbursements
@@ -1617,7 +1963,7 @@ router.get("/:id/pdf", requireAuthenticatedUser, async (req, res) => {
       [req.params.id]
     );
 
-    const row = rows[0] || null;
+    const row = await hydrateReimbursementRowForPublication(db, rows[0] || null);
 
     if (!(await canAccessReimbursement(row, req.user))) {
       res.status(404).json({ error: "not_found" });
@@ -1639,6 +1985,7 @@ router.get("/:id/docx", requireAuthenticatedUser, async (req, res) => {
   try {
     const { rows } = await db.query(
       `select id, owner_id, title, amount, currency, status, request_type, request_data,
+              publication_id, conference_id,
               document_number, document_filename, document_docx_filename, generated_docx,
               submitted_at, created_at
        from reimbursements
@@ -1647,7 +1994,7 @@ router.get("/:id/docx", requireAuthenticatedUser, async (req, res) => {
       [req.params.id]
     );
 
-    const row = rows[0] || null;
+    const row = await hydrateReimbursementRowForPublication(db, rows[0] || null);
 
     if (!(await canAccessReimbursement(row, req.user))) {
       res.status(404).json({ error: "not_found" });
