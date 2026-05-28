@@ -307,7 +307,6 @@ const PublicationForm = ({
     onSubmit();
   };
 
-  const statusOptions = canReview ? REVIEW_STATUS_OPTIONS : PROFESSOR_STATUS_OPTIONS;
   const authors = value.authors || [];
   const primaryAuthor = authors[0] || EMPTY_AUTHOR;
   const coauthors = authors.slice(1);
@@ -344,16 +343,6 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field">
-          <span>Status</span>
-          <select value={value.status} onChange={updateField("status")}>
-            {statusOptions.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="prof-form-field">
           <span>DOI</span>
           <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" readOnly={isDoiImported} />
         </label>
@@ -372,10 +361,6 @@ const PublicationForm = ({
         <label className="prof-form-field">
           <span>Viti i publikimit</span>
           <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" readOnly={isDoiImported} />
-        </label>
-        <label className="prof-form-field">
-          <span>Vegëza e publikimit</span>
-          <input value={value.sourceUrl} onChange={updateField("sourceUrl")} placeholder="https://..." readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Vëllimi</span>
