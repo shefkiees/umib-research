@@ -28,7 +28,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="nav-menu">
-            <a href="#about">Rreth Portalit</a>
+            <a href="#services">Rreth Portalit</a>
             <a href="#services">Statistikat</a>
             <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
