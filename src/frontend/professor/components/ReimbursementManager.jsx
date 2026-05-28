@@ -45,6 +45,13 @@ const KOSOVO_BANKS = [
   { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"], logoSrc: "/bank-logos/economic.jpg" },
 ];
 
+const FORM_STEPS = [
+  { id: "basic", label: "Te dhenat baze" },
+  { id: "academic", label: "Te dhenat akademike" },
+  { id: "financial", label: "Financat" },
+  { id: "documents", label: "Dokumentet" },
+];
+
 const PARTICIPATION_OPTIONS = ["Prezantim", "Poster", "Pjesemarrje", "Keynote", "Panelist", "Kryesues"];
 const YES_NO_OPTIONS = ["", "Po", "Jo"];
 const SCOPUS_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "Jo e indeksuar", "Nuk aplikohet"];
@@ -648,6 +655,28 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const selectedBank = useMemo(() => getBankByName(form.bankName), [form.bankName]);
   const visualBank = selectedBank || detectedBank;
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
+  const stepStates = useMemo(() => {
+    const academicMainField = selectedType === "conference"
+      ? "conferenceTitle"
+      : selectedType === "project"
+        ? "projectTitle"
+        : "publicationTitle";
+
+    return {
+      basic: hasValue(form.applicantName) && hasValue(form.applicantEmail) && hasValue(form.applicantFaculty),
+      academic: hasValue(form[academicMainField]),
+      financial:
+        Number(String(form.amount || "").replace(",", ".")) > 0
+        && (
+          bankRequired
+            ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode) && hasValue(form.amountWords)
+            : hasValue(form.requestedFromUibm) && hasCompleteCostItem(form.costItems)
+        ),
+      documents: selectedAttachmentChecklist
+        .filter((item) => item.required)
+        .every((item) => Boolean(form.documentChecklist?.[item.id])),
+    };
+  }, [bankRequired, form, isAccountNumberValid, selectedAttachmentChecklist, selectedType]);
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
     const normalizedQuery = searchQuery.trim().toLowerCase();
