@@ -196,6 +196,11 @@ function normalizeEvidenceLinks(value, errors) {
 }
 
 function normalizePublicationPayload(body = {}, options = {}) {
+  const hasIndexingInput = Object.prototype.hasOwnProperty.call(body, "indexing");
+  const hasEvidenceLinksInput =
+    Object.prototype.hasOwnProperty.call(body, "evidenceLinks")
+    || Object.prototype.hasOwnProperty.call(body, "evidence_links")
+    || Object.prototype.hasOwnProperty.call(body, "attachments");
   const doi = normalizeDoi(body.doi);
   const title = normalizeText(body.title);
   const publicationType = normalizePublicationType(body.publicationType || body.publication_type);
@@ -263,11 +268,27 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const indexing = normalizeIndexing(body.indexing);
-  const evidenceLinks = normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors);
+  const indexing = hasIndexingInput ? normalizeIndexing(body.indexing) : undefined;
+  const evidenceLinks = hasEvidenceLinksInput
+    ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
+    : undefined;
   const metadataVerified = normalizeBoolean(body.metadataVerified ?? body.metadata_verified) || metadataSource === "doi";
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
+  const mainAuthorCount = authors.filter((author) => author.isMainAuthor).length;
+  const correspondingAuthorCount = authors.filter((author) => author.isCorrespondingAuthor).length;
+
+  if (!authors.length) {
+    errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
+  }
+
+  if (mainAuthorCount > 1) {
+    errors.push({ field: "authors", message: "Vetem nje autor mund te shenohet si autor kryesor." });
+  }
+
+  if (correspondingAuthorCount > 1) {
+    errors.push({ field: "authors", message: "Vetem nje autor mund te shenohet si autor korrespondent." });
+  }
 
   return {
     errors,
@@ -291,6 +312,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
       indexing,
       evidenceLinks,
       attachments: evidenceLinks,
+      hasIndexingInput,
+      hasEvidenceLinksInput,
       metadataSource,
       metadataVerified,
       externalMetadataId,
@@ -499,10 +522,10 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
 
 async function replacePublicationChildren(client, publicationId, values) {
   await Promise.all([
-    client.query("delete from publication_authors where publication_id = $1", [publicationId]),
-    client.query("delete from publication_indexing where publication_id = $1", [publicationId]),
-    client.query("delete from publication_attachments where publication_id = $1", [publicationId]),
     client.query("delete from publication_identifiers where publication_id = $1", [publicationId]),
+    client.query("delete from publication_authors where publication_id = $1", [publicationId]),
+    ...(values.hasIndexingInput ? [client.query("delete from publication_indexing where publication_id = $1", [publicationId])] : []),
+    ...(values.hasEvidenceLinksInput ? [client.query("delete from publication_attachments where publication_id = $1", [publicationId])] : []),
   ]);
 
   for (const [index, author] of values.authors.entries()) {
@@ -524,7 +547,7 @@ async function replacePublicationChildren(client, publicationId, values) {
     );
   }
 
-  for (const item of values.indexing) {
+  for (const item of values.indexing || []) {
     await client.query(
       `insert into publication_indexing
        (publication_id, source, quartile, impact_factor, indexed_url)
@@ -533,7 +556,7 @@ async function replacePublicationChildren(client, publicationId, values) {
     );
   }
 
-  for (const item of values.evidenceLinks) {
+  for (const item of values.evidenceLinks || []) {
     await client.query(
       `insert into publication_attachments
        (publication_id, file_url, file_type, uploaded_at)

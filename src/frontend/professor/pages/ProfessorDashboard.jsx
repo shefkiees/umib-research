@@ -94,11 +94,11 @@ const DEFAULT_PROFESSOR_STATISTICS = {
 const MONTH_LABELS = ["Jan", "Shk", "Mar", "Pri", "Maj", "Qer", "Kor", "Gus", "Sht", "Tet", "Nen", "Dhj"];
 
 const STATUS_LABELS = {
-  draft: "Draft",
-  submitted: "Dorezuar",
+  draft: "Në draft",
+  submitted: "Dorëzuar",
   received: "Pranuar",
-  in_review: "Ne shqyrtim",
-  needs_correction: "Kthyer per korrigjim",
+  in_review: "Në shqyrtim",
+  needs_correction: "Kthyer për korrigjim",
   committee_approved: "Aprovuar nga komisioni",
   approved: "Aprovuar final",
   rejected: "Refuzuar",
@@ -107,6 +107,14 @@ const STATUS_LABELS = {
 };
 
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
+
+const PUBLICATION_TYPE_LABELS = {
+  journal_article: "Artikull në revistë",
+  conference_paper: "Punim konference",
+  book: "Libër",
+  chapter: "Kapitull libri",
+  accepted_in_press: "I pranuar / në botim",
+};
 
 const formatDate = (value) => {
   if (!value) {
@@ -566,6 +574,20 @@ export default function ProfessorDashboard() {
     );
   }, [normalizedQuery, publications]);
 
+  const buildPublicationPayload = (draft = {}) => {
+    const payload = { ...draft };
+    delete payload.attachments;
+    delete payload.evidenceLinks;
+    delete payload.evidence_links;
+    delete payload.identifiers;
+    delete payload.indexing;
+
+    return {
+      ...payload,
+      authors: Array.isArray(draft.authors) ? draft.authors : [],
+    };
+  };
+
   const statisticsChartData = useMemo(() => {
     return statisticsData.monthly.map((row) => ({
       ...row,
@@ -847,7 +869,7 @@ export default function ProfessorDashboard() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(manualPublicationDraft),
+        body: JSON.stringify(buildPublicationPayload(manualPublicationDraft)),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -876,7 +898,7 @@ export default function ProfessorDashboard() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(publicationDraft),
+        body: JSON.stringify(buildPublicationPayload(publicationDraft)),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -1224,10 +1246,28 @@ export default function ProfessorDashboard() {
     return row.title;
   };
 
+  const getPublicationTypeLabel = (type) => PUBLICATION_TYPE_LABELS[type] || "Pa tip të përcaktuar";
+
+  const formatPublicationAuthors = (authors = []) => {
+    const names = authors
+      .map((author) => author.fullName || author.full_name)
+      .filter(Boolean);
+
+    if (!names.length) {
+      return "Pa autorë të regjistruar";
+    }
+
+    if (names.length <= 2) {
+      return names.join(", ");
+    }
+
+    return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+  };
+
   const renderPublicationActions = (row) => {
     if (editingPublicationId === row.id) {
       return (
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div className="publication-row-actions">
           <button
             type="button"
             className="prof-btn-primary"
@@ -1235,7 +1275,7 @@ export default function ProfessorDashboard() {
             disabled={publicationActionId === row.id}
             aria-label={t("common.save")}
           >
-            <Save size={15} />
+            <Save size={15} /> Ruaj
           </button>
           <button
             type="button"
@@ -1244,14 +1284,14 @@ export default function ProfessorDashboard() {
             disabled={publicationActionId === row.id}
             aria-label={t("professor.dashboard.cancelEdit")}
           >
-            <X size={15} />
+            <X size={15} /> Anulo
           </button>
         </div>
       );
     }
 
     return (
-      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+      <div className="publication-row-actions">
         {renderStatus(row.status)}
         <button
           type="button"
@@ -1259,7 +1299,7 @@ export default function ProfessorDashboard() {
           onClick={() => startPublicationEdit(row)}
           aria-label={t("common.edit")}
         >
-          <Pencil size={15} />
+          <Pencil size={15} /> Edito
         </button>
         <button
           type="button"
@@ -1268,11 +1308,66 @@ export default function ProfessorDashboard() {
           disabled={publicationActionId === row.id}
           aria-label={t("common.delete")}
         >
-          <Trash2 size={15} />
+          <Trash2 size={15} /> Fshij
         </button>
       </div>
     );
   };
+
+  const renderPublicationsSection = () => (
+    <article className="prof-card publication-registry-card">
+      <div className="prof-card-header publication-registry-header">
+        <div>
+          <h3>Regjistri i publikimeve</h3>
+          <p>Publikimet e regjistruara, metadata kryesore dhe statusi i shqyrtimit.</p>
+        </div>
+        <span className="publication-count-pill">
+          {filteredPublications.length} publikime
+        </span>
+      </div>
+
+      {publicationsError ? (
+        <div className="prof-stats-message error" role="alert">{formatUiMessage(publicationsError)}</div>
+      ) : null}
+
+      {isPublicationsLoading ? (
+        <div className="prof-stats-empty">
+          <RefreshCw size={18} className="prof-stats-spin" />
+          {t("common.loading")}
+        </div>
+      ) : filteredPublications.length ? (
+        <div className="publication-table" role="table" aria-label="Regjistri i publikimeve">
+          <div className="publication-table-head" role="row">
+            <span>Publikimi</span>
+            <span>Autorët</span>
+            <span>Tipi / Viti</span>
+            <span>Statusi dhe veprimet</span>
+          </div>
+          {filteredPublications.map((row) => (
+            <div className="publication-table-row" role="row" key={row.id}>
+              <div className="publication-title-cell">
+                <h4>{renderPublicationTitle(row)}</h4>
+                <p>{[row.doi ? `DOI: ${row.doi}` : "", row.journal, row.sourceUrl ? "Ka vegëz" : ""].filter(Boolean).join(" • ") || "Pa të dhëna shtesë"}</p>
+              </div>
+              <div className="publication-meta-cell">
+                <span className="publication-mobile-label">Autorët</span>
+                {formatPublicationAuthors(row.authors)}
+              </div>
+              <div className="publication-meta-cell">
+                <span className="publication-mobile-label">Tipi / Viti</span>
+                {[getPublicationTypeLabel(row.publicationType), row.year].filter(Boolean).join(" • ")}
+              </div>
+              <div className="publication-actions-cell">
+                {renderPublicationActions(row)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="prof-stats-empty">{t("professor.dashboard.noData")}</div>
+      )}
+    </article>
+  );
 
   const renderContent = () => {
     switch (activePage) {
@@ -1281,11 +1376,11 @@ export default function ProfessorDashboard() {
       case "Publikime":
         return (
           <>
-            <article className="prof-card" style={{ marginBottom: "20px" }}>
+            <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto publikim</h3>
-                  <p>Plotesoni te dhenat e publikimit ose perdorni DOI per t'i mbushur automatikisht fushat.</p>
+                  <h3>Shto publikim shkencor</h3>
+                  <p>Plotësoni të dhënat kryesore ose përdorni DOI për t'i marrë automatikisht metadatat.</p>
                 </div>
               </div>
 
@@ -1300,11 +1395,11 @@ export default function ProfessorDashboard() {
             </article>
 
             {editingPublicationId ? (
-              <article className="prof-card" style={{ marginBottom: "20px" }}>
+              <article className="prof-card publication-form-card">
                 <div className="prof-card-header">
                   <div>
-                    <h3>Edit publication</h3>
-                    <p>All publication records use the same metadata fields, whether DOI-assisted or manual.</p>
+                    <h3>Edito publikimin</h3>
+                    <p>Përditësoni metadatat dhe autorët e publikimit të zgjedhur.</p>
                   </div>
                 </div>
                 <PublicationForm
@@ -1312,32 +1407,17 @@ export default function ProfessorDashboard() {
                   onChange={setPublicationDraft}
                   onSubmit={() => savePublicationEdit(editingPublicationId)}
                   onCancel={cancelPublicationEdit}
-                submitLabel="Save changes"
-                submitting={publicationActionId === editingPublicationId}
-                mode="edit"
-                canReview={canReviewPublications}
-              />
+                  submitLabel="Ruaj ndryshimet"
+                  submitting={publicationActionId === editingPublicationId}
+                  mode="edit"
+                  canReview={canReviewPublications}
+                />
               </article>
             ) : null}
 
-            {renderListSection(
-              t("navigation.publications"),
-              t("professor.dashboard.publicationRegistryDescription"),
-              filteredPublications,
-              "id",
-              {
-                icon: <BookOpen size={20} />,
-                title: renderPublicationTitle,
-                description: (row) => `${tx(row.journal)} • ${row.year}`,
-                status: (row) => row.status,
-                actions: renderPublicationActions,
-              },
-              publicationsError
-                ? formatUiMessage(publicationsError)
-                : (isPublicationsLoading ? t("common.loading") : t("professor.dashboard.noData"))
-            )}
+            {renderPublicationsSection()}
             {publicationsPagination.totalPages > 1 ? (
-              <div className="prof-modal-actions" style={{ marginTop: "12px" }}>
+              <div className="publication-pagination">
                 <button
                   type="button"
                   className="prof-btn-secondary"
@@ -1346,7 +1426,7 @@ export default function ProfessorDashboard() {
                 >
                   {t("common.back")}
                 </button>
-                <span style={{ alignSelf: "center", color: "#64748b", fontWeight: 700 }}>
+                <span className="publication-page-count">
                   {t("professor.dashboard.pageOf", {
                     page: publicationsPagination.page,
                     total: publicationsPagination.totalPages,

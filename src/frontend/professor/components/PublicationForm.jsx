@@ -4,25 +4,35 @@ import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export const PUBLICATION_TYPES = [
-  { value: "", label: "Select type" },
-  { value: "journal_article", label: "Journal article" },
-  { value: "conference_paper", label: "Conference paper" },
-  { value: "book", label: "Book" },
-  { value: "chapter", label: "Chapter" },
-  { value: "accepted_in_press", label: "Accepted / in press" },
+  { value: "", label: "Zgjidh tipin" },
+  { value: "journal_article", label: "Artikull në revistë" },
+  { value: "conference_paper", label: "Punim konference" },
+  { value: "book", label: "Libër" },
+  { value: "chapter", label: "Kapitull libri" },
+  { value: "accepted_in_press", label: "I pranuar / në botim" },
 ];
 
 const PROFESSOR_STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "submitted", label: "Submitted" },
+  { value: "draft", label: "Në draft" },
+  { value: "submitted", label: "Dorëzuar" },
 ];
 
 const REVIEW_STATUS_OPTIONS = [
   ...PROFESSOR_STATUS_OPTIONS,
-  { value: "in_review", label: "In review" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
+  { value: "in_review", label: "Në shqyrtim" },
+  { value: "approved", label: "Aprovuar" },
+  { value: "rejected", label: "Refuzuar" },
 ];
+
+const EMPTY_AUTHOR = {
+  fullName: "",
+  givenName: "",
+  familyName: "",
+  orcid: "",
+  affiliation: "",
+  isMainAuthor: false,
+  isCorrespondingAuthor: false,
+};
 
 export const createEmptyPublicationDraft = () => ({
   title: "",
@@ -48,6 +58,34 @@ export const createEmptyPublicationDraft = () => ({
   externalMetadataId: "",
 });
 
+function normalizePublicationAuthors(authors = []) {
+  let hasMainAuthor = false;
+  let hasCorrespondingAuthor = false;
+
+  return authors.map((author) => {
+    const isMainAuthor = Boolean(author.isMainAuthor ?? author.is_main_author) && !hasMainAuthor;
+    const isCorrespondingAuthor = Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author) && !hasCorrespondingAuthor;
+
+    if (isMainAuthor) {
+      hasMainAuthor = true;
+    }
+
+    if (isCorrespondingAuthor) {
+      hasCorrespondingAuthor = true;
+    }
+
+    return {
+      fullName: author.fullName || author.full_name || "",
+      givenName: author.givenName || author.given_name || "",
+      familyName: author.familyName || author.family_name || "",
+      orcid: author.orcid || "",
+      affiliation: author.affiliation || "",
+      isMainAuthor,
+      isCorrespondingAuthor,
+    };
+  });
+}
+
 export function publicationToDraft(publication = {}) {
   return {
     ...createEmptyPublicationDraft(),
@@ -66,15 +104,7 @@ export function publicationToDraft(publication = {}) {
     issn: publication.issn || "",
     isbn: publication.isbn || "",
     status: publication.status || "draft",
-    authors: Array.isArray(publication.authors) ? publication.authors.map((author) => ({
-      fullName: author.fullName || author.full_name || "",
-      givenName: author.givenName || author.given_name || "",
-      familyName: author.familyName || author.family_name || "",
-      orcid: author.orcid || "",
-      affiliation: author.affiliation || "",
-      isMainAuthor: Boolean(author.isMainAuthor ?? author.is_main_author),
-      isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author),
-    })) : [],
+    authors: Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [],
     indexing: Array.isArray(publication.indexing) ? publication.indexing.map((item) => ({
       source: item.source || "",
       quartile: item.quartile || "",
@@ -128,7 +158,7 @@ function metadataToDraft(metadata = {}) {
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authors: Array.isArray(metadata.authors)
-      ? metadata.authors.map((name) => ({ fullName: name, givenName: "", familyName: "", orcid: "", affiliation: "", isMainAuthor: false, isCorrespondingAuthor: false }))
+      ? metadata.authors.map((name, index) => ({ ...EMPTY_AUTHOR, fullName: name, isMainAuthor: index === 0 }))
       : [],
     metadataSource: "doi",
     metadataVerified: true,
@@ -137,9 +167,9 @@ function metadataToDraft(metadata = {}) {
 }
 
 function metadataBadgeLabel(source, verified) {
-  if (source === "doi" && verified) return "DOI imported";
-  if (source === "mixed") return "Mixed / manual override";
-  return "Manual";
+  if (source === "doi" && verified) return "Importuar nga DOI";
+  if (source === "mixed") return "DOI me ndryshime manuale";
+  return "Manuale";
 }
 
 const PublicationForm = ({
@@ -156,6 +186,7 @@ const PublicationForm = ({
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
   const [doiMessage, setDoiMessage] = useState("");
   const [doiError, setDoiError] = useState("");
+  const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
 
   const updateField = (field) => (event) => {
@@ -167,26 +198,60 @@ const PublicationForm = ({
     });
   };
 
-  const setCollectionItem = (collection, index, field, nextValue) => {
-    const nextCollection = (value[collection] || []).map((item, itemIndex) =>
-      itemIndex === index ? { ...item, [field]: nextValue } : item
-    );
-    onChange({ ...value, [collection]: nextCollection, metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource });
+  const setAuthorField = (index, field, nextValue) => {
+    const nextAuthors = (value.authors || []).map((author, authorIndex) => {
+      if ((field === "isMainAuthor" || field === "isCorrespondingAuthor") && nextValue) {
+        return {
+          ...author,
+          [field]: authorIndex === index,
+        };
+      }
+
+      return authorIndex === index ? { ...author, [field]: nextValue } : author;
+    });
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    setFormError("");
   };
 
-  const addCollectionItem = (collection, item) => {
-    onChange({ ...value, [collection]: [...(value[collection] || []), item] });
+  const addAuthor = () => {
+    const authors = value.authors || [];
+
+    onChange({
+      ...value,
+      authors: [
+        ...authors,
+        {
+          ...EMPTY_AUTHOR,
+          isMainAuthor: authors.length === 0,
+        },
+      ],
+    });
+    setFormError("");
   };
 
-  const removeCollectionItem = (collection, index) => {
-    onChange({ ...value, [collection]: (value[collection] || []).filter((_, itemIndex) => itemIndex !== index) });
+  const removeAuthor = (index) => {
+    const nextAuthors = (value.authors || []).filter((_, authorIndex) => authorIndex !== index);
+
+    if (nextAuthors.length && !nextAuthors.some((author) => author.isMainAuthor)) {
+      nextAuthors[0] = { ...nextAuthors[0], isMainAuthor: true };
+    }
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+    });
   };
 
   const lookupDoi = async () => {
     const doi = doiLookupValue.trim() || value.doi.trim();
 
     if (!doi) {
-      setDoiError("Enter a DOI to prefill metadata, or continue manually.");
+      setDoiError("Shënoni DOI për t'i marrë metadatat, ose vazhdoni manualisht.");
       return;
     }
 
@@ -199,7 +264,7 @@ const PublicationForm = ({
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.data) {
-        throw new Error(result.message || "DOI metadata could not be loaded. You can continue manually.");
+        throw new Error(result.message || "Metadatat për DOI nuk mund të ngarkohen. Mund të vazhdoni manualisht.");
       }
 
       onChange({
@@ -208,9 +273,9 @@ const PublicationForm = ({
         status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
       });
       setDoiLookupValue(result.data.doi || doi);
-      setDoiMessage("Metadata loaded. Review and edit fields before saving.");
+      setDoiMessage("Metadatat u ngarkuan. Kontrolloni fushat para ruajtjes.");
     } catch (error) {
-      setDoiError(error.message || "DOI lookup failed. You can continue manually.");
+      setDoiError(error.message || "Kërkimi i DOI dështoi. Mund të vazhdoni manualisht.");
       onChange({ ...value, doi, metadataSource: "manual", metadataVerified: false });
     } finally {
       setIsLookingUpDoi(false);
@@ -219,6 +284,14 @@ const PublicationForm = ({
 
   const submit = (event) => {
     event.preventDefault();
+    const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
+
+    if (!validAuthors.length) {
+      setFormError("Shto se paku një autor me emër të plotë.");
+      return;
+    }
+
+    setFormError("");
     onSubmit();
   };
 
@@ -237,11 +310,12 @@ const PublicationForm = ({
             value={doiLookupValue}
             onChange={(event) => setDoiLookupValue(event.target.value)}
             placeholder="10.xxxx/xxxxx"
+            aria-label="DOI për kërkim automatik"
             disabled={isLookingUpDoi || submitting}
           />
           <button type="button" className="prof-btn-secondary" onClick={lookupDoi} disabled={isLookingUpDoi || submitting}>
             <Search size={15} />
-            {isLookingUpDoi ? t("common.loading") : "Prefill from DOI"}
+            {isLookingUpDoi ? t("common.loading") : "Merr metadata"}
           </button>
         </div>
       </div>
@@ -251,11 +325,11 @@ const PublicationForm = ({
 
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
-          <span>Title</span>
+          <span>Titulli i publikimit</span>
           <input value={value.title} onChange={updateField("title")} required />
         </label>
         <label className="prof-form-field">
-          <span>Publication type</span>
+          <span>Tipi i publikimit</span>
           <select value={value.publicationType} onChange={updateField("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
@@ -265,45 +339,45 @@ const PublicationForm = ({
           <select value={value.status} onChange={updateField("status")}>
             {statusOptions.map((status) => (
               <option key={status.value} value={status.value}>
-                {status.value === "draft" ? t("professor.dashboard.draft") : status.label}
+                {status.label}
               </option>
             ))}
           </select>
         </label>
         <label className="prof-form-field">
           <span>DOI</span>
-          <input value={value.doi} onChange={updateField("doi")} placeholder="Optional" />
+          <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" />
         </label>
         <label className="prof-form-field">
-          <span>Venue / Journal / Conference</span>
+          <span>Revista / Konferenca / Botimi</span>
           <input value={value.venue} onChange={updateField("venue")} />
         </label>
         <label className="prof-form-field">
-          <span>Publisher</span>
+          <span>Botuesi</span>
           <input value={value.publisher} onChange={updateField("publisher")} />
         </label>
         <label className="prof-form-field">
-          <span>Publication date</span>
+          <span>Data e publikimit</span>
           <input type="date" value={value.publicationDate} onChange={updateField("publicationDate")} />
         </label>
         <label className="prof-form-field">
-          <span>Publication year</span>
+          <span>Viti i publikimit</span>
           <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" />
         </label>
         <label className="prof-form-field">
-          <span>Source URL</span>
+          <span>Vegëza e publikimit</span>
           <input value={value.sourceUrl} onChange={updateField("sourceUrl")} placeholder="https://..." />
         </label>
         <label className="prof-form-field">
-          <span>Volume</span>
+          <span>Vëllimi</span>
           <input value={value.volume} onChange={updateField("volume")} />
         </label>
         <label className="prof-form-field">
-          <span>Issue</span>
+          <span>Numri</span>
           <input value={value.issue} onChange={updateField("issue")} />
         </label>
         <label className="prof-form-field">
-          <span>Pages</span>
+          <span>Faqet</span>
           <input value={value.pages} onChange={updateField("pages")} />
         </label>
         <label className="prof-form-field">
@@ -315,105 +389,90 @@ const PublicationForm = ({
           <input value={value.isbn} onChange={updateField("isbn")} />
         </label>
         <label className="prof-form-field reimbursement-wide">
-          <span>Abstract</span>
+          <span>Abstrakti</span>
           <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} />
         </label>
       </div>
 
       <div className="publication-form-section">
         <div className="publication-form-section-header">
-          <h4>Authors</h4>
-          <button type="button" className="prof-btn-secondary" onClick={() => addCollectionItem("authors", { fullName: "", givenName: "", familyName: "", orcid: "", affiliation: "", isMainAuthor: false, isCorrespondingAuthor: false })}>
-            <Plus size={15} /> Add author
+          <div>
+            <h4>Autorët</h4>
+            <p>Regjistroni autorët sipas renditjes akademike të publikimit.</p>
+          </div>
+          <button type="button" className="prof-btn-secondary" onClick={addAuthor}>
+            <Plus size={15} /> Shto autor
           </button>
         </div>
-        <div className="publication-authors-grid">
-          {value.authors.map((author, index) => (
-            <article className="publication-author-card" key={`author-${index}`}>
-              <div className="publication-author-card-header">
-                <div className="publication-author-title">
-                  <span>Author {index + 1}</span>
-                  <strong>{author.fullName || "Unnamed author"}</strong>
-                </div>
-                <div className="publication-author-badges">
-                  {author.isMainAuthor ? <span className="publication-author-badge">Main author</span> : null}
-                  {author.isCorrespondingAuthor ? <span className="publication-author-badge">Corresponding</span> : null}
-                </div>
-              </div>
-
-              <div className="publication-author-fields">
-                <label>
-                  <span>Full name</span>
-                  <input value={author.fullName} onChange={(event) => setCollectionItem("authors", index, "fullName", event.target.value)} placeholder="Full name" />
-                </label>
-                <label>
-                  <span>ORCID</span>
-                  <input value={author.orcid} onChange={(event) => setCollectionItem("authors", index, "orcid", event.target.value)} placeholder="ORCID" />
-                </label>
-                <label className="publication-author-wide">
-                  <span>Affiliation</span>
-                  <input value={author.affiliation} onChange={(event) => setCollectionItem("authors", index, "affiliation", event.target.value)} placeholder="Affiliation" />
-                </label>
-              </div>
-
-              <div className="publication-author-footer">
+        {(value.authors || []).length ? (
+          <div className="publication-authors-grid" role="group" aria-label="Lista e autorëve">
+            <div className="publication-authors-head" aria-hidden="true">
+              <span>Renditja</span>
+              <span>Emri i plotë</span>
+              <span>ORCID</span>
+              <span>Institucioni / Afiliacioni</span>
+              <span>Autor kryesor</span>
+              <span>Autor korrespondent</span>
+              <span>Veprim</span>
+            </div>
+            {(value.authors || []).map((author, index) => (
+              <div className="publication-author-row" key={`author-${index}`}>
+                <div className="publication-author-index">Autori {index + 1}</div>
+                <input
+                  value={author.fullName}
+                  onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
+                  placeholder="Emri i plotë"
+                  required={index === 0}
+                />
+                <input
+                  value={author.orcid}
+                  onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
+                  placeholder="ORCID"
+                />
+                <input
+                  value={author.affiliation}
+                  onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+                  placeholder="Institucioni / Afiliacioni"
+                />
                 <label className="publication-author-check">
-                  <input type="checkbox" checked={author.isMainAuthor} onChange={(event) => setCollectionItem("authors", index, "isMainAuthor", event.target.checked)} />
-                  <span>Main author</span>
+                  <input
+                    type="checkbox"
+                    checked={author.isMainAuthor}
+                    onChange={(event) => setAuthorField(index, "isMainAuthor", event.target.checked)}
+                  />
+                  <span>Autor kryesor</span>
                 </label>
                 <label className="publication-author-check">
-                  <input type="checkbox" checked={author.isCorrespondingAuthor} onChange={(event) => setCollectionItem("authors", index, "isCorrespondingAuthor", event.target.checked)} />
-                  <span>Corresponding author</span>
+                  <input
+                    type="checkbox"
+                    checked={author.isCorrespondingAuthor}
+                    onChange={(event) => setAuthorField(index, "isCorrespondingAuthor", event.target.checked)}
+                  />
+                  <span>Autor korrespondent</span>
                 </label>
-                <button type="button" className="publication-author-remove" onClick={() => removeCollectionItem("authors", index)} aria-label="Remove author">
-                  <Trash2 size={15} />
-                  Remove
+                <button
+                  type="button"
+                  className="publication-remove-button"
+                  onClick={() => removeAuthor(index)}
+                  aria-label={`Largo autorin ${index + 1}`}
+                >
+                  <Trash2 size={14} /> Largo
                 </button>
               </div>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      <div className="publication-form-section">
-        <div className="publication-form-section-header">
-          <h4>Indexing</h4>
-          <button type="button" className="prof-btn-secondary" onClick={() => addCollectionItem("indexing", { source: "", quartile: "", impactFactor: "", indexedUrl: "" })}>
-            <Plus size={15} /> Add indexing
-          </button>
-        </div>
-        {value.indexing.map((item, index) => (
-          <div className="publication-nested-row" key={`indexing-${index}`}>
-            <input value={item.source} onChange={(event) => setCollectionItem("indexing", index, "source", event.target.value)} placeholder="Source" />
-            <input value={item.quartile} onChange={(event) => setCollectionItem("indexing", index, "quartile", event.target.value)} placeholder="Quartile" />
-            <input value={item.impactFactor} onChange={(event) => setCollectionItem("indexing", index, "impactFactor", event.target.value)} placeholder="Impact factor" />
-            <input value={item.indexedUrl} onChange={(event) => setCollectionItem("indexing", index, "indexedUrl", event.target.value)} placeholder="Indexed URL" />
-            <button type="button" className="prof-btn-secondary" onClick={() => removeCollectionItem("indexing", index)} aria-label="Remove indexing"><Trash2 size={15} /></button>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className="publication-form-section">
-        <div className="publication-form-section-header">
-          <h4>Evidence links</h4>
-          <button type="button" className="prof-btn-secondary" onClick={() => addCollectionItem("evidenceLinks", { url: "", label: "", uploadedAt: "" })}>
-            <Plus size={15} /> Add evidence
-          </button>
-        </div>
-        {(value.evidenceLinks || []).map((item, index) => (
-          <div className="publication-nested-row" key={`evidence-${index}`}>
-            <input value={item.url} onChange={(event) => setCollectionItem("evidenceLinks", index, "url", event.target.value)} placeholder="Evidence URL (https://...)" />
-            <input value={item.label} onChange={(event) => setCollectionItem("evidenceLinks", index, "label", event.target.value)} placeholder="Label / type" />
-            <input type="date" value={item.uploadedAt} onChange={(event) => setCollectionItem("evidenceLinks", index, "uploadedAt", event.target.value)} />
-            <button type="button" className="prof-btn-secondary" onClick={() => removeCollectionItem("evidenceLinks", index)} aria-label="Remove evidence"><Trash2 size={15} /></button>
+        ) : (
+          <div className="publication-empty-authors">
+            Nuk është shtuar ende asnjë autor.
           </div>
-        ))}
+        )}
+        {formError ? <p className="publication-form-message error" role="alert">{formError}</p> : null}
       </div>
 
       <div className="prof-modal-actions">
         {onCancel ? <button type="button" className="prof-btn-secondary" onClick={onCancel} disabled={submitting}>{t("common.cancel")}</button> : null}
         <button type="submit" className="prof-btn-primary" disabled={submitting}>
-          {submitting ? t("common.loading") : submitLabel || (mode === "edit" ? "Save changes" : "Save publication")}
+          {submitting ? t("common.loading") : submitLabel || (mode === "edit" ? "Ruaj ndryshimet" : "Ruaj publikimin")}
         </button>
       </div>
     </form>
