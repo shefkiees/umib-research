@@ -1971,26 +1971,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
 
         <form className="reimbursement-form" onSubmit={handleSubmit}>
-          <div className="reimbursement-stepper" aria-label={r.stepperLabel}>
-            {FORM_STEPS.map((step, index) => (
-              <div
-                key={step.id}
-                className={`reimbursement-step ${stepStates[step.id] ? "is-complete" : ""}`}
-              >
-                <span>{stepStates[step.id] ? t("common.ok") : index + 1}</span>
-                <strong>{tx(step.label)}</strong>
-              </div>
-            ))}
-          </div>
-
-          <aside className="reimbursement-side-checklist" aria-label={r.checklistLabel}>
-            {FORM_STEPS.map((step) => (
-              <span key={step.id} className={stepStates[step.id] ? "is-complete" : ""}>
-                {stepStates[step.id] ? t("common.ok") : t("common.none")} {tx(step.label)}
-              </span>
-            ))}
-          </aside>
-
           <section className="reimbursement-section">
             <div className="reimbursement-section-head">
               <BookOpen size={18} />

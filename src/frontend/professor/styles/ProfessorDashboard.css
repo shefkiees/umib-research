@@ -1849,78 +1849,6 @@ body {
   gap: 14px;
 }
 
-.reimbursement-stepper {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.reimbursement-step {
-  border: 1px solid #dce7f2;
-  border-radius: 10px;
-  background: #f8fbff;
-  color: #53677e;
-  min-height: 44px;
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.reimbursement-step span {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: #ffffff;
-  border: 1px solid #cbd8e8;
-  color: #174a7b;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  font-size: 0.7rem;
-  font-weight: 900;
-}
-
-.reimbursement-step.is-complete {
-  border-color: #bfe8cd;
-  background: #ecfdf3;
-  color: #167244;
-}
-
-.reimbursement-step.is-complete span {
-  border-color: #9fdcb5;
-  background: #16803f;
-  color: #ffffff;
-}
-
-.reimbursement-side-checklist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.reimbursement-side-checklist span {
-  border: 1px solid #d8e2ee;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #64748b;
-  min-height: 28px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.74rem;
-  font-weight: 900;
-}
-
-.reimbursement-side-checklist span.is-complete {
-  border-color: #bfe8cd;
-  background: #ecfdf3;
-  color: #167244;
-}
-
 .reimbursement-section {
   border: 1px solid #e4edf6;
   border-radius: 12px;
@@ -2660,7 +2588,6 @@ body {
   }
 
   .reimbursement-type-grid,
-  .reimbursement-stepper,
   .reimbursement-form-grid,
   .reimbursement-bank-grid,
   .reimbursement-document-checklist {
