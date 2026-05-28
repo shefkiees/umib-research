@@ -1818,10 +1818,6 @@ export default function ProfessorDashboard() {
                   <span>{settingsText.department}</span>
                   <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} />
                 </label>
-                <label className="prof-form-field">
-                  <span>{settingsText.office}</span>
-                  <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} />
-                </label>
               </div>
               {profileDraft.orcidEducations.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
                 <div className="prof-orcid-details">
