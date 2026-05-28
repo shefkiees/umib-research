@@ -217,9 +217,6 @@
 .umib-homepage-root .footer-logo {
     height: 58px;
     width: 58px;
-    padding: 6px;
-    border-radius: 50%;
-    background: white;
     object-fit: contain;
 }
 .umib-homepage-root .footer-links { display: flex; gap: 40px; }
