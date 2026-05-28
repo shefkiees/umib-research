@@ -44,7 +44,7 @@ export default function HomePage() {
         <div className="container">
           <div className="hero-content">
             <h1>Eksploro dhe Avanco Kërkimin në UMIB</h1>
-            <p>Një platformë e integruar për profesorët, rektoratin dhe komisionet shkencore për të menaxhuar botimet, konferencat dhe performancën akademike.</p>
+            <p>Botime, konferenca dhe kërkim shkencor në një platformë.</p>
             <div className="hero-actions">
               <button className="btn-gold" onClick={() => navigate("/login")}>Fillo Tani</button>
               <button className="btn-outline" onClick={() => document.getElementById('services').scrollIntoView({ behavior: 'smooth' })}>Shiko Statistikat</button>
@@ -101,7 +101,7 @@ export default function HomePage() {
       <section className="services-section" id="services">
         <div className="container">
           <div className="section-header">
-            <h2>Pse Portali UMIBRes?</h2>
+            <h2>UMIBRes për të gjithë</h2>
             <div className="gold-divider"></div>
             <p className="section-desc">Platforma jonë ofron mjete të fuqishme për menaxhimin e të dhënave shkencore dhe monitorimin e performancës.</p>
           </div>
@@ -149,7 +149,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2026 UMIB. Të gjitha të drejtat e rezervuara. Zhvilluar nga Ekipi IT.</p>
+            <p>&copy; 2026 UMIB. Të gjitha të drejtat e rezervuara.</p>
           </div>
         </div>
       </footer>
