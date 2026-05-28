@@ -43,7 +43,7 @@ export default function HomePage() {
       <section className="hero-portal" style={{ backgroundImage: `linear-gradient(rgba(26, 43, 73, 0.8), rgba(26, 43, 73, 0.8)), url(${UMIBBack})` }}>
         <div className="container">
           <div className="hero-content">
-            <h1>Eksploro dhe Avanco Kërkimin në UMIB</h1>
+            <h1>Zhvillo Kërkimin Shkencor në UMIB</h1>
             <p>Botime, konferenca dhe kërkim shkencor në një platformë.</p>
             <div className="hero-actions">
               <button className="btn-gold" onClick={() => navigate("/login")}>Fillo Tani</button>
@@ -103,7 +103,7 @@ export default function HomePage() {
           <div className="section-header">
             <h2>UMIBRes për të gjithë</h2>
             <div className="gold-divider"></div>
-            <p className="section-desc">Platforma jonë ofron mjete të fuqishme për menaxhimin e të dhënave shkencore dhe monitorimin e performancës.</p>
+            <p className="section-desc">Platformë e integruar për profesorë dhe staf, për menaxhimin e botimeve, konferencave dhe kërkimit shkencor.</p>
           </div>
           <div className="services-grid">
             <div className="service-card">
