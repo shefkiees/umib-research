@@ -236,7 +236,30 @@ function createDefaultCostItems() {
   return [{ ...EMPTY_COST_ITEM }];
 }
 
+function pickFirstText(...values) {
+  return values
+    .map((value) => String(value ?? "").trim())
+    .find(Boolean) || "";
+}
+
+function pickOrcidTitle(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => pickFirstText(item.roleTitle, item.title, item.position, item.role, item.degree, item.qualification))
+    .find(Boolean) || "";
+}
+
 function resolveProfile(contextProfile, profile) {
+  const orcidEducations = Array.isArray(contextProfile?.orcidEducations)
+    ? contextProfile.orcidEducations
+    : Array.isArray(profile?.orcidEducations)
+      ? profile.orcidEducations
+      : [];
+  const orcidEmployments = Array.isArray(contextProfile?.orcidEmployments)
+    ? contextProfile.orcidEmployments
+    : Array.isArray(profile?.orcidEmployments)
+      ? profile.orcidEmployments
+      : [];
+
   return {
     name: contextProfile?.name || profile?.name || "",
     email: contextProfile?.email || profile?.email || "",
@@ -244,6 +267,10 @@ function resolveProfile(contextProfile, profile) {
     department: contextProfile?.department || profile?.department || "",
     office: contextProfile?.office || profile?.office || "",
     orcidId: contextProfile?.orcidId || profile?.orcidId || "",
+    scientificTitle: contextProfile?.scientificTitle || profile?.scientificTitle || pickOrcidTitle(orcidEducations),
+    academicTitle: contextProfile?.academicTitle || profile?.academicTitle || pickOrcidTitle(orcidEmployments),
+    orcidEducations,
+    orcidEmployments,
   };
 }
 
@@ -255,6 +282,8 @@ function getAutoFieldDefaults(profile) {
     applicantDepartment: profile.department || "",
     applicantOffice: profile.office || "",
     applicantOrcidId: profile.orcidId || "",
+    scientificTitle: profile.scientificTitle || "",
+    academicTitle: profile.academicTitle || "",
     bankApplicantName: profile.name || "",
     applyingUnit: profile.faculty || "",
   };
