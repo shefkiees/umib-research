@@ -37,6 +37,19 @@ function normalizeText(value) {
   return String(value ?? "").trim();
 }
 
+export function normalizeAbstractText(value) {
+  return normalizeText(value)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function normalizeYear(value) {
   if (value === "" || value === null || value === undefined) {
     return null;
@@ -71,7 +84,7 @@ function mapMetadata(data, doi) {
     issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type: normalizeText(data.type),
-    abstract: normalizeText(data.abstract),
+    abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: data,
   };
@@ -102,7 +115,7 @@ export async function getCachedDoiMetadata(db, doi) {
     [doi]
   );
 
-  return rows[0] ? { issn: "", isbn: "", ...rows[0] } : null;
+  return rows[0] ? { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) } : null;
 }
 
 export async function upsertDoiMetadata(dbOrClient, metadata) {

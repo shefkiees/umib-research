@@ -4,6 +4,7 @@ import {
   DoiLookupError,
   getVerifiedDoiMetadata,
   isValidDoi,
+  normalizeAbstractText,
   normalizeDoi,
   normalizeYear,
 } from "../services/doiMetadata.service.js";
@@ -295,7 +296,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
     values: {
       doi: doi || null,
       title,
-      abstract: normalizeText(body.abstract),
+      abstract: normalizeAbstractText(body.abstract),
       publicationType,
       venue: normalizeText(body.venue || body.journal),
       publisher: normalizeText(body.publisher),
@@ -343,7 +344,7 @@ function mapPublication(row) {
     ownerId: row.owner_id || null,
     owner_id: row.owner_id || null,
     title: row.title || "",
-    abstract: row.abstract || "",
+    abstract: normalizeAbstractText(row.abstract),
     publicationType: row.publication_type || "",
     publication_type: row.publication_type || "",
     venue: row.venue || "",
