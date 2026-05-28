@@ -13,7 +13,7 @@ const router = express.Router();
 const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
 const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
-const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book", "chapter", "accepted_in_press"]);
+const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
 const MAX_LIMIT = 50;
 const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DOI_IMPORT_RATE_LIMIT_MAX = 20;
@@ -93,11 +93,11 @@ function normalizePublicationType(value) {
     conference: "conference_paper",
     conference_paper: "conference_paper",
     book: "book",
-    book_chapter: "chapter",
-    chapter: "chapter",
-    posted_content: "accepted_in_press",
-    preprint: "accepted_in_press",
-    accepted_in_press: "accepted_in_press",
+    book_chapter: "book",
+    chapter: "book",
+    posted_content: "",
+    preprint: "",
+    accepted_in_press: "",
   };
 
   return typeMap[normalized] || normalized;
@@ -261,11 +261,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   if (publicationType === "book" && !normalizeText(body.publisher) && !normalizeText(body.isbn)) {
-    errors.push({ field: "publisher", message: "Libri duhet te kete botues ose ISBN." });
-  }
-
-  if (publicationType === "chapter" && !normalizeText(body.venue || body.journal) && !normalizeText(body.publisher)) {
-    errors.push({ field: "venue", message: "Kapitulli duhet te kete liber/reviste ose botues." });
+    errors.push({ field: "publisher", message: "Book / Chapter duhet te kete botues ose ISBN." });
   }
 
   const authors = normalizeAuthors(body.authors);

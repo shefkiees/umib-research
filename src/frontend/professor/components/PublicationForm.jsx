@@ -4,12 +4,10 @@ import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export const PUBLICATION_TYPES = [
-  { value: "", label: "Zgjidh tipin" },
-  { value: "journal_article", label: "Artikull në revistë" },
-  { value: "conference_paper", label: "Punim konference" },
-  { value: "book", label: "Libër" },
-  { value: "chapter", label: "Kapitull libri" },
-  { value: "accepted_in_press", label: "I pranuar / në botim" },
+  { value: "", label: "Select type" },
+  { value: "journal_article", label: "Journal Article" },
+  { value: "conference_paper", label: "Conference Paper" },
+  { value: "book", label: "Book / Chapter" },
 ];
 
 const PROFESSOR_STATUS_OPTIONS = [
@@ -120,10 +118,8 @@ function normalizeDoiType(value) {
     proceedings_article: "conference_paper",
     conference_paper: "conference_paper",
     book: "book",
-    book_chapter: "chapter",
-    chapter: "chapter",
-    posted_content: "accepted_in_press",
-    preprint: "accepted_in_press",
+    book_chapter: "book",
+    chapter: "book",
   };
 
   return map[normalized] || "";
@@ -211,6 +207,7 @@ const PublicationForm = ({
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
+  const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -223,13 +220,6 @@ const PublicationForm = ({
 
   const setAuthorField = (index, field, nextValue) => {
     const nextAuthors = (value.authors || []).map((author, authorIndex) => {
-      if (field === "isCorrespondingAuthor" && nextValue) {
-        return {
-          ...author,
-          [field]: authorIndex === index,
-        };
-      }
-
       return authorIndex === index ? { ...author, [field]: nextValue } : author;
     });
 
@@ -339,11 +329,11 @@ const PublicationForm = ({
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
           <span>Titulli i publikimit</span>
-          <input value={value.title} onChange={updateField("title")} required />
+          <input value={value.title} onChange={updateField("title")} required readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Tipi i publikimit</span>
-          <select value={value.publicationType} onChange={updateField("publicationType")}>
+          <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isDoiImported}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
         </label>
@@ -359,51 +349,51 @@ const PublicationForm = ({
         </label>
         <label className="prof-form-field">
           <span>DOI</span>
-          <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" />
+          <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Revista / Konferenca / Botimi</span>
-          <input value={value.venue} onChange={updateField("venue")} />
+          <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Botuesi</span>
-          <input value={value.publisher} onChange={updateField("publisher")} />
+          <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Data e publikimit</span>
-          <input type="date" value={value.publicationDate} onChange={updateField("publicationDate")} />
+          <input type="date" value={value.publicationDate} onChange={updateField("publicationDate")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Viti i publikimit</span>
-          <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" />
+          <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Vegëza e publikimit</span>
-          <input value={value.sourceUrl} onChange={updateField("sourceUrl")} placeholder="https://..." />
+          <input value={value.sourceUrl} onChange={updateField("sourceUrl")} placeholder="https://..." readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Vëllimi</span>
-          <input value={value.volume} onChange={updateField("volume")} />
+          <input value={value.volume} onChange={updateField("volume")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Numri</span>
-          <input value={value.issue} onChange={updateField("issue")} />
+          <input value={value.issue} onChange={updateField("issue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>Faqet</span>
-          <input value={value.pages} onChange={updateField("pages")} />
+          <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>ISSN</span>
-          <input value={value.issn} onChange={updateField("issn")} />
+          <input value={value.issn} onChange={updateField("issn")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>ISBN</span>
-          <input value={value.isbn} onChange={updateField("isbn")} />
+          <input value={value.isbn} onChange={updateField("isbn")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field reimbursement-wide">
           <span>Abstrakti</span>
-          <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} />
+          <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} readOnly={isDoiImported} />
         </label>
       </div>
 
@@ -413,18 +403,17 @@ const PublicationForm = ({
             <h4>Autorët dhe Bashkautorët</h4>
             <p>Shto autorët sipas renditjes akademike të publikimit. Autori i parë konsiderohet zakonisht autor kryesor, ndërsa autorët tjerë ruhen si bashkautorë.</p>
           </div>
-          <button type="button" className="prof-btn-secondary" onClick={addAuthor}>
+          {!isDoiImported ? <button type="button" className="prof-btn-secondary" onClick={addAuthor}>
             <Plus size={15} /> Shto autor
-          </button>
+          </button> : null}
         </div>
         {(value.authors || []).length ? (
-          <div className="publication-authors-grid" role="group" aria-label="Lista e autorëve">
+          <div className={`publication-authors-grid ${isDoiImported ? "publication-authors-grid--readonly" : ""}`} role="group" aria-label="Lista e autorëve">
             <div className="publication-authors-head" aria-hidden="true">
               <span>#</span>
               <span>Emri i plotë</span>
               <span>ORCID</span>
-              <span>Korrespondent</span>
-              <span>Veprim</span>
+              {!isDoiImported ? <span>Veprim</span> : null}
             </div>
             {(value.authors || []).map((author, index) => (
               <div className="publication-author-row" key={`author-${index}`}>
@@ -434,21 +423,15 @@ const PublicationForm = ({
                   onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
                   placeholder="Emri i plotë"
                   required={index === 0}
+                  readOnly={isDoiImported}
                 />
                 <input
                   value={author.orcid}
                   onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
                   placeholder="ORCID"
+                  readOnly={isDoiImported}
                 />
-                <label className="publication-author-check">
-                  <input
-                    type="checkbox"
-                    checked={author.isCorrespondingAuthor}
-                    onChange={(event) => setAuthorField(index, "isCorrespondingAuthor", event.target.checked)}
-                    aria-label={`Shëno autorin ${index + 1} si korrespondent`}
-                  />
-                </label>
-                <button
+                {!isDoiImported ? <button
                   type="button"
                   className="publication-remove-button"
                   onClick={() => removeAuthor(index)}
@@ -456,7 +439,7 @@ const PublicationForm = ({
                 >
                   <Trash2 size={14} aria-hidden="true" />
                   <span>Largo</span>
-                </button>
+                </button> : null}
               </div>
             ))}
           </div>

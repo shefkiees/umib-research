@@ -1153,6 +1153,14 @@ body {
   min-width: min(280px, 100%);
 }
 
+.publication-form input:read-only,
+.publication-form textarea:read-only,
+.publication-form select:disabled {
+  background: #f8fafc;
+  color: #334155;
+  cursor: default;
+}
+
 .publication-source-badge {
   display: inline-flex;
   align-items: center;
@@ -1220,10 +1228,16 @@ body {
 .publication-authors-head,
 .publication-author-row {
   display: grid;
-  grid-template-columns: 44px minmax(260px, 1.5fr) minmax(180px, 0.9fr) 120px 64px;
+  grid-template-columns: 44px minmax(280px, 1.6fr) minmax(190px, 0.9fr) 64px;
   align-items: center;
   gap: 12px;
-  min-width: 720px;
+  min-width: 640px;
+}
+
+.publication-authors-grid--readonly .publication-authors-head,
+.publication-authors-grid--readonly .publication-author-row {
+  grid-template-columns: 44px minmax(300px, 1.6fr) minmax(200px, 0.9fr);
+  min-width: 560px;
 }
 
 .publication-authors-head {
@@ -1255,19 +1269,6 @@ body {
   color: #334155;
   font-size: 0.88rem;
   font-weight: 700;
-}
-
-.publication-author-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.publication-author-check input {
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: #2563eb;
 }
 
 .publication-remove-button {
@@ -2715,7 +2716,7 @@ body {
 
   .publication-author-row {
     min-width: 0;
-    grid-template-columns: 28px 1fr 42px 42px;
+    grid-template-columns: 28px 1fr 42px;
     align-items: start;
     gap: 8px;
   }
@@ -2730,14 +2731,8 @@ body {
     align-self: center;
   }
 
-  .publication-author-check {
-    grid-column: 3;
-    grid-row: 1;
-    align-self: center;
-  }
-
   .publication-remove-button {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 1;
     justify-self: end;
   }
@@ -2897,7 +2892,7 @@ body {
 
   .publication-author-index,
   .publication-author-row input,
-  .publication-author-check {
+  .publication-remove-button {
     grid-column: auto;
   }
 

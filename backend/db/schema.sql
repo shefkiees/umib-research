@@ -341,10 +341,11 @@ set publication_type = case replace(lower(m.type), '-', '_')
   when 'proceedings_article' then 'conference_paper'
   when 'conference_paper' then 'conference_paper'
   when 'book' then 'book'
-  when 'book_chapter' then 'chapter'
-  when 'chapter' then 'chapter'
-  when 'posted_content' then 'accepted_in_press'
-  when 'preprint' then 'accepted_in_press'
+  when 'book_chapter' then 'book'
+  when 'chapter' then 'book'
+  when 'posted_content' then ''
+  when 'preprint' then ''
+  when 'accepted_in_press' then ''
   else publication_type
 end
 from publication_metadata m
@@ -352,7 +353,7 @@ where m.doi = coalesce(p.external_metadata_id, p.doi)
   and (
     nullif(p.publication_type, '') is null
     or p.publication_type = m.type
-    or p.publication_type not in ('journal_article', 'conference_paper', 'book', 'chapter', 'accepted_in_press')
+    or p.publication_type not in ('journal_article', 'conference_paper', 'book')
   );
 
 insert into publication_authors
