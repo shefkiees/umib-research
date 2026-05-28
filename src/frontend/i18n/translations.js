@@ -1,4 +1,5 @@
 export const LANGUAGE_STORAGE_KEY = "umibLanguage";
+export const DEFAULT_LANGUAGE = "sq";
 
 export const LANGUAGE_OPTIONS = [
   { value: "sq", shortLabel: "SQ", label: "Shqip" },
@@ -172,19 +173,38 @@ export const translations = {
       connected: "Lidhur",
     },
     auth: {
+      login: {
+        stateTitle: "Republika e Kosovës",
+        logoAlt: "Logoja e UMIB-it",
+        systemName: "Sistemi Universitar për Menaxhimin e Kërkimeve Shkencore",
+        title: "Hyni në llogarinë tuaj",
+        googleButton: "Hyni me Google",
+        connecting: "Duke u lidhur...",
+        domainPrefix: "Pranohen vetëm adresat e email-it",
+        domainSuffix: ".",
+        footer: "© 2026 Universiteti i Mitrovicës \"Isa Boletini\" - Të gjitha të drejtat e rezervuara.",
+        errors: {
+          oauth_not_configured: "Hyrja me Google nuk është konfiguruar në server. Kontrolloni variablat e mjedisit të prodhimit.",
+          unauthorized_domain: "Lejohen vetëm adresat e email-it me domenin @umib.net.",
+          oauth_callback_failed: "Hyrja me Google arriti në server, por procesi i identifikimit nuk mund të përfundohej.",
+          db_user_sync_failed: "Hyrja me Google përfundoi me sukses, por llogaria juaj nuk mund të sinkronizohej me bazën e të dhënave.",
+          session_login_failed: "Hyrja me Google përfundoi me sukses, por sesioni nuk mund të krijohej.",
+          google_login_failed: "Hyrja me Google dështoi. Ju lutemi provoni përsëri.",
+        },
+      },
       passwordReset: {
         changePassword: "Ndrysho fjalëkalimin",
-        resetPasswordSubtitle: "Vendosni fjalëkalimin e ri per llogarine tuaj.",
+        resetPasswordSubtitle: "Vendosni fjalëkalimin e ri për llogarinë tuaj.",
         newPassword: "Fjalëkalimi i ri",
         confirmPassword: "Konfirmo fjalëkalimin",
         savePassword: "Ruaj fjalëkalimin",
-        passwordChanged: "Fjalëkalimi u ndryshua me sukses",
-        passwordChangeError: "Fjalëkalimi nuk u ndryshua. Provoni perseri.",
-        passwordTooShort: "Fjalëkalimi duhet te kete se paku 8 karaktere.",
-        passwordsDoNotMatch: "Fjalëkalimet nuk perputhen.",
-        completeRequiredFields: "Plotesoni fushat e kerkuara.",
-        invalidOrExpiredLink: "Linku i rivendosjes ka skaduar ose nuk eshte valid.",
-        supabaseNotConfigured: "Supabase Auth nuk eshte konfiguruar.",
+        passwordChanged: "Fjalëkalimi u ndryshua me sukses.",
+        passwordChangeError: "Fjalëkalimi nuk u ndryshua. Provoni përsëri.",
+        passwordTooShort: "Fjalëkalimi duhet të ketë të paktën 8 karaktere.",
+        passwordsDoNotMatch: "Fjalëkalimet nuk përputhen.",
+        completeRequiredFields: "Plotësoni fushat e kërkuara.",
+        invalidOrExpiredLink: "Linku i rivendosjes ka skaduar ose nuk është i vlefshëm.",
+        supabaseNotConfigured: "Supabase Auth nuk është konfiguruar.",
         saving: "Duke ruajtur...",
         goToLogin: "Kthehu te hyrja",
       },
@@ -567,6 +587,25 @@ export const translations = {
       connected: "Connected",
     },
     auth: {
+      login: {
+        stateTitle: "Republic of Kosovo",
+        logoAlt: "UMIB Logo",
+        systemName: "University Research Management System",
+        title: "Sign in to your account",
+        googleButton: "Sign in with Google",
+        connecting: "Connecting...",
+        domainPrefix: "Only",
+        domainSuffix: "email addresses are accepted.",
+        footer: "© 2026 University of Mitrovica \"Isa Boletini\" - All rights reserved.",
+        errors: {
+          oauth_not_configured: "Google sign-in is not configured on the server. Check the production environment variables.",
+          unauthorized_domain: "Only @umib.net email addresses are allowed.",
+          oauth_callback_failed: "Google sign-in reached the server, but the login could not be completed.",
+          db_user_sync_failed: "Google sign-in succeeded, but your account could not be synced with the database.",
+          session_login_failed: "Google sign-in succeeded, but the session could not be created.",
+          google_login_failed: "Google sign-in failed. Please try again.",
+        },
+      },
       passwordReset: {
         changePassword: "Change Password",
         resetPasswordSubtitle: "Set the new password for your account.",
