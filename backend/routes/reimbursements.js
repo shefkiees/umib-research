@@ -462,6 +462,9 @@ function mapPublicationRow(row) {
     isbn: row.isbn || "",
     authors,
     indexing,
+    identifiers: safeJsonArray(row.identifiers),
+    evidenceLinks: safeJsonArray(row.evidence_links || row.evidenceLinks),
+    evidence_links: safeJsonArray(row.evidence_links || row.evidenceLinks),
   };
 }
 
@@ -494,12 +497,12 @@ async function hasPublicationContextColumns(dbOrClient) {
     `select count(*)::int as count
      from information_schema.tables
      where table_schema = current_schema()
-       and table_name in ('publication_authors', 'publication_indexing')`
+       and table_name in ('publication_authors', 'publication_indexing', 'publication_identifiers', 'publication_attachments')`
   );
 
   publicationContextSchemaCache =
     Number(rows[0]?.count || 0) === 10
-    && Number(tableResult.rows[0]?.count || 0) === 2;
+    && Number(tableResult.rows[0]?.count || 0) === 4;
   return publicationContextSchemaCache;
 }
 
@@ -561,6 +564,10 @@ function publicationToReadOnlyRequestData(publication) {
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
   const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
   const venue = normalizeText(publication.venue || publication.journal);
+  const evidenceLinks = Array.isArray(publication.evidenceLinks || publication.evidence_links)
+    ? (publication.evidenceLinks || publication.evidence_links)
+    : [];
+  const identifiers = Array.isArray(publication.identifiers) ? publication.identifiers : [];
 
   return {
     publicationId: publication.id ? String(publication.id) : "",
@@ -586,6 +593,14 @@ function publicationToReadOnlyRequestData(publication) {
     indexingPlatform,
     impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
     scopusQuartile: normalizeText(firstQuartile?.quartile),
+    publicationIdentifiers: identifiers
+      .map((item) => [item.type || item.identifier_type, item.value || item.identifier_value].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .join("; "),
+    publicationAttachments: evidenceLinks
+      .map((item) => item.url || item.fileUrl || item.file_url)
+      .filter(Boolean)
+      .join("; "),
   };
 }
 
@@ -659,6 +674,36 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                   ),
                   '[]'::json
                 ) as indexing
+                ,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'type', pii.identifier_type,
+                        'value', pii.identifier_value
+                      )
+                      order by pii.identifier_type asc, pii.identifier_value asc
+                    )
+                    from publication_identifiers pii
+                    where pii.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as identifiers,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'url', pat.file_url,
+                        'label', pat.file_type,
+                        'uploadedAt', pat.uploaded_at
+                      )
+                      order by pat.uploaded_at desc
+                    )
+                    from publication_attachments pat
+                    where pat.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as evidence_links
          from publications p
          where p.id = $1
            and ($2::uuid is null or p.owner_id = $2)
@@ -1304,6 +1349,36 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                   ),
                   '[]'::json
                 ) as indexing
+                ,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'type', pii.identifier_type,
+                        'value', pii.identifier_value
+                      )
+                      order by pii.identifier_type asc, pii.identifier_value asc
+                    )
+                    from publication_identifiers pii
+                    where pii.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as identifiers,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'url', pat.file_url,
+                        'label', pat.file_type,
+                        'uploadedAt', pat.uploaded_at
+                      )
+                      order by pat.uploaded_at desc
+                    )
+                    from publication_attachments pat
+                    where pat.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as evidence_links
          from publications p
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc

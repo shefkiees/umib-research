@@ -12,6 +12,18 @@ export const PUBLICATION_TYPES = [
   { value: "accepted_in_press", label: "Accepted / in press" },
 ];
 
+const PROFESSOR_STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "submitted", label: "Submitted" },
+];
+
+const REVIEW_STATUS_OPTIONS = [
+  ...PROFESSOR_STATUS_OPTIONS,
+  { value: "in_review", label: "In review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
 export const createEmptyPublicationDraft = () => ({
   title: "",
   abstract: "",
@@ -30,7 +42,7 @@ export const createEmptyPublicationDraft = () => ({
   status: "draft",
   authors: [],
   indexing: [],
-  attachments: [],
+  evidenceLinks: [],
   metadataSource: "manual",
   metadataVerified: false,
   externalMetadataId: "",
@@ -69,11 +81,11 @@ export function publicationToDraft(publication = {}) {
       impactFactor: item.impactFactor || item.impact_factor || "",
       indexedUrl: item.indexedUrl || item.indexed_url || "",
     })) : [],
-    attachments: Array.isArray(publication.attachments) ? publication.attachments.map((item) => ({
-      fileUrl: item.fileUrl || item.file_url || "",
-      fileType: item.fileType || item.file_type || "",
+    evidenceLinks: (Array.isArray(publication.evidenceLinks) ? publication.evidenceLinks : publication.attachments || []).map((item) => ({
+      url: item.url || item.fileUrl || item.file_url || "",
+      label: item.label || item.fileType || item.file_type || "",
       uploadedAt: (item.uploadedAt || item.uploaded_at || "").slice(0, 10),
-    })) : [],
+    })),
     metadataSource: publication.metadataSource || publication.metadata_source || "manual",
     metadataVerified: Boolean(publication.metadataVerified ?? publication.metadata_verified),
     externalMetadataId: publication.externalMetadataId || publication.external_metadata_id || "",
@@ -130,7 +142,16 @@ function metadataBadgeLabel(source, verified) {
   return "Manual";
 }
 
-const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, submitting = false, mode = "create" }) => {
+const PublicationForm = ({
+  value,
+  onChange,
+  onSubmit,
+  onCancel,
+  submitLabel,
+  submitting = false,
+  mode = "create",
+  canReview = false,
+}) => {
   const { t } = useLanguage();
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
   const [doiMessage, setDoiMessage] = useState("");
@@ -147,18 +168,18 @@ const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, sub
   };
 
   const setCollectionItem = (collection, index, field, nextValue) => {
-    const nextCollection = value[collection].map((item, itemIndex) =>
+    const nextCollection = (value[collection] || []).map((item, itemIndex) =>
       itemIndex === index ? { ...item, [field]: nextValue } : item
     );
     onChange({ ...value, [collection]: nextCollection, metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource });
   };
 
   const addCollectionItem = (collection, item) => {
-    onChange({ ...value, [collection]: [...value[collection], item] });
+    onChange({ ...value, [collection]: [...(value[collection] || []), item] });
   };
 
   const removeCollectionItem = (collection, index) => {
-    onChange({ ...value, [collection]: value[collection].filter((_, itemIndex) => itemIndex !== index) });
+    onChange({ ...value, [collection]: (value[collection] || []).filter((_, itemIndex) => itemIndex !== index) });
   };
 
   const lookupDoi = async () => {
@@ -184,7 +205,7 @@ const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, sub
       onChange({
         ...value,
         ...metadataToDraft(result.data),
-        status: value.status || "draft",
+        status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
       });
       setDoiLookupValue(result.data.doi || doi);
       setDoiMessage("Metadata loaded. Review and edit fields before saving.");
@@ -200,6 +221,8 @@ const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, sub
     event.preventDefault();
     onSubmit();
   };
+
+  const statusOptions = canReview ? REVIEW_STATUS_OPTIONS : PROFESSOR_STATUS_OPTIONS;
 
   return (
     <form className="publication-form" onSubmit={submit}>
@@ -240,11 +263,11 @@ const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, sub
         <label className="prof-form-field">
           <span>Status</span>
           <select value={value.status} onChange={updateField("status")}>
-            <option value="draft">{t("professor.dashboard.draft")}</option>
-            <option value="submitted">Submitted</option>
-            <option value="in_review">In review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
+            {statusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.value === "draft" ? t("professor.dashboard.draft") : status.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="prof-form-field">
@@ -336,17 +359,17 @@ const PublicationForm = ({ value, onChange, onSubmit, onCancel, submitLabel, sub
 
       <div className="publication-form-section">
         <div className="publication-form-section-header">
-          <h4>Attachments / evidence links</h4>
-          <button type="button" className="prof-btn-secondary" onClick={() => addCollectionItem("attachments", { fileUrl: "", fileType: "", uploadedAt: "" })}>
+          <h4>Evidence links</h4>
+          <button type="button" className="prof-btn-secondary" onClick={() => addCollectionItem("evidenceLinks", { url: "", label: "", uploadedAt: "" })}>
             <Plus size={15} /> Add evidence
           </button>
         </div>
-        {value.attachments.map((item, index) => (
-          <div className="publication-nested-row" key={`attachment-${index}`}>
-            <input value={item.fileUrl} onChange={(event) => setCollectionItem("attachments", index, "fileUrl", event.target.value)} placeholder="File URL" />
-            <input value={item.fileType} onChange={(event) => setCollectionItem("attachments", index, "fileType", event.target.value)} placeholder="File type" />
-            <input type="date" value={item.uploadedAt} onChange={(event) => setCollectionItem("attachments", index, "uploadedAt", event.target.value)} />
-            <button type="button" className="prof-btn-secondary" onClick={() => removeCollectionItem("attachments", index)} aria-label="Remove evidence"><Trash2 size={15} /></button>
+        {(value.evidenceLinks || []).map((item, index) => (
+          <div className="publication-nested-row" key={`evidence-${index}`}>
+            <input value={item.url} onChange={(event) => setCollectionItem("evidenceLinks", index, "url", event.target.value)} placeholder="Evidence URL (https://...)" />
+            <input value={item.label} onChange={(event) => setCollectionItem("evidenceLinks", index, "label", event.target.value)} placeholder="Label / type" />
+            <input type="date" value={item.uploadedAt} onChange={(event) => setCollectionItem("evidenceLinks", index, "uploadedAt", event.target.value)} />
+            <button type="button" className="prof-btn-secondary" onClick={() => removeCollectionItem("evidenceLinks", index)} aria-label="Remove evidence"><Trash2 size={15} /></button>
           </div>
         ))}
       </div>

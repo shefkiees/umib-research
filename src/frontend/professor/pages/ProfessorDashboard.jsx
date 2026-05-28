@@ -106,6 +106,8 @@ const STATUS_LABELS = {
   unknown: "Pa status",
 };
 
+const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
+
 const formatDate = (value) => {
   if (!value) {
     return "";
@@ -142,6 +144,10 @@ const mapPublicationRow = (row = {}) => ({
   authors: Array.isArray(row.authors) ? row.authors : [],
   indexing: Array.isArray(row.indexing) ? row.indexing : [],
   attachments: Array.isArray(row.attachments) ? row.attachments : [],
+  evidenceLinks: Array.isArray(row.evidenceLinks || row.evidence_links)
+    ? (row.evidenceLinks || row.evidence_links)
+    : Array.isArray(row.attachments) ? row.attachments : [],
+  identifiers: Array.isArray(row.identifiers) ? row.identifiers : [],
   metadataSource: row.metadataSource || row.metadata_source || "manual",
   metadataVerified: Boolean(row.metadataVerified ?? row.metadata_verified),
   externalMetadataId: row.externalMetadataId || row.external_metadata_id || "",
@@ -548,6 +554,7 @@ export default function ProfessorDashboard() {
   );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
+  const canReviewPublications = PUBLICATION_REVIEW_ROLES.has(String(profile.appRole || "").toLowerCase());
 
   const filteredPublications = useMemo(() => {
     if (!normalizedQuery) {
@@ -1288,6 +1295,7 @@ export default function ProfessorDashboard() {
                 onSubmit={saveManualPublication}
                 submitLabel="Ruaj publikimin"
                 submitting={publicationActionId === "manual"}
+                canReview={canReviewPublications}
               />
             </article>
 
@@ -1304,10 +1312,11 @@ export default function ProfessorDashboard() {
                   onChange={setPublicationDraft}
                   onSubmit={() => savePublicationEdit(editingPublicationId)}
                   onCancel={cancelPublicationEdit}
-                  submitLabel="Save changes"
-                  submitting={publicationActionId === editingPublicationId}
-                  mode="edit"
-                />
+                submitLabel="Save changes"
+                submitting={publicationActionId === editingPublicationId}
+                mode="edit"
+                canReview={canReviewPublications}
+              />
               </article>
             ) : null}
 

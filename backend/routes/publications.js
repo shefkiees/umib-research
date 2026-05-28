@@ -10,6 +10,8 @@ import {
 
 const router = express.Router();
 const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
+const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
+const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book", "chapter", "accepted_in_press"]);
 const MAX_LIMIT = 50;
 const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -27,6 +29,28 @@ function requireAuthenticatedUser(req, res, next) {
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeRole(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  const roleAliases = {
+    administrator: "admin",
+    admin: "admin",
+    committee: "committee",
+    commission: "committee",
+    komision: "committee",
+    komisioni: "committee",
+    prorektor: "prorector",
+    prorector: "prorector",
+    prorektorat: "prorector",
+    professor: "professor",
+  };
+
+  return roleAliases[normalized] || normalized || "professor";
+}
+
+function canReviewPublications(user) {
+  return PUBLICATION_REVIEW_ROLES.has(normalizeRole(user?.role));
 }
 
 function normalizeBoolean(value) {
@@ -51,6 +75,10 @@ function normalizeOptionalDate(value) {
 function normalizeUrl(value) {
   const text = normalizeText(value);
   return /^https?:\/\//i.test(text) ? text : "";
+}
+
+function isValidHttpUrl(value) {
+  return /^https?:\/\//i.test(normalizeText(value));
 }
 
 function normalizePublicationType(value) {
@@ -126,18 +154,45 @@ function normalizeIndexing(value) {
     .filter((item) => item.source || item.quartile || item.impactFactor || item.indexedUrl);
 }
 
-function normalizeAttachments(value) {
+function normalizeEvidenceLinks(value, errors) {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((item) => ({
-      fileUrl: normalizeUrl(item.file_url || item.fileUrl),
-      fileType: normalizeText(item.file_type || item.fileType),
-      uploadedAt: normalizeText(item.uploaded_at || item.uploadedAt),
-    }))
-    .filter((item) => item.fileUrl);
+    .map((item, index) => {
+      const rawUrl = normalizeText(item.file_url || item.fileUrl || item.url);
+      const label = normalizeText(item.file_type || item.fileType || item.label);
+      const rawUploadedAt = normalizeText(item.uploaded_at || item.uploadedAt);
+      const uploadedAt = rawUploadedAt ? normalizeOptionalDate(rawUploadedAt) : null;
+
+      if (!rawUrl && !label && !uploadedAt) {
+        return null;
+      }
+
+      if (!rawUrl || !isValidHttpUrl(rawUrl)) {
+        errors.push({
+          field: `evidenceLinks.${index}.url`,
+          message: "Evidence link duhet te filloje me http ose https.",
+        });
+        return null;
+      }
+
+      if (rawUploadedAt && !uploadedAt) {
+        errors.push({
+          field: `evidenceLinks.${index}.uploadedAt`,
+          message: "Data e evidence link nuk eshte valide.",
+        });
+        return null;
+      }
+
+      return {
+        fileUrl: rawUrl,
+        fileType: label,
+        uploadedAt,
+      };
+    })
+    .filter(Boolean);
 }
 
 function normalizePublicationPayload(body = {}, options = {}) {
@@ -184,6 +239,13 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "status", message: "Statusi i publikimit nuk eshte valid." });
   }
 
+  if (!canReviewPublications(options.user) && !PROFESSOR_PUBLICATION_STATUSES.has(status)) {
+    errors.push({
+      field: "status",
+      message: "Profesori mund ta ruaje publikimin vetem si draft ose submitted.",
+    });
+  }
+
   if ((body.sourceUrl || body.source_url) && !sourceUrl) {
     errors.push({ field: "sourceUrl", message: "Linku i publikimit duhet te filloje me http ose https." });
   }
@@ -202,7 +264,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
 
   const authors = normalizeAuthors(body.authors);
   const indexing = normalizeIndexing(body.indexing);
-  const attachments = normalizeAttachments(body.attachments);
+  const evidenceLinks = normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors);
   const metadataVerified = normalizeBoolean(body.metadataVerified ?? body.metadata_verified) || metadataSource === "doi";
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
@@ -227,7 +289,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
       status,
       authors,
       indexing,
-      attachments,
+      evidenceLinks,
+      attachments: evidenceLinks,
       metadataSource,
       metadataVerified,
       externalMetadataId,
@@ -248,6 +311,10 @@ function getArrayField(row, field) {
 }
 
 function mapPublication(row) {
+  const evidenceLinks = getArrayField(row, "evidence_links").length
+    ? getArrayField(row, "evidence_links")
+    : getArrayField(row, "attachments");
+
   return {
     id: row.id,
     ownerId: row.owner_id || null,
@@ -292,7 +359,32 @@ function mapPublication(row) {
       indexedUrl: item.indexed_url || item.indexedUrl || "",
       indexed_url: item.indexed_url || item.indexedUrl || "",
     })),
-    attachments: getArrayField(row, "attachments").map((item) => ({
+    identifiers: getArrayField(row, "identifiers").map((item) => ({
+      type: item.type || item.identifier_type || "",
+      identifierType: item.type || item.identifier_type || "",
+      identifier_type: item.type || item.identifier_type || "",
+      value: item.value || item.identifier_value || "",
+      identifierValue: item.value || item.identifier_value || "",
+      identifier_value: item.value || item.identifier_value || "",
+    })),
+    evidenceLinks: evidenceLinks.map((item) => ({
+      url: item.file_url || item.fileUrl || item.url || "",
+      fileUrl: item.file_url || item.fileUrl || item.url || "",
+      file_url: item.file_url || item.fileUrl || item.url || "",
+      label: item.file_type || item.fileType || item.label || "",
+      fileType: item.file_type || item.fileType || item.label || "",
+      file_type: item.file_type || item.fileType || item.label || "",
+      uploadedAt: item.uploaded_at || item.uploadedAt || null,
+      uploaded_at: item.uploaded_at || item.uploadedAt || null,
+    })),
+    evidence_links: evidenceLinks.map((item) => ({
+      url: item.file_url || item.fileUrl || item.url || "",
+      file_url: item.file_url || item.fileUrl || item.url || "",
+      label: item.file_type || item.fileType || item.label || "",
+      file_type: item.file_type || item.fileType || item.label || "",
+      uploaded_at: item.uploaded_at || item.uploadedAt || null,
+    })),
+    attachments: evidenceLinks.map((item) => ({
       fileUrl: item.file_url || item.fileUrl || "",
       file_url: item.file_url || item.fileUrl || "",
       fileType: item.file_type || item.fileType || "",
@@ -350,7 +442,15 @@ const PUBLICATION_SELECT_SQL = `
     ) order by pat.uploaded_at desc)
     from publication_attachments pat
     where pat.publication_id = p.id
-  ), '[]'::jsonb) as attachments
+  ), '[]'::jsonb) as evidence_links,
+  coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'type', pi.identifier_type,
+      'value', pi.identifier_value
+    ) order by pi.identifier_type, pi.identifier_value)
+    from publication_identifiers pi
+    where pi.publication_id = p.id
+  ), '[]'::jsonb) as identifiers
 `;
 
 const LEGACY_PUBLICATION_SELECT_SQL = `
@@ -433,7 +533,7 @@ async function replacePublicationChildren(client, publicationId, values) {
     );
   }
 
-  for (const item of values.attachments) {
+  for (const item of values.evidenceLinks) {
     await client.query(
       `insert into publication_attachments
        (publication_id, file_url, file_type, uploaded_at)
@@ -465,9 +565,22 @@ async function fetchPublicationById(client, publicationId, ownerId) {
     `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
      ${isUnified ? "" : "left join publication_metadata m on m.doi = p.doi"}
-     where p.id = $1 and p.owner_id = $2
+     where p.id = $1
+       and ($2::uuid is null or p.owner_id = $2)
      limit 1`,
     [publicationId, ownerId]
+  );
+
+  return rows[0] || null;
+}
+
+async function loadCurrentUser(userId) {
+  const { rows } = await db.query(
+    `select id, email, full_name, role
+     from users
+     where id = $1
+     limit 1`,
+    [userId]
   );
 
   return rows[0] || null;
@@ -546,6 +659,7 @@ function metadataToPublicationPayload(metadata = {}) {
       ? metadata.authors.map((name, index) => ({ fullName: name, position: index + 1 }))
       : [],
     indexing: [],
+    evidenceLinks: [],
     attachments: [],
     metadataSource: "doi",
     metadataVerified: true,
@@ -640,10 +754,6 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const filters = ["p.owner_id = $1"];
   const params = [req.user.id];
 
-  if (q) {
-    params.push(`%${q}%`);
-  }
-
   if (status) {
     if (!VALID_PUBLICATION_STATUSES.has(status)) {
       res.status(400).json({ error: "invalid_status", message: "Statusi i publikimit nuk eshte valid." });
@@ -658,19 +768,21 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     const isUnified = await hasUnifiedPublicationSchema(db);
 
     if (q) {
+      params.push(`%${q}%`);
+      const qParam = params.length;
       filters.push(isUnified
         ? `(
-            p.title ilike $${params.length}
-            or p.venue ilike $${params.length}
-            or p.publisher ilike $${params.length}
-            or p.doi ilike $${params.length}
-            or p.abstract ilike $${params.length}
-            or p.publication_type ilike $${params.length}
-            or cast(p.publication_year as text) ilike $${params.length}
-            or exists (select 1 from publication_authors pa where pa.publication_id = p.id and pa.full_name ilike $${params.length})
-            or exists (select 1 from publication_indexing pi where pi.publication_id = p.id and pi.source ilike $${params.length})
+            p.title ilike $${qParam}
+            or p.venue ilike $${qParam}
+            or p.publisher ilike $${qParam}
+            or p.doi ilike $${qParam}
+            or p.abstract ilike $${qParam}
+            or p.publication_type ilike $${qParam}
+            or cast(p.publication_year as text) ilike $${qParam}
+            or exists (select 1 from publication_authors pa where pa.publication_id = p.id and pa.full_name ilike $${qParam})
+            or exists (select 1 from publication_indexing pi where pi.publication_id = p.id and pi.source ilike $${qParam})
           )`
-        : `(p.title ilike $${params.length} or p.venue ilike $${params.length} or p.doi ilike $${params.length} or m.publisher ilike $${params.length} or m.container_title ilike $${params.length})`);
+        : `(p.title ilike $${qParam} or p.venue ilike $${qParam} or p.doi ilike $${qParam} or m.publisher ilike $${qParam} or m.container_title ilike $${qParam})`);
     }
 
     const resolvedWhereClause = filters.join(" and ");
@@ -714,7 +826,8 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 });
 
 router.post("/", requireAuthenticatedUser, async (req, res) => {
-  const { errors, values } = normalizePublicationPayload(req.body);
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+  const { errors, values } = normalizePublicationPayload(req.body, { user: currentUser });
 
   if (errors.length) {
     res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
@@ -778,7 +891,11 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
 
     const { metadata } = await getVerifiedDoiMetadata(client, doi);
     const prefill = metadataToPublicationPayload(metadata);
-    const { errors, values } = normalizePublicationPayload({ ...prefill, ...(req.body?.publication || {}) });
+    const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+    const { errors, values } = normalizePublicationPayload(
+      { ...prefill, ...(req.body?.publication || {}) },
+      { user: currentUser }
+    );
 
     if (errors.length) {
       await client.query("rollback");
@@ -809,8 +926,26 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
   }
 });
 
+router.get("/:id", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+    const row = await fetchPublicationById(db, req.params.id, canReviewPublications(currentUser) ? null : req.user.id);
+
+    if (!row) {
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    res.json({ data: mapPublication(row) });
+  } catch (error) {
+    console.error("GET /api/publications/:id failed:", error);
+    res.status(500).json({ error: "load_failed", message: "Publikimi nuk u ngarkua." });
+  }
+});
+
 router.put("/:id", requireAuthenticatedUser, async (req, res) => {
-  const { errors, values } = normalizePublicationPayload(req.body);
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+  const { errors, values } = normalizePublicationPayload(req.body, { user: currentUser });
 
   if (errors.length) {
     res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
@@ -845,11 +980,12 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                metadata_verified = $19,
                external_metadata_id = $20,
                updated_at = now()
-           where id = $1 and owner_id = $2
+           where id = $1
+             and ($2::uuid is null or owner_id = $2)
            returning id`,
           [
             req.params.id,
-            req.user.id,
+            canReviewPublications(currentUser) ? null : req.user.id,
             values.doi,
             values.title,
             values.abstract,
@@ -877,11 +1013,12 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                publication_year = $5,
                status = $6,
                updated_at = now()
-           where id = $1 and owner_id = $2
+           where id = $1
+             and ($2::uuid is null or owner_id = $2)
            returning id`,
           [
             req.params.id,
-            req.user.id,
+            canReviewPublications(currentUser) ? null : req.user.id,
             values.title,
             values.venue || null,
             values.publicationYear,
@@ -898,7 +1035,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     if (isUnified) {
       await replacePublicationChildren(client, rows[0].id, values);
     }
-    const row = await fetchPublicationById(client, rows[0].id, req.user.id);
+    const row = await fetchPublicationById(client, rows[0].id, canReviewPublications(currentUser) ? null : req.user.id);
     await client.query("commit");
     res.json({ data: mapPublication(row) });
   } catch (error) {
@@ -916,24 +1053,106 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
   }
 });
 
-router.delete("/:id", requireAuthenticatedUser, async (req, res) => {
+router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+
+  if (!canReviewPublications(currentUser)) {
+    res.status(403).json({
+      error: "forbidden",
+      message: "Vetem admini, komisioni ose prorektorati mund te aprovoje/refuzoje publikime.",
+    });
+    return;
+  }
+
+  const status = normalizeText(req.body?.status);
+
+  if (!VALID_PUBLICATION_STATUSES.has(status)) {
+    res.status(400).json({ error: "invalid_status", message: "Statusi i publikimit nuk eshte valid." });
+    return;
+  }
+
+  const client = await db.connect();
+
   try {
-    const result = await db.query(
+    await client.query("begin");
+    const { rows } = await client.query(
+      `update publications
+       set status = $2,
+           updated_at = now()
+       where id = $1
+       returning id`,
+      [req.params.id, status]
+    );
+
+    if (!rows[0]) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    const row = await fetchPublicationById(client, rows[0].id, null);
+    await client.query("commit");
+    res.json({ data: mapPublication(row) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/publications/:id/status failed:", error);
+    res.status(500).json({ error: "status_update_failed", message: "Statusi i publikimit nuk u perditesua." });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/:id", requireAuthenticatedUser, async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+    const publication = await fetchPublicationById(client, req.params.id, req.user.id);
+
+    if (!publication) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    const usageResult = await client.query(
+      `select count(*)::int as count
+       from reimbursements
+       where publication_id = $1`,
+      [req.params.id]
+    );
+
+    if (Number(usageResult.rows[0]?.count || 0) > 0) {
+      await client.query("rollback");
+      res.status(409).json({
+        error: "publication_in_use",
+        message: "Publikimi nuk mund te fshihet sepse eshte i lidhur me rimbursim.",
+      });
+      return;
+    }
+
+    const result = await client.query(
       `delete from publications
-       where id = $1 and owner_id = $2
+       where id = $1
+         and owner_id = $2
        returning id`,
       [req.params.id, req.user.id]
     );
 
     if (result.rowCount === 0) {
+      await client.query("rollback");
       res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
       return;
     }
 
+    await client.query("commit");
     res.json({ message: "Deleted" });
   } catch (error) {
+    await client.query("rollback").catch(() => {});
     console.error("DELETE /api/publications/:id failed:", error);
     res.status(500).json({ error: "delete_failed", message: "Publikimi nuk u fshi." });
+  } finally {
+    client.release();
   }
 });
 
