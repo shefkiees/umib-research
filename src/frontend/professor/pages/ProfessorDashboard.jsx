@@ -233,6 +233,8 @@ const hasStatisticMetricData = (rows = []) =>
     STATISTIC_METRIC_KEYS.some((key) => Number(row[key] || 0) > 0)
   );
 
+const isVisibleDashboardStatus = (row = {}) => String(row.status || "").toLowerCase() !== "draft";
+
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
   const { language, setLanguage, t, tx } = useLanguage();
@@ -596,21 +598,25 @@ export default function ProfessorDashboard() {
   );
 
   const filteredPublicationStatuses = useMemo(() => {
+    const visibleStatuses = statisticsData.publicationsByStatus.filter(isVisibleDashboardStatus);
+
     if (!normalizedQuery) {
-      return statisticsData.publicationsByStatus;
+      return visibleStatuses;
     }
 
-    return statisticsData.publicationsByStatus.filter((row) =>
+    return visibleStatuses.filter((row) =>
       `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
     );
   }, [getStatusLabel, normalizedQuery, statisticsData.publicationsByStatus]);
 
   const filteredReimbursementStatuses = useMemo(() => {
+    const visibleStatuses = statisticsData.reimbursementsByStatus.filter(isVisibleDashboardStatus);
+
     if (!normalizedQuery) {
-      return statisticsData.reimbursementsByStatus;
+      return visibleStatuses;
     }
 
-    return statisticsData.reimbursementsByStatus.filter((row) =>
+    return visibleStatuses.filter((row) =>
       `${getStatusLabel(row.status)} ${row.count}`.toLowerCase().includes(normalizedQuery)
     );
   }, [getStatusLabel, normalizedQuery, statisticsData.reimbursementsByStatus]);
