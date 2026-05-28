@@ -256,13 +256,23 @@ create table if not exists publication_authors (
   affiliation text not null default '',
   is_main_author boolean not null default false,
   is_corresponding_author boolean not null default false,
+  author_order integer not null default 0,
   position integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table publication_authors add column if not exists author_order integer not null default 0;
+update publication_authors
+set author_order = position
+where author_order = 0 and position > 0;
+
+update publication_authors
+set is_main_author = author_order = 1
+where author_order > 0;
+
 create index if not exists publication_authors_publication_idx
-on publication_authors (publication_id, position, created_at);
+on publication_authors (publication_id, author_order, position, created_at);
 
 create table if not exists publication_identifiers (
   id uuid primary key default gen_random_uuid(),
@@ -312,8 +322,8 @@ create trigger publication_indexing_set_updated_at
 before update on publication_indexing
 for each row execute function set_updated_at();
 
-insert into publication_authors (publication_id, full_name, position)
-select p.id, trim(both '"' from author_item.value::text), author_item.author_position
+insert into publication_authors (publication_id, full_name, is_main_author, author_order, position)
+select p.id, trim(both '"' from author_item.value::text), author_item.author_position = 1, author_item.author_position, author_item.author_position
 from publications p
 join publication_metadata m on m.doi = p.doi
 cross join lateral jsonb_array_elements(m.authors) with ordinality as author_item(value, author_position)
@@ -346,7 +356,7 @@ where m.doi = coalesce(p.external_metadata_id, p.doi)
   );
 
 insert into publication_authors
-  (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, position)
+  (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, author_order, position)
 select
   p.id,
   coalesce(nullif(author_item.value->>'fullName', ''), nullif(author_item.value->>'full_name', ''), nullif(author_item.value->>'name', ''), trim(both '"' from author_item.value::text)),
@@ -355,6 +365,7 @@ select
   regexp_replace(coalesce(author_item.value->>'orcid', ''), '^https?://orcid\.org/', ''),
   coalesce(author_item.value->>'affiliation', ''),
   author_item.author_position = 1,
+  author_item.author_position,
   author_item.author_position
 from publications p
 join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)

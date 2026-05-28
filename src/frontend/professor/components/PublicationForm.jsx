@@ -30,7 +30,6 @@ const EMPTY_AUTHOR = {
   familyName: "",
   orcid: "",
   affiliation: "",
-  isMainAuthor: false,
   isCorrespondingAuthor: false,
 };
 
@@ -70,6 +69,7 @@ function normalizePublicationAuthors(authors = []) {
       familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
       orcid: normalizedAuthor.orcid || "",
       affiliation: normalizedAuthor.affiliation || "",
+      authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
     };
@@ -150,6 +150,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
     orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
     affiliation: normalizedAuthor.affiliation || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
+    authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: Boolean(normalizedAuthor.isCorrespondingAuthor ?? normalizedAuthor.is_corresponding_author),
   };
@@ -223,7 +224,7 @@ const PublicationForm = ({
 
   const setAuthorField = (index, field, nextValue) => {
     const nextAuthors = (value.authors || []).map((author, authorIndex) => {
-      if ((field === "isMainAuthor" || field === "isCorrespondingAuthor") && nextValue) {
+      if (field === "isCorrespondingAuthor" && nextValue) {
         return {
           ...author,
           [field]: authorIndex === index,
@@ -248,10 +249,7 @@ const PublicationForm = ({
       ...value,
       authors: [
         ...authors,
-        {
-          ...EMPTY_AUTHOR,
-          isMainAuthor: authors.length === 0,
-        },
+        { ...EMPTY_AUTHOR },
       ],
     });
     setFormError("");
@@ -259,10 +257,6 @@ const PublicationForm = ({
 
   const removeAuthor = (index) => {
     const nextAuthors = (value.authors || []).filter((_, authorIndex) => authorIndex !== index);
-
-    if (nextAuthors.length && !nextAuthors.some((author) => author.isMainAuthor)) {
-      nextAuthors[0] = { ...nextAuthors[0], isMainAuthor: true };
-    }
 
     onChange({
       ...value,
@@ -420,8 +414,8 @@ const PublicationForm = ({
       <div className="publication-form-section">
         <div className="publication-form-section-header">
           <div>
-            <h4>Autorët</h4>
-            <p>Regjistroni autorët sipas renditjes akademike të publikimit.</p>
+            <h4>Autorët dhe Bashkautorët</h4>
+            <p>Shto autorët sipas renditjes akademike të publikimit. Autori i parë konsiderohet zakonisht autor kryesor, ndërsa autorët tjerë ruhen si bashkautorë.</p>
           </div>
           <button type="button" className="prof-btn-secondary" onClick={addAuthor}>
             <Plus size={15} /> Shto autor
@@ -434,13 +428,13 @@ const PublicationForm = ({
               <span>Emri i plotë</span>
               <span>ORCID</span>
               <span>Institucioni / Afiliacioni</span>
-              <span>Autor kryesor</span>
+              <span>Roli</span>
               <span>Autor korrespondent</span>
               <span>Veprim</span>
             </div>
             {(value.authors || []).map((author, index) => (
               <div className="publication-author-row" key={`author-${index}`}>
-                <div className="publication-author-index">Autori {index + 1}</div>
+                <div className="publication-author-index">{index + 1}</div>
                 <input
                   value={author.fullName}
                   onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
@@ -457,14 +451,9 @@ const PublicationForm = ({
                   onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
                   placeholder="Institucioni / Afiliacioni"
                 />
-                <label className="publication-author-check">
-                  <input
-                    type="checkbox"
-                    checked={author.isMainAuthor}
-                    onChange={(event) => setAuthorField(index, "isMainAuthor", event.target.checked)}
-                  />
-                  <span>Autor kryesor</span>
-                </label>
+                <span className={`publication-author-role ${index === 0 ? "primary" : ""}`}>
+                  {index === 0 ? "Autor kryesor" : "Bashkautor"}
+                </span>
                 <label className="publication-author-check">
                   <input
                     type="checkbox"
@@ -479,7 +468,8 @@ const PublicationForm = ({
                   onClick={() => removeAuthor(index)}
                   aria-label={`Largo autorin ${index + 1}`}
                 >
-                  <Trash2 size={14} /> Largo
+                  <Trash2 size={14} aria-hidden="true" />
+                  <span>Largo</span>
                 </button>
               </div>
             ))}

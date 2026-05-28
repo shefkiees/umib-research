@@ -132,9 +132,9 @@ function normalizeAuthors(value) {
         familyName,
         orcid: normalizeText(author.orcid),
         affiliation: normalizeText(author.affiliation),
-        isMainAuthor: normalizeBoolean(author.is_main_author ?? author.isMainAuthor),
+        isMainAuthor: index === 0,
         isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-        position: Number.isInteger(Number(author.position)) ? Number(author.position) : index + 1,
+        authorOrder: index + 1,
       };
     })
     .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
@@ -276,15 +276,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const metadataVerified = normalizeBoolean(body.metadataVerified ?? body.metadata_verified) || metadataSource === "doi";
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
-  const mainAuthorCount = authors.filter((author) => author.isMainAuthor).length;
   const correspondingAuthorCount = authors.filter((author) => author.isCorrespondingAuthor).length;
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
-  }
-
-  if (mainAuthorCount > 1) {
-    errors.push({ field: "authors", message: "Vetem nje autor mund te shenohet si autor kryesor." });
   }
 
   if (correspondingAuthorCount > 1) {
@@ -375,7 +370,7 @@ function mapPublication(row) {
     pages: row.pages || "",
     issn: row.issn || "",
     isbn: row.isbn || "",
-    authors: authors.map((author) => ({
+    authors: authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
       full_name: author.full_name || author.fullName || "",
       givenName: author.given_name || author.givenName || "",
@@ -384,8 +379,10 @@ function mapPublication(row) {
       family_name: author.family_name || author.familyName || "",
       orcid: author.orcid || "",
       affiliation: author.affiliation || "",
-      isMainAuthor: Boolean(author.is_main_author ?? author.isMainAuthor),
-      is_main_author: Boolean(author.is_main_author ?? author.isMainAuthor),
+      authorOrder: author.author_order || author.authorOrder || index + 1,
+      author_order: author.author_order || author.authorOrder || index + 1,
+      isMainAuthor: index === 0,
+      is_main_author: index === 0,
       isCorrespondingAuthor: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
       is_corresponding_author: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
     })),
@@ -458,8 +455,9 @@ const PUBLICATION_SELECT_SQL = `
       'orcid', pa.orcid,
       'affiliation', pa.affiliation,
       'is_main_author', pa.is_main_author,
-      'is_corresponding_author', pa.is_corresponding_author
-    ) order by pa.position, pa.created_at)
+      'is_corresponding_author', pa.is_corresponding_author,
+      'author_order', coalesce(pa.author_order, pa.position)
+    ) order by coalesce(pa.author_order, pa.position), pa.created_at)
     from publication_authors pa
     where pa.publication_id = p.id
   ), '[]'::jsonb) as authors,
@@ -545,10 +543,11 @@ async function replacePublicationChildren(client, publicationId, values) {
   ]);
 
   for (const [index, author] of values.authors.entries()) {
+    const authorOrder = index + 1;
     await client.query(
       `insert into publication_authors
-       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, is_corresponding_author, position)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, is_corresponding_author, position, author_order)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         publicationId,
         author.fullName,
@@ -556,9 +555,10 @@ async function replacePublicationChildren(client, publicationId, values) {
         author.familyName,
         author.orcid,
         author.affiliation,
-        author.isMainAuthor,
+        authorOrder === 1,
         author.isCorrespondingAuthor,
-        author.position || index + 1,
+        authorOrder,
+        authorOrder,
       ]
     );
   }
@@ -694,7 +694,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
       isCorrespondingAuthor: false,
-      position: index + 1,
+      authorOrder: index + 1,
     };
   }
 
@@ -706,7 +706,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
     affiliation: normalizeText(author?.affiliation),
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author),
-    position: Number.isInteger(Number(author?.position)) ? Number(author.position) : index + 1,
+    authorOrder: index + 1,
   };
 }
 
