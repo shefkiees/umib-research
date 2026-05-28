@@ -218,6 +218,7 @@
     height: 58px;
     width: 58px;
     object-fit: contain;
+    filter: brightness(0) invert(1);
 }
 .umib-homepage-root .footer-links { display: flex; gap: 40px; }
 .umib-homepage-root .footer-links a { color: white; text-decoration: none; opacity: 0.7; font-size: 0.95rem; transition: opacity 0.3s; }
