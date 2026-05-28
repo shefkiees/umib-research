@@ -37,6 +37,7 @@ export default function HomePage() {
             >
               Punime Shkencore
             </a>
+            <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
               <Lock size={16} style={{ marginRight: '8px' }} />
               Hyr në Portal
