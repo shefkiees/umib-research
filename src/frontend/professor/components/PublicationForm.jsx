@@ -185,12 +185,6 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   };
 }
 
-function metadataBadgeLabel(source, verified) {
-  if (source === "doi" && verified) return "Importuar nga DOI";
-  if (source === "mixed") return "DOI me ndryshime manuale";
-  return "Manuale";
-}
-
 const PublicationForm = ({
   value,
   onChange,
@@ -321,11 +315,6 @@ const PublicationForm = ({
   return (
     <form className="publication-form" onSubmit={submit}>
       <div className="publication-form-toolbar">
-        <div>
-          <span className={`publication-source-badge publication-source-badge--${value.metadataSource || "manual"}`}>
-            {metadataBadgeLabel(value.metadataSource, value.metadataVerified)}
-          </span>
-        </div>
         <div className="publication-doi-lookup">
           <input
             value={doiLookupValue}

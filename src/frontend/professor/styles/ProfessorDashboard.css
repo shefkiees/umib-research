@@ -1160,28 +1160,6 @@ body {
   cursor: default;
 }
 
-.publication-source-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  background: #e5edf6;
-  color: #153a63;
-}
-
-.publication-source-badge--doi {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.publication-source-badge--mixed {
-  background: #fef3c7;
-  color: #92400e;
-}
-
 .publication-form-message {
   margin: 0;
   font-size: 0.9rem;
