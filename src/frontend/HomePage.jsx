@@ -30,6 +30,7 @@ export default function HomePage() {
           <div className="nav-menu">
             <a href="#about">Rreth Portalit</a>
             <a href="#services">Statistikat</a>
+            <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
               <Lock size={16} style={{ marginRight: '8px' }} />
               Hyr në Portal
