@@ -3,21 +3,24 @@ import "./LoginForm.css";
 import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
 import { apiUrl } from "./utils/api";
+import { useLanguage } from "./i18n/LanguageContext";
 
-const AUTH_ERROR_MESSAGES = {
-  oauth_not_configured: "Google sign-in is not configured on the server. Check the production environment variables.",
-  unauthorized_domain: "Only @umib.net email addresses are allowed.",
-  oauth_callback_failed: "Google sign-in reached the server, but the login could not be completed.",
-  db_user_sync_failed: "Google sign-in succeeded, but your account could not be synced with the database.",
-  session_login_failed: "Google sign-in succeeded, but the session could not be created.",
-  google_login_failed: "Google sign-in failed. Please try again."
-};
+const AUTH_ERROR_CODES = new Set([
+  "oauth_not_configured",
+  "unauthorized_domain",
+  "oauth_callback_failed",
+  "db_user_sync_failed",
+  "session_login_failed",
+  "google_login_failed",
+]);
 
 const LoginForm = () => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
+  const authErrorKey = AUTH_ERROR_CODES.has(authError) ? authError : "google_login_failed";
   const authErrorMessage = authError
-    ? AUTH_ERROR_MESSAGES[authError] || AUTH_ERROR_MESSAGES.google_login_failed
+    ? t(`auth.login.errors.${authErrorKey}`)
     : "";
 
   const handleGoogleLogin = () => {
@@ -30,21 +33,21 @@ const LoginForm = () => {
     <div className="login-wrapper">
       <div className="login-container google-only">
         <div className="brand-side">
-          <p className="state-title">Republika e Kosoves</p>
+          <p className="state-title">{t("auth.login.stateTitle")}</p>
           <div className="logo-placeholder">
-            <img src={UMIBLogo} alt="UMIB Logo" className="university-logo-img" />
+            <img src={UMIBLogo} alt={t("auth.login.logoAlt")} className="university-logo-img" />
           </div>
           <div className="brand-text">
             <h1>UMIB</h1>
             <p className="smu-tag">
-              Sistemi i Menaxhimit Universitar te Kerkimeve Shkencore
+              {t("auth.login.systemName")}
             </p>
           </div>
         </div>
 
         <div className="form-side oauth-center">
           <div className="form-header">
-            <h2>Sign in to your account</h2>
+            <h2>{t("auth.login.title")}</h2>
           </div>
 
           <div className="oauth-content">
@@ -60,18 +63,18 @@ const LoginForm = () => {
               disabled={loading}
             >
               <FcGoogle className="google-icon" />
-              <span>{loading ? "Duke u lidhur..." : "Sign in with Google"}</span>
+              <span>{loading ? t("auth.login.connecting") : t("auth.login.googleButton")}</span>
             </button>
 
             <p className="domain-restriction">
-              Only <strong>@umib.net</strong> emails are accepted.
+              {t("auth.login.domainPrefix")} <strong>@umib.net</strong> {t("auth.login.domainSuffix")}
             </p>
           </div>
         </div>
       </div>
 
       <div className="footer-text">
-        (c) 2026 Universiteti i Mitrovices "Isa Boletini" - Te gjitha te drejtat e rezervuara.
+        {t("auth.login.footer")}
       </div>
     </div>
   );
