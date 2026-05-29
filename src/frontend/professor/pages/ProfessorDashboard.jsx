@@ -1438,6 +1438,35 @@ export default function ProfessorDashboard() {
     </article>
   );
 
+  const renderPublicationPagination = () => (
+    publicationsPagination.totalPages > 1 ? (
+      <div className="publication-pagination">
+        <button
+          type="button"
+          className="prof-btn-secondary"
+          onClick={() => setPublicationsPage((page) => Math.max(page - 1, 1))}
+          disabled={publicationsPagination.page <= 1 || isPublicationsLoading}
+        >
+          {t("common.back")}
+        </button>
+        <span className="publication-page-count">
+          {t("professor.dashboard.pageOf", {
+            page: publicationsPagination.page,
+            total: publicationsPagination.totalPages,
+          })}
+        </span>
+        <button
+          type="button"
+          className="prof-btn-secondary"
+          onClick={() => setPublicationsPage((page) => Math.min(page + 1, publicationsPagination.totalPages))}
+          disabled={publicationsPagination.page >= publicationsPagination.totalPages || isPublicationsLoading}
+        >
+          {t("common.next")}
+        </button>
+      </div>
+    ) : null
+  );
+
   const renderContent = () => {
     switch (activePage) {
       case "Overview":
@@ -1445,6 +1474,13 @@ export default function ProfessorDashboard() {
       case "Publikime":
         return (
           <section className="publications-page-shell">
+            {normalizedQuery ? (
+              <>
+                {renderPublicationsSection()}
+                {renderPublicationPagination()}
+              </>
+            ) : null}
+
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
@@ -1493,32 +1529,11 @@ export default function ProfessorDashboard() {
               </article>
             ) : null}
 
-            {renderPublicationsSection()}
-            {publicationsPagination.totalPages > 1 ? (
-              <div className="publication-pagination">
-                <button
-                  type="button"
-                  className="prof-btn-secondary"
-                  onClick={() => setPublicationsPage((page) => Math.max(page - 1, 1))}
-                  disabled={publicationsPagination.page <= 1 || isPublicationsLoading}
-                >
-                  {t("common.back")}
-                </button>
-                <span className="publication-page-count">
-                  {t("professor.dashboard.pageOf", {
-                    page: publicationsPagination.page,
-                    total: publicationsPagination.totalPages,
-                  })}
-                </span>
-                <button
-                  type="button"
-                  className="prof-btn-secondary"
-                  onClick={() => setPublicationsPage((page) => Math.min(page + 1, publicationsPagination.totalPages))}
-                  disabled={publicationsPagination.page >= publicationsPagination.totalPages || isPublicationsLoading}
-                >
-                  {t("common.next")}
-                </button>
-              </div>
+            {!normalizedQuery ? (
+              <>
+                {renderPublicationsSection()}
+                {renderPublicationPagination()}
+              </>
             ) : null}
           </section>
         );
