@@ -982,6 +982,16 @@ body {
   cursor: default;
 }
 
+.publication-identifier-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.publication-identifier-inputs input {
+  width: 100%;
+}
+
 .prof-orcid-link-btn {
   align-self: flex-start;
   border: 1px solid #1f6f8b;

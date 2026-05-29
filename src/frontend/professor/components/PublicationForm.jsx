@@ -374,14 +374,25 @@ const PublicationForm = ({
           <span>Faqet</span>
           <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
         </label>
-        <label className="prof-form-field">
-          <span>ISSN</span>
-          <input value={value.issn} onChange={updateField("issn")} readOnly={isDoiImported} />
-        </label>
-        <label className="prof-form-field">
-          <span>ISBN</span>
-          <input value={value.isbn} onChange={updateField("isbn")} readOnly={isDoiImported} />
-        </label>
+        <div className="prof-form-field publication-identifier-field">
+          <span>ISSN / ISBN</span>
+          <div className="publication-identifier-inputs">
+            <input
+              value={value.issn}
+              onChange={updateField("issn")}
+              placeholder="ISSN"
+              aria-label="ISSN"
+              readOnly={isDoiImported}
+            />
+            <input
+              value={value.isbn}
+              onChange={updateField("isbn")}
+              placeholder="ISBN"
+              aria-label="ISBN"
+              readOnly={isDoiImported}
+            />
+          </div>
+        </div>
         <label className="prof-form-field reimbursement-wide">
           <span>Abstrakti</span>
           <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} readOnly={isDoiImported} />
