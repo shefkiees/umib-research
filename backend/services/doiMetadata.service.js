@@ -37,6 +37,10 @@ function normalizeText(value) {
   return String(value ?? "").trim();
 }
 
+function hasText(value) {
+  return normalizeText(value) !== "";
+}
+
 export function normalizeAbstractText(value) {
   return normalizeText(value)
     .replace(/<[^>]+>/g, " ")
@@ -77,11 +81,112 @@ function normalizeAffiliations(value) {
     .join("; ");
 }
 
+function getDateParts(value) {
+  const parts = value?.["date-parts"]?.[0];
+
+  return Array.isArray(parts)
+    ? parts.map((part) => Number(part)).filter((part) => Number.isInteger(part))
+    : [];
+}
+
+function isValidMonth(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 12;
+}
+
+function isValidDay(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 31;
+}
+
+function formatDateParts(parts) {
+  const year = normalizeYear(parts[0]);
+
+  if (!year) {
+    return "";
+  }
+
+  if (isValidMonth(parts[1]) && isValidDay(parts[2])) {
+    return `${year}-${String(parts[1]).padStart(2, "0")}-${String(parts[2]).padStart(2, "0")}`;
+  }
+
+  if (isValidMonth(parts[1])) {
+    return `${year}-${String(parts[1]).padStart(2, "0")}`;
+  }
+
+  return String(year);
+}
+
+function isFullDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalizeText(value));
+}
+
+function getBestPublicationDateParts(data) {
+  const candidates = [
+    data["published-print"],
+    data["published-online"],
+    data.issued,
+    data.event?.start,
+    data.event?.end,
+  ].map(getDateParts).filter((parts) => parts.length > 0);
+
+  return candidates.find((parts) => normalizeYear(parts[0]) && isValidMonth(parts[1]) && isValidDay(parts[2]))
+    || candidates.find((parts) => normalizeYear(parts[0]) && isValidMonth(parts[1]))
+    || candidates.find((parts) => normalizeYear(parts[0]))
+    || [];
+}
+
+function extractYearFromDoi(doi) {
+  const match = normalizeText(doi).match(/(?:^|[^\d])((?:19|20)\d{2})(?:[^\d]|$)/);
+
+  return normalizeYear(match?.[1]);
+}
+
+function preferText(primary, fallback) {
+  return hasText(primary) ? primary : fallback;
+}
+
+function mergeMetadata(primary, fallback) {
+  if (!fallback) {
+    return primary;
+  }
+
+  return {
+    ...primary,
+    title: preferText(primary.title, fallback.title),
+    authors: Array.isArray(primary.authors) && primary.authors.length ? primary.authors : fallback.authors,
+    container_title: preferText(primary.container_title, fallback.container_title),
+    publisher: preferText(primary.publisher, fallback.publisher),
+    published_date: isFullDate(fallback.published_date) && !isFullDate(primary.published_date)
+      ? fallback.published_date
+      : preferText(primary.published_date, fallback.published_date),
+    year: primary.year || fallback.year,
+    volume: preferText(primary.volume, fallback.volume),
+    issue: preferText(primary.issue, fallback.issue),
+    pages: preferText(primary.pages, fallback.pages),
+    issn: preferText(primary.issn, fallback.issn),
+    isbn: preferText(primary.isbn, fallback.isbn),
+    type: preferText(primary.type, fallback.type),
+    abstract: preferText(primary.abstract, fallback.abstract),
+    source_url: preferText(primary.source_url, fallback.source_url),
+    raw_json: {
+      ...(primary.raw_json || {}),
+      _doi_org: primary.raw_json || {},
+      _crossref: fallback.raw_json || {},
+    },
+  };
+}
+
+function shouldRefreshCachedMetadata(metadata = {}) {
+  const type = normalizeText(metadata.type);
+  const hasCrossrefSnapshot = Boolean(metadata.raw_json?._crossref);
+
+  return type === "proceedings-article" && !isFullDate(metadata.published_date) && !hasCrossrefSnapshot;
+}
+
 function mapMetadata(data, doi) {
   const title = Array.isArray(data.title) ? data.title[0] || "" : data.title || "";
   const containerTitle = Array.isArray(data["container-title"])
     ? data["container-title"][0] || ""
-    : data["container-title"] || "";
+    : data["container-title"] || data.event?.name || "";
   const authors = Array.isArray(data.author)
     ? data.author
       .map((author, index) => {
@@ -100,7 +205,7 @@ function mapMetadata(data, doi) {
       })
       .filter((author) => author.fullName || author.orcid || author.affiliation)
     : [];
-  const dateParts = data.issued?.["date-parts"]?.[0] || [];
+  const dateParts = getBestPublicationDateParts(data);
 
   return {
     doi,
@@ -108,8 +213,8 @@ function mapMetadata(data, doi) {
     authors,
     container_title: normalizeText(containerTitle),
     publisher: normalizeText(data.publisher),
-    published_date: dateParts.length ? dateParts.join("-") : "",
-    year: normalizeYear(dateParts[0]),
+    published_date: formatDateParts(dateParts),
+    year: normalizeYear(dateParts[0]) || extractYearFromDoi(doi),
     volume: normalizeText(data.volume),
     issue: normalizeText(data.issue),
     pages: normalizeText(data.page),
@@ -309,13 +414,19 @@ export async function fetchDoiMetadata(doi) {
   }
 
   const errors = [];
+  let metadata = null;
 
   for (const fetcher of [fetchFromDoiOrg, fetchFromCrossref]) {
     try {
-      return await fetcher(normalizedDoi);
+      const nextMetadata = await fetcher(normalizedDoi);
+      metadata = metadata ? mergeMetadata(metadata, nextMetadata) : nextMetadata;
     } catch (error) {
       errors.push(error);
     }
+  }
+
+  if (metadata) {
+    return metadata;
   }
 
   if (errors.every((error) => error instanceof DoiLookupError && error.code === "doi_not_found")) {
@@ -332,7 +443,7 @@ export async function fetchDoiMetadata(doi) {
 export async function getVerifiedDoiMetadata(dbOrClient, doi) {
   const cached = await getCachedDoiMetadata(dbOrClient, doi);
 
-  if (cached) {
+  if (cached && !shouldRefreshCachedMetadata(cached)) {
     return { source: "cache", metadata: cached };
   }
 
