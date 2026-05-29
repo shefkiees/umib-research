@@ -134,6 +134,39 @@ function normalizeName(value) {
     .trim();
 }
 
+function formatPublishedValue(dateValue, yearValue) {
+  const date = String(dateValue || "").trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  return date || String(yearValue || "").trim();
+}
+
+function parsePublishedValue(input) {
+  const value = String(input || "").trim();
+  const dayMonthYear = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+
+  if (/^\d{4}$/.test(value)) {
+    return { publicationDate: "", publicationYear: value };
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return { publicationDate: value, publicationYear: value.slice(0, 4) };
+  }
+
+  if (dayMonthYear) {
+    return {
+      publicationDate: `${dayMonthYear[3]}-${dayMonthYear[2]}-${dayMonthYear[1]}`,
+      publicationYear: dayMonthYear[3],
+    };
+  }
+
+  return { publicationDate: value, publicationYear: "" };
+}
+
 function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthorIndex = 0) {
   const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
   const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -209,12 +242,21 @@ const PublicationForm = ({
   const showIssnInput = !isDoiImported || hasValue("issn");
   const showIsbnInput = !isDoiImported || hasValue("isbn");
   const showAbstractField = !isDoiImported || hasValue("abstract");
+  const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
     onChange({
       ...value,
       [field]: nextValue,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+  };
+
+  const updatePublishedField = (event) => {
+    onChange({
+      ...value,
+      ...parsePublishedValue(event.target.value),
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
   };
@@ -362,12 +404,13 @@ const PublicationForm = ({
           <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Data e publikimit</span>
-          <input type="date" value={value.publicationDate} onChange={updateField("publicationDate")} readOnly={isDoiImported} />
-        </label>
-        <label className="prof-form-field">
-          <span>Viti i publikimit</span>
-          <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" readOnly={isDoiImported} />
+          <span>Publikuar</span>
+          <input
+            value={publishedValue}
+            onChange={updatePublishedField}
+            placeholder="YYYY ose DD-MM-YYYY"
+            readOnly={isDoiImported}
+          />
         </label>
         {showVolumeField ? (
           <label className="prof-form-field">

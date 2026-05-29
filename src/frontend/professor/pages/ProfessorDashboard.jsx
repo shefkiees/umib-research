@@ -1358,8 +1358,7 @@ export default function ProfessorDashboard() {
     <article className="prof-card publication-registry-card">
       <div className="prof-card-header publication-registry-header">
         <div>
-          <h3>Arkiva e Publikimeve</h3>
-          <p>Publikimet akademike të regjistruara në platformë.</p>
+          <h3>Publikimet</h3>
         </div>
       </div>
 
@@ -1373,7 +1372,7 @@ export default function ProfessorDashboard() {
           {t("common.loading")}
         </div>
       ) : filteredPublications.length ? (
-        <div className="publication-table" role="table" aria-label="Arkiva e Publikimeve">
+        <div className="publication-table" role="table" aria-label="Publikimet">
           <div className="publication-table-head" role="row">
             <span>Publikimi</span>
             <span>Autorët</span>
@@ -1383,7 +1382,6 @@ export default function ProfessorDashboard() {
             <div className="publication-table-row" role="row" key={row.id}>
               <div className="publication-title-cell">
                 <h4>{renderPublicationTitle(row)}</h4>
-                <p>{[row.doi ? `DOI: ${row.doi}` : "", row.journal].filter(Boolean).join(" • ") || "Pa të dhëna shtesë"}</p>
               </div>
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">Autorët</span>
@@ -1412,8 +1410,7 @@ export default function ProfessorDashboard() {
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
-                  <h3>Shto Publikim Shkencor</h3>
-                  <p>Shtoni publikime akademike dhe menaxhoni aktivitetin shkencor në platformën UMIB.</p>
+                  <h3>Shtoni publikimin tuaj</h3>
                 </div>
               </div>
 
