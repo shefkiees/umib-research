@@ -95,6 +95,13 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "abstract",
 ]);
 
+const HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS = new Set([
+  "correspondingAuthor",
+  "publicationTitle",
+  "publicationYear",
+  "publicationLink",
+]);
+
 const EMPTY_TEAM_MEMBER = {
   name: "",
   scientificGrade: "",
@@ -1555,6 +1562,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const getSectionFields = (sectionId) =>
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
+  const getVisiblePublicationSectionFields = (sectionId) =>
+    getSectionFields(sectionId).filter((fieldConfig) =>
+      !HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS.has(fieldConfig.field)
+    );
+
   const renderApplicantFields = () => (
     <div className="reimbursement-form-grid">
       {renderAutoField("Emri dhe mbiemri", "applicantName")}
@@ -1589,8 +1601,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
       )}
 
-      {getSectionFields("authors").map(renderSchemaField)}
-      {getSectionFields("publicationDetails").map(renderSchemaField)}
+      {getVisiblePublicationSectionFields("authors").map(renderSchemaField)}
+      {getVisiblePublicationSectionFields("publicationDetails").map(renderSchemaField)}
       {getSectionFields("publicationConference").map(renderSchemaField)}
     </div>
   );
