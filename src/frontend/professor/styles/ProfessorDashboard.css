@@ -1447,16 +1447,6 @@ body {
   margin-bottom: 16px;
 }
 
-.publication-count-pill {
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: #f7f1e4;
-  color: #72591e;
-  font-size: 0.82rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
 .publication-table {
   display: grid;
   gap: 8px;

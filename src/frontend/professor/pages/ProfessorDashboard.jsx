@@ -182,6 +182,46 @@ const mapPublicationRow = (row = {}) => ({
   createdAt: row.createdAt || row.created_at || null,
 });
 
+const getPublicationAuthorSearchText = (authors = []) =>
+  (Array.isArray(authors) ? authors : [])
+    .map((author) => {
+      if (typeof author === "string") {
+        return author;
+      }
+
+      return [
+        author?.fullName,
+        author?.full_name,
+        author?.name,
+        author?.givenName,
+        author?.given_name,
+        author?.familyName,
+        author?.family_name,
+        author?.orcid,
+        author?.affiliation,
+      ].filter(Boolean).join(" ");
+    })
+    .filter(Boolean)
+    .join(" ");
+
+const getPublicationSearchText = (row = {}) => [
+  row.title,
+  row.doi,
+  row.journal,
+  row.venue,
+  row.publisher,
+  row.publicationType,
+  row.publicationYear,
+  row.year,
+  row.status,
+  row.pages,
+  row.volume,
+  row.issue,
+  row.issn,
+  row.isbn,
+  getPublicationAuthorSearchText(row.authors),
+].filter(Boolean).join(" ").toLowerCase();
+
 const mapNotificationRow = (row = {}) => ({
   id: row.id,
   userId: row.user_id || row.userId || null,
@@ -610,9 +650,7 @@ export default function ProfessorDashboard() {
       return publications;
     }
 
-    return publications.filter((row) =>
-      `${row.title} ${row.journal} ${row.year} ${row.status}`.toLowerCase().includes(normalizedQuery)
-    );
+    return publications.filter((row) => getPublicationSearchText(row).includes(normalizedQuery));
   }, [normalizedQuery, publications]);
 
   const buildPublicationPayload = (draft = {}) => {
@@ -1360,7 +1398,6 @@ export default function ProfessorDashboard() {
         <div>
           <h3>Publikimet</h3>
         </div>
-        <span className="publication-count-pill">{filteredPublications.length} regjistrime</span>
       </div>
 
       {publicationsError ? (
