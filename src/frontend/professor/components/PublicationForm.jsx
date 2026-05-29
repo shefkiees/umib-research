@@ -136,21 +136,31 @@ function normalizeName(value) {
 
 function formatPublishedValue(dateValue, yearValue) {
   const date = String(dateValue || "").trim();
+  const year = String(yearValue || "").trim();
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const [year, month, day] = date.split("-");
     return `${day}-${month}-${year}`;
   }
 
-  return date || String(yearValue || "").trim();
+  if (/^\d{4}$/.test(year)) {
+    return `xx-xx-${year}`;
+  }
+
+  return date || year;
 }
 
 function parsePublishedValue(input) {
   const value = String(input || "").trim();
   const dayMonthYear = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  const unknownDayMonthYear = value.match(/^x{2}-x{2}-(\d{4})$/i);
 
   if (/^\d{4}$/.test(value)) {
     return { publicationDate: "", publicationYear: value };
+  }
+
+  if (unknownDayMonthYear) {
+    return { publicationDate: "", publicationYear: unknownDayMonthYear[1] };
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -396,7 +406,7 @@ const PublicationForm = ({
           <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Revista / Konferenca / Botimi</span>
+          <span>Burimi i publikimit</span>
           <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
@@ -404,11 +414,11 @@ const PublicationForm = ({
           <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Publikuar</span>
+          <span>Publikuar më</span>
           <input
             value={publishedValue}
             onChange={updatePublishedField}
-            placeholder="YYYY ose DD-MM-YYYY"
+            placeholder="xx-xx-YYYY ose DD-MM-YYYY"
             readOnly={isDoiImported}
           />
         </label>
