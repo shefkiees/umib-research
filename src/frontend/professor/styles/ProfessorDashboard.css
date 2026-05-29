@@ -1137,12 +1137,22 @@ body {
 
 .publication-form {
   display: grid;
-  gap: 16px;
-  margin-top: 14px;
+  gap: 18px;
+  margin-top: 16px;
 }
 
 .publication-form-card {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  border: 1px solid #dbe3ec;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.publication-form-card > .prof-card-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf2f7;
+  margin-bottom: 16px;
 }
 
 .publication-form-toolbar {
@@ -1169,14 +1179,14 @@ body {
   display: flex;
   align-items: stretch;
   gap: 0;
-  width: min(100%, 620px);
+  width: min(100%, 720px);
 }
 
 .publication-doi-lookup input,
 .publication-form textarea {
   border: 1px solid #d9e0e8;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
   color: var(--text-dark);
   background: #ffffff;
   min-width: 0;
@@ -1192,9 +1202,23 @@ body {
 .publication-doi-lookup button {
   flex: 0 0 auto;
   border-radius: 0 8px 8px 0;
-  min-height: 40px;
-  padding-inline: 14px;
+  min-height: 44px;
+  padding-inline: 16px;
   white-space: nowrap;
+}
+
+.publication-form .prof-form-field > span {
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.publication-form .prof-form-field input,
+.publication-form .prof-form-field select {
+  height: 46px;
+  border-color: #d6e0ec;
+  border-radius: 8px;
+  background: #fbfdff;
 }
 
 .publication-form input:read-only,
@@ -1245,7 +1269,7 @@ body {
 .publication-form-section {
   display: grid;
   gap: 14px;
-  padding-top: 16px;
+  padding: 18px 0 2px;
   border-top: 1px solid #e2e8f0;
 }
 
@@ -1378,10 +1402,17 @@ body {
 
 .publication-registry-card {
   margin-top: 18px;
+  border: 1px solid #dbe3ec;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
 }
 
 .publication-registry-header {
   align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf2f7;
+  margin-bottom: 14px;
 }
 
 .publication-count-pill {
@@ -1396,7 +1427,7 @@ body {
 
 .publication-table {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .publication-table-head,
@@ -1408,24 +1439,35 @@ body {
 }
 
 .publication-table-head {
-  padding: 0 12px 4px;
-  color: #64748b;
+  padding: 10px 12px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #526173;
   font-size: 0.76rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .publication-table-row {
-  padding: 12px;
-  border: 1px solid #edf1f5;
+  padding: 14px 12px;
+  border: 1px solid #e7edf4;
   border-radius: 8px;
   background: #fcfdff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.publication-table-row:hover {
+  border-color: #cbd8e6;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
 
 .publication-title-cell h4 {
-  margin: 0 0 5px;
+  margin: 0;
   color: var(--text-dark);
   font-size: 0.98rem;
+  line-height: 1.35;
 }
 
 .publication-title-cell p,

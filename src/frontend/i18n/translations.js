@@ -214,7 +214,7 @@ export const translations = {
     navigation: {
       modules: "MODULET",
       statistics: "Statistikat",
-      publications: "Publikime",
+      publications: "Publikimet",
       conferences: "Konferenca",
       reimbursements: "Rimbursimet",
       notifications: "Njoftime",
