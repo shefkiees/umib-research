@@ -222,6 +222,22 @@ const getPublicationSearchText = (row = {}) => [
   getPublicationAuthorSearchText(row.authors),
 ].filter(Boolean).join(" ").toLowerCase();
 
+const formatPublicationAuthorSummary = (authors = []) => {
+  const names = (Array.isArray(authors) ? authors : [])
+    .map((author) => (typeof author === "string" ? author : author?.fullName || author?.full_name || author?.name))
+    .filter(Boolean);
+
+  if (!names.length) {
+    return "Pa autorë të regjistruar";
+  }
+
+  if (names.length <= 2) {
+    return names.join(", ");
+  }
+
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+};
+
 const mapNotificationRow = (row = {}) => ({
   id: row.id,
   userId: row.user_id || row.userId || null,
@@ -342,6 +358,7 @@ export default function ProfessorDashboard() {
   const [publicationDraft, setPublicationDraft] = useState(createEmptyPublicationDraft);
   const [manualPublicationDraft, setManualPublicationDraft] = useState(createEmptyPublicationDraft);
   const [publicationActionId, setPublicationActionId] = useState("");
+  const [focusedPublicationId, setFocusedPublicationId] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
@@ -652,6 +669,38 @@ export default function ProfessorDashboard() {
 
     return publications.filter((row) => getPublicationSearchText(row).includes(normalizedQuery));
   }, [normalizedQuery, publications]);
+
+  const publicationSearchResults = useMemo(() => {
+    if (activePage !== "Publikime" || !normalizedQuery) {
+      return [];
+    }
+
+    return filteredPublications.slice(0, 6).map((row) => ({
+      id: row.id,
+      title: row.title,
+      meta: [formatPublicationAuthorSummary(row.authors), row.year].filter(Boolean).join(" | "),
+      publication: row,
+    }));
+  }, [activePage, filteredPublications, normalizedQuery]);
+
+  const openPublicationSearchResult = (item) => {
+    const publication = item?.publication;
+
+    if (!publication) {
+      return;
+    }
+
+    setActivePage("Publikime");
+    setSearchQuery(publication.title || publication.doi || "");
+    setFocusedPublicationId(publication.id);
+
+    window.setTimeout(() => {
+      document.getElementById(`publication-row-${publication.id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 80);
+  };
 
   const buildPublicationPayload = (draft = {}) => {
     const payload = { ...draft };
@@ -1417,7 +1466,12 @@ export default function ProfessorDashboard() {
             <span>Viti</span>
           </div>
           {filteredPublications.map((row) => (
-            <div className="publication-table-row" role="row" key={row.id}>
+            <div
+              className={`publication-table-row ${focusedPublicationId === row.id ? "is-focused" : ""}`}
+              id={`publication-row-${row.id}`}
+              role="row"
+              key={row.id}
+            >
               <div className="publication-title-cell">
                 <h4>{renderPublicationTitle(row)}</h4>
               </div>
@@ -1474,13 +1528,6 @@ export default function ProfessorDashboard() {
       case "Publikime":
         return (
           <section className="publications-page-shell">
-            {normalizedQuery ? (
-              <>
-                {renderPublicationsSection()}
-                {renderPublicationPagination()}
-              </>
-            ) : null}
-
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
@@ -1529,12 +1576,8 @@ export default function ProfessorDashboard() {
               </article>
             ) : null}
 
-            {!normalizedQuery ? (
-              <>
-                {renderPublicationsSection()}
-                {renderPublicationPagination()}
-              </>
-            ) : null}
+            {renderPublicationsSection()}
+            {renderPublicationPagination()}
           </section>
         );
 
@@ -1810,7 +1853,12 @@ export default function ProfessorDashboard() {
           notificationCount={unreadNotifications}
           onMenuAction={handleMenuAction}
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={(nextQuery) => {
+            setSearchQuery(nextQuery);
+            setFocusedPublicationId("");
+          }}
+          searchResults={publicationSearchResults}
+          onSearchResultSelect={openPublicationSearchResult}
           notifications={notifications}
           onMarkAllRead={markAllNotificationsAsRead}
           onNotificationAction={markNotificationAsRead}

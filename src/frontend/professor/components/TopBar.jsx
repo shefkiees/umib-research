@@ -10,6 +10,8 @@ export default function TopBar({
   onMenuAction,
   searchQuery = "",
   onSearchChange,
+  searchResults = [],
+  onSearchResultSelect,
   notifications = [],
   onMarkAllRead,
   onNotificationAction,
@@ -24,8 +26,10 @@ export default function TopBar({
   const { t } = useLanguage();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
+  const searchRef = useRef(null);
 
   const title = activePage || t("navigation.statistics");
   const name = profile?.name || t("professor.profileFallbackName");
@@ -55,6 +59,9 @@ export default function TopBar({
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -71,21 +78,46 @@ export default function TopBar({
       </div>
 
       <div className="prof-topbar-right">
-        <label className="prof-search-wrap" htmlFor="prof-search-input">
-          <Search size={20} />
-          <input
-            id="prof-search-input"
-            type="text"
-            className="prof-search"
-            placeholder={searchPlaceholder}
-            value={searchQuery}
-            onChange={(event) => {
-              if (typeof onSearchChange === "function") {
-                onSearchChange(event.target.value);
-              }
-            }}
-          />
-        </label>
+        <div className="prof-search-area" ref={searchRef}>
+          <label className="prof-search-wrap" htmlFor="prof-search-input">
+            <Search size={20} />
+            <input
+              id="prof-search-input"
+              type="text"
+              className="prof-search"
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(event) => {
+                setIsSearchOpen(true);
+                if (typeof onSearchChange === "function") {
+                  onSearchChange(event.target.value);
+                }
+              }}
+            />
+          </label>
+
+          {isSearchOpen && searchResults.length ? (
+            <div className="prof-search-dropdown" role="listbox" aria-label="Rezultatet e kerkimit">
+              {searchResults.map((item) => (
+                <button
+                  type="button"
+                  className="prof-search-result"
+                  key={item.id}
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    if (typeof onSearchResultSelect === "function") {
+                      onSearchResultSelect(item);
+                    }
+                  }}
+                >
+                  <span className="prof-search-result-title">{item.title}</span>
+                  <span className="prof-search-result-meta">{item.meta}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="prof-notification-wrap" ref={notificationsRef}>
           <button
