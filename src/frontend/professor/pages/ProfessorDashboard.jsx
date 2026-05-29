@@ -1360,6 +1360,7 @@ export default function ProfessorDashboard() {
         <div>
           <h3>Publikimet</h3>
         </div>
+        <span className="publication-count-pill">{filteredPublications.length} regjistrime</span>
       </div>
 
       {publicationsError ? (
@@ -1406,7 +1407,7 @@ export default function ProfessorDashboard() {
         return renderOverview();
       case "Publikime":
         return (
-          <>
+          <section className="publications-page-shell">
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
@@ -1482,7 +1483,7 @@ export default function ProfessorDashboard() {
                 </button>
               </div>
             ) : null}
-          </>
+          </section>
         );
 
       case "Konferenca":
