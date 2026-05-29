@@ -1219,17 +1219,6 @@ body {
   color: #b42318;
 }
 
-.publication-form-metadata-note {
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #1e3a8a;
-  padding: 10px 12px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
 .publication-form-section {
   display: grid;
   gap: 14px;

@@ -203,14 +203,6 @@ const PublicationForm = ({
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const hasValue = (field) => String(value[field] || "").trim() !== "";
-  const hiddenMetadataFields = isDoiImported
-    ? [
-      !hasValue("volume") ? "Vëllimi" : "",
-      !hasValue("issue") ? "Numri i artikullit" : "",
-      !hasValue("issn") && !hasValue("isbn") ? "ISSN / ISBN" : "",
-      !hasValue("abstract") ? "Abstrakti" : "",
-    ].filter(Boolean)
-    : [];
   const showVolumeField = !isDoiImported || hasValue("volume");
   const showIssueField = !isDoiImported || hasValue("issue");
   const showIdentifierField = !isDoiImported || hasValue("issn") || hasValue("isbn");
@@ -345,11 +337,6 @@ const PublicationForm = ({
       </div>
 
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
-      {hiddenMetadataFields.length ? (
-        <div className="publication-form-metadata-note" role="status">
-          Metadata e DOI-së nuk i ktheu këto fusha, prandaj janë fshehur nga forma: {hiddenMetadataFields.join(", ")}.
-        </div>
-      ) : null}
 
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
