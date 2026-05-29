@@ -1156,15 +1156,6 @@ body {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
 }
 
-.publication-form-card::before,
-.publication-registry-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(90deg, #082f57, #c9a24f);
-}
-
 .publication-form-card > .prof-card-header {
   padding: 6px 2px 14px;
   border-bottom: 1px solid #e8eef5;
