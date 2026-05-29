@@ -351,7 +351,7 @@ const PublicationForm = ({
           <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Botuesi</span>
+          <span>Shtëpia botuese</span>
           <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
