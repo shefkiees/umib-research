@@ -1219,6 +1219,29 @@ body {
   color: #b42318;
 }
 
+.publication-abstract-field {
+  align-items: flex-start;
+}
+
+.publication-abstract-field textarea {
+  width: 100%;
+}
+
+.publication-abstract-toggle {
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.publication-abstract-toggle:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
 .publication-form-section {
   display: grid;
   gap: 14px;

@@ -244,6 +244,7 @@ const PublicationForm = ({
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
+  const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showVolumeField = !isDoiImported || hasValue("volume");
@@ -253,6 +254,8 @@ const PublicationForm = ({
   const showIsbnInput = !isDoiImported || hasValue("isbn");
   const showAbstractField = !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
+  const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
+  const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -464,9 +467,18 @@ const PublicationForm = ({
           </div>
         ) : null}
         {showAbstractField ? (
-          <label className="prof-form-field reimbursement-wide">
+          <label className="prof-form-field reimbursement-wide publication-abstract-field">
             <span>Abstrakti</span>
-            <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} readOnly={isDoiImported} />
+            <textarea value={value.abstract} onChange={updateField("abstract")} rows={abstractRows} readOnly={isDoiImported} />
+            {isAbstractExpandable ? (
+              <button
+                type="button"
+                className="publication-abstract-toggle"
+                onClick={() => setIsAbstractExpanded((expanded) => !expanded)}
+              >
+                {isAbstractExpanded ? "Shfaq më pak" : "Lexo më shumë"}
+              </button>
+            ) : null}
           </label>
         ) : null}
       </div>
