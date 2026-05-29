@@ -673,6 +673,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [editingRequest, setEditingRequest] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const [hasHydratedAutoFields, setHasHydratedAutoFields] = useState(false);
   const [hasHydratedPublicationFields, setHasHydratedPublicationFields] = useState(false);
   const [error, setError] = useState("");
@@ -1069,6 +1070,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       ...prev,
       documentChecklist: {},
     }));
+    setIsAbstractExpanded(false);
     setFieldErrors({});
     setError("");
     setSuccess(null);
@@ -1079,6 +1081,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     const selectedPublication = context.publications.find((item) => String(item.id) === publicationId);
 
     setForm((prev) => applyPublicationToForm({ ...prev, publicationId }, selectedPublication));
+    setIsAbstractExpanded(false);
     setFieldErrors((prev) => ({ ...prev, publicationId: "" }));
   };
 
@@ -1455,6 +1458,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setEditingRequest(request);
     setSelectedFiles([]);
     setFieldErrors({});
+    setIsAbstractExpanded(false);
     setError("");
     setSuccess(null);
   };
@@ -1464,6 +1468,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setForm(createDefaultForm(effectiveProfile));
     setSelectedFiles([]);
     setFieldErrors({});
+    setIsAbstractExpanded(false);
     setError("");
   };
 
@@ -1474,6 +1479,30 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       options.readOnly ? "reimbursement-readonly-field" : "",
     ].filter(Boolean).join(" ");
     const fieldError = fieldErrors[field];
+
+    if (selectedType === "publication" && field === "abstract") {
+      const abstractText = String(form.abstract || "").trim();
+      const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
+
+      return (
+        <div className={`${className} reimbursement-abstract-field`}>
+          <span>{tx(label)}</span>
+          <div className={`reimbursement-abstract-box ${isAbstractExpanded ? "expanded" : ""}`}>
+            {abstractText || t("common.noData")}
+          </div>
+          {hasLongAbstract ? (
+            <button
+              type="button"
+              className="reimbursement-abstract-toggle"
+              onClick={() => setIsAbstractExpanded((current) => !current)}
+            >
+              {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            </button>
+          ) : null}
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
 
     if (options.type === "textarea") {
       return (
@@ -2047,13 +2076,15 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </section>
 
           <section className="reimbursement-section">
-            <div className="reimbursement-section-head">
-              <FileText size={18} />
-              <div>
-                <h4>{r.academicTitle}</h4>
-                <p>{t("professor.reimbursements.academicDescription", { type: tx(selectedTypeConfig.label) })}</p>
+            {selectedType === "publication" ? null : (
+              <div className="reimbursement-section-head">
+                <FileText size={18} />
+                <div>
+                  <h4>{r.academicTitle}</h4>
+                  <p>{t("professor.reimbursements.academicDescription", { type: tx(selectedTypeConfig.label) })}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {renderTypeFields()}
           </section>

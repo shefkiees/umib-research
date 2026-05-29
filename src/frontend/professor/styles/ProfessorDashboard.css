@@ -1988,6 +1988,50 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-abstract-field {
+  gap: 6px;
+}
+
+.reimbursement-abstract-box {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  background: #f9fbfe;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.45;
+  padding: 9px 10px;
+  white-space: pre-wrap;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.reimbursement-abstract-box.expanded {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.reimbursement-abstract-toggle {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #1d67aa;
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 0;
+  cursor: pointer;
+}
+
+.reimbursement-abstract-toggle:hover {
+  color: #174a7b;
+  text-decoration: underline;
+}
+
 .reimbursement-field input.reimbursement-autofill-input,
 .reimbursement-field select.reimbursement-autofill-input {
   border-color: #bfe8cd;
