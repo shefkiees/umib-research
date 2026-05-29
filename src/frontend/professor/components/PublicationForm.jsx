@@ -202,6 +202,21 @@ const PublicationForm = ({
   const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
+  const hasValue = (field) => String(value[field] || "").trim() !== "";
+  const hiddenMetadataFields = isDoiImported
+    ? [
+      !hasValue("volume") ? "Vëllimi" : "",
+      !hasValue("issue") ? "Numri i artikullit" : "",
+      !hasValue("issn") && !hasValue("isbn") ? "ISSN / ISBN" : "",
+      !hasValue("abstract") ? "Abstrakti" : "",
+    ].filter(Boolean)
+    : [];
+  const showVolumeField = !isDoiImported || hasValue("volume");
+  const showIssueField = !isDoiImported || hasValue("issue");
+  const showIdentifierField = !isDoiImported || hasValue("issn") || hasValue("isbn");
+  const showIssnInput = !isDoiImported || hasValue("issn");
+  const showIsbnInput = !isDoiImported || hasValue("isbn");
+  const showAbstractField = !isDoiImported || hasValue("abstract");
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -330,6 +345,11 @@ const PublicationForm = ({
       </div>
 
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
+      {hiddenMetadataFields.length ? (
+        <div className="publication-form-metadata-note" role="status">
+          Metadata e DOI-së nuk i ktheu këto fusha, prandaj janë fshehur nga forma: {hiddenMetadataFields.join(", ")}.
+        </div>
+      ) : null}
 
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
@@ -362,41 +382,53 @@ const PublicationForm = ({
           <span>Viti i publikimit</span>
           <input value={value.publicationYear} onChange={updateField("publicationYear")} inputMode="numeric" readOnly={isDoiImported} />
         </label>
-        <label className="prof-form-field">
-          <span>Vëllimi</span>
-          <input value={value.volume} onChange={updateField("volume")} readOnly={isDoiImported} />
-        </label>
-        <label className="prof-form-field">
-          <span>Numri i artikullit</span>
-          <input value={value.issue} onChange={updateField("issue")} readOnly={isDoiImported} />
-        </label>
+        {showVolumeField ? (
+          <label className="prof-form-field">
+            <span>Vëllimi</span>
+            <input value={value.volume} onChange={updateField("volume")} readOnly={isDoiImported} />
+          </label>
+        ) : null}
+        {showIssueField ? (
+          <label className="prof-form-field">
+            <span>Numri i artikullit</span>
+            <input value={value.issue} onChange={updateField("issue")} readOnly={isDoiImported} />
+          </label>
+        ) : null}
         <label className="prof-form-field">
           <span>Faqet</span>
           <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
         </label>
-        <div className="prof-form-field publication-identifier-field">
-          <span>ISSN / ISBN</span>
-          <div className="publication-identifier-inputs">
-            <input
-              value={value.issn}
-              onChange={updateField("issn")}
-              placeholder="ISSN"
-              aria-label="ISSN"
-              readOnly={isDoiImported}
-            />
-            <input
-              value={value.isbn}
-              onChange={updateField("isbn")}
-              placeholder="ISBN"
-              aria-label="ISBN"
-              readOnly={isDoiImported}
-            />
+        {showIdentifierField ? (
+          <div className="prof-form-field publication-identifier-field">
+            <span>ISSN / ISBN</span>
+            <div className="publication-identifier-inputs">
+              {showIssnInput ? (
+                <input
+                  value={value.issn}
+                  onChange={updateField("issn")}
+                  placeholder="ISSN"
+                  aria-label="ISSN"
+                  readOnly={isDoiImported}
+                />
+              ) : null}
+              {showIsbnInput ? (
+                <input
+                  value={value.isbn}
+                  onChange={updateField("isbn")}
+                  placeholder="ISBN"
+                  aria-label="ISBN"
+                  readOnly={isDoiImported}
+                />
+              ) : null}
+            </div>
           </div>
-        </div>
-        <label className="prof-form-field reimbursement-wide">
-          <span>Abstrakti</span>
-          <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} readOnly={isDoiImported} />
-        </label>
+        ) : null}
+        {showAbstractField ? (
+          <label className="prof-form-field reimbursement-wide">
+            <span>Abstrakti</span>
+            <textarea value={value.abstract} onChange={updateField("abstract")} rows={4} readOnly={isDoiImported} />
+          </label>
+        ) : null}
       </div>
 
       <div className="publication-form-section">
