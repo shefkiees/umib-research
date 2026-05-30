@@ -158,9 +158,7 @@ const DEFAULT_FORM_VALUES = {
   expenseDate: "",
   invoiceNumber: "",
   iban: "",
-  attachmentUrl: "",
   purpose: "",
-  notes: "",
   bankApplicantName: "",
   bankName: "",
   bankNameOther: "",
@@ -1773,9 +1771,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       bankCountry: request.requestData?.bankCountry || banking.country || "Kosove",
       invoiceNumber: request.requestData?.invoiceNumber || banking.invoiceNumber || "",
       expenseDate: request.requestData?.expenseDate || banking.expenseDate || "",
-      attachmentUrl: request.requestData?.attachmentUrl || banking.documentLink || "",
       purpose: request.requestData?.purpose || banking.description || "",
-      notes: request.requestData?.notes || banking.notes || "",
       teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
         ? request.requestData.teamMembers
         : createDefaultTeamMembers(),
@@ -2378,9 +2374,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
         {renderInput(r.expenseDate, "expenseDate", { type: "date" })}
         {renderInput(r.invoiceNumber, "invoiceNumber")}
-        {renderInput(r.documentLink, "attachmentUrl", { placeholder: r.documentLinkPlaceholder })}
         {renderInput(r.purpose, "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
-        {renderInput(r.notes, "notes", { wide: true, type: "textarea", rows: 3 })}
       </div>
     </div>
   );
