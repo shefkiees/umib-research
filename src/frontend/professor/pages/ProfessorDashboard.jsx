@@ -708,6 +708,7 @@ export default function ProfessorDashboard() {
     Publikime: t("navigation.publications"),
     Konferenca: t("navigation.conferences"),
     Rimbursime: t("navigation.reimbursements"),
+    "Historiku i Rimbursimeve": t("navigation.reimbursementHistory"),
     Njoftime: t("navigation.notifications"),
     Settings: t("navigation.settings"),
     Integrime: t("navigation.integrations"),
@@ -1683,6 +1684,18 @@ export default function ProfessorDashboard() {
           <ReimbursementManager
             profile={profile}
             searchQuery={searchQuery}
+            view="create"
+            onNavigate={setActivePage}
+          />
+        );
+
+      case "Historiku i Rimbursimeve":
+        return (
+          <ReimbursementManager
+            profile={profile}
+            searchQuery={searchQuery}
+            view="history"
+            onNavigate={setActivePage}
           />
         );
 
