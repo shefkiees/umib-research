@@ -151,7 +151,6 @@ function getBankFields() {
     createField("SWIFT kodi", "swiftCode"),
     createField("Vendi", "bankCountry"),
     createField("Shuma e kerkuar", "amount"),
-    createField("Sheno me fjale", "amountWords"),
   ];
 }
 
@@ -466,7 +465,6 @@ function getTemplateValues(data) {
     bankAccountNumber: templateValue(data, "bankAccountNumber") || templateValue(data, "iban"),
     swiftCode: templateValue(data, "swiftCode"),
     bankCountry: templateValue(data, "bankCountry"),
-    amountWords: templateValue(data, "amountWords"),
     purpose: templateValue(data, "purpose"),
   };
 

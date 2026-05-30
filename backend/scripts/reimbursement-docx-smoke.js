@@ -18,7 +18,6 @@ const BASE_REQUEST_DATA = {
   iban: "1503011004083061",
   swiftCode: "RBKOXKPR",
   bankCountry: "Kosove",
-  amountWords: "Nje mije e dyqind e tridhjete e kater euro",
 };
 
 function createRow(requestType, requestData) {
