@@ -373,7 +373,6 @@ function getPublicationDisplaySections(form) {
           createDisplayField("ISSN", form.issn),
           createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
           createDisplayField("Faqet", form.pages),
-          createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {}),
         ].filter(Boolean),
       },
       {
@@ -397,7 +396,6 @@ function getPublicationDisplaySections(form) {
           createDisplayField("ISBN", form.isbn),
           createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
           createDisplayField("Faqet", form.pages),
-          createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {}),
         ].filter(Boolean),
       },
     ].filter((section) => section.fields.length);
@@ -434,7 +432,6 @@ function getPublicationMetadataDisplaySection(form) {
   const typeLabel = getPublicationTypeLabel(form.publicationType);
   const coauthors = splitCoauthors(form.coauthors);
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
-  const linkField = createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {});
   const commonStart = [
     createDisplayField("Titulli i publikimit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
@@ -448,27 +445,25 @@ function getPublicationMetadataDisplaySection(form) {
 
   if (publicationType === "book") {
     return {
-      title: "Metadata e publikimit",
+      title: "",
       fields: [
         ...commonStart,
         createDisplayField("Autorët", form.mainAuthor),
         createChipDisplayField("Bashkautorët", coauthors),
         doiField,
-        linkField,
       ].filter(Boolean),
     };
   }
 
   if (publicationType === "conference_paper") {
     return {
-      title: "Metadata e publikimit",
+      title: "",
       fields: [
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
         createChipDisplayField("Bashkautorët", coauthors),
         createDisplayField("Përkatësia e autorëve", form.affiliation),
         doiField,
-        linkField,
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
         createDisplayField("Quartile", form.scopusQuartile),
       ].filter(Boolean),
@@ -476,7 +471,7 @@ function getPublicationMetadataDisplaySection(form) {
   }
 
   return {
-    title: "Metadata e publikimit",
+    title: "",
     fields: [
       createDisplayField("Titulli i publikimit", form.publicationTitle),
       createDisplayField("Lloji i publikimit", typeLabel),
@@ -492,7 +487,6 @@ function getPublicationMetadataDisplaySection(form) {
       createChipDisplayField("Bashkautorët", coauthors),
       createDisplayField("Përkatësia e autorëve", form.affiliation),
       doiField,
-      linkField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("Quartile", form.scopusQuartile),
@@ -1887,7 +1881,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const renderPublicationDisplaySection = (section) => (
     <section className="reimbursement-publication-display-card reimbursement-wide" key={section.title}>
-      <h5>{section.title}</h5>
+      {section.title ? <h5>{section.title}</h5> : null}
       <div className="reimbursement-publication-info-grid">
         {section.fields.map(renderPublicationDisplayField)}
       </div>
