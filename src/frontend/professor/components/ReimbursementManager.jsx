@@ -97,7 +97,6 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
 
 const HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS = new Set([
   "correspondingAuthor",
-  "publicationTitle",
   "publicationYear",
   "publicationLink",
 ]);
@@ -117,6 +116,10 @@ const PUBLICATION_LABELS = {
   impactFactor: "Faktori i ndikimit (IF)",
   scopusQuartile: "Kuartili Scopus",
 };
+
+const PUBLICATION_BASIC_FIELDS = ["publicationTitle", "mainAuthor", "coauthors", "affiliation"];
+const PUBLICATION_BIBLIOGRAPHIC_FIELDS = ["doi", "publicationType", "venue", "publisher", "publicationDate", "publicationYear", "volume", "issue", "pages", "issn", "isbn", "publicationLink"];
+const PUBLICATION_INDEXING_FIELDS = ["indexingPlatform", "impactFactor", "scopusQuartile"];
 
 const EMPTY_TEAM_MEMBER = {
   name: "",
@@ -1557,7 +1560,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }
 
     if (selectedType === "publication" && field === "abstract") {
-      const abstractText = String(form.abstract || "").trim();
+      const abstractText = stripMarkup(form.abstract);
       const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
 
       return (
@@ -1672,6 +1675,32 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       !HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS.has(fieldConfig.field)
     );
 
+  const getPublicationFieldConfig = (fieldName) => {
+    const fieldConfig = [
+      ...getSectionFields("authors"),
+      ...getSectionFields("publicationDetails"),
+    ].find((item) => item.field === fieldName);
+
+    return fieldConfig && !HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS.has(fieldConfig.field) ? fieldConfig : null;
+  };
+
+  const renderPublicationGroup = (title, fieldNames, className = "") => {
+    const fields = fieldNames.map(getPublicationFieldConfig).filter(Boolean);
+
+    if (!fields.length) {
+      return null;
+    }
+
+    return (
+      <section className={`reimbursement-publication-group reimbursement-wide ${className}`.trim()}>
+        <h5>{title}</h5>
+        <div className="reimbursement-form-grid reimbursement-publication-grid">
+          {fields.map(renderSchemaField)}
+        </div>
+      </section>
+    );
+  };
+
   const renderApplicantFields = () => (
     <div className="reimbursement-form-grid">
       {renderAutoField("Emri dhe mbiemri", "applicantName")}
@@ -1706,8 +1735,10 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
       )}
 
-      {getVisiblePublicationSectionFields("authors").map(renderSchemaField)}
-      {getVisiblePublicationSectionFields("publicationDetails").map(renderSchemaField)}
+      {renderPublicationGroup("Informacion bazë", PUBLICATION_BASIC_FIELDS)}
+      {renderPublicationGroup("Informacion bibliografik", PUBLICATION_BIBLIOGRAPHIC_FIELDS)}
+      {renderPublicationGroup("Abstrakti", ["abstract"], "reimbursement-publication-abstract-group")}
+      {renderPublicationGroup("Indeksimi dhe impact factor", PUBLICATION_INDEXING_FIELDS)}
       {getSectionFields("publicationConference").map(renderSchemaField)}
     </div>
   );
