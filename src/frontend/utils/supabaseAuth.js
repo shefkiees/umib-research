@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import { apiUrl } from "./api";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const isDevelopment = import.meta.env.DEV;
 
 export const isSupabaseAuthConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
@@ -22,58 +22,6 @@ export function getPasswordResetRedirectUrl() {
     import.meta.env.VITE_SUPABASE_PASSWORD_RESET_REDIRECT_URL ||
     `${window.location.origin}/auth/reset-password`
   );
-}
-
-function getSafeAuthError(error) {
-  if (!error) {
-    return null;
-  }
-
-  return {
-    name: error.name,
-    message: error.message,
-    status: error.status,
-    code: error.code,
-  };
-}
-
-function logPasswordResetResponse({ email, redirectTo, data, error }) {
-  if (!isDevelopment) {
-    return;
-  }
-
-  console.debug("Supabase password reset response", {
-    emailDomain: email.includes("@") ? email.split("@").pop() : "",
-    redirectTo,
-    data,
-    error: getSafeAuthError(error),
-  });
-}
-
-export function validatePasswordResetConfig() {
-  if (!isSupabaseAuthConfigured) {
-    return { isValid: false, reason: "supabase_not_configured" };
-  }
-
-  try {
-    const redirectUrl = new URL(getPasswordResetRedirectUrl());
-
-    if (!["http:", "https:"].includes(redirectUrl.protocol)) {
-      return { isValid: false, reason: "invalid_redirect_url" };
-    }
-
-    if (window.location.protocol === "https:" && redirectUrl.protocol !== "https:") {
-      return { isValid: false, reason: "invalid_redirect_url" };
-    }
-
-    if (redirectUrl.pathname !== "/auth/reset-password") {
-      return { isValid: false, reason: "invalid_redirect_url" };
-    }
-
-    return { isValid: true, redirectTo: redirectUrl.toString() };
-  } catch {
-    return { isValid: false, reason: "invalid_redirect_url" };
-  }
 }
 
 function getAuthUrlParams() {
@@ -96,32 +44,21 @@ export function getAuthCallbackError() {
 }
 
 export async function sendPasswordResetEmail(email) {
-  if (!supabaseAuth) {
-    throw new Error("supabase_not_configured");
-  }
-
-  const config = validatePasswordResetConfig();
-
-  if (!config.isValid) {
-    throw new Error(config.reason);
-  }
-
-  const { data, error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
-    redirectTo: config.redirectTo,
+  const response = await fetch(apiUrl("/auth/password-reset"), {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
   });
+  const data = await response.json().catch(() => ({}));
 
-  logPasswordResetResponse({
-    email,
-    redirectTo: config.redirectTo,
-    data,
-    error,
-  });
-
-  if (error) {
-    throw error;
+  if (!response.ok) {
+    throw new Error(data.message || data.error || "password_reset_failed");
   }
 
-  return { data, redirectTo: config.redirectTo };
+  return { data, redirectTo: data.redirectTo || getPasswordResetRedirectUrl() };
 }
 
 export async function establishPasswordResetSession() {

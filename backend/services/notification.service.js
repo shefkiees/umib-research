@@ -15,7 +15,7 @@ function buildEmailHtml({ title, message, category }) {
   `;
 }
 
-async function sendEmailNotification({ to, title, message, category }) {
+export async function sendEmailNotification({ to, title, message, category, html }) {
   if (!isEmailEnabled() || !to) {
     return { skipped: true };
   }
@@ -31,7 +31,7 @@ async function sendEmailNotification({ to, title, message, category }) {
       to,
       subject: title,
       text: `${category ? `${category}\n\n` : ""}${message}`,
-      html: buildEmailHtml({ title, message, category }),
+      html: html || buildEmailHtml({ title, message, category }),
     }),
   });
 
