@@ -405,10 +405,6 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field">
-          <span>DOI</span>
-          <input value={value.doi} onChange={updateField("doi")} placeholder="Opsionale" readOnly={isDoiImported} />
-        </label>
-        <label className="prof-form-field">
           <span>Burimi i publikimit</span>
           <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
         </label>
