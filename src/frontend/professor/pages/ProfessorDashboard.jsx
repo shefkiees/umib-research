@@ -1465,7 +1465,7 @@ export default function ProfessorDashboard() {
   };
 
   const formatPublicationQuartile = (row = {}) => {
-    return row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "N/A";
+    return row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || t("common.noData");
   };
 
   const renderPublicationActions = (row) => {

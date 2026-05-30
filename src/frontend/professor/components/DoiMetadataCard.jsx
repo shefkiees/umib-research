@@ -96,13 +96,6 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
     </div>
   );
 
-  const renderQuartileField = (label, value) => (
-    <div style={fieldStyle}>
-      <span style={labelStyle}>{label}</span>
-      <span style={valueStyle}>{value || "N/A"}</span>
-    </div>
-  );
-
   const renderLinkField = (label, href, text) => (
     <div style={fieldStyle}>
       <span style={labelStyle}>{label}</span>
@@ -164,7 +157,7 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
         {renderField(t("professor.doi.publisher"), metadata.publisher)}
         {renderField(t("professor.doi.publishedDate"), publishedDate)}
         {renderField(t("professor.doi.publicationType"), metadata.type || "-")}
-        {renderQuartileField(t("professor.dashboard.publicationForm.quartile"), quartile)}
+        {renderField(t("professor.dashboard.publicationForm.quartile"), quartile)}
         {renderLinkField(t("professor.doi.link"), metadata.source_url, metadata.source_url)}
       </div>
 
