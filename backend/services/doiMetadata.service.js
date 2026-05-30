@@ -1,6 +1,8 @@
 const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
 const DOI_LOOKUP_TIMEOUT_MS = 10000;
+const SCOPUS_SEARCH_API_URL = "https://api.elsevier.com/content/search/scopus";
 const SCOPUS_SERIAL_TITLE_API_URL = "https://api.elsevier.com/content/serial/title/issn";
+const SCOPUS_SERIAL_TITLE_SEARCH_API_URL = "https://api.elsevier.com/content/serial/title";
 const JOURNAL_RANK_BASE_URL = "https://journalrank.rcsi.science";
 const SCIMAGO_BASE_URL = "https://www.scimagojr.com";
 
@@ -70,6 +72,10 @@ function getMetadataIssns(metadata = {}) {
   ].flatMap((value) => (Array.isArray(value) ? value : [value]));
 
   return values.map(normalizeIssn).filter(Boolean);
+}
+
+function uniqueValues(values = []) {
+  return [...new Set(values.map(normalizeText).filter(Boolean))];
 }
 
 function normalizeQuartile(value) {
@@ -568,6 +574,72 @@ function getBestQuartileFromScopusResponse(data) {
   return "Q4";
 }
 
+function getScopusIssnsFromResponse(data) {
+  const values = [];
+
+  walkValues(data, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (normalizedKey.includes("issn")) {
+      values.push(...(Array.isArray(value) ? value : [value]));
+    }
+  });
+
+  return uniqueValues(values.map(normalizeIssn).filter((value) => value.length === 8));
+}
+
+function getScopusSourceTitlesFromResponse(data) {
+  const values = [];
+
+  walkValues(data, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (
+      normalizedKey === "prism publicationname"
+      || normalizedKey === "publicationname"
+      || normalizedKey === "source title"
+      || normalizedKey === "sourcetitle"
+    ) {
+      values.push(...(Array.isArray(value) ? value : [value]));
+    }
+  });
+
+  return uniqueValues(values);
+}
+
+async function fetchScopusIndexingByTitle(title) {
+  const apiKey = getScopusApiKey();
+  const normalizedTitle = normalizeText(title);
+
+  if (!apiKey || !normalizedTitle) {
+    return null;
+  }
+
+  const url = new URL(SCOPUS_SERIAL_TITLE_SEARCH_API_URL);
+  url.searchParams.set("title", normalizedTitle);
+  url.searchParams.set("view", "CITESCORE");
+
+  const response = await fetchJson(url.toString(), {
+    headers: getScopusHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  const quartile = getBestQuartileFromScopusResponse(data);
+
+  return quartile
+    ? {
+        source: "Scopus CiteScore",
+        quartile,
+        impactFactor: "",
+        indexedUrl: "",
+      }
+    : null;
+}
+
 async function fetchScopusIndexingByIssn(issn) {
   const apiKey = getScopusApiKey();
   const normalizedIssn = normalizeIssn(issn);
@@ -595,6 +667,64 @@ async function fetchScopusIndexingByIssn(issn) {
         indexedUrl: "",
       }
     : null;
+}
+
+async function fetchScopusIndexingByDoi(metadata = {}) {
+  const apiKey = getScopusApiKey();
+  const doi = normalizeDoi(metadata.doi);
+
+  if (!apiKey || !doi) {
+    return null;
+  }
+
+  const url = new URL(SCOPUS_SEARCH_API_URL);
+  url.searchParams.set("query", `DOI(${doi})`);
+  url.searchParams.set("view", "COMPLETE");
+
+  const response = await fetchJson(url.toString(), {
+    headers: getScopusHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  const quartile = getBestQuartileFromScopusResponse(data);
+
+  if (quartile) {
+    return {
+      source: "Scopus CiteScore",
+      quartile,
+      impactFactor: "",
+      indexedUrl: "",
+    };
+  }
+
+  const issns = uniqueValues([...getMetadataIssns(metadata), ...getScopusIssnsFromResponse(data)]);
+
+  for (const issn of issns) {
+    const indexing = await fetchScopusIndexingByIssn(issn);
+
+    if (indexing?.quartile) {
+      return indexing;
+    }
+  }
+
+  const titles = uniqueValues([
+    metadata.container_title,
+    ...getScopusSourceTitlesFromResponse(data),
+  ]);
+
+  for (const title of titles) {
+    const indexing = await fetchScopusIndexingByTitle(title);
+
+    if (indexing?.quartile) {
+      return indexing;
+    }
+  }
+
+  return null;
 }
 
 function parseJournalRankRecordId(html, issn) {
@@ -843,6 +973,20 @@ async function resolveScopusIndexing(metadata = {}) {
 
   if (!shouldResolveQuartileForType(metadata.type)) {
     return [];
+  }
+
+  try {
+    const indexing = await fetchScopusIndexingByDoi(metadata);
+
+    if (indexing?.quartile) {
+      return [indexing];
+    }
+  } catch (error) {
+    console.warn("quartile_lookup_failed", {
+      doi: metadata.doi,
+      source: "scopus_doi",
+      message: error.message,
+    });
   }
 
   for (const issn of getMetadataIssns(metadata)) {
