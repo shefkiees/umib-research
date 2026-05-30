@@ -306,6 +306,14 @@ router.post("/password-reset", async (req, res) => {
       message: `Klikoni kete link per te ndryshuar fjalekalimin: ${actionLink}`,
       category: "Siguria",
       html: buildPasswordResetEmailHtml(actionLink),
+      template: process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID
+        ? {
+            id: process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID,
+            variables: {
+              RESET_LINK: actionLink,
+            },
+          }
+        : null,
     });
 
     if (emailResult?.skipped) {

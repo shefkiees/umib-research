@@ -15,9 +15,25 @@ function buildEmailHtml({ title, message, category }) {
   `;
 }
 
-export async function sendEmailNotification({ to, title, message, category, html }) {
+export async function sendEmailNotification({ to, title, message, category, html, template }) {
   if (!isEmailEnabled() || !to) {
     return { skipped: true };
+  }
+
+  const payload = {
+    from: process.env.EMAIL_FROM,
+    to,
+    subject: title,
+  };
+
+  if (template?.id) {
+    payload.template = {
+      id: template.id,
+      variables: template.variables || {},
+    };
+  } else {
+    payload.text = `${category ? `${category}\n\n` : ""}${message}`;
+    payload.html = html || buildEmailHtml({ title, message, category });
   }
 
   const response = await fetch(RESEND_API_URL, {
@@ -26,13 +42,7 @@ export async function sendEmailNotification({ to, title, message, category, html
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
-      to,
-      subject: title,
-      text: `${category ? `${category}\n\n` : ""}${message}`,
-      html: html || buildEmailHtml({ title, message, category }),
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
