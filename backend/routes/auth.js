@@ -98,6 +98,10 @@ function getAccessResetRecipients(rows = []) {
   return [...new Set([...configuredRecipients, ...adminRecipients])];
 }
 
+function getAccessResetTemplateId() {
+  return process.env.RESEND_ACCESS_RESET_TEMPLATE_ID || process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID || "";
+}
+
 function getGoogleCallbackUrl(req) {
   if (!isProduction && configuredGoogleCallbackUrl) {
     return configuredGoogleCallbackUrl;
@@ -282,6 +286,7 @@ router.post("/password-reset", async (req, res) => {
     );
     const recipients = getAccessResetRecipients(adminResult.rows);
     const adminUrl = getAccessResetAdminUrl(req);
+    const templateId = getAccessResetTemplateId();
 
     if (recipients.length) {
       try {
@@ -291,14 +296,15 @@ router.post("/password-reset", async (req, res) => {
           message: `Kerkese per rivendosje qasjeje nga ${account.email}. Trajtojeni manualisht sipas procedures se fakultetit.`,
           category: "Siguria",
           html: buildAccessResetEmailHtml({ email: account.email, requesterIp, adminUrl }),
-          template: process.env.RESEND_ACCESS_RESET_TEMPLATE_ID
+          template: templateId
             ? {
-                id: process.env.RESEND_ACCESS_RESET_TEMPLATE_ID,
+                id: templateId,
                 variables: {
                   REQUEST_EMAIL: account.email,
                   REQUEST_ID: requestRow.id,
                   REQUESTED_AT: requestRow.requested_at,
                   ADMIN_LINK: adminUrl,
+                  RESET_LINK: adminUrl,
                   ACTION_LABEL: "Paraqit kerkesen",
                 },
               }
