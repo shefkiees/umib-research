@@ -10,12 +10,14 @@ export const supabaseAuth = isSupabaseAuthConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
         flowType: "pkce",
         persistSession: true,
       },
     })
   : null;
+
+let passwordResetSessionPromise = null;
 
 export function getPasswordResetRedirectUrl() {
   return (
@@ -66,6 +68,18 @@ export async function establishPasswordResetSession() {
     throw new Error("supabase_not_configured");
   }
 
+  if (passwordResetSessionPromise) {
+    return passwordResetSessionPromise;
+  }
+
+  passwordResetSessionPromise = createPasswordResetSession().finally(() => {
+    passwordResetSessionPromise = null;
+  });
+
+  return passwordResetSessionPromise;
+}
+
+async function createPasswordResetSession() {
   const { query, hash } = getAuthUrlParams();
   const callbackError = getAuthCallbackError();
 
@@ -73,15 +87,47 @@ export async function establishPasswordResetSession() {
     throw new Error("invalid_or_expired_reset_link");
   }
 
+  const recoverCurrentSession = async (fallbackError) => {
+    const { data } = await supabaseAuth.auth.getSession();
+
+    if (data?.session) {
+      return data.session;
+    }
+
+    throw fallbackError;
+  };
+
+  const clearRecoveryParams = () => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  };
+
   const code = query.get("code");
 
   if (code) {
     const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code);
 
     if (error) {
-      throw error;
+      return recoverCurrentSession(error);
     }
 
+    clearRecoveryParams();
+    return data.session;
+  }
+
+  const tokenHash = query.get("token_hash") || hash.get("token_hash");
+  const tokenType = query.get("type") || hash.get("type");
+
+  if (tokenHash && tokenType === "recovery") {
+    const { data, error } = await supabaseAuth.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "recovery",
+    });
+
+    if (error) {
+      return recoverCurrentSession(error);
+    }
+
+    clearRecoveryParams();
     return data.session;
   }
 
@@ -98,7 +144,7 @@ export async function establishPasswordResetSession() {
       throw error;
     }
 
-    window.history.replaceState({}, document.title, window.location.pathname);
+    clearRecoveryParams();
     return data.session;
   }
 
