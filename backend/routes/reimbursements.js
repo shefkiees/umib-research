@@ -273,7 +273,6 @@ function normalizeBankingData(formData, amount, currency) {
   return {
     amount,
     currency,
-    amountInWords: normalizeText(formData.amountWords),
     applicantName: normalizeText(formData.bankApplicantName),
     bankName: bankName || detectedBank?.name || "",
     iban: normalizeIban(formData.bankAccountNumber || formData.iban),
@@ -1056,7 +1055,6 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     ...writableFormData,
     amount: amount === null ? normalizeText(writableFormData.amount) : String(amount),
     currency,
-    amountWords: banking.amountInWords,
     bankApplicantName: banking.applicantName,
     bankName: banking.bankName,
     bankAccountNumber: banking.iban,

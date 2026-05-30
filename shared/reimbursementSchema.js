@@ -44,7 +44,6 @@ export const BANK_REQUIRED_FIELDS = [
   ["bankName", "Emri i bankes eshte obligativ."],
   ["bankAccountNumber", "Numri i llogarise bankare/IBAN eshte obligativ."],
   ["swiftCode", "SWIFT/BIC kodi eshte obligativ."],
-  ["amountWords", "Shuma me fjale eshte obligative."],
 ];
 
 export const APPLICANT_FIELDS = [
@@ -65,7 +64,6 @@ export const BANK_FIELDS = [
   { field: "swiftCode", label: "SWIFT kodi" },
   { field: "bankCountry", label: "Vendi" },
   { field: "amount", label: "Shuma e kerkuar" },
-  { field: "amountWords", label: "Sheno me fjale" },
 ];
 
 export const REIMBURSEMENT_SCHEMAS = {
@@ -307,8 +305,6 @@ export const DOCX_LABEL_MAPS = {
     "VENDI:": "bankCountry",
     "SHUMA E KËRKUAR:": "amount",
     "SHUMA E KÃ‹RKUAR:": "amount",
-    "SHËNO ME FJALË:": "amountWords",
-    "SHÃ‹NO ME FJALÃ‹:": "amountWords",
   },
   conference: {
     "EMRI DHE MBIEMRI:": "applicantName",
@@ -343,8 +339,6 @@ export const DOCX_LABEL_MAPS = {
     "VENDI:": "bankCountry",
     "SHUMA E KËRKUAR:": "amount",
     "SHUMA E KÃ‹RKUAR:": "amount",
-    "SHËNO ME FJALË:": "amountWords",
-    "SHÃ‹NO ME FJALÃ‹:": "amountWords",
   },
   project: {
     "Titulli i projektit": "projectTitle",
