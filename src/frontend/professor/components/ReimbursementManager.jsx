@@ -901,7 +901,99 @@ function getLatestHistoryLabel(history = []) {
   return [label, date].filter(Boolean).join(" | ");
 }
 
-export default function ReimbursementManager({ profile, searchQuery = "", fallbackRows = [] }) {
+function ReimbursementHistoryList({
+  r,
+  tx,
+  visibleRequests,
+  downloadingDocument,
+  error,
+  onDownloadDocument,
+  onEditRequest,
+  renderAttachments,
+  renderStatusTimeline,
+}) {
+  return (
+    <article className="prof-card reimbursement-list-card">
+      <div className="prof-card-header">
+        <div>
+          <h3>{r.sentTitle}</h3>
+          <p>{r.sentDescription}</p>
+        </div>
+      </div>
+
+      {error ? <p className="reimbursement-message error" role="alert">{tx(error)}</p> : null}
+
+      <div className="prof-list reimbursement-request-list">
+        {visibleRequests.length ? (
+          visibleRequests.map((request) => (
+            <div className="prof-list-item reimbursement-request-item" key={request.id}>
+              <div className="prof-list-icon">
+                <Wallet size={20} />
+              </div>
+              <div className="prof-list-content">
+                <h4>{request.title}</h4>
+                <p>
+                  {[tx(request.requestTypeLabel), formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
+                    .filter(Boolean)
+                    .join(" | ")}
+                </p>
+                {request.statusHistory?.length ? (
+                  <p className="reimbursement-history-line">
+                    {r.latestHistory}: {tx(getLatestHistoryLabel(request.statusHistory))}
+                  </p>
+                ) : null}
+                {renderAttachments(request)}
+                {renderStatusTimeline(request.statusHistory)}
+              </div>
+              <div className="reimbursement-request-actions">
+                <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
+                  {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
+                </span>
+                {!request.isLegacy ? (
+                  <>
+                    {["draft", "needs_correction"].includes(request.status) ? (
+                      <button
+                        type="button"
+                        className="reimbursement-download-btn"
+                        onClick={() => onEditRequest(request)}
+                      >
+                        {r.edit}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="reimbursement-download-btn"
+                      onClick={() => onDownloadDocument(request, "pdf")}
+                      disabled={downloadingDocument === `${request.id}-pdf`}
+                    >
+                      <Download size={16} />
+                      {downloadingDocument === `${request.id}-pdf` ? "PDF..." : "PDF"}
+                    </button>
+                    <button
+                      type="button"
+                      className="reimbursement-download-btn"
+                      onClick={() => onDownloadDocument(request, "docx")}
+                      disabled={downloadingDocument === `${request.id}-docx`}
+                    >
+                      <Download size={16} />
+                      {downloadingDocument === `${request.id}-docx` ? "DOCX..." : "DOCX"}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="reimbursement-empty">
+            {r.empty}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export default function ReimbursementManager({ profile, searchQuery = "", fallbackRows = [], view = "create", onNavigate }) {
   const { t, tx } = useLanguage();
   const r = t("professor.reimbursements");
   const [selectedType, setSelectedType] = useState("publication");
@@ -1708,6 +1800,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setIsAbstractExpanded(false);
     setError("");
     setSuccess(null);
+    onNavigate?.("Rimbursime");
   };
 
   const handleCancelEdit = () => {
@@ -2399,7 +2492,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   return (
     <div className="reimbursement-flow">
-      <article className="prof-card reimbursement-flow-card">
+      {view === "create" ? (
+        <article className="prof-card reimbursement-flow-card">
         <div className="reimbursement-flow-header">
           <div>
             <h3>{editingRequest ? r.titleEdit : r.titleNew}</h3>
@@ -2561,83 +2655,22 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             </div>
           </div>
         </form>
-      </article>
+        </article>
+      ) : null}
 
-      <article className="prof-card reimbursement-list-card">
-        <div className="prof-card-header">
-          <div>
-            <h3>{r.sentTitle}</h3>
-            <p>{r.sentDescription}</p>
-          </div>
-        </div>
-
-        <div className="prof-list reimbursement-request-list">
-          {visibleRequests.length ? (
-            visibleRequests.map((request) => (
-              <div className="prof-list-item reimbursement-request-item" key={request.id}>
-                <div className="prof-list-icon">
-                  <Wallet size={20} />
-                </div>
-                <div className="prof-list-content">
-                  <h4>{request.title}</h4>
-                  <p>
-                    {[tx(request.requestTypeLabel), formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
-                      .filter(Boolean)
-                      .join(" | ")}
-                  </p>
-                  {request.statusHistory?.length ? (
-                    <p className="reimbursement-history-line">
-                      {r.latestHistory}: {tx(getLatestHistoryLabel(request.statusHistory))}
-                    </p>
-                  ) : null}
-                  {renderAttachments(request)}
-                  {renderStatusTimeline(request.statusHistory)}
-                </div>
-                <div className="reimbursement-request-actions">
-                  <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
-                    {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
-                  </span>
-                  {!request.isLegacy ? (
-                    <>
-                      {["draft", "needs_correction"].includes(request.status) ? (
-                        <button
-                          type="button"
-                          className="reimbursement-download-btn"
-                          onClick={() => handleEditRequest(request)}
-                        >
-                          {r.edit}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="reimbursement-download-btn"
-                        onClick={() => handleDownloadDocument(request, "pdf")}
-                        disabled={downloadingDocument === `${request.id}-pdf`}
-                      >
-                        <Download size={16} />
-                        {downloadingDocument === `${request.id}-pdf` ? "PDF..." : "PDF"}
-                      </button>
-                      <button
-                        type="button"
-                        className="reimbursement-download-btn"
-                        onClick={() => handleDownloadDocument(request, "docx")}
-                        disabled={downloadingDocument === `${request.id}-docx`}
-                      >
-                        <Download size={16} />
-                        {downloadingDocument === `${request.id}-docx` ? "DOCX..." : "DOCX"}
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="reimbursement-empty">
-              {r.empty}
-            </div>
-          )}
-        </div>
-      </article>
+      {view === "history" ? (
+        <ReimbursementHistoryList
+          r={r}
+          tx={tx}
+          visibleRequests={visibleRequests}
+          downloadingDocument={downloadingDocument}
+          error={error}
+          onDownloadDocument={handleDownloadDocument}
+          onEditRequest={handleEditRequest}
+          renderAttachments={renderAttachments}
+          renderStatusTimeline={renderStatusTimeline}
+        />
+      ) : null}
     </div>
   );
 }
