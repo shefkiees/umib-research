@@ -280,9 +280,7 @@ function normalizeBankingData(formData, amount, currency) {
     country: normalizeText(formData.bankCountry),
     invoiceNumber: normalizeText(formData.invoiceNumber),
     expenseDate: normalizeText(formData.expenseDate),
-    documentLink: normalizeText(formData.attachmentUrl),
     description: normalizeText(formData.purpose),
-    notes: normalizeText(formData.notes),
     detectedBankCode,
     bankDetectedAutomatically: Boolean(detectedBank && bankSelectionSource !== "manual" && (!bankName || bankName === detectedBank.name)),
   };
@@ -1040,7 +1038,9 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
 function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
   const writableFormData = requestType === "publication"
     ? stripPublicationReadOnlyFields(formData)
-    : formData;
+    : { ...formData };
+  delete writableFormData.attachmentUrl;
+  delete writableFormData.notes;
   const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
 
   if (requestType === "publication") {
@@ -1063,9 +1063,7 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     bankCountry: banking.country,
     invoiceNumber: banking.invoiceNumber,
     expenseDate: banking.expenseDate,
-    attachmentUrl: banking.documentLink,
     purpose: banking.description,
-    notes: banking.notes,
     banking,
     auto: autoFields,
     requestType,
