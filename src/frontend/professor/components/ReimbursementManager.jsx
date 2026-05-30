@@ -102,6 +102,22 @@ const HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS = new Set([
   "publicationLink",
 ]);
 
+const PUBLICATION_LABELS = {
+  publicationTitle: "Titulli i punimit",
+  mainAuthor: "Autori kryesor",
+  publicationType: "Lloji i publikimit",
+  venue: "Revista / Konferenca",
+  publisher: "Botuesi",
+  coauthors: "Bashkautorët",
+  affiliation: "Përkatësia e autorit",
+  volume: "Vëllimi",
+  issue: "Numri",
+  pages: "Faqet",
+  indexingPlatform: "Indeksimi në platformë",
+  impactFactor: "Faktori i ndikimit (IF)",
+  scopusQuartile: "Kuartili Scopus",
+};
+
 const EMPTY_TEAM_MEMBER = {
   name: "",
   scientificGrade: "",
@@ -1479,6 +1495,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       options.readOnly ? "reimbursement-readonly-field" : "",
     ].filter(Boolean).join(" ");
     const fieldError = fieldErrors[field];
+    const displayLabel = selectedType === "publication" ? (PUBLICATION_LABELS[field] || label) : label;
 
     if (selectedType === "publication" && field === "abstract") {
       const abstractText = String(form.abstract || "").trim();
@@ -1486,7 +1503,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
       return (
         <div className={`${className} reimbursement-abstract-field`}>
-          <span>{tx(label)}</span>
+          <span>{tx(displayLabel)}</span>
           <div className={`reimbursement-abstract-box ${isAbstractExpanded ? "expanded" : ""}`}>
             {abstractText || t("common.noData")}
           </div>
@@ -1507,7 +1524,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     if (options.type === "textarea") {
       return (
         <label className={className}>
-          <span>{tx(label)}</span>
+          <span>{tx(displayLabel)}</span>
           <textarea
             value={form[field]}
             onChange={handleFieldChange(field)}
@@ -1525,7 +1542,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     if (options.type === "select") {
       return (
         <label className={className}>
-          <span>{tx(label)}</span>
+          <span>{tx(displayLabel)}</span>
           <select
             value={form[field]}
             onChange={handleFieldChange(field)}
@@ -1546,7 +1563,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
     return (
       <label className={className}>
-        <span>{tx(label)}</span>
+        <span>{tx(displayLabel)}</span>
         <input
           type={options.type || "text"}
           value={form[field]}
