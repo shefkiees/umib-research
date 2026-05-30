@@ -2166,6 +2166,13 @@ body {
   min-height: 0;
 }
 
+.reimbursement-publication-inline-chips {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
 .reimbursement-field {
   display: flex;
   flex-direction: column;

@@ -331,6 +331,22 @@ function createDisplayField(label, value, options = {}) {
   };
 }
 
+function createChipDisplayField(label, values) {
+  const cleanValues = values
+    .map(cleanDisplayValue)
+    .filter(Boolean);
+
+  if (!cleanValues.length) {
+    return null;
+  }
+
+  return {
+    label,
+    value: cleanValues,
+    variant: "chips",
+  };
+}
+
 function getPublicationDisplaySections(form) {
   const publicationType = normalizePublicationType(form.publicationType);
   const typeLabel = getPublicationTypeLabel(form.publicationType);
@@ -411,6 +427,77 @@ function getPublicationDisplaySections(form) {
       ].filter(Boolean),
     },
   ].filter((section) => section.fields.length);
+}
+
+function getPublicationMetadataDisplaySection(form) {
+  const publicationType = normalizePublicationType(form.publicationType);
+  const typeLabel = getPublicationTypeLabel(form.publicationType);
+  const coauthors = splitCoauthors(form.coauthors);
+  const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
+  const linkField = createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {});
+  const commonStart = [
+    createDisplayField("Titulli i publikimit", form.publicationTitle),
+    createDisplayField("Lloji i publikimit", typeLabel),
+    createDisplayField("Burimi i publikimit", form.venue || form.journal),
+    createDisplayField("Shtëpia botuese", form.publisher),
+    createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+    createDisplayField("Faqet", form.pages),
+    createDisplayField("ISSN", form.issn),
+    createDisplayField("ISBN", form.isbn),
+  ];
+
+  if (publicationType === "book") {
+    return {
+      title: "Metadata e publikimit",
+      fields: [
+        ...commonStart,
+        createDisplayField("Autorët", form.mainAuthor),
+        createChipDisplayField("Bashkautorët", coauthors),
+        doiField,
+        linkField,
+      ].filter(Boolean),
+    };
+  }
+
+  if (publicationType === "conference_paper") {
+    return {
+      title: "Metadata e publikimit",
+      fields: [
+        ...commonStart,
+        createDisplayField("Autori kryesor", form.mainAuthor),
+        createChipDisplayField("Bashkautorët", coauthors),
+        createDisplayField("Përkatësia e autorëve", form.affiliation),
+        doiField,
+        linkField,
+        createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+        createDisplayField("Quartile", form.scopusQuartile),
+      ].filter(Boolean),
+    };
+  }
+
+  return {
+    title: "Metadata e publikimit",
+    fields: [
+      createDisplayField("Titulli i publikimit", form.publicationTitle),
+      createDisplayField("Lloji i publikimit", typeLabel),
+      createDisplayField("Burimi i publikimit", form.venue || form.journal),
+      createDisplayField("Shtëpia botuese", form.publisher),
+      createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+      createDisplayField("Vëllimi", form.volume),
+      createDisplayField("Numri", form.issue),
+      createDisplayField("Faqet", form.pages),
+      createDisplayField("ISSN", form.issn),
+      createDisplayField("ISBN", form.isbn),
+      createDisplayField("Autori kryesor", form.mainAuthor),
+      createChipDisplayField("Bashkautorët", coauthors),
+      createDisplayField("Përkatësia e autorëve", form.affiliation),
+      doiField,
+      linkField,
+      createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+      createDisplayField("Impact Factor", form.impactFactor),
+      createDisplayField("Quartile", form.scopusQuartile),
+    ].filter(Boolean),
+  };
 }
 
 function resolveProfile(contextProfile, profile) {
@@ -1784,7 +1871,13 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderPublicationDisplayField = (field) => (
     <div className="reimbursement-publication-info-row" key={`${field.label}-${field.value}`}>
       <span>{field.label}</span>
-      {field.href ? (
+      {field.variant === "chips" ? (
+        <div className="reimbursement-coauthor-list reimbursement-publication-inline-chips">
+          {field.value.map((item) => (
+            <span className="reimbursement-coauthor-chip" key={item}>{item}</span>
+          ))}
+        </div>
+      ) : field.href ? (
         <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
       ) : (
         <strong>{field.value}</strong>
@@ -1860,6 +1953,17 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   };
 
   const renderPublicationReadOnlyDetails = () => {
+    const metadataSection = getPublicationMetadataDisplaySection(form);
+
+    if (form.publicationId && metadataSection.fields.length) {
+      return (
+        <>
+          {renderPublicationDisplaySection(metadataSection)}
+          {renderPublicationAbstract()}
+        </>
+      );
+    }
+
     if (!form.publicationId) {
       return null;
     }
