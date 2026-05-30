@@ -2,6 +2,7 @@ const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
 const DOI_LOOKUP_TIMEOUT_MS = 10000;
 const SCOPUS_SERIAL_TITLE_API_URL = "https://api.elsevier.com/content/serial/title/issn";
 const JOURNAL_RANK_BASE_URL = "https://journalrank.rcsi.science";
+const SCIMAGO_BASE_URL = "https://www.scimagojr.com";
 
 export class DoiLookupError extends Error {
   constructor(code, message, status = 500) {
@@ -54,6 +55,12 @@ function normalizeIssn(value) {
   return normalizeText(value).replace(/[^0-9x]/gi, "").toUpperCase();
 }
 
+function formatIssn(value) {
+  const normalized = normalizeIssn(value);
+
+  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4)}` : normalized;
+}
+
 function getMetadataIssns(metadata = {}) {
   const raw = metadata.raw_json || {};
   const values = [
@@ -69,6 +76,21 @@ function normalizeQuartile(value) {
   const match = normalizeText(value).toUpperCase().match(/\bQ[1-4]\b/);
 
   return match?.[0] || "";
+}
+
+function getCachedIndexing(metadata = {}) {
+  const indexing = metadata.raw_json?._indexing;
+
+  return Array.isArray(indexing)
+    ? indexing
+        .map((item) => ({
+          source: normalizeText(item?.source),
+          quartile: normalizeQuartile(item?.quartile),
+          impactFactor: normalizeText(item?.impactFactor || item?.impact_factor),
+          indexedUrl: normalizeText(item?.indexedUrl || item?.indexed_url),
+        }))
+        .filter((item) => item.source || item.quartile || item.impactFactor || item.indexedUrl)
+    : [];
 }
 
 function quartileRank(value) {
@@ -627,6 +649,27 @@ function pickBestJournalRankQuartile(rows, publicationYear) {
     .sort((a, b) => quartileRank(a.quartile) - quartileRank(b.quartile))[0] || null;
 }
 
+function pickBestQuartile(rows, publicationYear) {
+  if (!rows.length) {
+    return null;
+  }
+
+  const validRows = rows.filter((row) => normalizeQuartile(row.quartile));
+  if (!validRows.length) {
+    return null;
+  }
+
+  const targetYear = normalizeYear(publicationYear);
+  const yearRows = targetYear ? validRows.filter((row) => row.year === targetYear) : [];
+  const latestYear = Math.max(...validRows.map((row) => row.year || 0));
+  const candidates = yearRows.length
+    ? yearRows
+    : validRows.filter((row) => row.year === latestYear);
+
+  return (candidates.length ? candidates : validRows)
+    .sort((a, b) => quartileRank(a.quartile) - quartileRank(b.quartile))[0] || null;
+}
+
 async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
   const normalizedIssn = normalizeIssn(issn);
 
@@ -678,7 +721,126 @@ async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
     : null;
 }
 
+function parseScimagoSearchResult(html) {
+  const normalized = normalizeText(html);
+  const hrefMatch = normalized.match(/href=["']([^"']*journalsearch\.php\?q=\d+[^"']*)["']/i);
+
+  if (!hrefMatch) {
+    return null;
+  }
+
+  const href = decodeHtmlEntities(hrefMatch[1]);
+  const indexedUrl = href.startsWith("http") ? href : `${SCIMAGO_BASE_URL}/${href.replace(/^\/+/, "")}`;
+  const nearby = normalized.slice(Math.max(hrefMatch.index - 1500, 0), hrefMatch.index + 3000);
+  const quartile = normalizeQuartile(nearby);
+
+  return {
+    quartile,
+    indexedUrl,
+  };
+}
+
+function parseScimagoQuartiles(html) {
+  const rows = [];
+  const rowPattern = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowPattern.exec(html))) {
+    const cells = [...rowMatch[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((cell) => decodeHtmlEntities(cell[1].replace(/<[^>]+>/g, " ")));
+    const rowText = cells.join(" ");
+    const quartile = normalizeQuartile(rowText);
+    const year = normalizeYear(cells.find((cell) => /^(?:19|20)\d{2}$/.test(normalizeText(cell))));
+
+    if (quartile) {
+      rows.push({
+        source: "SCImago SJR",
+        quartile,
+        year,
+      });
+    }
+  }
+
+  if (!rows.length) {
+    const quartile = normalizeQuartile(html);
+
+    if (quartile) {
+      rows.push({ source: "SCImago SJR", quartile, year: null });
+    }
+  }
+
+  return rows;
+}
+
+async function fetchScimagoIndexingByIssn(issn, publicationYear) {
+  const formattedIssn = formatIssn(issn);
+
+  if (!formattedIssn) {
+    return null;
+  }
+
+  const searchResponse = await fetchJson(`${SCIMAGO_BASE_URL}/journalsearch.php?q=${encodeURIComponent(formattedIssn)}&tip=iss`, {
+    headers: {
+      Accept: "text/html",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!searchResponse.ok) {
+    return null;
+  }
+
+  const searchResult = parseScimagoSearchResult(await searchResponse.text());
+
+  if (!searchResult?.indexedUrl) {
+    return searchResult?.quartile
+      ? {
+          source: "SCImago SJR",
+          quartile: searchResult.quartile,
+          impactFactor: "",
+          indexedUrl: "",
+        }
+      : null;
+  }
+
+  const detailsResponse = await fetchJson(searchResult.indexedUrl, {
+    headers: {
+      Accept: "text/html",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!detailsResponse.ok) {
+    return searchResult.quartile
+      ? {
+          source: "SCImago SJR",
+          quartile: searchResult.quartile,
+          impactFactor: "",
+          indexedUrl: searchResult.indexedUrl,
+        }
+      : null;
+  }
+
+  const best = pickBestQuartile(parseScimagoQuartiles(await detailsResponse.text()), publicationYear);
+  const quartile = best?.quartile || searchResult.quartile;
+
+  return quartile
+    ? {
+        source: best?.year ? `${best.source} ${best.year}` : "SCImago SJR",
+        quartile,
+        impactFactor: "",
+        indexedUrl: searchResult.indexedUrl,
+      }
+    : null;
+}
+
 async function resolveScopusIndexing(metadata = {}) {
+  const cachedIndexing = getCachedIndexing(metadata);
+
+  if (cachedIndexing.some((item) => item.quartile)) {
+    return cachedIndexing;
+  }
+
   if (!shouldResolveQuartileForType(metadata.type)) {
     return [];
   }
@@ -686,7 +848,8 @@ async function resolveScopusIndexing(metadata = {}) {
   for (const issn of getMetadataIssns(metadata)) {
     try {
       const indexing = await fetchScopusIndexingByIssn(issn)
-        || await fetchJournalRankIndexingByIssn(issn, metadata.year);
+        || await fetchJournalRankIndexingByIssn(issn, metadata.year)
+        || await fetchScimagoIndexingByIssn(issn, metadata.year);
 
       if (indexing?.quartile) {
         return [indexing];
@@ -709,6 +872,10 @@ async function enrichMetadataIndexing(metadata = {}) {
 
   return {
     ...metadata,
+    raw_json: {
+      ...(metadata.raw_json || {}),
+      _indexing: indexing,
+    },
     quartile,
     indexing,
   };

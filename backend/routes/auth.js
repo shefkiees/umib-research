@@ -86,6 +86,26 @@ function buildAccessResetEmailHtml({ email, requesterIp, adminUrl }) {
   `;
 }
 
+function buildAccessResetUserEmailHtml({ email, appUrl }) {
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.55;color:#172033;max-width:620px;margin:0 auto">
+      <h2 style="margin:0 0 16px;font-size:22px">Rivendosja e qasjes - UMIBRes</h2>
+      <p>Pershendetje i/e nderuar,</p>
+      <p>Kerkesa juaj per rivendosjen e qasjes u pranua.</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p>Stafi pergjegjes i IT-se do ta shqyrtoje kerkesen dhe do t'ju kontaktoje sipas procedures se fakultetit.</p>
+      <p style="margin:24px 0">
+        <a href="${appUrl}" style="background:#153a63;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;display:inline-block;font-weight:700">
+          Paraqit kerkesen
+        </a>
+      </p>
+      <hr style="border:none;border-top:1px solid #d8e0ea;margin:28px 0" />
+      <p>Universiteti i Mitrovices "Isa Boletini"</p>
+      <p style="color:#536177;font-size:13px">&copy; 2026 UMIB. Te gjitha te drejtat e rezervuara.</p>
+    </div>
+  `;
+}
+
 function getAccessResetRecipients(rows = []) {
   const configuredRecipients = String(process.env.ACCESS_RESET_NOTIFY_EMAILS || "")
     .split(",")
@@ -286,7 +306,40 @@ router.post("/password-reset", async (req, res) => {
     );
     const recipients = getAccessResetRecipients(adminResult.rows);
     const adminUrl = getAccessResetAdminUrl(req);
+    const appUrl = `${getClientUrl(req) || ""}/login`;
     const templateId = getAccessResetTemplateId();
+
+    try {
+      const userEmailResult = await sendEmailNotification({
+        to: account.email,
+        title: "Rivendosja e qasjes - UMIBRes",
+        message: "Kerkesa juaj per rivendosjen e qasjes u pranua. Stafi pergjegjes i IT-se do ta shqyrtoje kerkesen dhe do t'ju kontaktoje.",
+        category: "Siguria",
+        html: buildAccessResetUserEmailHtml({ email: account.email, appUrl }),
+        template: templateId
+          ? {
+              id: templateId,
+              variables: {
+                REQUEST_EMAIL: account.email,
+                REQUEST_ID: requestRow.id,
+                REQUESTED_AT: requestRow.requested_at,
+                ADMIN_LINK: adminUrl,
+                RESET_LINK: appUrl,
+                ACTION_LABEL: "Paraqit kerkesen",
+              },
+            }
+          : null,
+      });
+
+      if (userEmailResult?.skipped) {
+        console.warn("access_reset_user_email_skipped", { requestId: requestRow.id });
+      }
+    } catch (emailError) {
+      console.warn("access_reset_user_email_failed", {
+        requestId: requestRow.id,
+        message: emailError.message,
+      });
+    }
 
     if (recipients.length) {
       try {
@@ -324,7 +377,7 @@ router.post("/password-reset", async (req, res) => {
 
     res.json({
       received: true,
-      message: ACCESS_RESET_SUCCESS_MESSAGE,
+      message: "Kerkesa juaj per rivendosjen e qasjes u pranua. Kontrolloni emailin tuaj.",
     });
   } catch (error) {
     console.error("POST /api/auth/password-reset failed:", error);

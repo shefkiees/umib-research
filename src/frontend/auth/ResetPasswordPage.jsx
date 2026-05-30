@@ -12,7 +12,7 @@ const DEFAULT_COPY = {
   institutionalEmail: "Emaili institucional",
   sendRequest: "Dergo kerkesen",
   sendingRequest: "Duke derguar...",
-  neutralSuccess: "Nese ky email ekziston ne sistem, kerkesa do te procesohet nga stafi pergjegjes.",
+  neutralSuccess: "Kerkesa juaj u pranua. Kontrolloni emailin tuaj.",
   requestError: "Kerkesa nuk u dergua. Provoni perseri.",
   emailRequired: "Shkruani emailin institucional.",
   emailInvalid: "Shkruani nje email valid.",
