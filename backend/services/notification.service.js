@@ -15,6 +15,21 @@ function buildEmailHtml({ title, message, category }) {
   `;
 }
 
+function getNotificationTemplate({ title, message, category }) {
+  if (!process.env.RESEND_NOTIFICATION_TEMPLATE_ID) {
+    return undefined;
+  }
+
+  return {
+    id: process.env.RESEND_NOTIFICATION_TEMPLATE_ID,
+    variables: {
+      TITLE: title || "Njoftim nga UMIBRes",
+      CATEGORY: category || "Sistem",
+      MESSAGE: message || "Ka pasur nje perditesim te ri ne sistem.",
+    },
+  };
+}
+
 export async function sendEmailNotification({ to, title, message, category, html, template }) {
   if (!isEmailEnabled() || !to) {
     return { skipped: true };
@@ -115,6 +130,7 @@ export async function createNotification(client, { userId, title, message, categ
         title,
         message,
         category,
+        template: getNotificationTemplate({ title, message, category }),
       });
     }
   } catch (error) {

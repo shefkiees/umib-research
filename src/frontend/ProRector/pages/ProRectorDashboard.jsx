@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, Bell, CheckCircle2, CircleUserRound, Link2, LogOut, RefreshCw, Settings, ShieldX } from "lucide-react";
 import {
@@ -55,6 +55,8 @@ export default function ProRectorDashboard() {
     unit: "Rektori për Kërkimin",
   });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [systemPreferences, setSystemPreferences] = useState({ emailNotifications: true });
+  const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -104,6 +106,49 @@ export default function ProRectorDashboard() {
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPreferences = async () => {
+      try {
+        const response = await fetch(apiUrl("/notifications/preferences"), {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("preferences_load_failed");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setSystemPreferences((prev) => ({
+            ...prev,
+            emailNotifications: Boolean(data.emailNotifications),
+          }));
+        }
+      } catch (error) {
+        console.error("Preferences load failed:", error);
+      }
+    };
+
+    loadPreferences();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!systemPreferencesMessage) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setSystemPreferencesMessage(""), 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [systemPreferencesMessage]);
+
   const filteredFacultyStats = useMemo(() => {
     if (!normalizedQuery) {
       return facultyStatistics;
@@ -137,6 +182,44 @@ export default function ProRectorDashboard() {
 
   const handleEditProfile = () => {
     setIsEditProfileOpen(true);
+  };
+
+  const updateEmailNotificationsPreference = async (value) => {
+    const previousValue = systemPreferences.emailNotifications;
+
+    setSystemPreferences((prev) => ({
+      ...prev,
+      emailNotifications: value,
+    }));
+
+    try {
+      const response = await fetch(apiUrl("/notifications/preferences"), {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emailNotifications: value }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error("preferences_update_failed");
+      }
+
+      setSystemPreferences((prev) => ({
+        ...prev,
+        emailNotifications: Boolean(data.emailNotifications),
+      }));
+      setSystemPreferencesMessage("Preferencat u ruajten me sukses.");
+    } catch (error) {
+      console.error("Preferences save failed:", error);
+      setSystemPreferences((prev) => ({
+        ...prev,
+        emailNotifications: previousValue,
+      }));
+      setSystemPreferencesMessage("Preferencat nuk u ruajten. Provoni perseri.");
+    }
   };
 
   const handleSaveProfile = () => {
@@ -449,10 +532,19 @@ export default function ProRectorDashboard() {
                     <p className="prorector-settings-subtext">Merr njoftime për çdo aprovim të ri</p>
                   </div>
                   <label className="prorector-switch">
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={systemPreferences.emailNotifications}
+                      onChange={(event) => updateEmailNotificationsPreference(event.target.checked)}
+                    />
                     <span className="prorector-slider"></span>
                   </label>
                 </div>
+                {systemPreferencesMessage ? (
+                  <p className="prorector-settings-subtext" role="status" aria-live="polite">
+                    {systemPreferencesMessage}
+                  </p>
+                ) : null}
 
                 <div className="prorector-settings-option-item">
                   <div className="prorector-settings-option-info">

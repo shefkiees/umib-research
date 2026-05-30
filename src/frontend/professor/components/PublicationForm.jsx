@@ -22,6 +22,8 @@ const REVIEW_STATUS_OPTIONS = [
   { value: "rejected", label: "Refuzuar" },
 ];
 
+const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
+
 const EMPTY_AUTHOR = {
   fullName: "",
   givenName: "",
@@ -197,6 +199,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
 
 function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const matchedAuthorIndex = authors.findIndex((author) => {
     const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
     const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -222,6 +225,12 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authors: authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, mainAuthorIndex)),
+    indexing: indexing.map((item) => ({
+      source: item.source || "",
+      quartile: item.quartile || "",
+      impactFactor: item.impactFactor || item.impact_factor || "",
+      indexedUrl: item.indexedUrl || item.indexed_url || "",
+    })),
     metadataSource: "doi",
     metadataVerified: true,
     externalMetadataId: metadata.doi || "",
@@ -256,6 +265,7 @@ const PublicationForm = ({
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
+  const primaryIndexing = Array.isArray(value.indexing) && value.indexing.length ? value.indexing[0] : {};
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -320,6 +330,26 @@ const PublicationForm = ({
     onChange({
       ...value,
       authors: nextAuthors,
+    });
+  };
+
+  const updateQuartile = (event) => {
+    const quartile = event.target.value;
+    const indexing = Array.isArray(value.indexing) ? value.indexing : [];
+    const [firstIndexing = {}, ...restIndexing] = indexing;
+    const nextFirstIndexing = {
+      ...firstIndexing,
+      source: firstIndexing.source || (quartile ? "Scopus" : ""),
+      quartile,
+    };
+    const nextIndexing = quartile || nextFirstIndexing.source || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
+      ? [nextFirstIndexing, ...restIndexing]
+      : restIndexing;
+
+    onChange({
+      ...value,
+      indexing: nextIndexing,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
   };
 
@@ -436,6 +466,16 @@ const PublicationForm = ({
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.pages")}</span>
           <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+          <select value={primaryIndexing.quartile || ""} onChange={updateQuartile}>
+            {QUARTILE_OPTIONS.map((quartile) => (
+              <option key={quartile || "empty"} value={quartile}>
+                {quartile || t("professor.dashboard.publicationForm.selectQuartile")}
+              </option>
+            ))}
+          </select>
         </label>
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">

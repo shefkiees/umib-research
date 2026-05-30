@@ -777,11 +777,11 @@ export default function ProfessorDashboard() {
     delete payload.evidenceLinks;
     delete payload.evidence_links;
     delete payload.identifiers;
-    delete payload.indexing;
 
     return {
       ...payload,
       authors: Array.isArray(draft.authors) ? draft.authors : [],
+      indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
     };
   };
 
