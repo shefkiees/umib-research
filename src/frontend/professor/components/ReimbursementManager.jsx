@@ -170,7 +170,6 @@ const DEFAULT_FORM_VALUES = {
   bankAccountNumber: "",
   swiftCode: "",
   bankCountry: "Kosove",
-  amountWords: "",
   publicationId: "",
   doi: "",
   publicationTitle: "",
@@ -1047,7 +1046,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         Number(String(form.amount || "").replace(",", ".")) > 0
         && (
           bankRequired
-            ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode) && hasValue(form.amountWords)
+            ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode)
             : hasValue(form.requestedFromUibm) && hasCompleteCostItem(form.costItems)
         ),
       documents: selectedAttachmentChecklist
@@ -1763,7 +1762,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       ...(request.requestData || {}),
       amount: request.requestData?.amount || banking.amount || "",
       currency: request.requestData?.currency || banking.currency || "EUR",
-      amountWords: request.requestData?.amountWords || banking.amountInWords || "",
       bankApplicantName: request.requestData?.bankApplicantName || banking.applicantName || "",
       bankName: request.requestData?.bankName || banking.bankName || "",
       bankNameOther: request.requestData?.bankNameOther || "",
