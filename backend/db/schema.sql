@@ -504,6 +504,12 @@ create table if not exists notifications (
 create index if not exists notifications_user_id_idx
 on notifications (user_id, is_read, created_at desc);
 
+create table if not exists user_preferences (
+  user_id uuid primary key references users(id) on delete cascade,
+  email_notifications boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists audit_logs (
   id uuid primary key default gen_random_uuid(),
   actor_id uuid references users(id) on delete set null,
@@ -532,4 +538,5 @@ alter table reimbursement_status_history enable row level security;
 alter table reimbursement_attachments enable row level security;
 alter table approval_events enable row level security;
 alter table notifications enable row level security;
+alter table user_preferences enable row level security;
 alter table audit_logs enable row level security;

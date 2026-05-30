@@ -11,6 +11,7 @@ import {
   getRequiredFields,
   requiresBank,
 } from "../../shared/reimbursementSchema.js";
+import { createNotification } from "../services/notification.service.js";
 
 const router = express.Router();
 
@@ -1123,15 +1124,12 @@ async function notifyOwner(client, reimbursementId, ownerId, status, note) {
     return;
   }
 
-  await client.query(
-    `insert into notifications (user_id, title, message, category)
-     values ($1, $2, $3, 'Rimbursime')`,
-    [
-      ownerId,
-      `Rimbursimi: ${STATUS_LABELS[status] || status}`,
-      note || `Statusi i kerkeses suaj u ndryshua ne ${STATUS_LABELS[status] || status}.`,
-    ]
-  );
+  await createNotification(client, {
+    userId: ownerId,
+    title: `Rimbursimi: ${STATUS_LABELS[status] || status}`,
+    message: note || `Statusi i kerkeses suaj u ndryshua ne ${STATUS_LABELS[status] || status}.`,
+    category: "Rimbursime",
+  });
 }
 
 async function createGeneratedDocuments(client, row) {

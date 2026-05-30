@@ -8,12 +8,20 @@ import {
   normalizeDoi,
   normalizeYear,
 } from "../services/doiMetadata.service.js";
+import { createNotification } from "../services/notification.service.js";
 
 const router = express.Router();
 const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
 const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
+const STATUS_LABELS = {
+  draft: "Draft",
+  submitted: "Dorezuar",
+  in_review: "Ne shqyrtim",
+  approved: "Aprovuar",
+  rejected: "Refuzuar",
+};
 const MAX_LIMIT = 50;
 const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DOI_IMPORT_RATE_LIMIT_MAX = 20;
@@ -1171,6 +1179,12 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     }
 
     const row = await fetchPublicationById(client, rows[0].id, null);
+    await createNotification(client, {
+      userId: row.ownerId || row.owner_id,
+      title: `Publikimi: ${STATUS_LABELS[status] || status}`,
+      message: `Statusi i publikimit "${row.title || row.doi || "Pa titull"}" u ndryshua ne ${STATUS_LABELS[status] || status}.`,
+      category: "Publikime",
+    });
     await client.query("commit");
     res.json({ data: mapPublication(row) });
   } catch (error) {

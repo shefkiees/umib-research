@@ -1,5 +1,10 @@
 import express from "express";
 import db from "../config/db.js";
+import {
+  getUserPreferences,
+  mapUserPreferences,
+  updateUserPreferences,
+} from "../services/notification.service.js";
 
 const router = express.Router();
 
@@ -38,6 +43,28 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   } catch (error) {
     console.error("GET /api/notifications failed:", error);
     res.status(500).json({ error: "notifications_failed" });
+  }
+});
+
+router.get("/preferences", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const row = await getUserPreferences(db, req.user.id);
+
+    res.json(mapUserPreferences(row));
+  } catch (error) {
+    console.error("GET /api/notifications/preferences failed:", error);
+    res.status(500).json({ error: "preferences_failed" });
+  }
+});
+
+router.put("/preferences", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const row = await updateUserPreferences(db, req.user.id, req.body || {});
+
+    res.json(mapUserPreferences(row));
+  } catch (error) {
+    console.error("PUT /api/notifications/preferences failed:", error);
+    res.status(500).json({ error: "preferences_update_failed" });
   }
 });
 
