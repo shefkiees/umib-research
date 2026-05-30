@@ -705,9 +705,11 @@ async function resolveScopusIndexing(metadata = {}) {
 
 async function enrichMetadataIndexing(metadata = {}) {
   const indexing = await resolveScopusIndexing(metadata);
+  const quartile = indexing.find((item) => normalizeQuartile(item?.quartile))?.quartile || "";
 
   return {
     ...metadata,
+    quartile,
     indexing,
   };
 }

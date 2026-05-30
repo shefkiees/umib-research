@@ -48,6 +48,7 @@ export const createEmptyPublicationDraft = () => ({
   pages: "",
   issn: "",
   isbn: "",
+  quartile: "",
   status: "draft",
   authors: [],
   indexing: [],
@@ -93,6 +94,7 @@ export function publicationToDraft(publication = {}) {
     pages: publication.pages || "",
     issn: publication.issn || "",
     isbn: publication.isbn || "",
+    quartile: publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile || "",
     status: publication.status || "draft",
     authors: Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [],
     indexing: Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
@@ -200,6 +202,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
 function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const quartile = metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "";
   const matchedAuthorIndex = authors.findIndex((author) => {
     const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
     const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -224,13 +227,14 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     pages: metadata.pages || "",
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
+    quartile,
     authors: authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, mainAuthorIndex)),
-    indexing: indexing.map((item) => ({
+    indexing: indexing.length ? indexing.map((item) => ({
       source: item.source || "",
       quartile: item.quartile || "",
       impactFactor: item.impactFactor || item.impact_factor || "",
       indexedUrl: item.indexedUrl || item.indexed_url || "",
-    })),
+    })) : quartile ? [{ source: "DOI ISSN lookup", quartile, impactFactor: "", indexedUrl: "" }] : [],
     metadataSource: "doi",
     metadataVerified: true,
     externalMetadataId: metadata.doi || "",
@@ -348,6 +352,7 @@ const PublicationForm = ({
 
     onChange({
       ...value,
+      quartile,
       indexing: nextIndexing,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
@@ -469,7 +474,7 @@ const PublicationForm = ({
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.quartile")}</span>
-          <select value={primaryIndexing.quartile || ""} onChange={updateQuartile}>
+          <select value={value.quartile || primaryIndexing.quartile || ""} onChange={updateQuartile}>
             {QUARTILE_OPTIONS.map((quartile) => (
               <option key={quartile || "empty"} value={quartile}>
                 {quartile || t("professor.dashboard.publicationForm.selectQuartile")}
