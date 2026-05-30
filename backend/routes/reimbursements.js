@@ -1394,8 +1394,10 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       db.query(
         `select id, title, acronym, field, location, submission_deadline, conference_date, website
          from conferences
+         where created_by = $1
          order by conference_date nulls last, created_at desc
-         limit 100`
+         limit 100`,
+        [req.user.id]
       ),
     ]);
 
