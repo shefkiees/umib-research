@@ -2088,26 +2088,82 @@ body {
   gap: 12px;
 }
 
-.reimbursement-publication-group {
+.reimbursement-publication-abstract-group {
+  background: #ffffff;
+}
+
+.reimbursement-publication-display-card {
   border: 1px solid #e4edf6;
   border-radius: 10px;
   background: #fbfdff;
   padding: 12px;
 }
 
-.reimbursement-publication-group h5 {
+.reimbursement-publication-display-card h5 {
   margin: 0 0 10px;
   color: #17324f;
   font-size: 0.82rem;
   font-weight: 900;
 }
 
-.reimbursement-publication-grid {
-  gap: 10px;
+.reimbursement-publication-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.reimbursement-publication-abstract-group {
+.reimbursement-publication-info-row {
+  min-height: 48px;
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
   background: #ffffff;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reimbursement-publication-info-row span {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.reimbursement-publication-info-row strong,
+.reimbursement-publication-info-row a {
+  color: #17324f;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-publication-info-row a {
+  color: #1d67aa;
+  text-decoration: none;
+}
+
+.reimbursement-publication-info-row a:hover {
+  text-decoration: underline;
+}
+
+.reimbursement-publication-main-author {
+  margin-bottom: 8px;
+}
+
+.reimbursement-publication-coauthor-block {
+  display: grid;
+  gap: 5px;
+}
+
+.reimbursement-publication-coauthor-block > span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.reimbursement-publication-coauthors {
+  min-height: 0;
 }
 
 .reimbursement-field {
@@ -2911,6 +2967,7 @@ body {
 
   .reimbursement-type-grid,
   .reimbursement-form-grid,
+  .reimbursement-publication-info-grid,
   .reimbursement-bank-grid,
   .reimbursement-document-checklist {
     grid-template-columns: 1fr;
