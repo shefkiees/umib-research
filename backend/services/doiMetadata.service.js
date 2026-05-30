@@ -1,14 +1,7 @@
 const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
 const DOI_LOOKUP_TIMEOUT_MS = 10000;
-
-const KNOWN_JOURNAL_QUARTILES = [
-  {
-    title: "Corporate Governance and Organizational Behavior Review",
-    issns: ["2521-1870", "2521-1889", "25211870", "25211889"],
-    quartile: "Q4",
-    source: "SCImago",
-  },
-];
+const SCOPUS_SERIAL_TITLE_API_URL = "https://api.elsevier.com/content/serial/title/issn";
+const JOURNAL_RANK_BASE_URL = "https://journalrank.rcsi.science";
 
 export class DoiLookupError extends Error {
   constructor(code, message, status = 500) {
@@ -70,6 +63,27 @@ function getMetadataIssns(metadata = {}) {
   ].flatMap((value) => (Array.isArray(value) ? value : [value]));
 
   return values.map(normalizeIssn).filter(Boolean);
+}
+
+function normalizeQuartile(value) {
+  const match = normalizeText(value).toUpperCase().match(/\bQ[1-4]\b/);
+
+  return match?.[0] || "";
+}
+
+function quartileRank(value) {
+  const quartile = normalizeQuartile(value);
+
+  return quartile ? Number(quartile.slice(1)) : Number.POSITIVE_INFINITY;
+}
+
+function decodeHtmlEntities(value) {
+  return normalizeText(value)
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
 }
 
 function hasText(value) {
@@ -207,41 +221,21 @@ function mergeMetadata(primary, fallback) {
       _doi_org: primary.raw_json || {},
       _crossref: fallback.raw_json || {},
     },
-    indexing: Array.isArray(primary.indexing) && primary.indexing.length ? primary.indexing : fallback.indexing,
   };
 }
 
 function shouldResolveQuartileForType(type) {
   const normalized = normalizeComparableText(type).replace(/\s+/g, "_");
 
-  return ["article_journal", "journal_article"].includes(normalized);
-}
-
-function resolveKnownJournalIndexing(metadata = {}) {
-  if (!shouldResolveQuartileForType(metadata.type)) {
-    return [];
-  }
-
-  const metadataIssns = new Set(getMetadataIssns(metadata));
-  const metadataTitle = normalizeComparableText(metadata.container_title);
-  const match = KNOWN_JOURNAL_QUARTILES.find((entry) => {
-    const entryIssns = entry.issns.map(normalizeIssn).filter(Boolean);
-    const matchesIssn = entryIssns.some((issn) => metadataIssns.has(issn));
-    const matchesTitle = metadataTitle && metadataTitle === normalizeComparableText(entry.title);
-
-    return matchesIssn || matchesTitle;
-  });
-
-  if (!match?.quartile) {
-    return [];
-  }
-
-  return [{
-    source: match.source || "SCImago",
-    quartile: match.quartile,
-    impactFactor: "",
-    indexedUrl: "",
-  }];
+  return [
+    "article_journal",
+    "journal_article",
+    "proceedings_article",
+    "conference_paper",
+    "book_chapter",
+    "chapter",
+    "book",
+  ].includes(normalized);
 }
 
 function shouldRefreshCachedMetadata(metadata = {}) {
@@ -276,7 +270,7 @@ function mapMetadata(data, doi) {
     : [];
   const dateParts = getBestPublicationDateParts(data);
 
-  const metadata = {
+  return {
     doi,
     title: normalizeText(title),
     authors,
@@ -293,11 +287,6 @@ function mapMetadata(data, doi) {
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: data,
-  };
-
-  return {
-    ...metadata,
-    indexing: resolveKnownJournalIndexing(metadata),
   };
 }
 
@@ -330,12 +319,7 @@ export async function getCachedDoiMetadata(db, doi) {
     return null;
   }
 
-  const metadata = { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
-
-  return {
-    ...metadata,
-    indexing: resolveKnownJournalIndexing(metadata),
-  };
+  return { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
 }
 
 export async function upsertDoiMetadata(dbOrClient, metadata) {
@@ -489,6 +473,245 @@ async function fetchFromCrossref(doi) {
   return mapMetadata(data.message, doi);
 }
 
+function getScopusApiKey() {
+  return normalizeText(process.env.SCOPUS_API_KEY || process.env.ELSEVIER_API_KEY);
+}
+
+function getScopusInstToken() {
+  return normalizeText(process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN);
+}
+
+function getScopusHeaders() {
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    "X-ELS-APIKey": getScopusApiKey(),
+  };
+  const instToken = getScopusInstToken();
+
+  if (instToken) {
+    headers["X-ELS-Insttoken"] = instToken;
+  }
+
+  return headers;
+}
+
+function walkValues(value, visitor) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => walkValues(item, visitor));
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  Object.entries(value).forEach(([key, entryValue]) => {
+    visitor(key, entryValue);
+    walkValues(entryValue, visitor);
+  });
+}
+
+function getBestQuartileFromScopusResponse(data) {
+  let quartile = "";
+  let highestPercentile = null;
+
+  walkValues(data, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (!quartile && normalizedKey.includes("quartile")) {
+      quartile = normalizeQuartile(value);
+    }
+
+    if (normalizedKey.includes("percentile")) {
+      const percentile = Number(String(value).replace(",", "."));
+
+      if (Number.isFinite(percentile)) {
+        highestPercentile = highestPercentile === null ? percentile : Math.max(highestPercentile, percentile);
+      }
+    }
+  });
+
+  if (quartile) {
+    return quartile;
+  }
+
+  if (highestPercentile === null) {
+    return "";
+  }
+
+  if (highestPercentile >= 75) return "Q1";
+  if (highestPercentile >= 50) return "Q2";
+  if (highestPercentile >= 25) return "Q3";
+  return "Q4";
+}
+
+async function fetchScopusIndexingByIssn(issn) {
+  const apiKey = getScopusApiKey();
+  const normalizedIssn = normalizeIssn(issn);
+
+  if (!apiKey || !normalizedIssn) {
+    return null;
+  }
+
+  const response = await fetchJson(`${SCOPUS_SERIAL_TITLE_API_URL}/${encodeURIComponent(normalizedIssn)}?view=CITESCORE`, {
+    headers: getScopusHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  const quartile = getBestQuartileFromScopusResponse(data);
+
+  return quartile
+    ? {
+        source: "Scopus CiteScore",
+        quartile,
+        impactFactor: "",
+        indexedUrl: "",
+      }
+    : null;
+}
+
+function parseJournalRankRecordId(html, issn) {
+  const normalizedIssn = normalizeIssn(issn);
+
+  if (!normalizedIssn || !normalizeIssn(html).includes(normalizedIssn)) {
+    return "";
+  }
+
+  const match = normalizeText(html).match(/\/ru\/record-sources\/details\/(\d+)\//i);
+  return match?.[1] || "";
+}
+
+function parseJournalRankQuartiles(html) {
+  const rows = [];
+  const rowPattern = /<tr\b[^>]*data-id=["']?CiteScore["']?[^>]*data-value=["']?(Q[1-4])["']?[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowPattern.exec(html))) {
+    const quartile = normalizeQuartile(rowMatch[1]);
+    const cells = [...rowMatch[2].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((cell) => decodeHtmlEntities(cell[1].replace(/<[^>]+>/g, " ")));
+    const year = normalizeYear(cells[2]);
+
+    if (quartile) {
+      rows.push({
+        source: "Journal Rank CiteScore",
+        quartile,
+        year,
+        subject: cells[1] || "",
+      });
+    }
+  }
+
+  return rows;
+}
+
+function pickBestJournalRankQuartile(rows, publicationYear) {
+  if (!rows.length) {
+    return null;
+  }
+
+  const validRows = rows.filter((row) => row.quartile);
+  const targetYear = normalizeYear(publicationYear);
+  const yearRows = targetYear ? validRows.filter((row) => row.year === targetYear) : [];
+  const latestYear = Math.max(...validRows.map((row) => row.year || 0));
+  const candidates = yearRows.length
+    ? yearRows
+    : validRows.filter((row) => row.year === latestYear);
+
+  return (candidates.length ? candidates : validRows)
+    .sort((a, b) => quartileRank(a.quartile) - quartileRank(b.quartile))[0] || null;
+}
+
+async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
+  const normalizedIssn = normalizeIssn(issn);
+
+  if (!normalizedIssn) {
+    return null;
+  }
+
+  const searchResponse = await fetchJson(`${JOURNAL_RANK_BASE_URL}/ru/record-sources/?s=${encodeURIComponent(issn)}`, {
+    headers: {
+      Accept: "text/html",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!searchResponse.ok) {
+    return null;
+  }
+
+  const recordId = parseJournalRankRecordId(await searchResponse.text(), issn);
+
+  if (!recordId) {
+    return null;
+  }
+
+  const quartilesUrl = `${JOURNAL_RANK_BASE_URL}/ru/record-sources/quartiles/${recordId}/?TypeId=CiteScore&pagesize=100`;
+  const quartilesResponse = await fetchJson(quartilesUrl, {
+    headers: {
+      Accept: "text/html",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!quartilesResponse.ok) {
+    return null;
+  }
+
+  const best = pickBestJournalRankQuartile(
+    parseJournalRankQuartiles(await quartilesResponse.text()),
+    publicationYear
+  );
+
+  return best?.quartile
+    ? {
+        source: best.year ? `${best.source} ${best.year}` : best.source,
+        quartile: best.quartile,
+        impactFactor: "",
+        indexedUrl: quartilesUrl,
+      }
+    : null;
+}
+
+async function resolveScopusIndexing(metadata = {}) {
+  if (!shouldResolveQuartileForType(metadata.type)) {
+    return [];
+  }
+
+  for (const issn of getMetadataIssns(metadata)) {
+    try {
+      const indexing = await fetchScopusIndexingByIssn(issn)
+        || await fetchJournalRankIndexingByIssn(issn, metadata.year);
+
+      if (indexing?.quartile) {
+        return [indexing];
+      }
+    } catch (error) {
+      console.warn("quartile_lookup_failed", {
+        doi: metadata.doi,
+        issn,
+        message: error.message,
+      });
+    }
+  }
+
+  return [];
+}
+
+async function enrichMetadataIndexing(metadata = {}) {
+  const indexing = await resolveScopusIndexing(metadata);
+
+  return {
+    ...metadata,
+    indexing,
+  };
+}
+
 export async function fetchDoiMetadata(doi) {
   const normalizedDoi = normalizeDoi(doi);
 
@@ -509,7 +732,7 @@ export async function fetchDoiMetadata(doi) {
   }
 
   if (metadata) {
-    return metadata;
+    return enrichMetadataIndexing(metadata);
   }
 
   if (errors.every((error) => error instanceof DoiLookupError && error.code === "doi_not_found")) {
@@ -527,7 +750,7 @@ export async function getVerifiedDoiMetadata(dbOrClient, doi) {
   const cached = await getCachedDoiMetadata(dbOrClient, doi);
 
   if (cached && !shouldRefreshCachedMetadata(cached)) {
-    return { source: "cache", metadata: cached };
+    return { source: "cache", metadata: await enrichMetadataIndexing(cached) };
   }
 
   const metadata = await fetchDoiMetadata(doi);
