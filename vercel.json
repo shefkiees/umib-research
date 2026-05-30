@@ -10,6 +10,10 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/auth/reset-password",
+      "destination": "/index.html"
+    },
+    {
       "source": "/auth/:path*",
       "destination": "/api/index.js"
     },
