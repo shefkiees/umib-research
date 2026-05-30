@@ -1,6 +1,15 @@
 const DOI_PATTERN = /^10\.\d{4,9}\/\S+$/i;
 const DOI_LOOKUP_TIMEOUT_MS = 10000;
 
+const KNOWN_JOURNAL_QUARTILES = [
+  {
+    title: "Corporate Governance and Organizational Behavior Review",
+    issns: ["2521-1870", "2521-1889", "25211870", "25211889"],
+    quartile: "Q4",
+    source: "SCImago",
+  },
+];
+
 export class DoiLookupError extends Error {
   constructor(code, message, status = 500) {
     super(message);
@@ -35,6 +44,32 @@ export function isValidDoi(value) {
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeComparableText(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeIssn(value) {
+  return normalizeText(value).replace(/[^0-9x]/gi, "").toUpperCase();
+}
+
+function getMetadataIssns(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const values = [
+    metadata.issn,
+    raw.ISSN,
+    raw.issn,
+  ].flatMap((value) => (Array.isArray(value) ? value : [value]));
+
+  return values.map(normalizeIssn).filter(Boolean);
 }
 
 function hasText(value) {
@@ -172,7 +207,41 @@ function mergeMetadata(primary, fallback) {
       _doi_org: primary.raw_json || {},
       _crossref: fallback.raw_json || {},
     },
+    indexing: Array.isArray(primary.indexing) && primary.indexing.length ? primary.indexing : fallback.indexing,
   };
+}
+
+function shouldResolveQuartileForType(type) {
+  const normalized = normalizeComparableText(type).replace(/\s+/g, "_");
+
+  return ["article_journal", "journal_article"].includes(normalized);
+}
+
+function resolveKnownJournalIndexing(metadata = {}) {
+  if (!shouldResolveQuartileForType(metadata.type)) {
+    return [];
+  }
+
+  const metadataIssns = new Set(getMetadataIssns(metadata));
+  const metadataTitle = normalizeComparableText(metadata.container_title);
+  const match = KNOWN_JOURNAL_QUARTILES.find((entry) => {
+    const entryIssns = entry.issns.map(normalizeIssn).filter(Boolean);
+    const matchesIssn = entryIssns.some((issn) => metadataIssns.has(issn));
+    const matchesTitle = metadataTitle && metadataTitle === normalizeComparableText(entry.title);
+
+    return matchesIssn || matchesTitle;
+  });
+
+  if (!match?.quartile) {
+    return [];
+  }
+
+  return [{
+    source: match.source || "SCImago",
+    quartile: match.quartile,
+    impactFactor: "",
+    indexedUrl: "",
+  }];
 }
 
 function shouldRefreshCachedMetadata(metadata = {}) {
@@ -207,7 +276,7 @@ function mapMetadata(data, doi) {
     : [];
   const dateParts = getBestPublicationDateParts(data);
 
-  return {
+  const metadata = {
     doi,
     title: normalizeText(title),
     authors,
@@ -224,6 +293,11 @@ function mapMetadata(data, doi) {
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: data,
+  };
+
+  return {
+    ...metadata,
+    indexing: resolveKnownJournalIndexing(metadata),
   };
 }
 
@@ -252,7 +326,16 @@ export async function getCachedDoiMetadata(db, doi) {
     [doi]
   );
 
-  return rows[0] ? { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) } : null;
+  if (!rows[0]) {
+    return null;
+  }
+
+  const metadata = { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
+
+  return {
+    ...metadata,
+    indexing: resolveKnownJournalIndexing(metadata),
+  };
 }
 
 export async function upsertDoiMetadata(dbOrClient, metadata) {
