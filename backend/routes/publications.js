@@ -163,6 +163,14 @@ function normalizeIndexing(value) {
     .filter((item) => item.source || item.quartile || item.impactFactor || item.indexedUrl);
 }
 
+function getPrimaryQuartile(indexing = []) {
+  const primary = (Array.isArray(indexing) ? indexing : [])
+    .map((item) => normalizeText(item?.quartile))
+    .find(Boolean);
+
+  return primary || "";
+}
+
 function normalizeEvidenceLinks(value, errors) {
   if (!Array.isArray(value)) {
     return [];
@@ -205,7 +213,9 @@ function normalizeEvidenceLinks(value, errors) {
 }
 
 function normalizePublicationPayload(body = {}, options = {}) {
-  const hasIndexingInput = Object.prototype.hasOwnProperty.call(body, "indexing");
+  const hasIndexingInput =
+    Object.prototype.hasOwnProperty.call(body, "indexing")
+    || Object.prototype.hasOwnProperty.call(body, "quartile");
   const hasEvidenceLinksInput =
     Object.prototype.hasOwnProperty.call(body, "evidenceLinks")
     || Object.prototype.hasOwnProperty.call(body, "evidence_links")
@@ -273,7 +283,11 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const indexing = hasIndexingInput ? normalizeIndexing(body.indexing) : undefined;
+  const indexing = hasIndexingInput
+    ? normalizeIndexing(Array.isArray(body.indexing)
+      ? body.indexing
+      : [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }])
+    : undefined;
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
     : undefined;
@@ -351,6 +365,14 @@ function mapPublication(row) {
     : getArrayField(row, "attachments");
   const authors = getPublicationAuthors(row);
   const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
+  const indexing = getArrayField(row, "indexing").map((item) => ({
+    source: item.source || "",
+    quartile: item.quartile || "",
+    impactFactor: item.impact_factor || item.impactFactor || "",
+    impact_factor: item.impact_factor || item.impactFactor || "",
+    indexedUrl: item.indexed_url || item.indexedUrl || "",
+    indexed_url: item.indexed_url || item.indexedUrl || "",
+  }));
 
   return {
     id: row.id,
@@ -374,6 +396,7 @@ function mapPublication(row) {
     pages: row.pages || "",
     issn: row.issn || "",
     isbn: row.isbn || "",
+    quartile: getPrimaryQuartile(indexing),
     authors: authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
       full_name: author.full_name || author.fullName || "",
@@ -390,14 +413,7 @@ function mapPublication(row) {
       isCorrespondingAuthor: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
       is_corresponding_author: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
     })),
-    indexing: getArrayField(row, "indexing").map((item) => ({
-      source: item.source || "",
-      quartile: item.quartile || "",
-      impactFactor: item.impact_factor || item.impactFactor || "",
-      impact_factor: item.impact_factor || item.impactFactor || "",
-      indexedUrl: item.indexed_url || item.indexedUrl || "",
-      indexed_url: item.indexed_url || item.indexedUrl || "",
-    })),
+    indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
       type: item.type || item.identifier_type || "",
       identifierType: item.type || item.identifier_type || "",
@@ -718,6 +734,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const raw = metadata.raw_json || {};
   const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
+  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
   const matchedAuthorIndex = currentUserName
@@ -746,7 +763,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     authors: metadataAuthors.map((author, index) =>
       metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)
     ),
-    indexing: [],
+    indexing,
     evidenceLinks: [],
     attachments: [],
     metadataSource: "doi",
@@ -868,7 +885,11 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
             or p.publication_type ilike $${qParam}
             or cast(p.publication_year as text) ilike $${qParam}
             or exists (select 1 from publication_authors pa where pa.publication_id = p.id and pa.full_name ilike $${qParam})
-            or exists (select 1 from publication_indexing pi where pi.publication_id = p.id and pi.source ilike $${qParam})
+            or exists (
+              select 1 from publication_indexing pi
+              where pi.publication_id = p.id
+                and (pi.source ilike $${qParam} or pi.quartile ilike $${qParam})
+            )
           )`
         : `(p.title ilike $${qParam} or p.venue ilike $${qParam} or p.doi ilike $${qParam} or m.publisher ilike $${qParam} or m.container_title ilike $${qParam})`);
     }

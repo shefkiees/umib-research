@@ -1511,7 +1511,7 @@ body {
 .publication-table-head,
 .publication-table-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.7fr) minmax(180px, 1fr) minmax(110px, 0.55fr);
+  grid-template-columns: minmax(240px, 1.7fr) minmax(170px, 1fr) minmax(90px, 0.45fr) minmax(90px, 0.45fr);
   gap: 14px;
   align-items: center;
 }

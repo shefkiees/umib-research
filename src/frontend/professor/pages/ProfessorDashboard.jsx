@@ -169,6 +169,7 @@ const mapPublicationRow = (row = {}) => ({
   pages: row.pages || "",
   issn: row.issn || "",
   isbn: row.isbn || "",
+  quartile: row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "",
   authors: Array.isArray(row.authors) ? row.authors : [],
   indexing: Array.isArray(row.indexing) ? row.indexing : [],
   attachments: Array.isArray(row.attachments) ? row.attachments : [],
@@ -219,6 +220,7 @@ const getPublicationSearchText = (row = {}) => [
   row.issue,
   row.issn,
   row.isbn,
+  row.quartile,
   getPublicationAuthorSearchText(row.authors),
 ].filter(Boolean).join(" ").toLowerCase();
 
@@ -782,6 +784,7 @@ export default function ProfessorDashboard() {
       ...payload,
       authors: Array.isArray(draft.authors) ? draft.authors : [],
       indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
+      quartile: draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "",
     };
   };
 
@@ -1461,6 +1464,10 @@ export default function ProfessorDashboard() {
     return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
   };
 
+  const formatPublicationQuartile = (row = {}) => {
+    return row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || t("common.noData");
+  };
+
   const renderPublicationActions = (row) => {
     if (editingPublicationId === row.id) {
       return (
@@ -1533,6 +1540,7 @@ export default function ProfessorDashboard() {
             <span>{t("professor.dashboard.publicationColumn")}</span>
             <span>{t("professor.dashboard.authorsColumn")}</span>
             <span>{t("professor.dashboard.yearColumn")}</span>
+            <span>{t("professor.dashboard.publicationForm.quartile")}</span>
           </div>
           {filteredPublications.map((row) => (
             <div
@@ -1551,6 +1559,10 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
                 {row.year || t("professor.dashboard.noYear")}
+              </div>
+              <div className="publication-meta-cell">
+                <span className="publication-mobile-label">{t("professor.dashboard.publicationForm.quartile")}</span>
+                {formatPublicationQuartile(row)}
               </div>
             </div>
           ))}

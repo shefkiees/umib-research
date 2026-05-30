@@ -95,12 +95,12 @@ export function publicationToDraft(publication = {}) {
     isbn: publication.isbn || "",
     status: publication.status || "draft",
     authors: Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [],
-    indexing: Array.isArray(publication.indexing) ? publication.indexing.map((item) => ({
+    indexing: Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
       source: item.source || "",
       quartile: item.quartile || "",
       impactFactor: item.impactFactor || item.impact_factor || "",
       indexedUrl: item.indexedUrl || item.indexed_url || "",
-    })) : [],
+    })) : publication.quartile ? [{ source: "Scopus", quartile: publication.quartile, impactFactor: "", indexedUrl: "" }] : [],
     evidenceLinks: (Array.isArray(publication.evidenceLinks) ? publication.evidenceLinks : publication.attachments || []).map((item) => ({
       url: item.url || item.fileUrl || item.file_url || "",
       label: item.label || item.fileType || item.file_type || "",
