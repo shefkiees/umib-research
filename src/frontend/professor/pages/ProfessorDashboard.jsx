@@ -691,13 +691,13 @@ export default function ProfessorDashboard() {
     }
 
     setActivePage("Publikime");
-    setSearchQuery(publication.title || publication.doi || "");
+    startPublicationEdit(publication);
     setFocusedPublicationId(publication.id);
 
     window.setTimeout(() => {
-      document.getElementById(`publication-row-${publication.id}`)?.scrollIntoView({
+      document.getElementById("publication-edit-form")?.scrollIntoView({
         behavior: "smooth",
-        block: "center",
+        block: "start",
       });
     }, 80);
   };
@@ -1551,7 +1551,7 @@ export default function ProfessorDashboard() {
             </article>
 
             {editingPublicationId ? (
-              <article className="prof-card publication-form-card">
+              <article className="prof-card publication-form-card" id="publication-edit-form">
                 <div className="prof-card-header">
                   <div>
                     <h3>Edito publikimin</h3>
