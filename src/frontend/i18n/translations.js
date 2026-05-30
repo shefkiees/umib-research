@@ -553,7 +553,7 @@ export const translations = {
         bankAccount: "Numri i llogarise bankare / IBAN",
         bankAccountPlaceholder: "Numri vendor ose XK...",
         bankName: "Emri i bankes",
-        writeAccount: "Shkruaj numrin e llogarise",
+        writeAccount: "Banka do të identifikohet automatikisht",
         swift: "SWIFT/BIC kodi",
         autofill: "Plotesohet automatikisht",
         country: "Vendi",

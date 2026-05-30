@@ -2240,7 +2240,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
         {bankRequired ? (
           <>
-            {renderInput(r.amountWords, "amountWords", { wide: true, required: true, placeholder: r.amountWordsPlaceholder })}
             {renderInput(r.bankApplicantName, "bankApplicantName", { required: true })}
 
             <label className="reimbursement-field">
