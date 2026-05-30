@@ -104,7 +104,7 @@ const PUBLICATION_LABELS = {
   coauthors: "Bashkautorët",
   affiliation: "Përkatësia e autorit",
   volume: "Vëllimi",
-  issue: "Numri",
+  issue: "Numri i artikullit",
   pages: "Faqet",
   indexingPlatform: "Indeksimi në platformë",
   impactFactor: "Faktori i ndikimit (IF)",
@@ -347,6 +347,14 @@ function createChipDisplayField(label, values) {
   };
 }
 
+function createAuthorListDisplayField(label, values) {
+  const cleanValues = values
+    .map(cleanDisplayValue)
+    .filter(Boolean);
+
+  return createDisplayField(label, cleanValues.join(", "));
+}
+
 function getPublicationDisplaySections(form) {
   const publicationType = normalizePublicationType(form.publicationType);
   const typeLabel = getPublicationTypeLabel(form.publicationType);
@@ -412,7 +420,7 @@ function getPublicationDisplaySections(form) {
         createDisplayField("ISSN", form.issn),
         createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
         createDisplayField("Vëllimi", form.volume),
-        createDisplayField("Numri", form.issue),
+        createDisplayField("Numri i artikullit", form.issue),
         createDisplayField("Faqet", form.pages),
       ].filter(Boolean),
     },
@@ -449,7 +457,7 @@ function getPublicationMetadataDisplaySection(form) {
       fields: [
         ...commonStart,
         createDisplayField("Autorët", form.mainAuthor),
-        createChipDisplayField("Bashkautorët", coauthors),
+        createAuthorListDisplayField("Bashkautorët", coauthors),
         doiField,
       ].filter(Boolean),
     };
@@ -461,7 +469,7 @@ function getPublicationMetadataDisplaySection(form) {
       fields: [
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
-        createChipDisplayField("Bashkautorët", coauthors),
+        createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("Përkatësia e autorëve", form.affiliation),
         doiField,
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
@@ -479,12 +487,12 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("Shtëpia botuese", form.publisher),
       createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
       createDisplayField("Vëllimi", form.volume),
-      createDisplayField("Numri", form.issue),
+      createDisplayField("Numri i artikullit", form.issue),
       createDisplayField("Faqet", form.pages),
       createDisplayField("ISSN", form.issn),
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
-      createChipDisplayField("Bashkautorët", coauthors),
+      createAuthorListDisplayField("Bashkautorët", coauthors),
       createDisplayField("Përkatësia e autorëve", form.affiliation),
       doiField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
@@ -1891,32 +1899,19 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderPublicationAuthors = () => {
     const mainAuthor = cleanDisplayValue(form.mainAuthor);
     const coauthors = splitCoauthors(form.coauthors);
+    const authorSection = {
+      title: "Autorët",
+      fields: [
+        createDisplayField(normalizePublicationType(form.publicationType) === "book" ? "Autori" : "Autori kryesor", mainAuthor),
+        createAuthorListDisplayField("Bashkautorët", coauthors),
+      ].filter(Boolean),
+    };
 
     if (!mainAuthor && !coauthors.length) {
       return null;
     }
 
-    return (
-      <section className="reimbursement-publication-display-card reimbursement-wide">
-        <h5>Autorët</h5>
-        {mainAuthor ? (
-          <div className="reimbursement-main-author reimbursement-publication-main-author">
-            <strong>{mainAuthor}</strong>
-            <small>{normalizePublicationType(form.publicationType) === "book" ? "Autori" : "Autori kryesor"}</small>
-          </div>
-        ) : null}
-        {coauthors.length ? (
-          <div className="reimbursement-publication-coauthor-block">
-            <span>Bashkautorët</span>
-            <div className="reimbursement-coauthor-list reimbursement-publication-coauthors">
-              {coauthors.map((author) => (
-                <span className="reimbursement-coauthor-chip" key={author}>{author}</span>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </section>
-    );
+    return renderPublicationDisplaySection(authorSection);
   };
 
   const renderPublicationAbstract = () => {
