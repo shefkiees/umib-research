@@ -95,12 +95,6 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "abstract",
 ]);
 
-const HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS = new Set([
-  "correspondingAuthor",
-  "publicationYear",
-  "publicationLink",
-]);
-
 const PUBLICATION_LABELS = {
   publicationTitle: "Titulli i punimit",
   mainAuthor: "Autori kryesor",
@@ -117,9 +111,12 @@ const PUBLICATION_LABELS = {
   scopusQuartile: "Kuartili Scopus",
 };
 
-const PUBLICATION_BASIC_FIELDS = ["publicationTitle", "mainAuthor", "coauthors", "affiliation"];
-const PUBLICATION_BIBLIOGRAPHIC_FIELDS = ["doi", "publicationType", "venue", "publisher", "publicationDate", "publicationYear", "volume", "issue", "pages", "issn", "isbn", "publicationLink"];
-const PUBLICATION_INDEXING_FIELDS = ["indexingPlatform", "impactFactor", "scopusQuartile"];
+const PUBLICATION_TYPE_LABELS = {
+  journal_article: "Artikull reviste",
+  conference_paper: "Punim konference",
+  book: "Libër / Kapitull",
+  book_chapter: "Libër / Kapitull",
+};
 
 const EMPTY_TEAM_MEMBER = {
   name: "",
@@ -300,6 +297,120 @@ function splitCoauthors(value) {
     .split(separator)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizePublicationType(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
+
+  if (["book_chapter", "chapter"].includes(normalized)) {
+    return "book";
+  }
+
+  return normalized;
+}
+
+function getPublicationTypeLabel(value) {
+  return PUBLICATION_TYPE_LABELS[normalizePublicationType(value)] || "";
+}
+
+function cleanDisplayValue(value) {
+  return stripMarkup(value);
+}
+
+function createDisplayField(label, value, options = {}) {
+  const cleanValue = cleanDisplayValue(value);
+
+  if (!cleanValue) {
+    return null;
+  }
+
+  return {
+    label,
+    value: cleanValue,
+    href: options.href || "",
+  };
+}
+
+function getPublicationDisplaySections(form) {
+  const publicationType = normalizePublicationType(form.publicationType);
+  const typeLabel = getPublicationTypeLabel(form.publicationType);
+  const baseFields = [
+    createDisplayField("Titulli i publikimit", form.publicationTitle),
+    createDisplayField("Lloji i publikimit", typeLabel),
+    createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {}),
+  ].filter(Boolean);
+  const authorFields = [
+    createDisplayField(publicationType === "book" ? "Autori" : "Autori kryesor", form.mainAuthor),
+    createDisplayField("Përkatësia e autorëve", form.affiliation),
+  ].filter(Boolean);
+
+  if (publicationType === "conference_paper") {
+    return [
+      { title: "Informacion bazë", fields: baseFields },
+      { title: "Autorët", fields: authorFields },
+      {
+        title: "Informacion bibliografik",
+        fields: [
+          createDisplayField("Emri i konferencës / Proceedings / Venue", form.venue || form.journal),
+          createDisplayField("Botuesi", form.publisher),
+          createDisplayField("ISBN", form.isbn),
+          createDisplayField("ISSN", form.issn),
+          createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+          createDisplayField("Faqet", form.pages),
+          createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {}),
+        ].filter(Boolean),
+      },
+      {
+        title: "Indeksimi",
+        fields: [
+          createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+          createDisplayField("Quartile", form.scopusQuartile),
+        ].filter(Boolean),
+      },
+    ].filter((section) => section.fields.length);
+  }
+
+  if (publicationType === "book") {
+    return [
+      { title: "Informacion bazë", fields: baseFields },
+      { title: "Autorët", fields: authorFields },
+      {
+        title: "Informacion bibliografik",
+        fields: [
+          createDisplayField("Botuesi", form.publisher),
+          createDisplayField("ISBN", form.isbn),
+          createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+          createDisplayField("Faqet", form.pages),
+          createDisplayField("Linku i publikimit", form.publicationLink, form.publicationLink ? { href: form.publicationLink } : {}),
+        ].filter(Boolean),
+      },
+    ].filter((section) => section.fields.length);
+  }
+
+  return [
+    { title: "Informacion bazë", fields: baseFields },
+    { title: "Autorët", fields: authorFields },
+    {
+      title: "Informacion bibliografik",
+      fields: [
+        createDisplayField("Revista", form.venue || form.journal),
+        createDisplayField("Botuesi", form.publisher),
+        createDisplayField("ISSN", form.issn),
+        createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+        createDisplayField("Vëllimi", form.volume),
+        createDisplayField("Numri", form.issue),
+        createDisplayField("Faqet", form.pages),
+      ].filter(Boolean),
+    },
+    {
+      title: "Indeksimi dhe impact factor",
+      fields: [
+        createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+        createDisplayField("Impact Factor", form.impactFactor),
+        createDisplayField("Quartile", form.scopusQuartile),
+      ].filter(Boolean),
+    },
+  ].filter((section) => section.fields.length);
 }
 
 function resolveProfile(contextProfile, profile) {
@@ -1670,34 +1781,99 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const getSectionFields = (sectionId) =>
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
-  const getVisiblePublicationSectionFields = (sectionId) =>
-    getSectionFields(sectionId).filter((fieldConfig) =>
-      !HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS.has(fieldConfig.field)
-    );
+  const renderPublicationDisplayField = (field) => (
+    <div className="reimbursement-publication-info-row" key={`${field.label}-${field.value}`}>
+      <span>{field.label}</span>
+      {field.href ? (
+        <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
+      ) : (
+        <strong>{field.value}</strong>
+      )}
+    </div>
+  );
 
-  const getPublicationFieldConfig = (fieldName) => {
-    const fieldConfig = [
-      ...getSectionFields("authors"),
-      ...getSectionFields("publicationDetails"),
-    ].find((item) => item.field === fieldName);
+  const renderPublicationDisplaySection = (section) => (
+    <section className="reimbursement-publication-display-card reimbursement-wide" key={section.title}>
+      <h5>{section.title}</h5>
+      <div className="reimbursement-publication-info-grid">
+        {section.fields.map(renderPublicationDisplayField)}
+      </div>
+    </section>
+  );
 
-    return fieldConfig && !HIDDEN_PUBLICATION_REIMBURSEMENT_FIELDS.has(fieldConfig.field) ? fieldConfig : null;
-  };
+  const renderPublicationAuthors = () => {
+    const mainAuthor = cleanDisplayValue(form.mainAuthor);
+    const coauthors = splitCoauthors(form.coauthors);
 
-  const renderPublicationGroup = (title, fieldNames, className = "") => {
-    const fields = fieldNames.map(getPublicationFieldConfig).filter(Boolean);
-
-    if (!fields.length) {
+    if (!mainAuthor && !coauthors.length) {
       return null;
     }
 
     return (
-      <section className={`reimbursement-publication-group reimbursement-wide ${className}`.trim()}>
-        <h5>{title}</h5>
-        <div className="reimbursement-form-grid reimbursement-publication-grid">
-          {fields.map(renderSchemaField)}
-        </div>
+      <section className="reimbursement-publication-display-card reimbursement-wide">
+        <h5>Autorët</h5>
+        {mainAuthor ? (
+          <div className="reimbursement-main-author reimbursement-publication-main-author">
+            <strong>{mainAuthor}</strong>
+            <small>{normalizePublicationType(form.publicationType) === "book" ? "Autori" : "Autori kryesor"}</small>
+          </div>
+        ) : null}
+        {coauthors.length ? (
+          <div className="reimbursement-publication-coauthor-block">
+            <span>Bashkautorët</span>
+            <div className="reimbursement-coauthor-list reimbursement-publication-coauthors">
+              {coauthors.map((author) => (
+                <span className="reimbursement-coauthor-chip" key={author}>{author}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
+    );
+  };
+
+  const renderPublicationAbstract = () => {
+    const abstractText = cleanDisplayValue(form.abstract);
+    const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
+
+    if (!abstractText) {
+      return null;
+    }
+
+    return (
+      <section className="reimbursement-publication-display-card reimbursement-publication-abstract-group reimbursement-wide">
+        <h5>Abstrakti</h5>
+        <div className={`reimbursement-abstract-box ${isAbstractExpanded ? "expanded" : ""}`}>
+          {abstractText}
+        </div>
+        {hasLongAbstract ? (
+          <button
+            type="button"
+            className="reimbursement-abstract-toggle"
+            onClick={() => setIsAbstractExpanded((current) => !current)}
+          >
+            {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+          </button>
+        ) : null}
+      </section>
+    );
+  };
+
+  const renderPublicationReadOnlyDetails = () => {
+    if (!form.publicationId) {
+      return null;
+    }
+
+    const sections = getPublicationDisplaySections(form).filter((section) => section.title !== "Autorët");
+    const [primarySection, ...remainingSections] = sections;
+
+    return (
+      <>
+        {primarySection ? renderPublicationDisplaySection(primarySection) : null}
+        {renderPublicationAuthors()}
+        {remainingSections.map(renderPublicationDisplaySection)}
+        {renderPublicationAbstract()}
+      </>
     );
   };
 
@@ -1735,11 +1911,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         </div>
       )}
 
-      {renderPublicationGroup("Informacion bazë", PUBLICATION_BASIC_FIELDS)}
-      {renderPublicationGroup("Informacion bibliografik", PUBLICATION_BIBLIOGRAPHIC_FIELDS)}
-      {renderPublicationGroup("Abstrakti", ["abstract"], "reimbursement-publication-abstract-group")}
-      {renderPublicationGroup("Indeksimi dhe impact factor", PUBLICATION_INDEXING_FIELDS)}
-      {getSectionFields("publicationConference").map(renderSchemaField)}
+      {renderPublicationReadOnlyDetails()}
     </div>
   );
 
