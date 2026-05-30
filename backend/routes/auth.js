@@ -1,5 +1,4 @@
 import express from "express";
-import { createClient } from "@supabase/supabase-js";
 import db from "../config/db.js";
 import passport from "../config/passport.js";
 import { googleAuthConfigured } from "../config/passport.js";
@@ -10,7 +9,7 @@ const router = express.Router();
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
 const LOGIN_ROUTE = "/login";
 const PROFESSOR_DASHBOARD_ROUTE = "/professor/dashboard";
-const PASSWORD_RESET_ROUTE = "/auth/reset-password";
+const ACCESS_RESET_SUCCESS_MESSAGE = "Nese ky email ekziston ne sistem, kerkesa do te procesohet nga stafi pergjegjes.";
 const DASHBOARD_BY_ROLE = {
   admin: "/prorector/dashboard",
   committee: "/committee/dashboard",
@@ -62,49 +61,41 @@ function getClientUrl(req) {
   return getAppOrigin(req);
 }
 
-function createSupabaseAdminClient() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("supabase_admin_not_configured");
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+function getAccessResetAdminUrl(req) {
+  return `${getClientUrl(req) || ""}/admin/dashboard`;
 }
 
-function getPasswordResetRedirectUrl(req) {
-  return (
-    process.env.SUPABASE_PASSWORD_RESET_REDIRECT_URL ||
-    process.env.VITE_SUPABASE_PASSWORD_RESET_REDIRECT_URL ||
-    `${getClientUrl(req)}${PASSWORD_RESET_ROUTE}`
-  );
-}
-
-function buildPasswordResetEmailHtml(actionLink) {
+function buildAccessResetEmailHtml({ email, requesterIp, adminUrl }) {
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.55;color:#172033;max-width:620px;margin:0 auto">
-      <h2 style="margin:0 0 16px;font-size:22px">Rivendosja e Fjalekalimit - UMIBRes</h2>
+      <h2 style="margin:0 0 16px;font-size:22px">Rivendosja e qasjes - UMIBRes</h2>
       <p>Pershendetje i/e nderuar,</p>
-      <p>Kemi pranuar nje kerkese per rivendosjen e fjalekalimit te llogarise suaj ne platformen UMIBRes.</p>
-      <p>Klikoni butonin me poshte per te vendosur nje fjalekalim te ri.</p>
+      <p>Ne platformen UMIBRes eshte pranuar nje kerkese per rivendosjen e qasjes.</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>IP:</strong> ${requesterIp || "N/A"}</p>
+      <p>Kerkesa duhet te trajtohet manualisht nga administratori ose stafi pergjegjes i IT-se.</p>
       <p style="margin:24px 0">
-        <a href="${actionLink}" style="background:#153a63;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;display:inline-block;font-weight:700">
-          Ndrysho Fjalekalimin
+        <a href="${adminUrl}" style="background:#153a63;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;display:inline-block;font-weight:700">
+          Paraqit kerkesen
         </a>
       </p>
-      <p>Ky link eshte i vlefshem per kohe te kufizuar.</p>
       <hr style="border:none;border-top:1px solid #d8e0ea;margin:28px 0" />
       <p>Universiteti i Mitrovices "Isa Boletini"</p>
-      <p style="color:#536177;font-size:13px">Nese nuk keni kerkuar rivendosjen e fjalekalimit, ju lutemi injoroni kete mesazh.</p>
       <p style="color:#536177;font-size:13px">&copy; 2026 UMIB. Te gjitha te drejtat e rezervuara.</p>
     </div>
   `;
+}
+
+function getAccessResetRecipients(rows = []) {
+  const configuredRecipients = String(process.env.ACCESS_RESET_NOTIFY_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  const adminRecipients = rows
+    .map((row) => String(row.email || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set([...configuredRecipients, ...adminRecipients])];
 }
 
 function getGoogleCallbackUrl(req) {
@@ -256,11 +247,6 @@ router.put("/me", async (req, res) => {
 
 router.post("/password-reset", async (req, res) => {
   try {
-    if (!req.isAuthenticated?.() || !req.user?.id) {
-      res.status(401).json({ error: "unauthorized", message: "Sesioni nuk eshte aktiv." });
-      return;
-    }
-
     const requestedEmail = String(req.body?.email || "").trim().toLowerCase();
 
     if (!requestedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
@@ -269,62 +255,74 @@ router.post("/password-reset", async (req, res) => {
     }
 
     const userResult = await db.query(
-      `select email from users where id = $1 limit 1`,
-      [req.user.id]
+      `select id, email, full_name, role
+       from users
+       where lower(email) = lower($1)
+       limit 1`,
+      [requestedEmail]
     );
-    const accountEmail = String(userResult.rows[0]?.email || "").trim().toLowerCase();
+    const account = userResult.rows[0] || null;
 
-    if (!accountEmail || accountEmail !== requestedEmail) {
-      res.status(403).json({ error: "email_mismatch", message: "Email nuk perputhet me llogarine." });
+    if (!account) {
+      res.json({ received: true, message: ACCESS_RESET_SUCCESS_MESSAGE });
       return;
     }
 
-    const supabaseAdmin = createSupabaseAdminClient();
-    const redirectTo = getPasswordResetRedirectUrl(req);
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email: accountEmail,
-      options: { redirectTo },
+    const requesterIp = req.ip || req.get("x-forwarded-for") || null;
+    const userAgent = req.get("user-agent") || null;
+    const insertResult = await db.query(
+      `insert into access_reset_requests (user_id, requested_email, requester_ip, user_agent)
+       values ($1, $2, $3, $4)
+       returning id, requested_at`,
+      [account.id, account.email, requesterIp, userAgent]
+    );
+    const requestRow = insertResult.rows[0];
+    const adminResult = await db.query(
+      `select email from users where role = 'admin' and email is not null`
+    );
+    const recipients = getAccessResetRecipients(adminResult.rows);
+    const adminUrl = getAccessResetAdminUrl(req);
+
+    if (recipients.length) {
+      try {
+        const emailResult = await sendEmailNotification({
+          to: recipients,
+          title: "Rivendosja e qasjes - UMIBRes",
+          message: `Kerkese per rivendosje qasjeje nga ${account.email}. Trajtojeni manualisht sipas procedures se fakultetit.`,
+          category: "Siguria",
+          html: buildAccessResetEmailHtml({ email: account.email, requesterIp, adminUrl }),
+          template: process.env.RESEND_ACCESS_RESET_TEMPLATE_ID
+            ? {
+                id: process.env.RESEND_ACCESS_RESET_TEMPLATE_ID,
+                variables: {
+                  REQUEST_EMAIL: account.email,
+                  REQUEST_ID: requestRow.id,
+                  REQUESTED_AT: requestRow.requested_at,
+                  ADMIN_LINK: adminUrl,
+                  ACTION_LABEL: "Paraqit kerkesen",
+                },
+              }
+            : null,
+        });
+
+        if (emailResult?.skipped) {
+          console.warn("access_reset_email_skipped", { requestId: requestRow.id });
+        }
+      } catch (emailError) {
+        console.warn("access_reset_email_failed", {
+          requestId: requestRow.id,
+          message: emailError.message,
+        });
+      }
+    }
+
+    res.json({
+      received: true,
+      message: ACCESS_RESET_SUCCESS_MESSAGE,
     });
-
-    if (error) {
-      console.error("Supabase recovery link generation failed:", error);
-      res.status(error.status || 500).json({ error: error.code || "recovery_link_failed", message: error.message });
-      return;
-    }
-
-    const actionLink = data?.properties?.action_link;
-
-    if (!actionLink) {
-      res.status(500).json({ error: "missing_recovery_link", message: "Recovery link nuk u gjenerua." });
-      return;
-    }
-
-    const emailResult = await sendEmailNotification({
-      to: accountEmail,
-      title: "Rivendosja e Fjalekalimit - UMIBRes",
-      message: `Klikoni kete link per te ndryshuar fjalekalimin: ${actionLink}`,
-      category: "Siguria",
-      html: buildPasswordResetEmailHtml(actionLink),
-      template: process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID
-        ? {
-            id: process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID,
-            variables: {
-              RESET_LINK: actionLink,
-            },
-          }
-        : null,
-    });
-
-    if (emailResult?.skipped) {
-      res.status(500).json({ error: "email_not_configured", message: "Resend nuk eshte konfiguruar." });
-      return;
-    }
-
-    res.json({ sent: true, redirectTo });
   } catch (error) {
     console.error("POST /api/auth/password-reset failed:", error);
-    res.status(500).json({ error: "password_reset_failed", message: error.message || "Reset email nuk u dergua." });
+    res.status(500).json({ error: "access_reset_failed", message: "Kerkesa nuk u pranua. Provoni perseri." });
   }
 });
 

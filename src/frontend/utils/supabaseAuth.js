@@ -1,51 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { apiUrl } from "./api";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export const isSupabaseAuthConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-export const supabaseAuth = isSupabaseAuthConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-        flowType: "pkce",
-        persistSession: true,
-      },
-    })
-  : null;
-
-let passwordResetSessionPromise = null;
-
-export function getPasswordResetRedirectUrl() {
-  return (
-    import.meta.env.VITE_SUPABASE_PASSWORD_RESET_REDIRECT_URL ||
-    `${window.location.origin}/auth/reset-password`
-  );
-}
-
-function getAuthUrlParams() {
-  const query = new URLSearchParams(window.location.search);
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-
-  return { query, hash };
-}
-
-export function getAuthCallbackError() {
-  const { query, hash } = getAuthUrlParams();
-
-  return (
-    query.get("error_description") ||
-    query.get("error") ||
-    hash.get("error_description") ||
-    hash.get("error") ||
-    ""
-  );
-}
-
-export async function sendPasswordResetEmail(email) {
+export async function sendAccessResetRequest(email) {
   const response = await fetch(apiUrl("/auth/password-reset"), {
     method: "POST",
     credentials: "include",
@@ -57,114 +12,10 @@ export async function sendPasswordResetEmail(email) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || data.error || "password_reset_failed");
+    throw new Error(data.message || data.error || "access_reset_failed");
   }
 
-  return { data, redirectTo: data.redirectTo || getPasswordResetRedirectUrl() };
+  return { data };
 }
 
-export async function establishPasswordResetSession() {
-  if (!supabaseAuth) {
-    throw new Error("supabase_not_configured");
-  }
-
-  if (passwordResetSessionPromise) {
-    return passwordResetSessionPromise;
-  }
-
-  passwordResetSessionPromise = createPasswordResetSession().finally(() => {
-    passwordResetSessionPromise = null;
-  });
-
-  return passwordResetSessionPromise;
-}
-
-async function createPasswordResetSession() {
-  const { query, hash } = getAuthUrlParams();
-  const callbackError = getAuthCallbackError();
-
-  if (callbackError) {
-    throw new Error("invalid_or_expired_reset_link");
-  }
-
-  const recoverCurrentSession = async (fallbackError) => {
-    const { data } = await supabaseAuth.auth.getSession();
-
-    if (data?.session) {
-      return data.session;
-    }
-
-    throw fallbackError;
-  };
-
-  const clearRecoveryParams = () => {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  };
-
-  const code = query.get("code");
-
-  if (code) {
-    const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      return recoverCurrentSession(error);
-    }
-
-    clearRecoveryParams();
-    return data.session;
-  }
-
-  const tokenHash = query.get("token_hash") || hash.get("token_hash");
-  const tokenType = query.get("type") || hash.get("type");
-
-  if (tokenHash && tokenType === "recovery") {
-    const { data, error } = await supabaseAuth.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: "recovery",
-    });
-
-    if (error) {
-      return recoverCurrentSession(error);
-    }
-
-    clearRecoveryParams();
-    return data.session;
-  }
-
-  const accessToken = hash.get("access_token");
-  const refreshToken = hash.get("refresh_token");
-
-  if (accessToken && refreshToken) {
-    const { data, error } = await supabaseAuth.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    clearRecoveryParams();
-    return data.session;
-  }
-
-  const { data, error } = await supabaseAuth.auth.getSession();
-
-  if (error) {
-    throw error;
-  }
-
-  return data.session;
-}
-
-export async function updateRecoveredPassword(password) {
-  if (!supabaseAuth) {
-    throw new Error("supabase_not_configured");
-  }
-
-  const { error } = await supabaseAuth.auth.updateUser({ password });
-
-  if (error) {
-    throw error;
-  }
-}
+export const sendPasswordResetEmail = sendAccessResetRequest;

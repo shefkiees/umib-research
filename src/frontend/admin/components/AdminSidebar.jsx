@@ -8,7 +8,9 @@ import {
 
   ClipboardList, 
 
-  Database, 
+  Database,
+
+  KeyRound, 
 
 } from "lucide-react"; 
 
@@ -22,7 +24,9 @@ const mainItems = [
 
   { label: "Përdoruesit", route: "Përdoruesit", icon: Users }, 
 
-  { label: "Rolet", route: "Rolet", icon: ShieldCheck }, 
+  { label: "Rolet", route: "Rolet", icon: ShieldCheck },
+
+  { label: "Rivendosja e qasjes", route: "Rivendosja e qasjes", icon: KeyRound }, 
 
   { label: "Audit Logs", route: "Audit Logs", icon: ClipboardList }, 
 

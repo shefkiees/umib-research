@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import AdminSidebar from "../components/AdminSidebar";
 import AdminTopbar from "../components/AdminTopbar";
 
 import BackupSection from "../components/BackupSection";
+import { apiUrl } from "../../utils/api";
 
 import "../styles/AdminDashboard.css";
 import "../styles/AdminSection.css";
@@ -173,7 +174,36 @@ const backupData = [
 
 
 
-const navLabels = ["Përdoruesit", "Rolet", "Audit Logs", "Backup"];
+const navLabels = ["Përdoruesit", "Rolet", "Rivendosja e qasjes", "Audit Logs", "Backup"];
+
+const accessResetStatusLabels = {
+    pending: "Ne pritje",
+    in_progress: "Ne trajtim",
+    completed: "Perfunduar",
+    rejected: "Refuzuar",
+};
+
+const accessResetStatusClasses = {
+    pending: "admin-chip admin-chip--neutral",
+    in_progress: "admin-chip admin-chip--commission",
+    completed: "admin-chip admin-chip--active",
+    rejected: "admin-chip admin-chip--inactive",
+};
+
+const formatAccessResetDate = (value) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return date.toLocaleString("sq-AL", {
+        dateStyle: "short",
+        timeStyle: "short",
+    });
+};
 
 
 
@@ -211,6 +241,12 @@ export default function AdminDashboard() {
 
     const [searchQuery, setSearchQuery] = useState("");
 
+    const [accessResetRequests, setAccessResetRequests] = useState([]);
+
+    const [isAccessResetLoading, setIsAccessResetLoading] = useState(false);
+
+    const [accessResetError, setAccessResetError] = useState("");
+
     const [notifications, setNotifications] = useState([
 
         { id: 1, text: "3 tentativa të pasuksesshme login", isRead: false, createdAt: "para 5 min" },
@@ -220,6 +256,60 @@ export default function AdminDashboard() {
         { id: 3, text: "Integrimi me Crossref pati vonesë", isRead: true, createdAt: "para 3 ore" },
 
     ]);
+
+
+    useEffect(() => {
+
+        let isMounted = true;
+
+        const loadAccessResetRequests = async () => {
+
+            setIsAccessResetLoading(true);
+
+            setAccessResetError("");
+
+            try {
+
+                const response = await fetch(apiUrl("/admin/access-reset-requests"), {
+                    credentials: "include",
+                });
+
+                if (!response.ok) {
+                    throw new Error("access_reset_requests_failed");
+                }
+
+                const data = await response.json();
+
+                if (isMounted) {
+                    setAccessResetRequests(Array.isArray(data.requests) ? data.requests : []);
+                }
+
+            } catch (error) {
+
+                console.error("Access reset requests load failed:", error);
+
+                if (isMounted) {
+                    setAccessResetRequests([]);
+                    setAccessResetError("Kerkesat per rivendosje qasjeje nuk u ngarkuan.");
+                }
+
+            } finally {
+
+                if (isMounted) {
+                    setIsAccessResetLoading(false);
+                }
+
+            }
+
+        };
+
+        loadAccessResetRequests();
+
+        return () => {
+            isMounted = false;
+        };
+
+    }, []);
 
 
 
@@ -282,6 +372,19 @@ export default function AdminDashboard() {
     }, [normalizedQuery]);
 
 
+    const filteredAccessResetRequests = useMemo(() => {
+
+        if (!normalizedQuery) return accessResetRequests;
+
+        return accessResetRequests.filter((item) =>
+
+            `${item.id} ${item.email} ${item.status} ${item.user?.name || ""} ${item.user?.role || ""} ${item.user?.faculty || ""}`.toLowerCase().includes(normalizedQuery)
+
+        );
+
+    }, [accessResetRequests, normalizedQuery]);
+
+
 
     const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
@@ -332,6 +435,43 @@ export default function AdminDashboard() {
             navigate("/login", { replace: true });
 
             return;
+
+        }
+
+    };
+
+
+    const updateAccessResetStatus = async (requestId, status) => {
+
+        try {
+
+            const response = await fetch(apiUrl(`/admin/access-reset-requests/${requestId}`), {
+                method: "PATCH",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ status }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "access_reset_request_update_failed");
+            }
+
+            setAccessResetRequests((prev) =>
+                prev.map((item) =>
+                    item.id === requestId
+                        ? { ...item, ...data.request, user: item.user }
+                        : item
+                )
+            );
+
+        } catch (error) {
+
+            console.error("Access reset request update failed:", error);
+            setAccessResetError("Statusi i kerkeses nuk u perditesua.");
 
         }
 
@@ -638,6 +778,125 @@ export default function AdminDashboard() {
     );
 
 
+    const renderAccessResetRequests = () => (
+
+        <section className="admin-page-card admin-stats-only-card">
+
+            <div className="admin-page-head">
+
+                <div>
+
+                    <h3>Rivendosja e qasjes</h3>
+
+                    <p>Kerkesat e ardhura per rivendosje qasjeje trajtohen manualisht nga administratori ose IT.</p>
+
+                </div>
+
+                <div className="admin-page-figure">{filteredAccessResetRequests.length} kerkesa</div>
+
+            </div>
+
+            {accessResetError ? <p className="admin-inline-error" role="alert">{accessResetError}</p> : null}
+
+            {isAccessResetLoading ? (
+
+                <p className="admin-empty">Duke ngarkuar kerkesat...</p>
+
+            ) : (
+
+                <div className="admin-table-wrap">
+
+                    <table className="admin-table admin-table-with-badges">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Email</th>
+
+                                <th>Perdoruesi</th>
+
+                                <th>Roli</th>
+
+                                <th>Data</th>
+
+                                <th>Statusi</th>
+
+                                <th>Veprimet</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {filteredAccessResetRequests.map((item) => (
+
+                                <tr key={item.id}>
+
+                                    <td>{item.email}</td>
+
+                                    <td>{item.user?.name || "-"}</td>
+
+                                    <td>{item.user?.role || "-"}</td>
+
+                                    <td>{formatAccessResetDate(item.requestedAt)}</td>
+
+                                    <td>
+
+                                        <span className={accessResetStatusClasses[item.status] || "admin-chip admin-chip--neutral"}>
+
+                                            {accessResetStatusLabels[item.status] || item.status}
+
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <div className="admin-actions-row">
+
+                                            <button
+                                                type="button"
+                                                className="admin-small-btn"
+                                                onClick={() => updateAccessResetStatus(item.id, "in_progress")}
+                                                disabled={item.status === "in_progress" || item.status === "completed"}
+                                            >
+                                                Ne trajtim
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                className="admin-small-btn"
+                                                onClick={() => updateAccessResetStatus(item.id, "completed")}
+                                                disabled={item.status === "completed"}
+                                            >
+                                                Perfunduar
+                                            </button>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            ))}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            )}
+
+            {!isAccessResetLoading && filteredAccessResetRequests.length === 0 ? <p className="admin-empty">Nuk ka kerkesa per rivendosje qasjeje.</p> : null}
+
+        </section>
+
+    );
+
+
 
     const renderBackupSection = () => <BackupSection />;
 
@@ -654,6 +913,15 @@ export default function AdminDashboard() {
         resultCount = rolesData.length;
 
         content = renderRolesSection();
+
+    }
+
+
+    if (activePage === "Rivendosja e qasjes") {
+
+        resultCount = filteredAccessResetRequests.length;
+
+        content = renderAccessResetRequests();
 
     }
 

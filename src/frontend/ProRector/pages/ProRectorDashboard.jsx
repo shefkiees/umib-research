@@ -485,8 +485,8 @@ export default function ProRectorDashboard() {
               </div>
               <div className="prorector-settings-list">
                 <p className="prorector-settings-subtext">Menaxho sigurinë e llogarisë tuaj dhe qasjen ne sistem.</p>
-                <button className="prorector-settings-action-btn">
-                  Ndrysho fjalëkalimin
+                <button className="prorector-settings-action-btn" onClick={() => navigate("/auth/reset-password")}>
+                  Rivendosja e qasjes
                 </button>
                 <button className="prorector-settings-action-btn danger">
                   Çaktivizo llogarinë

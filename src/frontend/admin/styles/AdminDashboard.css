@@ -773,6 +773,15 @@
     font-size: 1rem;
 }
 
+.admin-inline-error {
+    margin: 0 24px 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fff1f1;
+    color: #b91c1c;
+    font-weight: 700;
+}
+
 /* Responsive */
 @media (max-width: 1120px) {
     .admin-layout {

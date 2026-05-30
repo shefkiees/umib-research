@@ -159,6 +159,22 @@
   font-weight: 700;
 }
 
+.forgot-access-btn {
+  margin-top: 18px;
+  border: none;
+  background: transparent;
+  color: var(--rks-blue);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.forgot-access-btn:hover {
+  color: #0b4f91;
+}
+
 /* Footer */
 .footer-text {
   margin-top: 30px;

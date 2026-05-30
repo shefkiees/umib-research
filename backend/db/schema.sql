@@ -43,6 +43,46 @@ create index if not exists users_orcid_id_idx
   on users (orcid_id)
   where orcid_id is not null;
 
+create table if not exists access_reset_requests (
+  id bigserial primary key,
+  user_id uuid references users(id) on delete set null,
+  requested_email text not null,
+  status text not null default 'pending'
+    check (status in ('pending', 'in_progress', 'completed', 'rejected')),
+  requester_ip text,
+  user_agent text,
+  handled_by uuid references users(id) on delete set null,
+  handled_at timestamptz,
+  notes text,
+  requested_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table access_reset_requests add column if not exists user_id uuid references users(id) on delete set null;
+alter table access_reset_requests add column if not exists requested_email text;
+alter table access_reset_requests add column if not exists status text not null default 'pending';
+alter table access_reset_requests add column if not exists requester_ip text;
+alter table access_reset_requests add column if not exists user_agent text;
+alter table access_reset_requests add column if not exists handled_by uuid references users(id) on delete set null;
+alter table access_reset_requests add column if not exists handled_at timestamptz;
+alter table access_reset_requests add column if not exists notes text;
+alter table access_reset_requests add column if not exists requested_at timestamptz not null default now();
+alter table access_reset_requests add column if not exists updated_at timestamptz not null default now();
+alter table access_reset_requests drop constraint if exists access_reset_requests_status_check;
+alter table access_reset_requests add constraint access_reset_requests_status_check
+check (status in ('pending', 'in_progress', 'completed', 'rejected'));
+
+create index if not exists access_reset_requests_status_idx
+on access_reset_requests (status, requested_at desc);
+
+create index if not exists access_reset_requests_user_id_idx
+on access_reset_requests (user_id);
+
+drop trigger if exists access_reset_requests_set_updated_at on access_reset_requests;
+create trigger access_reset_requests_set_updated_at
+before update on access_reset_requests
+for each row execute function set_updated_at();
+
 create table if not exists app_sessions (
   sid text primary key,
   data jsonb not null,
