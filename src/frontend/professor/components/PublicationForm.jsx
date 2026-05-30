@@ -4,10 +4,10 @@ import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export const PUBLICATION_TYPES = [
-  { value: "", label: "Select type" },
-  { value: "journal_article", label: "Journal Article" },
-  { value: "conference_paper", label: "Conference Paper" },
-  { value: "book", label: "Book / Chapter" },
+  { value: "", labelKey: "professor.dashboard.publicationForm.selectType" },
+  { value: "journal_article", labelKey: "professor.dashboard.publicationForm.journalArticle" },
+  { value: "conference_paper", labelKey: "professor.dashboard.publicationForm.conferencePaper" },
+  { value: "book", labelKey: "professor.dashboard.publicationForm.book" },
 ];
 
 const PROFESSOR_STATUS_OPTIONS = [
@@ -327,7 +327,7 @@ const PublicationForm = ({
     const doi = doiLookupValue.trim() || value.doi.trim();
 
     if (!doi) {
-      setDoiError("Shënoni DOI për t'i marrë metadatat, ose vazhdoni manualisht.");
+      setDoiError(t("professor.dashboard.publicationForm.doiRequired"));
       return;
     }
 
@@ -339,7 +339,7 @@ const PublicationForm = ({
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.data) {
-        throw new Error(result.message || "Metadatat për DOI nuk mund të ngarkohen. Mund të vazhdoni manualisht.");
+        throw new Error(result.message || t("professor.dashboard.publicationForm.doiLoadFailed"));
       }
 
       onChange({
@@ -349,7 +349,7 @@ const PublicationForm = ({
       });
       setDoiLookupValue(result.data.doi || doi);
     } catch (error) {
-      setDoiError(error.message || "Kërkimi i DOI dështoi. Mund të vazhdoni manualisht.");
+      setDoiError(error.message || t("professor.dashboard.publicationForm.doiLookupFailed"));
       onChange({ ...value, doi, metadataSource: "manual", metadataVerified: false });
     } finally {
       setIsLookingUpDoi(false);
@@ -361,7 +361,7 @@ const PublicationForm = ({
     const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
 
     if (!validAuthors.length) {
-      setFormError("Shto se paku një autor me emër të plotë.");
+      setFormError(t("professor.dashboard.publicationForm.authorRequired"));
       return;
     }
 
@@ -381,12 +381,12 @@ const PublicationForm = ({
             value={doiLookupValue}
             onChange={(event) => setDoiLookupValue(event.target.value)}
             placeholder="10.xxxx/xxxxx"
-            aria-label="DOI për kërkim automatik"
+            aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
             disabled={isLookingUpDoi || submitting}
           />
           <button type="button" className="prof-btn-secondary" onClick={lookupDoi} disabled={isLookingUpDoi || submitting}>
             <Search size={15} />
-            {isLookingUpDoi ? t("common.loading") : "Merr metadata"}
+            {isLookingUpDoi ? t("common.loading") : t("professor.dashboard.publicationForm.getMetadata")}
           </button>
         </div>
       </div>
@@ -395,46 +395,46 @@ const PublicationForm = ({
 
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
-          <span>Titulli i publikimit</span>
+          <span>{t("professor.dashboard.publicationForm.title")}</span>
           <input value={value.title} onChange={updateField("title")} required readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Tipi i publikimit</span>
+          <span>{t("professor.dashboard.publicationForm.publicationType")}</span>
           <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isDoiImported}>
-            {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+            {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
           </select>
         </label>
         <label className="prof-form-field">
-          <span>Burimi i publikimit</span>
+          <span>{t("professor.dashboard.publicationForm.venue")}</span>
           <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Shtëpia botuese</span>
+          <span>{t("professor.dashboard.publicationForm.publisher")}</span>
           <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
-          <span>Publikuar më</span>
+          <span>{t("professor.dashboard.publicationForm.publishedAt")}</span>
           <input
             value={publishedValue}
             onChange={updatePublishedField}
-            placeholder="xx-xx-YYYY ose DD-MM-YYYY"
+            placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
             readOnly={isDoiImported}
           />
         </label>
         {showVolumeField ? (
           <label className="prof-form-field">
-            <span>Vëllimi</span>
+            <span>{t("professor.dashboard.publicationForm.volume")}</span>
             <input value={value.volume} onChange={updateField("volume")} readOnly={isDoiImported} />
           </label>
         ) : null}
         {showIssueField ? (
           <label className="prof-form-field">
-            <span>Numri i artikullit</span>
+            <span>{t("professor.dashboard.publicationForm.issue")}</span>
             <input value={value.issue} onChange={updateField("issue")} readOnly={isDoiImported} />
           </label>
         ) : null}
         <label className="prof-form-field">
-          <span>Faqet</span>
+          <span>{t("professor.dashboard.publicationForm.pages")}</span>
           <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
         </label>
         {showIdentifierField ? (
@@ -464,7 +464,7 @@ const PublicationForm = ({
         ) : null}
         {showAbstractField ? (
           <label className="prof-form-field reimbursement-wide publication-abstract-field">
-            <span>Abstrakti</span>
+            <span>{t("professor.dashboard.publicationForm.abstract")}</span>
             <textarea value={value.abstract} onChange={updateField("abstract")} rows={abstractRows} readOnly={isDoiImported} />
             {isAbstractExpandable ? (
               <button
@@ -472,7 +472,7 @@ const PublicationForm = ({
                 className="publication-abstract-toggle"
                 onClick={() => setIsAbstractExpanded((expanded) => !expanded)}
               >
-                {isAbstractExpanded ? "Shfaq më pak" : "Lexo më shumë"}
+                {isAbstractExpanded ? t("professor.dashboard.publicationForm.showLess") : t("professor.dashboard.publicationForm.readMore")}
               </button>
             ) : null}
           </label>
@@ -482,17 +482,17 @@ const PublicationForm = ({
       <div className="publication-form-section">
         <div className="publication-form-section-header">
           <div>
-            <h4>Autorët dhe Bashkautorët</h4>
-            <p>Shto autorët që kanë kontribuar në këtë publikim shkencor.</p>
+            <h4>{t("professor.dashboard.publicationForm.authorsTitle")}</h4>
+            <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-list ${isDoiImported ? "publication-authors-list--readonly" : ""}`} role="group" aria-label="Lista e autorëve">
+        <div className={`publication-authors-list ${isDoiImported ? "publication-authors-list--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
           <label className="publication-author-field">
-            <span>Autori</span>
+            <span>{t("professor.dashboard.publicationForm.author")}</span>
             <input
               value={primaryAuthor.fullName}
               onChange={(event) => setPrimaryAuthorName(event.target.value)}
-              placeholder="Emri i plotë"
+              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
               required
               readOnly={isDoiImported}
             />
@@ -500,11 +500,11 @@ const PublicationForm = ({
 
           <div className="publication-coauthors-block">
             <div className="publication-coauthors-header">
-              <span>Bashkautorët</span>
+              <span>{t("professor.dashboard.publicationForm.coauthors")}</span>
               {!isDoiImported ? (
                 <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
                   <Plus size={14} aria-hidden="true" />
-                  Shto bashkautor
+                  {t("professor.dashboard.publicationForm.addCoauthor")}
                 </button>
               ) : null}
             </div>
@@ -519,7 +519,7 @@ const PublicationForm = ({
                       <input
                         value={author.fullName}
                         onChange={(event) => setAuthorField(authorIndex, "fullName", event.target.value)}
-                        placeholder="Emri i plotë"
+                        placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
                         readOnly={isDoiImported}
                       />
                       {!isDoiImported ? (
@@ -527,10 +527,10 @@ const PublicationForm = ({
                           type="button"
                           className="publication-remove-button"
                           onClick={() => removeAuthor(authorIndex)}
-                          aria-label={`Largo bashkautorin ${index + 1}`}
+                          aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index: index + 1 })}
                         >
                           <Trash2 size={14} aria-hidden="true" />
-                          <span>Largo</span>
+                          <span>{t("professor.dashboard.publicationForm.remove")}</span>
                         </button>
                       ) : null}
                     </div>
@@ -538,7 +538,7 @@ const PublicationForm = ({
                 })}
               </div>
             ) : (
-              <p className="publication-empty-coauthors">Nuk ka bashkautorë të shtuar.</p>
+              <p className="publication-empty-coauthors">{t("professor.dashboard.publicationForm.noCoauthors")}</p>
             )}
           </div>
         </div>
@@ -548,7 +548,7 @@ const PublicationForm = ({
       <div className="prof-modal-actions">
         {onCancel ? <button type="button" className="prof-btn-secondary" onClick={onCancel} disabled={submitting}>{t("common.cancel")}</button> : null}
         <button type="submit" className="prof-btn-primary" disabled={submitting}>
-          {submitting ? t("common.loading") : submitLabel || (mode === "edit" ? "Ruaj ndryshimet" : "Ruaj publikimin")}
+          {submitting ? t("common.loading") : submitLabel || (mode === "edit" ? t("professor.dashboard.saveChanges") : t("professor.dashboard.savePublication"))}
         </button>
       </div>
     </form>

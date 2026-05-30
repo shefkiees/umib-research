@@ -45,9 +45,9 @@ import "../styles/ProfessorDashboard.css";
 const AUTO_DISMISS_PUBLICATION_ERROR_MS = 3200;
 
 const PUBLICATION_ERROR_MESSAGES = {
-  duplicate_publication: "Publikimi është regjistruar më parë në arkivën tuaj.",
-  "Ky publikim ekziston tashme ne listen tuaj.": "Publikimi është regjistruar më parë në arkivën tuaj.",
-  "Ky publikim ekziston tashmë në listën tuaj.": "Publikimi është regjistruar më parë në arkivën tuaj.",
+  duplicate_publication: "professor.dashboard.duplicatePublication",
+  "Ky publikim ekziston tashme ne listen tuaj.": "professor.dashboard.duplicatePublication",
+  "Ky publikim ekziston tashmë në listën tuaj.": "professor.dashboard.duplicatePublication",
 };
 
 const pickFirstText = (...values) =>
@@ -649,7 +649,7 @@ export default function ProfessorDashboard() {
       const mappedMessage = PUBLICATION_ERROR_MESSAGES[normalizedMessage];
 
       if (mappedMessage) {
-        return mappedMessage;
+        return t(mappedMessage);
       }
 
       const looksLikeTranslationKey = /^[a-z][\w-]*(\.[\w-]+)+$/i.test(normalizedMessage);
@@ -1004,14 +1004,14 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "Publikimi nuk u ruajt.");
+        throw new Error(data.message || t("professor.dashboard.publicationSaveError"));
       }
 
       resetManualPublicationDraft();
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
     } catch (error) {
-      setPublicationsError(error.message || "Publikimi nuk u ruajt.");
+      setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
       setPublicationActionId("");
     }
@@ -1033,20 +1033,20 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "Publikimi nuk u ruajt.");
+        throw new Error(data.message || t("professor.dashboard.publicationSaveError"));
       }
 
       cancelPublicationEdit();
       await loadPublications({ page: publicationsPage, query: searchQuery });
     } catch (error) {
-      setPublicationsError(error.message || "Publikimi nuk u ruajt.");
+      setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
       setPublicationActionId("");
     }
   };
 
   const deletePublication = async (id) => {
-    const confirmed = window.confirm("A jeni te sigurt qe doni ta fshini kete publikim?");
+    const confirmed = window.confirm(t("professor.dashboard.confirmDeletePublication"));
 
     if (!confirmed) {
       return;
@@ -1063,7 +1063,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "Publikimi nuk u fshi.");
+        throw new Error(data.message || t("professor.dashboard.publicationDeleteError"));
       }
 
       if (editingPublicationId === id) {
@@ -1072,7 +1072,7 @@ export default function ProfessorDashboard() {
 
       await loadPublications({ page: publicationsPage, query: searchQuery });
     } catch (error) {
-      setPublicationsError(error.message || "Publikimi nuk u fshi.");
+      setPublicationsError(error.message || t("professor.dashboard.publicationDeleteError"));
     } finally {
       setPublicationActionId("");
     }
@@ -1382,7 +1382,7 @@ export default function ProfessorDashboard() {
       .filter(Boolean);
 
     if (!names.length) {
-      return "Pa autorë të regjistruar";
+      return t("professor.dashboard.noAuthorsRegistered");
     }
 
     if (names.length <= 2) {
@@ -1403,7 +1403,7 @@ export default function ProfessorDashboard() {
             disabled={publicationActionId === row.id}
             aria-label={t("common.save")}
           >
-            <Save size={15} /> Ruaj
+            <Save size={15} /> {t("common.save")}
           </button>
           <button
             type="button"
@@ -1412,7 +1412,7 @@ export default function ProfessorDashboard() {
             disabled={publicationActionId === row.id}
             aria-label={t("professor.dashboard.cancelEdit")}
           >
-            <X size={15} /> Anulo
+            <X size={15} /> {t("common.cancel")}
           </button>
         </div>
       );
@@ -1426,7 +1426,7 @@ export default function ProfessorDashboard() {
           onClick={() => startPublicationEdit(row)}
           aria-label={t("common.edit")}
         >
-          <Pencil size={15} /> Edito
+          <Pencil size={15} /> {t("common.edit")}
         </button>
         <button
           type="button"
@@ -1435,7 +1435,7 @@ export default function ProfessorDashboard() {
           disabled={publicationActionId === row.id}
           aria-label={t("common.delete")}
         >
-          <Trash2 size={15} /> Fshij
+          <Trash2 size={15} /> {t("common.delete")}
         </button>
       </div>
     );
@@ -1445,7 +1445,7 @@ export default function ProfessorDashboard() {
     <article className="prof-card publication-registry-card">
       <div className="prof-card-header publication-registry-header">
         <div>
-          <h3>Publikimet</h3>
+          <h3>{t("professor.dashboard.publicationRegistryTitle")}</h3>
         </div>
       </div>
 
@@ -1459,11 +1459,11 @@ export default function ProfessorDashboard() {
           {t("common.loading")}
         </div>
       ) : filteredPublications.length ? (
-        <div className="publication-table" role="table" aria-label="Publikimet">
+        <div className="publication-table" role="table" aria-label={t("professor.dashboard.publicationRegistryTitle")}>
           <div className="publication-table-head" role="row">
-            <span>Publikimi</span>
-            <span>Autorët</span>
-            <span>Viti</span>
+            <span>{t("professor.dashboard.publicationColumn")}</span>
+            <span>{t("professor.dashboard.authorsColumn")}</span>
+            <span>{t("professor.dashboard.yearColumn")}</span>
           </div>
           {filteredPublications.map((row) => (
             <div
@@ -1476,12 +1476,12 @@ export default function ProfessorDashboard() {
                 <h4>{renderPublicationTitle(row)}</h4>
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">Autorët</span>
+                <span className="publication-mobile-label">{t("professor.dashboard.authorsColumn")}</span>
                 {formatPublicationAuthors(row.authors)}
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">Viti</span>
-                {row.year || "Pa vit"}
+                <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
+                {row.year || t("professor.dashboard.noYear")}
               </div>
             </div>
           ))}
@@ -1531,7 +1531,7 @@ export default function ProfessorDashboard() {
             <article className="prof-card publication-form-card">
               <div className="prof-card-header">
                 <div>
-                  <h3>Shtoni publikimin tuaj</h3>
+                  <h3>{t("professor.dashboard.addPublicationTitle")}</h3>
                 </div>
               </div>
 
@@ -1539,7 +1539,7 @@ export default function ProfessorDashboard() {
                 value={manualPublicationDraft}
                 onChange={setManualPublicationDraft}
                 onSubmit={saveManualPublication}
-                submitLabel="Ruaj publikimin"
+                submitLabel={t("professor.dashboard.savePublication")}
                 submitting={publicationActionId === "manual"}
                 canReview={canReviewPublications}
                 currentUserAuthor={{
@@ -1554,8 +1554,8 @@ export default function ProfessorDashboard() {
               <article className="prof-card publication-form-card" id="publication-edit-form">
                 <div className="prof-card-header">
                   <div>
-                    <h3>Edito publikimin</h3>
-                    <p>Përditësoni metadatat dhe autorët e publikimit të zgjedhur.</p>
+                    <h3>{t("professor.dashboard.editPublicationTitle")}</h3>
+                    <p>{t("professor.dashboard.editPublicationDescription")}</p>
                   </div>
                 </div>
                 <PublicationForm
@@ -1563,7 +1563,7 @@ export default function ProfessorDashboard() {
                   onChange={setPublicationDraft}
                   onSubmit={() => savePublicationEdit(editingPublicationId)}
                   onCancel={cancelPublicationEdit}
-                  submitLabel="Ruaj ndryshimet"
+                  submitLabel={t("professor.dashboard.saveChanges")}
                   submitting={publicationActionId === editingPublicationId}
                   mode="edit"
                   canReview={canReviewPublications}
