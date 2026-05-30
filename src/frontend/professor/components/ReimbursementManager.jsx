@@ -271,6 +271,34 @@ function pickOrcidTitle(items = []) {
     .find(Boolean) || "";
 }
 
+function stripMarkup(value) {
+  if (!value) return "";
+
+  return String(value)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitCoauthors(value) {
+  const text = stripMarkup(value);
+
+  if (!text) {
+    return [];
+  }
+
+  const separator = text.includes(";") ? /;/ : /\r?\n|,/;
+
+  return text
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function resolveProfile(contextProfile, profile) {
   const orcidEducations = Array.isArray(contextProfile?.orcidEducations)
     ? contextProfile.orcidEducations
@@ -1496,6 +1524,37 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     ].filter(Boolean).join(" ");
     const fieldError = fieldErrors[field];
     const displayLabel = selectedType === "publication" ? (PUBLICATION_LABELS[field] || label) : label;
+
+    if (selectedType === "publication" && field === "mainAuthor") {
+      const author = stripMarkup(form.mainAuthor);
+
+      return (
+        <div className={`${className} reimbursement-author-field`}>
+          <span>{tx(displayLabel)}</span>
+          <div className="reimbursement-main-author">
+            <strong>{author || t("common.noData")}</strong>
+            <small>Autori kryesor</small>
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
+
+    if (selectedType === "publication" && field === "coauthors") {
+      const coauthors = splitCoauthors(form.coauthors);
+
+      return (
+        <div className={`${className} reimbursement-coauthors-field`}>
+          <span>{tx(displayLabel)}</span>
+          <div className="reimbursement-coauthor-list">
+            {coauthors.length ? coauthors.map((author) => (
+              <span className="reimbursement-coauthor-chip" key={author}>{author}</span>
+            )) : <span className="reimbursement-muted-value">{t("common.noData")}</span>}
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
 
     if (selectedType === "publication" && field === "abstract") {
       const abstractText = String(form.abstract || "").trim();

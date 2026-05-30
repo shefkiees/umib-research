@@ -2138,6 +2138,67 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-author-field,
+.reimbursement-coauthors-field {
+  gap: 6px;
+}
+
+.reimbursement-main-author {
+  min-height: 48px;
+  border: 1px solid #bfe8cd;
+  border-radius: 10px;
+  background: #f0fdf5;
+  color: #14532d;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.reimbursement-main-author strong {
+  color: #14532d;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.reimbursement-main-author small {
+  color: #167244;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.reimbursement-coauthor-list {
+  min-height: 44px;
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  background: #f9fbfe;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.reimbursement-coauthor-chip {
+  max-width: 100%;
+  border: 1px solid #cfe0f3;
+  border-radius: 999px;
+  background: #eef7ff;
+  color: #1d4d7d;
+  font-size: 0.73rem;
+  font-weight: 850;
+  line-height: 1.25;
+  padding: 5px 9px;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-muted-value {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .reimbursement-abstract-field {
   gap: 6px;
 }
