@@ -12,8 +12,6 @@ import {
 
   Plug,
 
-  Server,
-
 } from "lucide-react"; 
 
 import umibLogo from "../../../assets/umiblogo.jpg";
@@ -33,8 +31,6 @@ const mainItems = [
   { label: "Statistikat", route: "Statistikat", icon: BarChart3 }, 
 
   { label: "Integrimet", route: "Integrimet", icon: Plug }, 
-
-  { label: "Gjendja e sistemit", route: "Gjendja e sistemit", icon: Server }, 
 
 ]; 
 
