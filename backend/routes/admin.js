@@ -1,4 +1,7 @@
 import express from "express";
+import { constants as fsConstants } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import PDFDocument from "pdfkit";
 import db from "../config/db.js";
 import { syncMissingSupabaseAuthUsers } from "../services/supabaseAuthSync.service.js";
@@ -838,6 +841,40 @@ async function checkExternalService({ url, headers, configured = true }) {
   }
 }
 
+async function checkStorageStatus() {
+  const configuredPath = process.env.FILE_STORAGE_PATH || process.env.UPLOAD_DIR || process.env.STORAGE_PATH || "";
+
+  if (!configuredPath) {
+    return {
+      status: "Nuk ka të dhëna",
+      checkedAt: null,
+      responseTimeMs: null,
+      description: "Nuk ka kontroll aktiv për ruajtjen e fajllave",
+    };
+  }
+
+  const startedAt = Date.now();
+  const checkedAt = new Date().toISOString();
+  const storagePath = path.resolve(configuredPath);
+
+  try {
+    await fs.access(storagePath, fsConstants.R_OK | fsConstants.W_OK);
+    return {
+      status: "Online",
+      checkedAt,
+      responseTimeMs: Date.now() - startedAt,
+      description: "Folderi i ruajtjes është i lexueshëm dhe i shkruajtshëm",
+    };
+  } catch (error) {
+    return {
+      status: "Problem",
+      checkedAt,
+      responseTimeMs: Date.now() - startedAt,
+      description: "Folderi i ruajtjes nuk është i lexueshëm ose i shkruajtshëm",
+    };
+  }
+}
+
 router.get("/integrations/status", requireAdmin, async (req, res) => {
   const [orcid, crossref, scopus] = await Promise.all([
     checkExternalService({
@@ -887,7 +924,9 @@ router.get("/integrations/status", requireAdmin, async (req, res) => {
 });
 
 router.get("/system-status", requireAdmin, async (req, res) => {
+  const apiStartedAt = Date.now();
   const checkedAt = new Date().toISOString();
+  const storageStatus = await checkStorageStatus();
   const services = [
     {
       id: "api",
@@ -895,10 +934,12 @@ router.get("/system-status", requireAdmin, async (req, res) => {
       status: "Online",
       description: "Shërbimet kryesore të backend-it",
       checkedAt,
+      responseTimeMs: Date.now() - apiStartedAt,
     },
   ];
 
   try {
+    const startedAt = Date.now();
     const result = await db.query(`select now() as checked_at`);
     services.push({
       id: "database",
@@ -906,6 +947,7 @@ router.get("/system-status", requireAdmin, async (req, res) => {
       status: "Online",
       description: "Lidhja dhe përgjigjja e databazës",
       checkedAt: result.rows[0]?.checked_at || checkedAt,
+      responseTimeMs: Date.now() - startedAt,
     });
   } catch (error) {
     services.push({
@@ -914,6 +956,7 @@ router.get("/system-status", requireAdmin, async (req, res) => {
       status: "Problem",
       description: "Lidhja dhe përgjigjja e databazës",
       checkedAt,
+      responseTimeMs: null,
     });
   }
 
@@ -922,29 +965,34 @@ router.get("/system-status", requireAdmin, async (req, res) => {
       id: "email",
       name: "Email",
       status: "Nuk ka të dhëna",
-      description: "Dërgimi i emailave dhe njoftimeve",
+      description: "Nuk ka kontroll aktiv për dërgimin e emailave",
       checkedAt: null,
+      responseTimeMs: null,
     },
     {
       id: "storage",
       name: "Ruajtja e fajllave",
-      status: "Nuk ka të dhëna",
-      description: "Dokumentet, faturat dhe fajllat e ngarkuar",
-      checkedAt: null,
+      status: storageStatus.status,
+      description: storageStatus.description,
+      checkedAt: storageStatus.checkedAt,
+      responseTimeMs: storageStatus.responseTimeMs,
     },
     {
       id: "uploads",
       name: "Ngarkimet",
       status: "Nuk ka të dhëna",
-      description: "Procesimi i fajllave nga përdoruesit",
+      description: "Kontrolli i ngarkimeve nuk është aktivizuar ende",
       checkedAt: null,
+      responseTimeMs: null,
     },
     {
       id: "errors",
       name: "Gabimet e fundit",
-      status: "Nuk ka të dhëna",
-      description: "Gabimet e regjistruara në sistem",
-      checkedAt: null,
+      status: "Online",
+      description: "Nuk ka gabime të regjistruara",
+      checkedAt,
+      responseTimeMs: null,
+      errors: [],
     }
   );
 

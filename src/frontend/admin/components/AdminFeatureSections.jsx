@@ -209,16 +209,31 @@ function ChartCard({ title, children }) {
 }
 
 function StatusBadge({ status }) {
-  const normalized = status === "Aktiv" || status === "Online" ? "ok" : status === "Problem" ? "problem" : "empty";
+  const normalized =
+    status === "Aktiv" || status === "Online"
+      ? "ok"
+      : status === "Problem"
+        ? "problem"
+        : status === "Paralajmërim"
+          ? "warning"
+          : "empty";
   return <span className={`admin-status-badge admin-status-badge--${normalized}`}>{status || "Nuk ka të dhëna"}</span>;
 }
 
-function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
+function getOverallSystemStatus(items) {
+  if (items.some((item) => item.status === "Problem")) return "Ka probleme teknike";
+  if (items.some((item) => item.status === "Nuk ka të dhëna" || item.status === "Paralajmërim")) return "Ka shërbime pa të dhëna";
+  return "Sistemi është stabil";
+}
+
+function StatusGridSection({ title, description, path, itemsKey, emptyText, showOverall = false, canRefresh = false }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    requestJson(path)
+  const load = () => {
+    setIsLoading(true);
+    return requestJson(path)
       .then((payload) => {
         setItems(Array.isArray(payload[itemsKey]) ? payload[itemsKey] : []);
         setError("");
@@ -226,8 +241,17 @@ function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
       .catch((err) => {
         setItems([]);
         setError(err.message || "Të dhënat nuk u ngarkuan.");
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
+  };
+
+  useEffect(() => {
+    load();
   }, [itemsKey, path]);
+
+  const overallStatus = getOverallSystemStatus(items);
 
   return (
     <section className="admin-page-card admin-feature-section">
@@ -236,8 +260,19 @@ function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
+        {canRefresh ? (
+          <button type="button" className="admin-roles-config-button" onClick={load} disabled={isLoading}>
+            {isLoading ? "Duke rifreskuar..." : "Rifresko kontrollin"}
+          </button>
+        ) : null}
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
+      {showOverall ? (
+        <div className="admin-system-overview">
+          <span>Statusi i përgjithshëm</span>
+          <strong>{isLoading ? "Duke kontrolluar..." : overallStatus}</strong>
+        </div>
+      ) : null}
       <div className="admin-status-grid">
         {items.map((item) => (
           <article className="admin-status-card" key={item.id || item.name}>
@@ -247,6 +282,18 @@ function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
             </div>
             <p>{item.description}</p>
             <small>Kontrolli i fundit: {item.checkedAt ? formatDateTime(item.checkedAt) : "Nuk ka të dhëna"}</small>
+            <small>Koha e përgjigjes: {Number.isFinite(item.responseTimeMs) ? `${item.responseTimeMs} ms` : "Nuk ka të dhëna"}</small>
+            {Array.isArray(item.errors) && item.errors.length ? (
+              <div className="admin-status-errors">
+                {item.errors.slice(0, 5).map((entry, index) => (
+                  <div key={`${entry.message || "gabim"}-${index}`}>
+                    <span>{entry.createdAt ? formatDateTime(entry.createdAt) : "-"}</span>
+                    <strong>{entry.message || "Gabim i panjohur"}</strong>
+                    <small>{entry.endpoint || "-"}</small>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </article>
         ))}
       </div>
@@ -275,6 +322,8 @@ export function AdminSystemStatusSection() {
       path="/admin/system-status"
       itemsKey="services"
       emptyText="Nuk ka të dhëna për gjendjen e sistemit."
+      showOverall
+      canRefresh
     />
   );
 }
