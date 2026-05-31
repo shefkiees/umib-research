@@ -307,6 +307,7 @@ const getAuditPersonLabel = (person) => {
 
 const getAuditTargetLabel = (item) => {
     if (!item) return "-";
+    if (String(item.action || "").startsWith("admin.access.")) return "-";
     return item.target?.name || item.target?.email || item.entityId || "-";
 };
 
@@ -1193,8 +1194,10 @@ export default function AdminDashboard() {
                                     </td>
                                     <td>{item.actionLabel || item.action}</td>
                                     <td>
-                                        <strong className="admin-audit-primary">{item.target?.name || item.target?.email || "-"}</strong>
-                                        <span className="admin-audit-muted">{item.target?.email || item.entityId || "-"}</span>
+                                        <strong className="admin-audit-primary">{getAuditTargetLabel(item)}</strong>
+                                        {!String(item.action || "").startsWith("admin.access.") ? (
+                                            <span className="admin-audit-muted">{item.target?.email || item.entityId || "-"}</span>
+                                        ) : null}
                                     </td>
                                     <td>{item.oldValue || "-"}</td>
                                     <td>{item.newValue || "-"}</td>

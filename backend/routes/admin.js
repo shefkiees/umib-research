@@ -55,13 +55,14 @@ function mapAuditLog(row) {
   const actor = metadata.actor || {};
   const target = metadata.target || {};
   const isFailedAccess = row.action === "admin.access.unauthenticated" || row.action === "admin.access.forbidden";
+  const cleanEntityId = isFailedAccess ? String(row.entity_id || "").split("?")[0] : row.entity_id || "";
 
   return {
     id: row.id,
     action: row.action,
     actionLabel: AUDIT_ACTION_LABELS[row.action] || row.action,
     entityType: row.entity_type || "",
-    entityId: row.entity_id || "",
+    entityId: cleanEntityId,
     oldValue: isFailedAccess ? "" : metadata.oldValue ?? metadata.previousRole ?? metadata.previousStatus ?? metadata.previousValue ?? "",
     newValue: isFailedAccess ? "" : metadata.newValue ?? metadata.role ?? metadata.status ?? metadata.value ?? "",
     status: metadata.auditStatus || (isFailedAccess ? "failed" : "success"),
@@ -74,12 +75,16 @@ function mapAuditLog(row) {
       name: row.actor_name || actor.name || row.actor_email || actor.email || "",
     },
     target: {
-      id: target.id || row.entity_id || "",
+      id: target.id || cleanEntityId,
       email: target.email || metadata.email || "",
       name: target.name || metadata.name || target.email || metadata.email || "",
       type: row.entity_type || "",
     },
   };
+}
+
+function getAuditRoutePath(req) {
+  return `${req.baseUrl || ""}${req.path || ""}` || String(req.originalUrl || "").split("?")[0];
 }
 
 function mapJournal(row) {
@@ -145,16 +150,18 @@ function parseCsvRows(csvText) {
 }
 
 async function requireAdmin(req, res, next) {
+  const auditPath = getAuditRoutePath(req);
+
   if (!req.isAuthenticated?.() || !req.user?.id) {
     await writeAuditLog({
       action: "admin.access.unauthenticated",
       entityType: "admin_route",
-      entityId: req.originalUrl,
+      entityId: auditPath,
       ipAddress: getRequestIp(req),
       metadata: {
         auditStatus: "failed",
         method: req.method,
-        path: req.originalUrl,
+        path: auditPath,
       },
     });
     res.status(401).json({ error: "unauthenticated" });
@@ -166,12 +173,12 @@ async function requireAdmin(req, res, next) {
       actor: req.user,
       action: "admin.access.forbidden",
       entityType: "admin_route",
-      entityId: req.originalUrl,
+      entityId: auditPath,
       ipAddress: getRequestIp(req),
       metadata: {
         auditStatus: "failed",
         method: req.method,
-        path: req.originalUrl,
+        path: auditPath,
         role: req.user.role,
       },
     });
@@ -668,7 +675,7 @@ router.get("/notifications", requireAdmin, async (req, res) => {
     const accessNotifications = accessResult.rows.map((row) => ({
       id: `audit-${row.id}`,
       title: "Tentim qasjeje pa leje",
-      message: row.metadata?.path ? `Tentim qasjeje në ${row.metadata.path}` : "U regjistrua tentim qasjeje në panelin admin.",
+      message: row.metadata?.path ? `Tentim qasjeje në ${String(row.metadata.path).split("?")[0]}` : "U regjistrua tentim qasjeje në panelin admin.",
       category: "Siguria",
       isRead: true,
       createdAt: row.created_at,
