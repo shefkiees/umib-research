@@ -1175,7 +1175,7 @@ export default function AdminDashboard() {
                                 <th>Data/Ora</th>
                                 <th>Admini</th>
                                 <th>Veprimi</th>
-                                <th>Subjekti/Përdoruesi</th>
+                                <th>Përdoruesi</th>
                                 <th>Vlera e vjetër</th>
                                 <th>Vlera e re</th>
                                 <th>Statusi</th>
