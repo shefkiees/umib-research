@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { Filter, ArrowRight, User, Settings, Link2, Bell, Users } from "lucide-react";
+import { ArrowRight, RotateCcw, User, Settings, Link2, Bell, Users } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
 
@@ -118,7 +118,7 @@ const rolesData = [
 
             "Menaxhim përdoruesish",
 
-            "Audit logs",
+            "Historiku i veprimeve",
 
         ],
 
@@ -129,7 +129,7 @@ const rolesData = [
 
 
 const auditActionOptions = [
-    { value: "", label: "Te gjitha veprimet" },
+    { value: "", label: "Të gjitha veprimet" },
     { value: "admin.auth.login", label: "Login i adminit" },
     { value: "admin.access.unauthenticated", label: "Tentim qasjeje pa login" },
     { value: "admin.access.forbidden", label: "Tentim qasjeje pa leje" },
@@ -151,7 +151,7 @@ const backupData = [
 
 
 
-const navLabels = ["Perdoruesit", "Rolet", "Rivendosja e qasjes", "Audit Logs", "Backup"];
+const navLabels = ["Perdoruesit", "Rolet", "Rivendosja e qasjes", "Historiku i veprimeve", "Backup"];
 
 const accessResetStatusLabels = {
     pending: "Ne pritje",
@@ -243,6 +243,35 @@ const formatAdminDateTime = (value) => {
     });
 };
 
+const formatAuditDateTime = (value) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return `${day}.${month}.${year}, ${hours}:${minutes}`;
+};
+
+const auditStatusLabels = {
+    success: "Sukses",
+    failed: "Dështoi",
+};
+
+const getAuditStatusClass = (status) => {
+    if (status === "success") return "admin-audit-status admin-audit-status--success";
+    if (status === "failed") return "admin-audit-status admin-audit-status--failed";
+    return "admin-audit-status";
+};
+
 
 
 export default function AdminDashboard() {
@@ -274,6 +303,8 @@ export default function AdminDashboard() {
         startDate: "",
         endDate: "",
     });
+
+    const [selectedAuditLog, setSelectedAuditLog] = useState(null);
 
     const [users, setUsers] = useState([]);
 
@@ -506,7 +537,7 @@ export default function AdminDashboard() {
 
         return auditLogs.filter((item) =>
 
-            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
+            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${item.status || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
 
         );
 
@@ -808,13 +839,13 @@ export default function AdminDashboard() {
 
                     <h3>Historiku i veprimeve</h3>
 
-                    <p>Veprimet administrative dhe tentimet e qasjes ne panelin admin</p>
+                    <p>Veprimet administrative dhe tentimet e qasjes në panelin admin</p>
 
                 </div>
 
                 <button type="button" className="admin-roles-config-button admin-filter-button" onClick={clearAuditFilters}>
 
-                    <Filter size={16} />
+                    <RotateCcw size={16} />
 
                     Pastro filtrat
 
@@ -844,7 +875,7 @@ export default function AdminDashboard() {
                     <input type="date" value={auditFilters.startDate} onChange={updateAuditFilter("startDate")} />
                 </label>
                 <label>
-                    <span>Deri me</span>
+                    <span>Deri më</span>
                     <input type="date" value={auditFilters.endDate} onChange={updateAuditFilter("endDate")} />
                 </label>
             </div>
@@ -862,15 +893,17 @@ export default function AdminDashboard() {
                                 <th>Admini</th>
                                 <th>Veprimi</th>
                                 <th>Target/User</th>
-                                <th>Vlera e vjeter</th>
+                                <th>Vlera e vjetër</th>
                                 <th>Vlera e re</th>
+                                <th>Statusi</th>
                                 <th>IP</th>
+                                <th>Detaje</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredAuditLogs.map((item) => (
                                 <tr key={item.id}>
-                                    <td className="admin-audit-date-cell">{formatAdminDateTime(item.createdAt)}</td>
+                                    <td className="admin-audit-date-cell">{formatAuditDateTime(item.createdAt)}</td>
                                     <td>
                                         <strong className="admin-audit-primary">{item.admin?.name || "-"}</strong>
                                         <span className="admin-audit-muted">{item.admin?.email || "-"}</span>
@@ -882,7 +915,21 @@ export default function AdminDashboard() {
                                     </td>
                                     <td>{item.oldValue || "-"}</td>
                                     <td>{item.newValue || "-"}</td>
+                                    <td>
+                                        {item.status ? (
+                                            <span className={getAuditStatusClass(item.status)}>
+                                                {auditStatusLabels[item.status] || item.status}
+                                            </span>
+                                        ) : "-"}
+                                    </td>
                                     <td className="admin-audit-ip-cell">{item.ipAddress || "-"}</td>
+                                    <td>
+                                        {item.details ? (
+                                            <button type="button" className="admin-small-btn" onClick={() => setSelectedAuditLog(item)}>
+                                                Shiko
+                                            </button>
+                                        ) : "-"}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -890,7 +937,40 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka audit logs per filtrat aktuale.</p> : null}
+            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka histori veprimesh per filtrat aktuale.</p> : null}
+
+            {selectedAuditLog ? (
+                <div className="admin-audit-details" role="dialog" aria-label="Detajet e audit log">
+                    <div className="admin-audit-details-head">
+                        <div>
+                            <h4>Detajet e veprimit</h4>
+                            <p>{selectedAuditLog.actionLabel || selectedAuditLog.action}</p>
+                        </div>
+                        <button type="button" className="admin-small-btn" onClick={() => setSelectedAuditLog(null)}>
+                            Mbyll
+                        </button>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>Data/Ora</dt>
+                            <dd>{formatAuditDateTime(selectedAuditLog.createdAt)}</dd>
+                        </div>
+                        <div>
+                            <dt>Admini</dt>
+                            <dd>{selectedAuditLog.admin?.email || selectedAuditLog.admin?.name || "-"}</dd>
+                        </div>
+                        <div>
+                            <dt>Target</dt>
+                            <dd>{selectedAuditLog.target?.email || selectedAuditLog.target?.name || selectedAuditLog.entityId || "-"}</dd>
+                        </div>
+                        <div>
+                            <dt>IP</dt>
+                            <dd>{selectedAuditLog.ipAddress || "-"}</dd>
+                        </div>
+                    </dl>
+                    <pre>{JSON.stringify(selectedAuditLog.details, null, 2)}</pre>
+                </div>
+            ) : null}
 
         </section>
 
@@ -1298,7 +1378,7 @@ export default function AdminDashboard() {
 
 
 
-    if (activePage === "Audit Logs") {
+    if (activePage === "Historiku i veprimeve") {
 
         resultCount = filteredAuditLogs.length;
 

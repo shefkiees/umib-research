@@ -39,6 +39,7 @@ function mapAuditLog(row) {
   const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
   const actor = metadata.actor || {};
   const target = metadata.target || {};
+  const isFailedAccess = row.action === "admin.access.unauthenticated" || row.action === "admin.access.forbidden";
 
   return {
     id: row.id,
@@ -48,7 +49,9 @@ function mapAuditLog(row) {
     entityId: row.entity_id || "",
     oldValue: metadata.oldValue ?? metadata.previousRole ?? metadata.previousStatus ?? metadata.previousValue ?? "",
     newValue: metadata.newValue ?? metadata.role ?? metadata.status ?? metadata.value ?? "",
+    status: metadata.auditStatus || (isFailedAccess ? "failed" : "success"),
     ipAddress: metadata.ipAddress || "",
+    details: metadata,
     createdAt: row.created_at,
     admin: {
       id: row.actor_id || actor.id || "",
@@ -72,6 +75,7 @@ async function requireAdmin(req, res, next) {
       entityId: req.originalUrl,
       ipAddress: getRequestIp(req),
       metadata: {
+        auditStatus: "failed",
         method: req.method,
         path: req.originalUrl,
       },
@@ -88,6 +92,7 @@ async function requireAdmin(req, res, next) {
       entityId: req.originalUrl,
       ipAddress: getRequestIp(req),
       metadata: {
+        auditStatus: "failed",
         method: req.method,
         path: req.originalUrl,
         role: req.user.role,

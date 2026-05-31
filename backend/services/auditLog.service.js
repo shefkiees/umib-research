@@ -34,6 +34,7 @@ export async function writeAuditLog({
       actor: actorSnapshot,
       oldValue: oldValue ?? metadata?.oldValue ?? null,
       newValue: newValue ?? metadata?.newValue ?? null,
+      auditStatus: metadata?.auditStatus || "success",
       ipAddress: ipAddress || metadata?.ipAddress || null,
     };
 

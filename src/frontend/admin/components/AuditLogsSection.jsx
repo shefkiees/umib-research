@@ -76,7 +76,7 @@ function AuditLogsSection() {
 
           <div> 
 
-            <h2>Audit Logs</h2> 
+            <h2>Historiku i veprimeve</h2> 
 
             <p>Aktivitetet e fundit në sistem</p> 
 

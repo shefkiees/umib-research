@@ -28,7 +28,7 @@ const mainItems = [
 
   { label: "Rivendosja e qasjes", route: "Rivendosja e qasjes", icon: KeyRound }, 
 
-  { label: "Audit Logs", route: "Audit Logs", icon: ClipboardList }, 
+  { label: "Historiku i veprimeve", route: "Historiku i veprimeve", icon: ClipboardList }, 
 
   { label: "Backup", route: "Backup", icon: Database }, 
 
