@@ -227,6 +227,7 @@ export const translations = {
     },
     topbar: {
       searchPlaceholder: "Kerko publikime, konferenca ose kerkesa...",
+      statisticsSearchPlaceholder: "Kerko statistikat sipas muajit...",
       notificationsAriaLabel: "Njoftime",
       notificationsTitle: "Njoftimet",
       unreadLabel: "pa lexuara",
@@ -680,6 +681,7 @@ export const translations = {
     },
     topbar: {
       searchPlaceholder: "Search publications, conferences, or requests...",
+      statisticsSearchPlaceholder: "Search statistics by month...",
       notificationsAriaLabel: "Notifications",
       notificationsTitle: "Notifications",
       unreadLabel: "unread",

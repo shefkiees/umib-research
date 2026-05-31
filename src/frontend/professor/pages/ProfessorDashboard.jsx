@@ -714,6 +714,9 @@ export default function ProfessorDashboard() {
     Integrime: t("navigation.integrations"),
   };
   const pageTitle = pageTitleMap[activePage] || activePage;
+  const searchPlaceholder = activePage === "Statistika"
+    ? t("topbar.statisticsSearchPlaceholder")
+    : t("topbar.searchPlaceholder");
   const getStatusLabel = useCallback((status) => tx(STATUS_LABELS[status] || status), [tx]);
   const formatUiMessage = useCallback(
     (message) => {
@@ -1956,7 +1959,7 @@ export default function ProfessorDashboard() {
           notifications={notifications}
           onMarkAllRead={markAllNotificationsAsRead}
           onNotificationAction={markNotificationAsRead}
-          searchPlaceholder={t("topbar.searchPlaceholder")}
+          searchPlaceholder={searchPlaceholder}
           notificationsAriaLabel={t("topbar.notificationsAriaLabel")}
           notificationsTitle={t("topbar.notificationsTitle")}
           unreadLabel={t("topbar.unreadLabel")}
