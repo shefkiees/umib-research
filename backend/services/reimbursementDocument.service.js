@@ -465,7 +465,6 @@ function getTemplateValues(data) {
     bankAccountNumber: templateValue(data, "bankAccountNumber") || templateValue(data, "iban"),
     swiftCode: templateValue(data, "swiftCode"),
     bankCountry: templateValue(data, "bankCountry"),
-    purpose: templateValue(data, "purpose"),
   };
 
   if (data.requestType === "conference") {

@@ -11,7 +11,6 @@ const BASE_REQUEST_DATA = {
   academicTitle: "Professor",
   amount: "1234.56",
   currency: "EUR",
-  purpose: "Smoke reimbursement purpose",
   bankApplicantName: "Smoke Applicant",
   bankName: "Raiffeisen Bank Kosovo",
   bankAccountNumber: "1503011004083061",
