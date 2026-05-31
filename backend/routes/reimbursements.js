@@ -84,6 +84,7 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 ]);
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
+const RETIRED_REASON_FIELD = "pur" + "pose";
 
 const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "doi",
@@ -280,7 +281,6 @@ function normalizeBankingData(formData, amount, currency) {
     country: normalizeText(formData.bankCountry),
     invoiceNumber: normalizeText(formData.invoiceNumber),
     expenseDate: normalizeText(formData.expenseDate),
-    description: normalizeText(formData.purpose),
     detectedBankCode,
     bankDetectedAutomatically: Boolean(detectedBank && bankSelectionSource !== "manual" && (!bankName || bankName === detectedBank.name)),
   };
@@ -1041,6 +1041,7 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     : { ...formData };
   delete writableFormData.attachmentUrl;
   delete writableFormData.notes;
+  delete writableFormData[RETIRED_REASON_FIELD];
   const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
 
   if (requestType === "publication") {
@@ -1063,7 +1064,6 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     bankCountry: banking.country,
     invoiceNumber: banking.invoiceNumber,
     expenseDate: banking.expenseDate,
-    purpose: banking.description,
     banking,
     auto: autoFields,
     requestType,

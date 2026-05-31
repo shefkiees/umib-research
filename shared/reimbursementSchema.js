@@ -36,7 +36,6 @@ export const COMMON_REQUIRED_FIELDS = [
   ["applicantFaculty", "Njesia akademike eshte obligative."],
   ["amount", "Shuma e kerkuar eshte obligative."],
   ["currency", "Valuta eshte obligative."],
-  ["purpose", "Pershkrimi/arsyeja eshte obligative."],
 ];
 
 export const BANK_REQUIRED_FIELDS = [
