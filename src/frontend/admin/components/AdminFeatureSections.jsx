@@ -24,6 +24,13 @@ const formatDate = (value) => {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
 };
 
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}, ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+};
+
 const formatEuro = (value) =>
   new Intl.NumberFormat("sq-AL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(value || 0));
 
@@ -239,7 +246,7 @@ function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
               <StatusBadge status={item.status} />
             </div>
             <p>{item.description}</p>
-            <small>Kontrolli i fundit: {item.checkedAt ? formatDate(item.checkedAt) : "Nuk ka të dhëna"}</small>
+            <small>Kontrolli i fundit: {item.checkedAt ? formatDateTime(item.checkedAt) : "Nuk ka të dhëna"}</small>
           </article>
         ))}
       </div>

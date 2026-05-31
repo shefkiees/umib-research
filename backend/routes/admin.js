@@ -811,35 +811,87 @@ router.get("/analytics", requireAdmin, async (req, res) => {
   }
 });
 
+async function checkExternalService({ url, headers, configured = true }) {
+  if (!configured) {
+    return { status: "Nuk ka të dhëna", checkedAt: null };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  const checkedAt = new Date().toISOString();
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "UMIBRes/1.0",
+        ...(headers || {}),
+      },
+      signal: controller.signal,
+    });
+
+    return { status: response.ok ? "Aktiv" : "Problem", checkedAt };
+  } catch (error) {
+    return { status: "Problem", checkedAt };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 router.get("/integrations/status", requireAdmin, async (req, res) => {
+  const [orcid, crossref, scopus, email] = await Promise.all([
+    checkExternalService({
+      url: "https://pub.orcid.org/v3.0/0000-0002-1825-0097/person",
+      headers: { Accept: "application/json" },
+    }),
+    checkExternalService({
+      url: "https://api.crossref.org/works?rows=0",
+    }),
+    checkExternalService({
+      url: "https://api.elsevier.com/content/serial/title?count=1",
+      configured: Boolean(process.env.SCOPUS_API_KEY || process.env.ELSEVIER_API_KEY),
+      headers: {
+        "X-ELS-APIKey": process.env.SCOPUS_API_KEY || process.env.ELSEVIER_API_KEY || "",
+        ...(process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN
+          ? { "X-ELS-Insttoken": process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN }
+          : {}),
+      },
+    }),
+    checkExternalService({
+      url: "https://api.resend.com/domains",
+      configured: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY || ""}` },
+    }),
+  ]);
+
   const integrations = [
     {
       id: "orcid",
       name: "ORCID",
-      status: "Nuk ka të dhëna",
+      status: orcid.status,
       description: "Importimi dhe verifikimi i profilit të hulumtuesit",
-      checkedAt: null,
+      checkedAt: orcid.checkedAt,
     },
     {
       id: "crossref",
       name: "CrossRef",
-      status: "Nuk ka të dhëna",
+      status: crossref.status,
       description: "Verifikimi i DOI dhe marrja e metadatave",
-      checkedAt: null,
+      checkedAt: crossref.checkedAt,
     },
     {
       id: "scopus-wos",
       name: "Scopus / WoS",
-      status: "Nuk ka të dhëna",
+      status: scopus.status,
       description: "Metrikat, citimet dhe klasifikimi i revistave",
-      checkedAt: null,
+      checkedAt: scopus.checkedAt,
     },
     {
       id: "email",
       name: "Microsoft 365 / Email",
-      status: "Nuk ka të dhëna",
+      status: email.status,
       description: "Dërgimi i njoftimeve dhe komunikimi institucional",
-      checkedAt: null,
+      checkedAt: email.checkedAt,
     },
   ];
 
