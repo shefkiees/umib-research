@@ -50,6 +50,8 @@ export default function AdminTopbar({
 
   profileMenuItems, 
 
+  profileRefreshKey = 0,
+
 }) { 
 
   const [isProfileOpen, setIsProfileOpen] = useState(false); 
@@ -96,7 +98,7 @@ export default function AdminTopbar({
 
     }; 
 
-  }, []); 
+  }, [profileRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;

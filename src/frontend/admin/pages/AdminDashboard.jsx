@@ -357,6 +357,25 @@ export default function AdminDashboard() {
 
     const [selectedUser, setSelectedUser] = useState(null);
 
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+    const [profileDraft, setProfileDraft] = useState({
+        name: "",
+        email: "",
+        role: "",
+        faculty: "",
+        department: "",
+        office: "",
+        academicTitle: "",
+        scientificTitle: "",
+    });
+
+    const [profileError, setProfileError] = useState("");
+
+    const [isProfileSaving, setIsProfileSaving] = useState(false);
+
+    const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+
     const [notifications, setNotifications] = useState([
 
         { id: 1, text: "3 tentativa të pasuksesshme login", isRead: false, createdAt: "para 5 min" },
@@ -657,9 +676,9 @@ export default function AdminDashboard() {
 
         { id: "Njoftime", label: "Njoftime", icon: Bell },
 
-        { id: "Edit Profile", label: "Ndrysho profilin", icon: User },
+        { id: "Ndrysho profilin", label: "Ndrysho profilin", icon: User },
 
-        { id: "Settings", label: "Konfigurimet", icon: Settings },
+        { id: "Konfigurimet", label: "Konfigurimet", icon: Settings },
 
         { id: "Integrime", label: "Integrime", icon: Link2 },
 
@@ -669,11 +688,114 @@ export default function AdminDashboard() {
 
 
 
+    const openProfileEditor = async () => {
+        setProfileError("");
+        setIsProfileModalOpen(true);
+
+        try {
+            const response = await fetch(apiUrl("/auth/me"), {
+                credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.user) {
+                throw new Error("profile_load_failed");
+            }
+
+            setProfileDraft({
+                name: data.user.name || "",
+                email: data.user.email || "",
+                role: ROLE_LABELS[data.user.role] || data.user.role || "",
+                faculty: data.user.faculty || "",
+                department: data.user.department || "",
+                office: data.user.office || "",
+                academicTitle: data.user.academicTitle || "",
+                scientificTitle: data.user.scientificTitle || "",
+            });
+        } catch (error) {
+            setProfileError("Profili nuk u ngarkua.");
+        }
+    };
+
+    const handleProfileFieldChange = (field) => (event) => {
+        setProfileDraft((prev) => ({
+            ...prev,
+            [field]: event.target.value,
+        }));
+    };
+
+    const handleProfileSave = async (event) => {
+        event.preventDefault();
+        setIsProfileSaving(true);
+        setProfileError("");
+
+        try {
+            const response = await fetch(apiUrl("/auth/me"), {
+                method: "PUT",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: profileDraft.name,
+                    faculty: profileDraft.faculty,
+                    department: profileDraft.department,
+                    office: profileDraft.office,
+                    academicTitle: profileDraft.academicTitle,
+                    scientificTitle: profileDraft.scientificTitle,
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.user) {
+                throw new Error("profile_save_failed");
+            }
+
+            setProfileDraft((prev) => ({
+                ...prev,
+                name: data.user.name || prev.name,
+                faculty: data.user.faculty || "",
+                department: data.user.department || "",
+                office: data.user.office || "",
+                academicTitle: data.user.academicTitle || "",
+                scientificTitle: data.user.scientificTitle || "",
+            }));
+            setIsProfileModalOpen(false);
+            setProfileRefreshKey((prev) => prev + 1);
+        } catch (error) {
+            setProfileError("Profili nuk u ruajt.");
+        } finally {
+            setIsProfileSaving(false);
+        }
+    };
+
     const handleProfileAction = (actionId) => {
 
         if (actionId === "Njoftime") {
 
-            navigate("/admin/notifications");
+            setActivePage("Njoftimet");
+
+            return;
+
+        }
+
+        if (actionId === "Ndrysho profilin") {
+
+            openProfileEditor();
+
+            return;
+
+        }
+
+        if (actionId === "Konfigurimet") {
+
+            setActivePage("Konfigurimet");
+
+            return;
+
+        }
+
+        if (actionId === "Integrime") {
+
+            setActivePage("Integrimet");
 
             return;
 
@@ -1587,11 +1709,75 @@ export default function AdminDashboard() {
 
                     profileMenuItems={profileMenuItems}
 
+                    profileRefreshKey={profileRefreshKey}
+
                 />
 
                 <div className="admin-content">{content}</div>
 
             </div>
+
+            {isProfileModalOpen ? (
+                <div className="admin-modal-backdrop" role="presentation" onClick={() => setIsProfileModalOpen(false)}>
+                    <section className="admin-profile-modal" role="dialog" aria-label="Ndrysho profilin" onClick={(event) => event.stopPropagation()}>
+                        <div className="admin-profile-modal-head">
+                            <div>
+                                <h3>Ndrysho profilin</h3>
+                                <p>Perditeso te dhenat baze te profilit.</p>
+                            </div>
+                            <button type="button" className="admin-modal-close-btn" onClick={() => setIsProfileModalOpen(false)} aria-label="Mbyll">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <form className="admin-profile-form" onSubmit={handleProfileSave}>
+                            <label>
+                                <span>Emri</span>
+                                <input value={profileDraft.name} onChange={handleProfileFieldChange("name")} placeholder="Emri dhe mbiemri" />
+                            </label>
+                            <label>
+                                <span>Email</span>
+                                <input value={profileDraft.email} readOnly />
+                            </label>
+                            <label>
+                                <span>Roli</span>
+                                <input value={profileDraft.role} readOnly />
+                            </label>
+                            <label>
+                                <span>Fakulteti</span>
+                                <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} placeholder="Fakulteti" />
+                            </label>
+                            <label>
+                                <span>Departamenti</span>
+                                <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} placeholder="Departamenti" />
+                            </label>
+                            <label>
+                                <span>Zyra</span>
+                                <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} placeholder="Zyra" />
+                            </label>
+                            <label>
+                                <span>Titulli akademik</span>
+                                <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} placeholder="Titulli akademik" />
+                            </label>
+                            <label>
+                                <span>Titulli shkencor</span>
+                                <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} placeholder="Titulli shkencor" />
+                            </label>
+
+                            {profileError ? <p className="admin-inline-error admin-profile-error" role="alert">{profileError}</p> : null}
+
+                            <div className="admin-profile-modal-actions">
+                                <button type="button" className="admin-small-btn" onClick={() => setIsProfileModalOpen(false)} disabled={isProfileSaving}>
+                                    Anulo
+                                </button>
+                                <button type="submit" className="admin-primary-btn" disabled={isProfileSaving}>
+                                    {isProfileSaving ? "Duke ruajtur..." : "Ruaj"}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            ) : null}
 
         </div>
 
