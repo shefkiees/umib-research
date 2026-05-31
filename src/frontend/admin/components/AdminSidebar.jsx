@@ -4,8 +4,6 @@ import {
 
   Users, 
 
-  ShieldCheck, 
-
   ClipboardList, 
 
   KeyRound, 
@@ -23,8 +21,6 @@ import TransparentLogo from "../../common/TransparentLogo";
 const mainItems = [ 
 
   { label: "Përdoruesit", route: "Përdoruesit", icon: Users }, 
-
-  { label: "Rolet", route: "Rolet", icon: ShieldCheck },
 
   { label: "Rivendosja e qasjes", route: "Rivendosja e qasjes", icon: KeyRound }, 
 
