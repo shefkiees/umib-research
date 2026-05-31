@@ -792,14 +792,14 @@
 }
 
 .admin-users-table th:nth-child(1) { width: 10%; }
-.admin-users-table th:nth-child(2) { width: 18%; }
-.admin-users-table th:nth-child(3) { width: 13%; }
+.admin-users-table th:nth-child(2) { width: 17%; }
+.admin-users-table th:nth-child(3) { width: 12%; }
 .admin-users-table th:nth-child(4) { width: 8%; }
-.admin-users-table th:nth-child(5) { width: 11%; }
-.admin-users-table th:nth-child(6) { width: 9%; }
+.admin-users-table th:nth-child(5) { width: 10%; }
+.admin-users-table th:nth-child(6) { width: 8%; }
 .admin-users-table th:nth-child(7) { width: 12%; }
 .admin-users-table th:nth-child(8) { width: 8%; }
-.admin-users-table th:nth-child(9) { width: 11%; }
+.admin-users-table th:nth-child(9) { width: 15%; }
 
 .admin-users-table th:nth-child(2),
 .admin-users-table td:nth-child(2),
@@ -857,9 +857,10 @@
 }
 
 .admin-users-table .admin-user-actions .admin-small-btn {
+    flex: 0 0 auto;
     height: 34px;
-    min-width: 66px;
-    padding: 0 8px;
+    min-width: 82px;
+    padding: 0 10px;
     font-size: 0.82rem;
 }
 
