@@ -21,6 +21,8 @@ import {
     AdminSystemStatusSection,
 } from "../components/AdminFeatureSections";
 import { apiUrl } from "../../utils/api";
+import { useLanguage } from "../../i18n/LanguageContext";
+import { getAdminText } from "../adminI18n";
 
 import "../styles/AdminDashboard.css";
 import "../styles/AdminSection.css";
@@ -316,6 +318,8 @@ const getAuditTargetLabel = (item) => {
 export default function AdminDashboard() {
 
     const navigate = useNavigate();
+    const { language } = useLanguage();
+    const adminText = useMemo(() => getAdminText(language), [language]);
 
     const [activePage, setActivePage] = useState("Përdoruesit");
 
@@ -776,15 +780,15 @@ export default function AdminDashboard() {
 
     const profileMenuItems = [
 
-        { id: "Njoftime", label: "Njoftime", icon: Bell },
+        { id: "Njoftime", label: adminText.profileMenu.notifications, icon: Bell },
 
-        { id: "Ndrysho profilin", label: "Ndrysho profilin", icon: User },
+        { id: "Ndrysho profilin", label: adminText.profileMenu.editProfile, icon: User },
 
-        { id: "Cilësimet", label: "Cilësimet", icon: Settings },
+        { id: "Cilësimet", label: adminText.profileMenu.settings, icon: Settings },
 
-        { id: "Integrime", label: "Integrime", icon: Link2 },
+        { id: "Integrime", label: adminText.profileMenu.integrations, icon: Link2 },
 
-        { id: "Logout", label: "Dil", icon: ArrowRight, tone: "danger" },
+        { id: "Logout", label: adminText.profileMenu.logout, icon: ArrowRight, tone: "danger" },
 
     ];
 
@@ -1799,7 +1803,7 @@ export default function AdminDashboard() {
 
         <div className="admin-layout">
 
-            <AdminSidebar activePage={activePage} onNavigate={setActivePage} navLabels={navLabels} />
+            <AdminSidebar activePage={activePage} onNavigate={setActivePage} navLabels={navLabels} labels={adminText} />
 
 
 
@@ -1832,6 +1836,8 @@ export default function AdminDashboard() {
                     profileMenuItems={profileMenuItems}
 
                     profileRefreshKey={profileRefreshKey}
+
+                    labels={adminText}
 
                 />
 

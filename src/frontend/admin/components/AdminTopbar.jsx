@@ -66,6 +66,8 @@ export default function AdminTopbar({
 
   profileRefreshKey = 0,
 
+  labels,
+
 }) { 
 
   const [isProfileOpen, setIsProfileOpen] = useState(false); 
@@ -146,7 +148,7 @@ export default function AdminTopbar({
 
  
 
-  const title = activePage; 
+  const title = labels?.pages?.[activePage] || activePage; 
 
   const name = getProfileName(profileUser);
   const role = getRoleLabel(profileUser?.role);
@@ -178,7 +180,7 @@ export default function AdminTopbar({
 
             type="text" 
 
-            placeholder="Kërko përdorues, veprim, rol..." 
+            placeholder={labels?.topbar?.search || "Kërko përdorues, veprim, rol..."} 
 
             value={searchQuery} 
 
@@ -198,7 +200,7 @@ export default function AdminTopbar({
 
             type="button" 
 
-            aria-label="Njoftime" 
+            aria-label={labels?.topbar?.notifications || "Njoftimet"} 
 
             onClick={() => setIsNotificationsOpen((current) => !current)} 
 
@@ -218,15 +220,15 @@ export default function AdminTopbar({
 
           {isNotificationsOpen ? ( 
 
-            <div className="admin-popover" role="dialog" aria-label="Njoftimet"> 
+            <div className="admin-popover" role="dialog" aria-label={labels?.topbar?.notifications || "Njoftimet"}> 
 
               <div className="admin-popover-head"> 
 
-                <strong>Njoftimet</strong> 
+                <strong>{labels?.topbar?.notifications || "Njoftimet"}</strong> 
 
                 <button type="button" onClick={onMarkAllRead} disabled={notificationCount === 0 || notificationsLoading}> 
 
-                  Shëno si të lexuara 
+                  {labels?.topbar?.markRead || "Shëno si të lexuara"} 
 
                 </button> 
 
@@ -238,7 +240,7 @@ export default function AdminTopbar({
 
                   <li className="is-read">
 
-                    <p>Duke ngarkuar njoftimet...</p>
+                    <p>{labels?.topbar?.loadingNotifications || "Duke ngarkuar njoftimet..."}</p>
 
                   </li>
 
@@ -265,7 +267,7 @@ export default function AdminTopbar({
                       disabled={item.isRead || item.source === "audit"}
                     >
 
-                      <p>{item.title || item.text || item.message || "Njoftim"}</p>
+                      <p>{item.title || item.text || item.message || labels?.topbar?.fallbackNotification || "Njoftim"}</p>
 
                       <span>{formatNotificationTime(item.createdAt)}</span>
 
@@ -279,7 +281,7 @@ export default function AdminTopbar({
 
                   <li className="is-read">
 
-                    <p>Nuk ka njoftime aktualisht.</p>
+                    <p>{labels?.topbar?.emptyNotifications || "Nuk ka njoftime aktualisht."}</p>
 
                   </li>
 

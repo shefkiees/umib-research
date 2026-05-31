@@ -36,7 +36,7 @@ const mainItems = [
 
  
 
-export default function AdminSidebar({ activePage, onNavigate, navLabels }) { 
+export default function AdminSidebar({ activePage, onNavigate, labels }) { 
 
   return ( 
 
@@ -60,11 +60,11 @@ export default function AdminSidebar({ activePage, onNavigate, navLabels }) {
 
         <div className="admin-sidebar-section"> 
 
-          <span className="admin-sidebar-label">MODULET</span> 
+          <span className="admin-sidebar-label">{labels?.modules || "MODULET"}</span> 
 
  
 
-          <nav className="admin-nav" aria-label="Modulet navigimi"> 
+          <nav className="admin-nav" aria-label={labels?.navAria || "Modulet navigimi"}> 
 
             {mainItems.map((item) => { 
 
@@ -94,7 +94,7 @@ export default function AdminSidebar({ activePage, onNavigate, navLabels }) {
 
                     <Icon size={18} /> 
 
-                    <span>{item.label}</span> 
+                    <span>{labels?.pages?.[item.route] || item.label}</span> 
 
                   </span> 
 
