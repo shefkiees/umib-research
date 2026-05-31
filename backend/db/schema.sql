@@ -568,8 +568,21 @@ create table if not exists audit_logs (
   created_at timestamptz not null default now()
 );
 
+alter table audit_logs add column if not exists actor_id uuid references users(id) on delete set null;
+alter table audit_logs add column if not exists action text;
+alter table audit_logs add column if not exists entity_type text;
+alter table audit_logs add column if not exists entity_id text;
+alter table audit_logs add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table audit_logs add column if not exists created_at timestamptz not null default now();
+
 create index if not exists audit_logs_entity_idx
 on audit_logs (entity_type, entity_id);
+
+create index if not exists audit_logs_created_at_idx
+on audit_logs (created_at desc);
+
+create index if not exists audit_logs_action_idx
+on audit_logs (action, created_at desc);
 
 alter table users enable row level security;
 alter table faculties enable row level security;

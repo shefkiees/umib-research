@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { Filter, ArrowRight, CheckCircle2, Shield, FileText, LogOut as LogOutIcon, User, Settings, Link2, Bell, Users } from "lucide-react";
+import { Filter, ArrowRight, User, Settings, Link2, Bell, Users } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
 
@@ -128,39 +128,16 @@ const rolesData = [
 
 
 
-const auditData = [
-
-    { id: "AUD-001", title: "Login", user: "a.hoxha@umib.edu", category: "Auth", time: "10:42", icon: "auth" },
-
-    { id: "AUD-002", title: "Aprovoi punim #2241", user: "m.krasniqi@umib.edu", category: "Submissions", time: "10:31", icon: "success" },
-
-    { id: "AUD-003", title: "Ndryshoi rolin e përdoruesit", user: "a.rexhepi@umib.edu", category: "Users", time: "10:18", icon: "shield" },
-
-    { id: "AUD-004", title: "Edito metadata #1182", user: "e.berisha@umib.edu", category: "Metadata", time: "09:55", icon: "metadata" },
-
-    { id: "AUD-005", title: "Logout", user: "l.gashi@umib.edu", category: "Auth", time: "09:40", icon: "logout" },
-
-    { id: "AUD-006", title: "Deaktivizoi përdoruesin", user: "a.rexhepi@umib.edu", category: "Users", time: "09:12", icon: "shield" },
+const auditActionOptions = [
+    { value: "", label: "Te gjitha veprimet" },
+    { value: "admin.auth.login", label: "Login i adminit" },
+    { value: "admin.access.unauthenticated", label: "Tentim qasjeje pa login" },
+    { value: "admin.access.forbidden", label: "Tentim qasjeje pa leje" },
+    { value: "admin.user.role_update", label: "Ndryshim roli" },
+    { value: "admin.user.status_update", label: "Ndryshim statusi" },
+    { value: "admin.access_reset.status_update", label: "Ndryshim qasjeje" },
 
 ];
-
-
-
-const auditIcons = {
-
-    auth: ArrowRight,
-
-    success: CheckCircle2,
-
-    shield: Shield,
-
-    metadata: FileText,
-
-    logout: LogOutIcon,
-
-};
-
-
 
 const backupData = [
 
@@ -281,6 +258,22 @@ export default function AdminDashboard() {
     const [isAccessResetLoading, setIsAccessResetLoading] = useState(false);
 
     const [accessResetError, setAccessResetError] = useState("");
+
+    const [auditLogs, setAuditLogs] = useState([]);
+
+    const [isAuditLoading, setIsAuditLoading] = useState(false);
+
+    const [auditError, setAuditError] = useState("");
+
+    const [auditRefreshKey, setAuditRefreshKey] = useState(0);
+
+    const [auditFilters, setAuditFilters] = useState({
+        adminEmail: "",
+        targetEmail: "",
+        action: "",
+        startDate: "",
+        endDate: "",
+    });
 
     const [users, setUsers] = useState([]);
 
@@ -410,6 +403,70 @@ export default function AdminDashboard() {
     }, []);
 
 
+    useEffect(() => {
+
+        let isMounted = true;
+
+        const loadAuditLogs = async () => {
+
+            setIsAuditLoading(true);
+
+            setAuditError("");
+
+            try {
+
+                const params = new URLSearchParams();
+
+                Object.entries(auditFilters).forEach(([key, value]) => {
+                    const trimmedValue = String(value || "").trim();
+                    if (trimmedValue) {
+                        params.set(key, trimmedValue);
+                    }
+                });
+
+                const queryString = params.toString();
+                const response = await fetch(apiUrl(`/admin/audit-logs${queryString ? `?${queryString}` : ""}`), {
+                    credentials: "include",
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || "audit_logs_failed");
+                }
+
+                if (isMounted) {
+                    setAuditLogs(Array.isArray(data.logs) ? data.logs : []);
+                }
+
+            } catch (error) {
+
+                console.error("Admin audit logs load failed:", error);
+
+                if (isMounted) {
+                    setAuditLogs([]);
+                    setAuditError("Historiku i veprimeve nuk u ngarkua.");
+                }
+
+            } finally {
+
+                if (isMounted) {
+                    setIsAuditLoading(false);
+                }
+
+            }
+
+        };
+
+        loadAuditLogs();
+
+        return () => {
+            isMounted = false;
+        };
+
+    }, [auditFilters, auditRefreshKey]);
+
+
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -443,19 +500,17 @@ export default function AdminDashboard() {
 
 
 
-    const filteredAudit = useMemo(() => {
+    const filteredAuditLogs = useMemo(() => {
 
-        if (!normalizedQuery) return auditData;
+        if (!normalizedQuery) return auditLogs;
 
-        return auditData.filter((item) =>
+        return auditLogs.filter((item) =>
 
-            `${item.id} ${item.title} ${item.user} ${item.category} ${item.time}`.toLowerCase().includes(normalizedQuery)
+            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
 
         );
 
-    }, [normalizedQuery]);
-
-
+    }, [auditLogs, normalizedQuery]);
 
     const filteredBackup = useMemo(() => {
 
@@ -492,6 +547,23 @@ export default function AdminDashboard() {
 
         setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
 
+    };
+
+    const updateAuditFilter = (field) => (event) => {
+        setAuditFilters((prev) => ({
+            ...prev,
+            [field]: event.target.value,
+        }));
+    };
+
+    const clearAuditFilters = () => {
+        setAuditFilters({
+            adminEmail: "",
+            targetEmail: "",
+            action: "",
+            startDate: "",
+            endDate: "",
+        });
     };
 
 
@@ -571,6 +643,7 @@ export default function AdminDashboard() {
             }
 
             replaceUser(data.user);
+            setAuditRefreshKey((prev) => prev + 1);
 
         } catch (error) {
 
@@ -610,6 +683,7 @@ export default function AdminDashboard() {
             }
 
             replaceUser(data.user);
+            setAuditRefreshKey((prev) => prev + 1);
 
         } catch (error) {
 
@@ -651,6 +725,7 @@ export default function AdminDashboard() {
                         : item
                 )
             );
+            setAuditRefreshKey((prev) => prev + 1);
 
         } catch (error) {
 
@@ -731,67 +806,91 @@ export default function AdminDashboard() {
 
                 <div>
 
-                    <h3>Audit Logs</h3>
+                    <h3>Historiku i veprimeve</h3>
 
-                    <p>UC-14 • Aktivitetet në sistem</p>
+                    <p>Veprimet administrative dhe tentimet e qasjes ne panelin admin</p>
 
                 </div>
 
-                <button type="button" className="admin-roles-config-button admin-filter-button">
+                <button type="button" className="admin-roles-config-button admin-filter-button" onClick={clearAuditFilters}>
 
                     <Filter size={16} />
 
-                    Filtro
+                    Pastro filtrat
 
                 </button>
 
             </div>
 
-            <div className="admin-audit-list">
-
-                {filteredAudit.map((item) => {
-
-                    const Icon = auditIcons[item.icon] || ArrowRight;
-
-                    return (
-
-                        <article key={item.id} className="admin-audit-item">
-
-                            <div className="admin-audit-item-main">
-
-                                <span className={`admin-audit-item-icon admin-audit-item-icon--${item.category.toLowerCase()}`}>
-
-                                    <Icon size={18} />
-
-                                </span>
-
-                                <div className="admin-audit-item-text">
-
-                                    <h4>{item.title}</h4>
-
-                                    <p>{item.user}</p>
-
-                                </div>
-
-                            </div>
-
-                            <div className="admin-audit-item-meta">
-
-                                <span className="admin-audit-item-badge">{item.category}</span>
-
-                                <span className="admin-audit-item-time">{item.time}</span>
-
-                            </div>
-
-                        </article>
-
-                    );
-
-                })}
-
+            <div className="admin-audit-filters">
+                <label>
+                    <span>Admin email</span>
+                    <input type="search" value={auditFilters.adminEmail} onChange={updateAuditFilter("adminEmail")} placeholder="admin@umib.net" />
+                </label>
+                <label>
+                    <span>Target email</span>
+                    <input type="search" value={auditFilters.targetEmail} onChange={updateAuditFilter("targetEmail")} placeholder="perdoruesi@umib.net" />
+                </label>
+                <label>
+                    <span>Veprimi</span>
+                    <select value={auditFilters.action} onChange={updateAuditFilter("action")}>
+                        {auditActionOptions.map((option) => (
+                            <option key={option.value || "all"} value={option.value}>{option.label}</option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    <span>Nga data</span>
+                    <input type="date" value={auditFilters.startDate} onChange={updateAuditFilter("startDate")} />
+                </label>
+                <label>
+                    <span>Deri me</span>
+                    <input type="date" value={auditFilters.endDate} onChange={updateAuditFilter("endDate")} />
+                </label>
             </div>
 
-            {filteredAudit.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
+            {auditError ? <p className="admin-inline-error" role="alert">{auditError}</p> : null}
+
+            {isAuditLoading ? (
+                <p className="admin-empty">Duke ngarkuar historikun...</p>
+            ) : (
+                <div className="admin-table-wrap admin-audit-table-wrap">
+                    <table className="admin-table admin-audit-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Ora</th>
+                                <th>Admini</th>
+                                <th>Veprimi</th>
+                                <th>Target/User</th>
+                                <th>Vlera e vjeter</th>
+                                <th>Vlera e re</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredAuditLogs.map((item) => (
+                                <tr key={item.id}>
+                                    <td className="admin-audit-date-cell">{formatAdminDateTime(item.createdAt)}</td>
+                                    <td>
+                                        <strong className="admin-audit-primary">{item.admin?.name || "-"}</strong>
+                                        <span className="admin-audit-muted">{item.admin?.email || "-"}</span>
+                                    </td>
+                                    <td>{item.actionLabel || item.action}</td>
+                                    <td>
+                                        <strong className="admin-audit-primary">{item.target?.name || item.target?.email || "-"}</strong>
+                                        <span className="admin-audit-muted">{item.target?.email || item.entityId || "-"}</span>
+                                    </td>
+                                    <td>{item.oldValue || "-"}</td>
+                                    <td>{item.newValue || "-"}</td>
+                                    <td className="admin-audit-ip-cell">{item.ipAddress || "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka audit logs per filtrat aktuale.</p> : null}
 
         </section>
 
@@ -1201,7 +1300,7 @@ export default function AdminDashboard() {
 
     if (activePage === "Audit Logs") {
 
-        resultCount = filteredAudit.length;
+        resultCount = filteredAuditLogs.length;
 
         content = renderAuditLogs();
 

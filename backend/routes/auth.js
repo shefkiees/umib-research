@@ -4,6 +4,7 @@ import passport from "../config/passport.js";
 import { googleAuthConfigured } from "../config/passport.js";
 import { getAbsoluteUrlEnvValue } from "../config/urlConfig.js";
 import { sendEmailNotification } from "../services/notification.service.js";
+import { getRequestIp, writeAuditLog } from "../services/auditLog.service.js";
 
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
@@ -480,6 +481,22 @@ router.get("/google/callback", (req, res, next) => {
 
       try {
         await updateLastLoginAt(user.id);
+        if (user.role === "admin") {
+          await writeAuditLog({
+            actor: user,
+            action: "admin.auth.login",
+            entityType: "user",
+            entityId: user.id,
+            ipAddress: getRequestIp(req),
+            metadata: {
+              target: {
+                id: user.id,
+                email: user.email,
+                name: user.name || user.displayName || user.email || "",
+              },
+            },
+          });
+        }
       } catch (lastLoginError) {
         console.warn("Updating last_login_at after login failed:", {
           userId: user.id,
