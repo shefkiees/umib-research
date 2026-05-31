@@ -43,13 +43,21 @@ function looksLikeDateText(value) {
 }
 
 function getNotificationTitle(item, fallback) {
+  if (item?.source === "audit" && item?.category === "Siguria") {
+    return "Tentim qasjeje pa leje";
+  }
+
   const candidates = [item?.title, item?.message, item?.text, item?.category];
   return candidates.find((value) => value && !looksLikeDateText(value)) || fallback || "Njoftim";
 }
 
 function getNotificationMessage(item, title) {
+  if (item?.source === "audit" && item?.category === "Siguria") {
+    return "U regjistrua tentim qasjeje pa leje në panelin admin.";
+  }
+
   const message = item?.message || item?.text || "";
-  if (!message || message === title || looksLikeDateText(message)) return "";
+  if (!message || message === title || looksLikeDateText(message) || message.includes("/api/")) return "";
   return message;
 }
 

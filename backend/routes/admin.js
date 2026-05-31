@@ -675,7 +675,7 @@ router.get("/notifications", requireAdmin, async (req, res) => {
     const accessNotifications = accessResult.rows.map((row) => ({
       id: `audit-${row.id}`,
       title: "Tentim qasjeje pa leje",
-      message: row.metadata?.path ? `Tentim qasjeje në ${String(row.metadata.path).split("?")[0]}` : "U regjistrua tentim qasjeje në panelin admin.",
+      message: "U regjistrua tentim qasjeje pa leje në panelin admin.",
       category: "Siguria",
       isRead: true,
       createdAt: row.created_at,
