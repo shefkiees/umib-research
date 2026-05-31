@@ -839,7 +839,7 @@ async function checkExternalService({ url, headers, configured = true }) {
 }
 
 router.get("/integrations/status", requireAdmin, async (req, res) => {
-  const [orcid, crossref, scopus, email] = await Promise.all([
+  const [orcid, crossref, scopus] = await Promise.all([
     checkExternalService({
       url: "https://pub.orcid.org/v3.0/0000-0002-1825-0097/person",
       headers: { Accept: "application/json" },
@@ -856,11 +856,6 @@ router.get("/integrations/status", requireAdmin, async (req, res) => {
           ? { "X-ELS-Insttoken": process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN }
           : {}),
       },
-    }),
-    checkExternalService({
-      url: "https://api.resend.com/domains",
-      configured: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY || ""}` },
     }),
   ]);
 
@@ -885,13 +880,6 @@ router.get("/integrations/status", requireAdmin, async (req, res) => {
       status: scopus.status,
       description: "Metrikat, citimet dhe klasifikimi i revistave",
       checkedAt: scopus.checkedAt,
-    },
-    {
-      id: "email",
-      name: "Microsoft 365 / Email",
-      status: email.status,
-      description: "Dërgimi i njoftimeve dhe komunikimi institucional",
-      checkedAt: email.checkedAt,
     },
   ];
 
