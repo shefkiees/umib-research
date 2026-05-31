@@ -175,7 +175,7 @@ const navLabels = [
     "Shqyrtimi i publikimeve",
     "Raportet",
     "Buxheti",
-    "Konfigurimet",
+    "Cilësimet",
     "Rezervimi",
 ];
 
@@ -780,7 +780,7 @@ export default function AdminDashboard() {
 
         { id: "Ndrysho profilin", label: "Ndrysho profilin", icon: User },
 
-        { id: "Konfigurimet", label: "Konfigurimet", icon: Settings },
+        { id: "Cilësimet", label: "Cilësimet", icon: Settings },
 
         { id: "Integrime", label: "Integrime", icon: Link2 },
 
@@ -887,9 +887,9 @@ export default function AdminDashboard() {
 
         }
 
-        if (actionId === "Konfigurimet") {
+        if (actionId === "Cilësimet") {
 
-            setActivePage("Konfigurimet");
+            setActivePage("Cilësimet");
 
             return;
 
@@ -1775,7 +1775,7 @@ export default function AdminDashboard() {
 
     }
 
-    if (activePage === "Konfigurimet") {
+    if (activePage === "Cilësimet") {
 
         resultCount = 0;
 
