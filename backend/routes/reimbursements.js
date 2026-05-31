@@ -7,7 +7,6 @@ import {
 } from "../services/reimbursementDocument.service.js";
 import {
   REIMBURSEMENT_TYPE_LABELS,
-  getAttachmentChecklist,
   getRequiredFields,
   requiresBank,
 } from "../../shared/reimbursementSchema.js";
@@ -945,19 +944,6 @@ function validateProjectBudget(formData, errors) {
   }
 }
 
-function validateRequiredDocumentChecklist(requestType, formData) {
-  const checklist = formData.documentChecklist && typeof formData.documentChecklist === "object"
-    ? formData.documentChecklist
-    : {};
-
-  return getAttachmentChecklist(requestType)
-    .filter((item) => item.required && !checklist[item.id])
-    .map((item) => ({
-      field: `documentChecklist.${item.id}`,
-      message: `Konfirmo dokumentin mbeshtetes: ${item.label}.`,
-    }));
-}
-
 function validateReimbursementPayload(requestType, formData, options = {}) {
   const errors = [];
   const amount = parseAmount(formData.amount);
@@ -971,7 +957,6 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
   }
 
   errors.push(...validateRequiredFields(formData, getRequiredFields(requestType)));
-  errors.push(...validateRequiredDocumentChecklist(requestType, formData));
 
   if (amount === null || amount <= 0) {
     errors.push({ field: "amount", message: "Shuma e kerkuar duhet te jete numer pozitiv." });

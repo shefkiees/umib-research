@@ -2790,60 +2790,6 @@ body {
   gap: 8px;
 }
 
-.reimbursement-checklist-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: #17324f;
-  font-size: 0.82rem;
-}
-
-.reimbursement-checklist-head span {
-  border: 1px solid #d8e2ee;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #64748b;
-  min-height: 24px;
-  padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.reimbursement-document-checklist {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.reimbursement-check-item {
-  border: 1px solid #d8e2ee;
-  border-radius: 10px;
-  background: #ffffff;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px;
-  align-items: flex-start;
-  color: #17324f;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.reimbursement-check-item input {
-  margin-top: 2px;
-}
-
-.reimbursement-check-item small {
-  display: block;
-  margin-top: 2px;
-  color: #64748b;
-  font-size: 0.7rem;
-  font-weight: 800;
-}
-
 .reimbursement-upload-label {
   display: grid;
   gap: 6px;
@@ -3029,8 +2975,7 @@ body {
   .reimbursement-form-grid,
   .reimbursement-publication-info-grid,
   .reimbursement-conference-metadata-grid,
-  .reimbursement-bank-grid,
-  .reimbursement-document-checklist {
+  .reimbursement-bank-grid {
     grid-template-columns: 1fr;
   }
 

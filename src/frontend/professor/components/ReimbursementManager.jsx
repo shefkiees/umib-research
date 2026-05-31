@@ -4,7 +4,6 @@ import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
   REIMBURSEMENT_TYPES,
-  getAttachmentChecklist,
   getReimbursementSchema,
   getReimbursementType,
   getRequiredFields,
@@ -279,7 +278,6 @@ const DEFAULT_FORM_VALUES = {
   personnelCost: "",
   otherCosts: "",
   detailedCostDescription: "",
-  documentChecklist: {},
 };
 
 function createDefaultTeamMembers() {
@@ -585,7 +583,6 @@ function createDefaultForm(profile = {}) {
     teamMembers: createDefaultTeamMembers(),
     workPlanItems: createDefaultWorkPlanItems(),
     costItems: createDefaultCostItems(),
-    documentChecklist: {},
   };
 }
 
@@ -757,6 +754,7 @@ function hasValue(value) {
 function buildSubmitFormData(formData) {
   const nextFormData = { ...formData };
   delete nextFormData[RETIRED_REASON_FIELD];
+  delete nextFormData.documentChecklist;
 
   if (nextFormData.banking && typeof nextFormData.banking === "object" && !Array.isArray(nextFormData.banking)) {
     const nextBanking = { ...nextFormData.banking };
@@ -1098,7 +1096,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const selectedTypeConfig = getReimbursementType(selectedType);
   const selectedTypeSchema = getReimbursementSchema(selectedType);
-  const selectedAttachmentChecklist = getAttachmentChecklist(selectedType);
   const bankRequired = requiresBank(selectedType);
   const normalizedAccount = useMemo(() => normalizeIban(form.bankAccountNumber || form.iban), [form.bankAccountNumber, form.iban]);
   const isAccountNumberValid = useMemo(() => isValidBankAccountIdentifier(normalizedAccount), [normalizedAccount]);
@@ -1123,11 +1120,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode)
             : hasValue(form.requestedFromUibm) && hasCompleteCostItem(form.costItems)
         ),
-      documents: selectedAttachmentChecklist
-        .filter((item) => item.required)
-        .every((item) => Boolean(form.documentChecklist?.[item.id])),
+      documents: selectedFiles.length > 0,
     };
-  }, [bankRequired, form, isAccountNumberValid, selectedAttachmentChecklist, selectedType]);
+  }, [bankRequired, form, isAccountNumberValid, selectedFiles.length, selectedType]);
 
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
@@ -1417,17 +1412,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setFieldErrors((prev) => ({ ...prev, costItems: "" }));
   };
 
-  const handleDocumentChecklistChange = (id) => (event) => {
-    setForm((prev) => ({
-      ...prev,
-      documentChecklist: {
-        ...(prev.documentChecklist || {}),
-        [id]: event.target.checked,
-      },
-    }));
-    setFieldErrors((prev) => ({ ...prev, [`documentChecklist.${id}`]: "" }));
-  };
-
   const addTeamMember = () => {
     setForm((prev) => ({
       ...prev,
@@ -1480,7 +1464,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setSelectedType(typeId);
     setForm((prev) => ({
       ...prev,
-      documentChecklist: {},
     }));
     setIsAbstractExpanded(false);
     setFieldErrors({});
@@ -1538,14 +1521,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         nextErrors[field] = message;
       }
     });
-
-    selectedAttachmentChecklist
-      .filter((item) => item.required)
-      .forEach((item) => {
-        if (!form.documentChecklist?.[item.id]) {
-          nextErrors[`documentChecklist.${item.id}`] = `Konfirmo dokumentin mbeshtetes: ${item.label}.`;
-        }
-      });
 
     if (selectedType === "project") {
       const hasTeamMember = form.teamMembers?.some((member) => hasValue(member.name) && hasValue(member.email));
@@ -1862,9 +1837,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       costItems: Array.isArray(request.requestData?.costItems) && request.requestData.costItems.length
         ? request.requestData.costItems
         : createDefaultCostItems(),
-      documentChecklist: request.requestData?.documentChecklist && typeof request.requestData.documentChecklist === "object"
-        ? request.requestData.documentChecklist
-        : {},
     };
 
     setSelectedType(nextType);
@@ -2512,61 +2484,32 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </div>
   );
 
-  const renderAttachmentUpload = () => {
-    const completedRequired = selectedAttachmentChecklist
-      .filter((item) => item.required)
-      .filter((item) => form.documentChecklist?.[item.id]).length;
-    const requiredTotal = selectedAttachmentChecklist.filter((item) => item.required).length;
+  const renderAttachmentUpload = () => (
+    <div className="reimbursement-upload-box">
+      <p>{r.supportingDocumentsHint}</p>
 
-    return (
-      <div className="reimbursement-upload-box">
-        <div className="reimbursement-checklist-head">
-          <strong>{r.checklistLabel}</strong>
-          <span>{t("professor.reimbursements.requiredCount", { done: completedRequired, total: requiredTotal })}</span>
-        </div>
-
-        <div className="reimbursement-document-checklist">
-          {selectedAttachmentChecklist.map((item) => (
-            <label key={item.id} className="reimbursement-check-item">
-              <input
-                type="checkbox"
-                checked={Boolean(form.documentChecklist?.[item.id])}
-                onChange={handleDocumentChecklistChange(item.id)}
-              />
-              <span>
-                {tx(item.label)}
-                {item.required ? <small>{t("common.required")}</small> : <small>{t("common.optional")}</small>}
-                {fieldErrors[`documentChecklist.${item.id}`] ? (
-                  <small className="reimbursement-field-error">{tx(fieldErrors[`documentChecklist.${item.id}`])}</small>
-                ) : null}
-              </span>
-            </label>
+      <label className="reimbursement-upload-label">
+        <span>{r.uploadFiles}</span>
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={handleFileChange}
+        />
+      </label>
+      {selectedFiles.length ? (
+        <div className="reimbursement-file-list">
+          {selectedFiles.map((file) => (
+            <span key={`${file.name}-${file.size}`}>
+              {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
+            </span>
           ))}
         </div>
-
-        <label className="reimbursement-upload-label">
-          <span>{r.uploadFiles}</span>
-          <input
-            type="file"
-            multiple
-            accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={handleFileChange}
-          />
-        </label>
-        {selectedFiles.length ? (
-          <div className="reimbursement-file-list">
-            {selectedFiles.map((file) => (
-              <span key={`${file.name}-${file.size}`}>
-                {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p>{r.fileTypes}</p>
-        )}
-      </div>
-    );
-  };
+      ) : (
+        <p>{r.fileTypes}</p>
+      )}
+    </div>
+  );
 
   const renderStatusTimeline = (history = []) => {
     if (!history.length) {
