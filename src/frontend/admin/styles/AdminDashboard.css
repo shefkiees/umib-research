@@ -772,6 +772,57 @@
     background: #f8fafc;
 }
 
+.admin-users-table-wrap {
+    overflow-x: hidden;
+    padding-inline: 18px;
+}
+
+.admin-users-table {
+    table-layout: fixed;
+    font-size: 0.88rem;
+}
+
+.admin-users-table th,
+.admin-users-table td {
+    padding: 11px 7px;
+    overflow-wrap: anywhere;
+}
+
+.admin-users-table th:nth-child(1) { width: 12%; }
+.admin-users-table th:nth-child(2) { width: 17%; }
+.admin-users-table th:nth-child(3) { width: 9%; }
+.admin-users-table th:nth-child(4) { width: 9%; }
+.admin-users-table th:nth-child(5) { width: 10%; }
+.admin-users-table th:nth-child(6) { width: 8%; }
+.admin-users-table th:nth-child(7) { width: 12%; }
+.admin-users-table th:nth-child(8) { width: 8%; }
+.admin-users-table th:nth-child(9) { width: 15%; }
+
+.admin-users-table .admin-chip {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+}
+
+.admin-users-table .admin-role-select {
+    width: 112px;
+    min-width: 112px;
+}
+
+.admin-users-table .admin-user-actions-cell {
+    min-width: 0;
+}
+
+.admin-users-table .admin-user-actions {
+    gap: 6px;
+}
+
+.admin-users-table .admin-user-actions .admin-small-btn {
+    height: 34px;
+    min-width: 66px;
+    padding: 0 8px;
+    font-size: 0.82rem;
+}
+
 /* Chips */
 .admin-chip,
 .admin-role-chip,

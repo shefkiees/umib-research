@@ -827,9 +827,9 @@ export default function AdminDashboard() {
 
             ) : (
 
-            <div className="admin-table-wrap">
+            <div className="admin-table-wrap admin-users-table-wrap">
 
-                <table className="admin-table admin-table-with-badges">
+                <table className="admin-table admin-table-with-badges admin-users-table">
 
                     <thead>
 
