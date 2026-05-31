@@ -519,7 +519,6 @@ function getConferenceMetadataDisplaySection(form, conference) {
       createDisplayField("Fusha shkencore", conference?.field),
       createDisplayField("Lokacioni", conference?.location || form.location),
       createDisplayField("Data e konferences", normalizeDate(conference?.conferenceDate || form.conferenceDate)),
-      createDisplayField("Afati i dorezimit", normalizeDate(conference?.submissionDeadline || conference?.submission_deadline)),
       createDisplayField("Website / linku i konferences", website, website ? { href: website } : {}),
       createDisplayField("Statusi", conference?.statusLabel || conference?.status),
     ].filter(Boolean),
