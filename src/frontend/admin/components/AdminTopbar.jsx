@@ -6,10 +6,10 @@ import { apiUrl } from "../../utils/api";
 
 const ROLE_LABELS = {
   admin: "Admin",
-  committee: "Committee",
-  professor: "Professor",
-  prorector: "ProRector",
-  ProRector: "ProRector",
+  committee: "Komisioni",
+  professor: "Profesor",
+  prorector: "Prorektor",
+  ProRector: "Prorektor",
 };
 
 function getProfileName(user) {
@@ -162,7 +162,7 @@ export default function AdminTopbar({
 
             type="text" 
 
-            placeholder="KÃ«rko pÃ«rdorues, log, rol..." 
+            placeholder="Kërko përdorues, veprim, rol..." 
 
             value={searchQuery} 
 
@@ -210,7 +210,7 @@ export default function AdminTopbar({
 
                 <button type="button" onClick={onMarkAllRead}> 
 
-                  ShÃ«no si tÃ« lexuara 
+                  Shëno si të lexuara 
 
                 </button> 
 

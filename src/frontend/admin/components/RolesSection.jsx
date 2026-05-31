@@ -18,7 +18,7 @@ function RolesSection() {
 
         <div className="card"> 
 
-          <h3>Professor</h3> 
+          <h3>Profesor</h3> 
 
           <p>84 përdorues</p> 
 
@@ -30,7 +30,7 @@ function RolesSection() {
 
         <div className="card"> 
 
-          <h3>Commission</h3> 
+          <h3>Komisioni</h3> 
 
           <p>12 përdorues</p> 
 
@@ -42,7 +42,7 @@ function RolesSection() {
 
         <div className="card"> 
 
-          <h3>Pro Rector</h3> 
+          <h3>Prorektor</h3> 
 
           <p>3 përdorues</p> 
 

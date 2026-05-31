@@ -4,11 +4,11 @@ function AuditLogsSection() {
 
     { 
 
-      action: "Login", 
+      action: "Kyçje", 
 
       user: "a.hoxha@umib.edu", 
 
-      category: "Auth", 
+      category: "Autentikim", 
 
       time: "10:42", 
 
@@ -20,7 +20,7 @@ function AuditLogsSection() {
 
       user: "m.krasniqi@umib.edu", 
 
-      category: "Submissions", 
+      category: "Dorëzime", 
 
       time: "10:31", 
 
@@ -32,7 +32,7 @@ function AuditLogsSection() {
 
       user: "a.rexhepi@umib.edu", 
 
-      category: "Users", 
+      category: "Përdorues", 
 
       time: "10:18", 
 
@@ -40,7 +40,7 @@ function AuditLogsSection() {
 
     { 
 
-      action: "Edito metadata #1182", 
+      action: "Ndryshoi metadatat #1182", 
 
       user: "e.berisha@umib.edu", 
 
@@ -52,11 +52,11 @@ function AuditLogsSection() {
 
     { 
 
-      action: "Logout", 
+      action: "Dalje", 
 
       user: "l.gashi@umib.edu", 
 
-      category: "Auth", 
+      category: "Autentikim", 
 
       time: "09:40", 
 
@@ -134,7 +134,7 @@ function AuditLogsSection() {
 
           <div> 
 
-            <h2>Alerts & Njoftime</h2> 
+            <h2>Paralajmërime dhe njoftime</h2> 
 
             <p>Aktiviteti i fundit i sigurisë</p> 
 
@@ -148,7 +148,7 @@ function AuditLogsSection() {
 
           <div className="admin-alert-item danger"> 
 
-            <h4>3 tentativa të pasuksesshme login</h4> 
+            <h4>3 tentativa të pasuksesshme për kyçje</h4> 
 
             <p>para 5 min</p> 
 
@@ -178,7 +178,7 @@ function AuditLogsSection() {
 
           <div className="admin-alert-item success"> 
 
-            <h4>Backup-i i fundit u realizua me sukses</h4> 
+            <h4>Rezervimi i fundit u realizua me sukses</h4> 
 
             <p>para 24 ore</p> 
 

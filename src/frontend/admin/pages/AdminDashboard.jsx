@@ -9,6 +9,15 @@ import AdminSidebar from "../components/AdminSidebar";
 import AdminTopbar from "../components/AdminTopbar";
 
 import BackupSection from "../components/BackupSection";
+import {
+    AdminAnalyticsSection,
+    AdminBudgetSection,
+    AdminJournalsSection,
+    AdminNotificationsSection,
+    AdminPublicationReviewSection,
+    AdminReportsSection,
+    AdminSettingsSection,
+} from "../components/AdminFeatureSections";
 import { apiUrl } from "../../utils/api";
 
 import "../styles/AdminDashboard.css";
@@ -16,9 +25,9 @@ import "../styles/AdminSection.css";
 
 const ROLE_OPTIONS = [
     { value: "admin", label: "Admin" },
-    { value: "committee", label: "Committee" },
-    { value: "professor", label: "Professor" },
-    { value: "prorector", label: "ProRector" },
+    { value: "committee", label: "Komisioni" },
+    { value: "professor", label: "Profesor" },
+    { value: "prorector", label: "Prorektor" },
 ];
 
 const ROLE_LABELS = ROLE_OPTIONS.reduce((labels, item) => ({
@@ -27,9 +36,9 @@ const ROLE_LABELS = ROLE_OPTIONS.reduce((labels, item) => ({
 }), {});
 
 const STATUS_LABELS = {
-    active: "Active",
-    inactive: "Inactive",
-    suspended: "Suspended",
+    active: "Aktiv",
+    inactive: "Joaktiv",
+    suspended: "Pezulluar",
 };
 
 
@@ -40,7 +49,7 @@ const rolesData = [
 
         id: "ROL-001",
 
-        name: "Professor",
+        name: "Profesor",
 
         users: 84,
 
@@ -62,7 +71,7 @@ const rolesData = [
 
         id: "ROL-002",
 
-        name: "Commission",
+        name: "Komisioni",
 
         users: 12,
 
@@ -84,7 +93,7 @@ const rolesData = [
 
         id: "ROL-003",
 
-        name: "Pro Rector",
+        name: "Prorektor",
 
         users: 3,
 
@@ -130,7 +139,7 @@ const rolesData = [
 
 const auditActionOptions = [
     { value: "", label: "Të gjitha veprimet" },
-    { value: "admin.auth.login", label: "Login i adminit" },
+    { value: "admin.auth.login", label: "Kyçje e adminit" },
     { value: "admin.access.unauthenticated", label: "Tentim qasjeje pa login" },
     { value: "admin.access.forbidden", label: "Tentim qasjeje pa leje" },
     { value: "admin.user.role_update", label: "Ndryshim roli" },
@@ -141,17 +150,30 @@ const auditActionOptions = [
 
 const backupData = [
 
-    { id: "BCK-001", type: "Full Backup", date: "2024-04-19", size: "2.5 GB", status: "Completed" },
+    { id: "BCK-001", type: "Rezervim i plotë", date: "2024-04-19", size: "2.5 GB", status: "Përfunduar" },
 
-    { id: "BCK-002", type: "Incremental", date: "2024-04-18", size: "500 MB", status: "Completed" },
+    { id: "BCK-002", type: "Rezervim shtesë", date: "2024-04-18", size: "500 MB", status: "Përfunduar" },
 
-    { id: "BCK-003", type: "Database", date: "2024-04-17", size: "1.2 GB", status: "Failed" },
+    { id: "BCK-003", type: "Baza e të dhënave", date: "2024-04-17", size: "1.2 GB", status: "Dështoi" },
 
 ];
 
 
 
-const navLabels = ["Perdoruesit", "Rolet", "Rivendosja e qasjes", "Historiku i veprimeve", "Backup"];
+const navLabels = [
+    "Përdoruesit",
+    "Rolet",
+    "Rivendosja e qasjes",
+    "Historiku i veprimeve",
+    "Njoftimet",
+    "Analitika",
+    "Revistat",
+    "Shqyrtimi i publikimeve",
+    "Raportet",
+    "Buxheti",
+    "Konfigurimet",
+    "Rezervimi",
+];
 
 const accessResetStatusLabels = {
     pending: "Ne pritje",
@@ -290,7 +312,7 @@ export default function AdminDashboard() {
 
     const navigate = useNavigate();
 
-    const [activePage, setActivePage] = useState("Perdoruesit");
+    const [activePage, setActivePage] = useState("Përdoruesit");
 
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -373,7 +395,7 @@ export default function AdminDashboard() {
 
                 if (isMounted) {
                     setUsers([]);
-                    setUsersError("Perdoruesit nuk u ngarkuan.");
+                    setUsersError("Përdoruesit nuk u ngarkuan.");
                 }
 
             } finally {
@@ -427,7 +449,7 @@ export default function AdminDashboard() {
 
                 if (isMounted) {
                     setAccessResetRequests([]);
-                    setAccessResetError("Kerkesat per rivendosje qasjeje nuk u ngarkuan.");
+                    setAccessResetError("Kërkesat për rivendosje qasjeje nuk u ngarkuan.");
                 }
 
             } finally {
@@ -631,13 +653,13 @@ export default function AdminDashboard() {
 
         { id: "Njoftime", label: "Njoftime", icon: Bell },
 
-        { id: "Edit Profile", label: "Edit Profile", icon: User },
+        { id: "Edit Profile", label: "Ndrysho profilin", icon: User },
 
-        { id: "Settings", label: "Settings", icon: Settings },
+        { id: "Settings", label: "Konfigurimet", icon: Settings },
 
         { id: "Integrime", label: "Integrime", icon: Link2 },
 
-        { id: "Logout", label: "Logout", icon: ArrowRight, tone: "danger" },
+        { id: "Logout", label: "Dil", icon: ArrowRight, tone: "danger" },
 
     ];
 
@@ -698,7 +720,7 @@ export default function AdminDashboard() {
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(data.message || "Roli nuk u perditesua.");
+                throw new Error(data.message || "Roli nuk u përditësua.");
             }
 
             replaceUser(data.user);
@@ -707,7 +729,7 @@ export default function AdminDashboard() {
         } catch (error) {
 
             console.error("Admin user role update failed:", error);
-            setUsersError(error.message || "Roli nuk u perditesua.");
+            setUsersError(error.message || "Roli nuk u përditësua.");
 
         } finally {
 
@@ -738,7 +760,7 @@ export default function AdminDashboard() {
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(data.message || "Statusi nuk u perditesua.");
+                throw new Error(data.message || "Statusi nuk u përditësua.");
             }
 
             replaceUser(data.user);
@@ -747,7 +769,7 @@ export default function AdminDashboard() {
         } catch (error) {
 
             console.error("Admin user status update failed:", error);
-            setUsersError(error.message || "Statusi nuk u perditesua.");
+            setUsersError(error.message || "Statusi nuk u përditësua.");
 
         } finally {
 
@@ -789,7 +811,7 @@ export default function AdminDashboard() {
         } catch (error) {
 
             console.error("Access reset request update failed:", error);
-            setAccessResetError("Statusi i kerkeses nuk u perditesua.");
+            setAccessResetError("Statusi i kërkesës nuk u përditësua.");
 
         }
 
@@ -881,11 +903,11 @@ export default function AdminDashboard() {
 
             <div className="admin-audit-filters">
                 <label>
-                    <span>Admin email</span>
+                    <span>Email i adminit</span>
                     <input type="search" value={auditFilters.adminEmail} onChange={updateAuditFilter("adminEmail")} placeholder="admin@umib.net" />
                 </label>
                 <label>
-                    <span>Target email</span>
+                    <span>Email i subjektit</span>
                     <input type="search" value={auditFilters.targetEmail} onChange={updateAuditFilter("targetEmail")} placeholder="perdoruesi@umib.net" />
                 </label>
                 <label>
@@ -926,7 +948,7 @@ export default function AdminDashboard() {
                                 <th>Data/Ora</th>
                                 <th>Admini</th>
                                 <th>Veprimi</th>
-                                <th>Target/User</th>
+                                <th>Subjekti/Përdoruesi</th>
                                 <th>Vlera e vjetër</th>
                                 <th>Vlera e re</th>
                                 <th>Statusi</th>
@@ -979,7 +1001,7 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka histori veprimesh per filtrat aktuale.</p> : null}
+            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka histori veprimesh për filtrat aktuale.</p> : null}
 
             {selectedAuditLog ? (
                 <div className="admin-audit-drawer-backdrop" role="presentation" onClick={() => setSelectedAuditLog(null)}>
@@ -1004,7 +1026,7 @@ export default function AdminDashboard() {
                                 <strong>{selectedAuditLog.actionLabel || selectedAuditLog.action || "-"}</strong>
                             </article>
                             <article>
-                                <span>Target</span>
+                            <span>Subjekti</span>
                                 <strong>{getAuditTargetLabel(selectedAuditLog)}</strong>
                                 <small>{selectedAuditLog.target?.email || selectedAuditLog.entityId || "-"}</small>
                             </article>
@@ -1047,11 +1069,11 @@ export default function AdminDashboard() {
 
                 <div>
 
-                    <h3>Menaxhimi i perdoruesve</h3>
+                    <h3>Menaxhimi i përdoruesve</h3>
 
                 </div>
 
-                <div className="admin-page-figure admin-user-total" aria-label="Totali i perdoruesve">
+                <div className="admin-page-figure admin-user-total" aria-label="Totali i përdoruesve">
                     <span className="admin-user-total-icon">
                         <Users size={18} />
                     </span>
@@ -1064,7 +1086,7 @@ export default function AdminDashboard() {
 
             {isUsersLoading ? (
 
-                <p className="admin-empty">Duke ngarkuar perdoruesit...</p>
+                <p className="admin-empty">Duke ngarkuar përdoruesit...</p>
 
             ) : (
 
@@ -1175,10 +1197,10 @@ export default function AdminDashboard() {
 
             )}
 
-            {!isUsersLoading && filteredUsers.length === 0 ? <p className="admin-empty">Nuk ka rezultate per kerkimin aktual.</p> : null}
+            {!isUsersLoading && filteredUsers.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
 
             {selectedUser ? (
-                <div className="admin-user-details" role="dialog" aria-label="Detajet e perdoruesit">
+                <div className="admin-user-details" role="dialog" aria-label="Detajet e përdoruesit">
                     <div>
                         <h4>{selectedUser.name}</h4>
                         <p>{selectedUser.email}</p>
@@ -1300,11 +1322,11 @@ export default function AdminDashboard() {
 
                     <h3>Rivendosja e qasjes</h3>
 
-                    <p>Kerkesat e ardhura per rivendosje qasjeje trajtohen manualisht nga administratori ose IT.</p>
+                    <p>Kërkesat e ardhura për rivendosje qasjeje trajtohen manualisht nga administratori ose IT.</p>
 
                 </div>
 
-                <div className="admin-page-figure">{filteredAccessResetRequests.length} kerkesa</div>
+                <div className="admin-page-figure">{filteredAccessResetRequests.length} kërkesa</div>
 
             </div>
 
@@ -1312,7 +1334,7 @@ export default function AdminDashboard() {
 
             {isAccessResetLoading ? (
 
-                <p className="admin-empty">Duke ngarkuar kerkesat...</p>
+                <p className="admin-empty">Duke ngarkuar kërkesat...</p>
 
             ) : (
 
@@ -1402,7 +1424,7 @@ export default function AdminDashboard() {
 
             )}
 
-            {!isAccessResetLoading && filteredAccessResetRequests.length === 0 ? <p className="admin-empty">Nuk ka kerkesa per rivendosje qasjeje.</p> : null}
+            {!isAccessResetLoading && filteredAccessResetRequests.length === 0 ? <p className="admin-empty">Nuk ka kërkesa për rivendosje qasjeje.</p> : null}
 
         </section>
 
@@ -1447,9 +1469,65 @@ export default function AdminDashboard() {
 
     }
 
+    if (activePage === "Njoftimet") {
+
+        resultCount = 0;
+
+        content = <AdminNotificationsSection />;
+
+    }
+
+    if (activePage === "Analitika") {
+
+        resultCount = 0;
+
+        content = <AdminAnalyticsSection />;
+
+    }
+
+    if (activePage === "Revistat") {
+
+        resultCount = 0;
+
+        content = <AdminJournalsSection />;
+
+    }
+
+    if (activePage === "Shqyrtimi i publikimeve") {
+
+        resultCount = 0;
+
+        content = <AdminPublicationReviewSection />;
+
+    }
+
+    if (activePage === "Raportet") {
+
+        resultCount = 0;
+
+        content = <AdminReportsSection />;
+
+    }
+
+    if (activePage === "Buxheti") {
+
+        resultCount = 0;
+
+        content = <AdminBudgetSection />;
+
+    }
+
+    if (activePage === "Konfigurimet") {
+
+        resultCount = 0;
+
+        content = <AdminSettingsSection />;
+
+    }
 
 
-    if (activePage === "Backup") {
+
+    if (activePage === "Rezervimi") {
 
         resultCount = 3;
 

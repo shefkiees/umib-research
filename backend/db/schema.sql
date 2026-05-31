@@ -255,6 +255,9 @@ alter table publications add column if not exists isbn text not null default '';
 alter table publications add column if not exists metadata_source text not null default 'manual';
 alter table publications add column if not exists metadata_verified boolean not null default false;
 alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
+alter table publications drop constraint if exists publications_status_check;
+alter table publications add constraint publications_status_check
+check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'needs_correction'));
 
 update publications p
 set
@@ -552,6 +555,50 @@ create table if not exists notifications (
 create index if not exists notifications_user_id_idx
 on notifications (user_id, is_read, created_at desc);
 
+create table if not exists admin_journals (
+  id uuid primary key default gen_random_uuid(),
+  issn text not null default '',
+  name text not null,
+  publisher text not null default '',
+  quartile text not null default '',
+  wos_category text not null default '',
+  ceeol boolean not null default false,
+  is_predatory boolean not null default false,
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table admin_journals add column if not exists issn text not null default '';
+alter table admin_journals add column if not exists name text not null default '';
+alter table admin_journals add column if not exists publisher text not null default '';
+alter table admin_journals add column if not exists quartile text not null default '';
+alter table admin_journals add column if not exists wos_category text not null default '';
+alter table admin_journals add column if not exists ceeol boolean not null default false;
+alter table admin_journals add column if not exists is_predatory boolean not null default false;
+alter table admin_journals add column if not exists created_by uuid references users(id) on delete set null;
+alter table admin_journals add column if not exists created_at timestamptz not null default now();
+alter table admin_journals add column if not exists updated_at timestamptz not null default now();
+
+create index if not exists admin_journals_search_idx
+on admin_journals (lower(name), lower(issn));
+
+drop trigger if exists admin_journals_set_updated_at on admin_journals;
+create trigger admin_journals_set_updated_at
+before update on admin_journals
+for each row execute function set_updated_at();
+
+create table if not exists admin_system_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_by uuid references users(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+alter table admin_system_settings add column if not exists value jsonb not null default '{}'::jsonb;
+alter table admin_system_settings add column if not exists updated_by uuid references users(id) on delete set null;
+alter table admin_system_settings add column if not exists updated_at timestamptz not null default now();
+
 create table if not exists user_preferences (
   user_id uuid primary key references users(id) on delete cascade,
   email_notifications boolean not null default true,
@@ -599,5 +646,7 @@ alter table reimbursement_status_history enable row level security;
 alter table reimbursement_attachments enable row level security;
 alter table approval_events enable row level security;
 alter table notifications enable row level security;
+alter table admin_journals enable row level security;
+alter table admin_system_settings enable row level security;
 alter table user_preferences enable row level security;
 alter table audit_logs enable row level security;

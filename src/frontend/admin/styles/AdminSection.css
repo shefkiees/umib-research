@@ -169,6 +169,180 @@
     padding: 0 20px 20px;
 }
 
+/* Admin feature modules */
+.admin-feature-section {
+    padding-bottom: 20px;
+}
+
+.admin-segmented,
+.admin-feature-toolbar,
+.admin-feature-actions,
+.admin-budget-warnings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0 20px 18px;
+}
+
+.admin-segmented button {
+    height: 36px;
+    border: 1px solid #d8e1ec;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #244a76;
+    padding: 0 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-segmented button.is-active {
+    background: #e8f5ff;
+    border-color: #93c5fd;
+    color: #1f4f84;
+}
+
+.admin-notification-list,
+.admin-feature-cards,
+.admin-analytics-grid {
+    display: grid;
+    gap: 14px;
+    padding: 0 20px 20px;
+}
+
+.admin-notification-list {
+    grid-template-columns: 1fr;
+}
+
+.admin-notification-card,
+.admin-feature-cards article,
+.admin-chart-card {
+    border: 1px solid #dfe7f2;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 16px;
+}
+
+.admin-notification-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.admin-notification-card.is-read {
+    opacity: 0.72;
+}
+
+.admin-notification-card span,
+.admin-feature-cards span {
+    color: var(--text-light);
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.admin-notification-card h4,
+.admin-chart-card h4 {
+    margin: 6px 0;
+    color: var(--text-dark);
+}
+
+.admin-notification-card p,
+.admin-notification-card small,
+.admin-feature-cards p {
+    margin: 0;
+    color: var(--text-light);
+}
+
+.admin-feature-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-feature-cards strong {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-dark);
+    font-size: 1.25rem;
+}
+
+.admin-analytics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-feature-form,
+.admin-feature-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 0 20px 18px;
+}
+
+.admin-feature-form input,
+.admin-feature-form textarea,
+.admin-feature-form select,
+.admin-feature-filters input,
+.admin-feature-toolbar input,
+.admin-feature-toolbar textarea,
+.admin-feature-table input {
+    min-width: 0;
+    border: 1px solid #d8e1ec;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text-dark);
+    padding: 9px 11px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    outline: none;
+}
+
+.admin-feature-form label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+.admin-settings-form label {
+    display: grid;
+    align-items: stretch;
+}
+
+.admin-feature-toolbar textarea {
+    min-height: 42px;
+    flex: 1 1 360px;
+}
+
+.admin-feature-table-wrap {
+    padding-inline: 20px;
+}
+
+.admin-feature-table {
+    min-width: 980px;
+    font-size: 0.9rem;
+}
+
+.admin-feature-message {
+    margin: 0 20px 16px;
+    padding: 10px 12px;
+    border: 1px solid #cde9d4;
+    border-radius: 8px;
+    background: #f0fbf2;
+    color: #166c24;
+    font-weight: 800;
+}
+
+.admin-budget-warnings span {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #fff4d9;
+    color: #8a6400;
+    font-weight: 800;
+}
+
 .admin-audit-filters {
     display: grid;
     grid-template-columns: repeat(6, minmax(140px, 1fr));
@@ -676,6 +850,13 @@
         grid-template-columns: repeat(2, minmax(180px, 1fr));
     }
 
+    .admin-analytics-grid,
+    .admin-feature-cards,
+    .admin-feature-form,
+    .admin-feature-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .admin-audit-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -687,6 +868,13 @@
     }
 
     .admin-audit-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-analytics-grid,
+    .admin-feature-cards,
+    .admin-feature-form,
+    .admin-feature-filters {
         grid-template-columns: 1fr;
     }
 

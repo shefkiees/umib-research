@@ -12,9 +12,9 @@ function UsersSection() {
 
       email: "a.hoxha@umib.edu", 
 
-      role: "Professor", 
+      role: "Profesor", 
 
-      status: "Active", 
+      status: "Aktiv", 
 
       faculty: "FSHN", 
 
@@ -26,9 +26,9 @@ function UsersSection() {
 
       email: "m.krasniqi@umib.edu", 
 
-      role: "Commission", 
+      role: "Komisioni", 
 
-      status: "Active", 
+      status: "Aktiv", 
 
       faculty: "FE", 
 
@@ -40,9 +40,9 @@ function UsersSection() {
 
       email: "b.begu@umib.edu", 
 
-      role: "Pro Rector", 
+      role: "Prorektor", 
 
-      status: "Active", 
+      status: "Aktiv", 
 
       faculty: "Rektorati", 
 
@@ -54,9 +54,9 @@ function UsersSection() {
 
       email: "l.gashi@umib.net", 
 
-      role: "Professor", 
+      role: "Profesor", 
 
-      status: "Deactivated", 
+      status: "Çaktivizuar", 
 
       faculty: "FIM", 
 
@@ -70,7 +70,7 @@ function UsersSection() {
 
       role: "Admin", 
 
-      status: "Active", 
+      status: "Aktiv", 
 
       faculty: "IT", 
 
@@ -82,9 +82,9 @@ function UsersSection() {
 
       email: "b.maliqi@umib.edu", 
 
-      role: "Professor", 
+      role: "Profesor", 
 
-      status: "Active", 
+      status: "Aktiv", 
 
       faculty: "FSHN", 
 
@@ -164,7 +164,7 @@ function UsersSection() {
 
                     className={`admin-user-status-chip ${ 
 
-                      user.status === "Active" ? "active" : "inactive" 
+                      user.status === "Aktiv" ? "active" : "inactive" 
 
                     }`} 
 
