@@ -691,35 +691,119 @@ router.patch("/notifications/read-all", requireAdmin, async (req, res) => {
 router.get("/analytics", requireAdmin, async (req, res) => {
   try {
     const [
-      publicationsByYear,
-      publicationsByFaculty,
-      publicationsByType,
-      reimbursementsByStatus,
-      budgetResult,
-      topResearchers,
+      userSummary,
+      usersByRole,
+      usersByFaculty,
+      usersByDepartment,
+      recentLogins,
+      accessSummary,
+      recentAdminChanges,
+      adminActivity,
     ] = await Promise.all([
-      db.query(`select coalesce(publication_year, extract(year from created_at)::int) as year, count(*)::int as count from publications group by 1 order by 1`),
-      db.query(`select coalesce(u.faculty, 'Pa fakultet') as faculty, count(p.id)::int as count from publications p left join users u on u.id = p.owner_id group by 1 order by count desc`),
-      db.query(`select coalesce(nullif(publication_type, ''), 'Pa lloj') as type, count(*)::int as count from publications group by 1 order by count desc`),
-      db.query(`select status, count(*)::int as count from reimbursements group by status order by count desc`),
-      db.query(`select coalesce(sum(amount), 0)::numeric as spent from reimbursements where status in ('approved', 'paid')`),
-      db.query(`select coalesce(u.full_name, u.email, 'Pa emër') as name, count(p.id)::int as count from publications p left join users u on u.id = p.owner_id group by 1 order by count desc limit 8`),
+      db.query(
+        `select
+           count(*)::int as total,
+           count(*) filter (where coalesce(status, 'active') = 'active')::int as active,
+           count(*) filter (where coalesce(status, 'active') = 'inactive')::int as inactive,
+           count(*) filter (where coalesce(status, 'active') = 'suspended')::int as suspended
+         from users`
+      ),
+      db.query(
+        `select coalesce(nullif(role, ''), 'professor') as role, count(*)::int as count
+         from users
+         group by 1
+         order by count desc, role asc`
+      ),
+      db.query(
+        `select coalesce(nullif(faculty, ''), 'Pa fakultet') as faculty, count(*)::int as count
+         from users
+         group by 1
+         order by count desc, faculty asc`
+      ),
+      db.query(
+        `select coalesce(nullif(department, ''), 'Pa departament') as department, count(*)::int as count
+         from users
+         group by 1
+         order by count desc, department asc
+         limit 12`
+      ),
+      db.query(
+        `select id, email, full_name, role, faculty, last_login_at
+         from users
+         where last_login_at is not null
+         order by last_login_at desc
+         limit 8`
+      ),
+      db.query(
+        `select
+           count(*) filter (where action = 'admin.access.unauthenticated')::int as unauthenticated,
+           count(*) filter (where action = 'admin.access.forbidden')::int as forbidden
+         from audit_logs
+         where action in ('admin.access.unauthenticated', 'admin.access.forbidden')`
+      ),
+      db.query(
+        `select al.id,
+                al.action,
+                al.entity_type,
+                al.entity_id,
+                al.created_at,
+                coalesce(u.email, al.metadata->'actor'->>'email', 'Admin') as admin_email,
+                coalesce(u.full_name, al.metadata->'actor'->>'name', u.email, al.metadata->'actor'->>'email', 'Admin') as admin_name,
+                coalesce(al.metadata->'target'->>'name', al.metadata->'target'->>'email', al.entity_id, '-') as target_label
+         from audit_logs al
+         left join users u on u.id = al.actor_id
+         where al.action like 'admin.%'
+         order by al.created_at desc
+         limit 8`
+      ),
+      db.query(
+        `select coalesce(u.full_name, u.email, al.metadata->'actor'->>'name', al.metadata->'actor'->>'email', 'Admin') as admin_name,
+                count(*)::int as count
+         from audit_logs al
+         left join users u on u.id = al.actor_id
+         where al.action like 'admin.%' and al.created_at >= now() - interval '30 days'
+         group by 1
+         order by count desc
+         limit 8`
+      ),
     ]);
 
-    const spent = Number(budgetResult.rows[0]?.spent || 0);
-    const totalBudget = Number(process.env.ADMIN_RESEARCH_BUDGET_EUR || 0);
+    const summary = userSummary.rows[0] || {};
+    const access = accessSummary.rows[0] || {};
 
     res.json({
-      publicationsByYear: publicationsByYear.rows.map((row) => ({ year: row.year || "Pa vit", count: row.count })),
-      publicationsByFaculty: publicationsByFaculty.rows.map((row) => ({ faculty: row.faculty, count: row.count })),
-      publicationsByType: publicationsByType.rows.map((row) => ({ type: row.type, count: row.count })),
-      reimbursementsByStatus: reimbursementsByStatus.rows.map((row) => ({ status: row.status, count: row.count })),
-      budgetUsage: {
-        total: totalBudget,
-        spent,
-        remaining: Math.max(totalBudget - spent, 0),
+      userSummary: {
+        total: summary.total || 0,
+        active: summary.active || 0,
+        inactive: summary.inactive || 0,
+        suspended: summary.suspended || 0,
       },
-      topResearchers: topResearchers.rows.map((row) => ({ name: row.name, count: row.count })),
+      usersByRole: usersByRole.rows.map((row) => ({ role: row.role, count: row.count })),
+      usersByFaculty: usersByFaculty.rows.map((row) => ({ faculty: row.faculty, count: row.count })),
+      usersByDepartment: usersByDepartment.rows.map((row) => ({ department: row.department, count: row.count })),
+      recentLogins: recentLogins.rows.map((row) => ({
+        id: row.id,
+        name: row.full_name || row.email || "-",
+        email: row.email || "-",
+        role: row.role || "-",
+        faculty: row.faculty || "-",
+        lastLoginAt: row.last_login_at,
+      })),
+      accessAttempts: {
+        unauthenticated: access.unauthenticated || 0,
+        forbidden: access.forbidden || 0,
+        total: Number(access.unauthenticated || 0) + Number(access.forbidden || 0),
+      },
+      recentAdminChanges: recentAdminChanges.rows.map((row) => ({
+        id: row.id,
+        action: row.action,
+        actionLabel: AUDIT_ACTION_LABELS[row.action] || row.action,
+        adminName: row.admin_name,
+        adminEmail: row.admin_email,
+        target: row.target_label,
+        createdAt: row.created_at,
+      })),
+      adminActivity: adminActivity.rows.map((row) => ({ adminName: row.admin_name, count: row.count })),
     });
   } catch (error) {
     console.error("GET /api/admin/analytics failed:", error);

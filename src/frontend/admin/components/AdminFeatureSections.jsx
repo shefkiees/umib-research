@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -16,18 +14,6 @@ import {
 import { apiUrl } from "../../utils/api";
 
 const COLORS = ["#1f5f99", "#2e7d32", "#c9a24f", "#b91c1c", "#6d5bd0", "#00838f"];
-
-const reimbursementStatusLabels = {
-  draft: "Në përgatitje",
-  submitted: "Dorëzuar",
-  received: "Pranuar",
-  in_review: "Në shqyrtim",
-  needs_correction: "Kërkon përmirësim",
-  committee_approved: "Aprovuar nga komisioni",
-  approved: "Aprovuar",
-  rejected: "Refuzuar",
-  paid: "Paguar",
-};
 
 const tooltipFormatter = (value, name) => [value, name === "count" ? "Numri" : name];
 
@@ -135,64 +121,109 @@ export function AdminAnalyticsSection() {
   useEffect(() => {
     requestJson("/admin/analytics")
       .then((payload) => {
-      setData({
-        ...payload,
-        reimbursementsByStatus: (payload.reimbursementsByStatus || []).map((item) => ({
-          ...item,
-          status: reimbursementStatusLabels[item.status] || item.status,
-        })),
-      });
+        setData(payload);
         setError("");
       })
       .catch((err) => setError(err.message || "Analitika nuk u ngarkua."));
   }, []);
 
-  const charts = data || {};
-  const budget = charts.budgetUsage || { total: 0, spent: 0, remaining: 0 };
+  const roleLabels = {
+    admin: "Admin",
+    committee: "Komisioni",
+    professor: "Profesor",
+    prorector: "Prorektor",
+  };
+  const summary = data?.userSummary || { total: 0, active: 0, inactive: 0, suspended: 0 };
+  const access = data?.accessAttempts || { total: 0, unauthenticated: 0, forbidden: 0 };
+  const usersByRole = (data?.usersByRole || []).map((item) => ({ ...item, role: roleLabels[item.role] || item.role || "Pa rol" }));
+  const usersByFaculty = data?.usersByFaculty || [];
+  const usersByDepartment = data?.usersByDepartment || [];
+  const adminActivity = data?.adminActivity || [];
+  const recentLogins = data?.recentLogins || [];
+  const recentChanges = data?.recentAdminChanges || [];
+  const formatDateTime = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return String(date.getDate()).padStart(2, "0") + "." + String(date.getMonth() + 1).padStart(2, "0") + "." + date.getFullYear() + ", " + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  };
 
   return (
     <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head"><h3>Analitika</h3></div>
+      <div className="admin-page-head">
+        <div>
+          <h3>Analitika</h3>
+          <p>Sh?ndeti, p?rdorimi, qasja dhe siguria e sistemit</p>
+        </div>
+      </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
+
+      <div className="admin-feature-cards admin-operational-stats">
+        <article><span>P?rdorues gjithsej</span><strong>{summary.total}</strong></article>
+        <article><span>P?rdorues aktiv?</span><strong>{summary.active}</strong></article>
+        <article><span>P?rdorues joaktiv?</span><strong>{summary.inactive}</strong></article>
+        <article><span>T? pezulluar</span><strong>{summary.suspended}</strong></article>
+        <article><span>Tentime pa leje</span><strong>{access.total}</strong><p>Pa ky?je: {access.unauthenticated} ? Pa rol: {access.forbidden}</p></article>
+      </div>
+
       <div className="admin-analytics-grid">
-        <ChartCard title="Publikimet sipas vitit">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={charts.publicationsByYear || []}>
-              <XAxis dataKey="year" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} labelFormatter={(label) => `Viti: ${label}`} /><Legend />
-              <Line name="Publikime" type="monotone" dataKey="count" stroke="#1f5f99" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title="Publikimet sipas fakultetit">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={charts.publicationsByFaculty || []}>
-              <XAxis dataKey="faculty" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="Publikime" dataKey="count" fill="#1f5f99" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title="Publikimet sipas llojit">
+        <ChartCard title="P?rdorues sipas rolit">
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
-              <Pie data={charts.publicationsByType || []} dataKey="count" nameKey="type" outerRadius={82} label>
-                {(charts.publicationsByType || []).map((entry, index) => <Cell key={entry.type} fill={COLORS[index % COLORS.length]} />)}
+              <Pie data={usersByRole} dataKey="count" nameKey="role" outerRadius={82} label>
+                {usersByRole.map((entry, index) => <Cell key={entry.role} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={tooltipFormatter} /><Legend />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Rimbursimet sipas statusit">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={charts.reimbursementsByStatus || []}>
-              <XAxis dataKey="status" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="Rimbursime" dataKey="count" fill="#2e7d32" />
+        <ChartCard title="P?rdorues sipas fakultetit">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByFaculty}>
+              <XAxis dataKey="faculty" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="P?rdorues" dataKey="count" fill="#1f5f99" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+        <ChartCard title="P?rdorues sipas departamentit">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByDepartment}>
+              <XAxis dataKey="department" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="P?rdorues" dataKey="count" fill="#2e7d32" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+        <ChartCard title="Aktiviteti i admin?ve">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={adminActivity}>
+              <XAxis dataKey="adminName" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="Veprime" dataKey="count" fill="#c9a24f" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
-      <div className="admin-feature-cards">
-        <article><span>Shfrytëzimi i buxhetit</span><strong>{formatEuro(budget.spent)}</strong><p>I mbetur: {formatEuro(budget.remaining)}</p></article>
-        <article><span>Hulumtuesit më aktivë</span><strong>{(charts.topResearchers || [])[0]?.name || "-"}</strong><p>{(charts.topResearchers || [])[0]?.count || 0} publikime</p></article>
+
+      <div className="admin-operational-lists">
+        <article>
+          <h4>Ky?jet e fundit</h4>
+          {recentLogins.length ? recentLogins.map((item) => (
+            <div className="admin-operational-row" key={item.id}>
+              <div><strong>{item.name}</strong><span>{item.email}</span></div>
+              <span>{roleLabels[item.role] || item.role || "-"}</span>
+              <time>{formatDateTime(item.lastLoginAt)}</time>
+            </div>
+          )) : <EmptyState text="Nuk ka ky?je t? regjistruara." />}
+        </article>
+        <article>
+          <h4>Ndryshimet administrative t? fundit</h4>
+          {recentChanges.length ? recentChanges.map((item) => (
+            <div className="admin-operational-row" key={item.id}>
+              <div><strong>{item.actionLabel}</strong><span>{item.target || "-"}</span></div>
+              <span>{item.adminName || item.adminEmail || "Admin"}</span>
+              <time>{formatDateTime(item.createdAt)}</time>
+            </div>
+          )) : <EmptyState text="Nuk ka ndryshime administrative." />}
+        </article>
       </div>
     </section>
   );
