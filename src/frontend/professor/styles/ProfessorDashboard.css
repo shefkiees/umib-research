@@ -2088,19 +2088,6 @@ body {
   gap: 12px;
 }
 
-.reimbursement-form-subheading {
-  border-bottom: 1px solid #d8e2ee;
-  padding: 2px 0 7px;
-  margin-top: 4px;
-}
-
-.reimbursement-form-subheading h5 {
-  margin: 0;
-  color: #17324f;
-  font-size: 0.84rem;
-  font-weight: 900;
-}
-
 .reimbursement-publication-abstract-group {
   background: #ffffff;
 }

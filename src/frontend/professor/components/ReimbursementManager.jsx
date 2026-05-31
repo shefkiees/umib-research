@@ -70,6 +70,7 @@ const CONFERENCE_UI_LABELS = {
   organizer: "Organizatori",
   invitationProgram: "Ftesa dhe programi",
   abstractTitle: "Abstrakti dhe titulli i punimit",
+  coParticipant: "Bashkautorët",
   acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
   authorsAffiliation: "Autorët e punimit (affiliation)",
   speakerWithPaperPoster: "Folës me kumtesë/poster",
@@ -618,8 +619,9 @@ function authorAffiliation(author = {}) {
   return String((author || {}).affiliation || "").trim();
 }
 
-function getPublicationAuthorFields(publication) {
+function getPublicationAuthorFields(publication, options = {}) {
   const authors = Array.isArray(publication?.authors) ? publication.authors : [];
+  const coauthorSeparator = options.coauthorSeparator || "; ";
   const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
   const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
   const mainName = authorName(mainAuthor);
@@ -627,7 +629,7 @@ function getPublicationAuthorFields(publication) {
   const coauthors = authors
     .filter((author) => authorName(author) && authorName(author) !== mainName)
     .map(authorName)
-    .join("; ");
+    .join(coauthorSeparator);
   const affiliation = authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author)));
 
   return {
@@ -641,18 +643,31 @@ function getPublicationAuthorFields(publication) {
 function getPublicationAuthorAffiliations(publication) {
   const authors = Array.isArray(publication?.authors) ? publication.authors : [];
   const affiliations = authors
-    .map(authorAffiliation)
-    .filter(Boolean)
-    .filter((affiliation, index, items) => items.indexOf(affiliation) === index);
+    .map((author) => {
+      const name = authorName(author);
+      const affiliation = authorAffiliation(author);
 
-  return affiliations.join("; ");
+      return name && affiliation ? `${name} — ${affiliation}` : "";
+    })
+    .filter(Boolean);
+
+  return affiliations.join("\n");
 }
 
 function getPublicationWorkSummary(publication) {
-  return [publication?.title, publication?.abstract]
-    .map(cleanDisplayValue)
-    .filter(Boolean)
-    .join("\n\n");
+  const title = cleanDisplayValue(publication?.title);
+  const abstract = cleanDisplayValue(publication?.abstract);
+
+  return [
+    title ? `Titulli: ${title}` : "",
+    abstract ? `Abstrakti: ${abstract}` : "",
+  ].filter(Boolean).join("\n\n");
+}
+
+function getPublicationDoiLink(publication) {
+  const doi = cleanDisplayValue(publication?.doi);
+
+  return doi ? `https://doi.org/${doi}` : "";
 }
 
 function getPublicationIndexingFields(publication) {
@@ -1497,7 +1512,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       return;
     }
 
-    const authors = getPublicationAuthorFields(selectedPublication);
+    const authors = getPublicationAuthorFields(selectedPublication, { coauthorSeparator: ", " });
     const affiliations = getPublicationAuthorAffiliations(selectedPublication);
 
     setForm((prev) => ({
@@ -1506,7 +1521,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       mainAuthor: authors.mainAuthor,
       coParticipant: authors.coauthors,
       abstractTitle: getPublicationWorkSummary(selectedPublication),
-      authorsAffiliation: affiliations || authors.affiliation,
+      authorsAffiliation: affiliations,
+      eventPublicationLink: getPublicationDoiLink(selectedPublication),
     }));
   };
 
@@ -2018,14 +2034,17 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderSchemaField = (fieldConfig) => {
     const isPublicationReadOnly = selectedType === "publication"
       && (fieldConfig.source === "publication" || PUBLICATION_READ_ONLY_FIELDS.has(fieldConfig.field));
+    const conferenceFieldConfig = selectedType === "conference" && fieldConfig.field === "authorsAffiliation"
+      ? { ...fieldConfig, type: "textarea", rows: 3 }
+      : fieldConfig;
 
     return (
       <React.Fragment key={fieldConfig.field}>
-        {renderInput(tx(fieldConfig.label), fieldConfig.field, {
-          ...fieldConfig,
+        {renderInput(tx(conferenceFieldConfig.label), conferenceFieldConfig.field, {
+          ...conferenceFieldConfig,
           readOnly: Boolean(fieldConfig.readOnly || isPublicationReadOnly),
-          options: fieldConfig.options || FIELD_OPTIONS[fieldConfig.optionsKey] || [],
-          placeholder: tx(fieldConfig.placeholder),
+          options: conferenceFieldConfig.options || FIELD_OPTIONS[conferenceFieldConfig.optionsKey] || [],
+          placeholder: tx(conferenceFieldConfig.placeholder),
         })}
       </React.Fragment>
     );
@@ -2033,12 +2052,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const getSectionFields = (sectionId) =>
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
-
-  const renderConferenceSubheading = (title) => (
-    <div className="reimbursement-form-subheading reimbursement-wide">
-      <h5>{title}</h5>
-    </div>
-  );
 
   const renderPublicationDisplayField = (field) => (
     <div className="reimbursement-publication-info-row" key={`${field.label}-${field.value}`}>
@@ -2204,13 +2217,10 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </label>
         ) : null}
 
-        {renderConferenceSubheading("Të dhënat e punimit")}
         {paperFields.map(renderSchemaField)}
 
-        {renderConferenceSubheading("Të dhënat e konferencës")}
         {manualConferenceFields.map(renderSchemaField)}
 
-        {renderConferenceSubheading("Të dhënat e pjesëmarrjes")}
         {participationFields.map(renderSchemaField)}
       </div>
     );
