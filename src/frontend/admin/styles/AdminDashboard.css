@@ -651,6 +651,35 @@
     background: #fdeeee;
 }
 
+.admin-user-actions-cell {
+    min-width: 196px;
+}
+
+.admin-user-actions {
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 10px;
+}
+
+.admin-user-actions .admin-small-btn {
+    height: 36px;
+    min-width: 86px;
+    padding: 0 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.admin-user-actions .admin-small-btn.danger {
+    border-color: #e7b9b9;
+    background: #ffffff;
+}
+
+.admin-user-actions .admin-small-btn.danger:hover {
+    background: #fff5f5;
+}
+
 .admin-action-button {
     border: none;
     background: transparent;
@@ -908,6 +937,13 @@
 
     .admin-content {
         padding: 20px;
+    }
+}
+
+@media (max-width: 760px) {
+    .admin-user-actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 }
 

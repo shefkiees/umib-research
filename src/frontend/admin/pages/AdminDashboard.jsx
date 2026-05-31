@@ -875,9 +875,9 @@ export default function AdminDashboard() {
 
                                 <td>{formatAdminDate(item.createdAt)}</td>
 
-                                <td>
+                                <td className="admin-user-actions-cell">
 
-                                    <div className="admin-actions-row">
+                                    <div className="admin-actions-row admin-user-actions">
 
                                         <button
                                             type="button"
