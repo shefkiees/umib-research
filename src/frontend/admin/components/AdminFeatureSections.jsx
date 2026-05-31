@@ -201,6 +201,77 @@ function ChartCard({ title, children }) {
   return <article className="admin-chart-card"><h4>{title}</h4>{children}</article>;
 }
 
+function StatusBadge({ status }) {
+  const normalized = status === "Aktiv" || status === "Online" ? "ok" : status === "Problem" ? "problem" : "empty";
+  return <span className={`admin-status-badge admin-status-badge--${normalized}`}>{status || "Nuk ka të dhëna"}</span>;
+}
+
+function StatusGridSection({ title, description, path, itemsKey, emptyText }) {
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    requestJson(path)
+      .then((payload) => {
+        setItems(Array.isArray(payload[itemsKey]) ? payload[itemsKey] : []);
+        setError("");
+      })
+      .catch((err) => {
+        setItems([]);
+        setError(err.message || "Të dhënat nuk u ngarkuan.");
+      });
+  }, [itemsKey, path]);
+
+  return (
+    <section className="admin-page-card admin-feature-section">
+      <div className="admin-page-head">
+        <div>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+      </div>
+      {error ? <p className="admin-inline-error">{error}</p> : null}
+      <div className="admin-status-grid">
+        {items.map((item) => (
+          <article className="admin-status-card" key={item.id || item.name}>
+            <div className="admin-status-card-head">
+              <h4>{item.name}</h4>
+              <StatusBadge status={item.status} />
+            </div>
+            <p>{item.description}</p>
+            <small>Kontrolli i fundit: {item.checkedAt ? formatDate(item.checkedAt) : "Nuk ka të dhëna"}</small>
+          </article>
+        ))}
+      </div>
+      {items.length === 0 ? <EmptyState text={emptyText} /> : null}
+    </section>
+  );
+}
+
+export function AdminIntegrationsSection() {
+  return (
+    <StatusGridSection
+      title="Integrimet"
+      description="Monitoro lidhjet me shërbimet e jashtme akademike dhe institucionale."
+      path="/admin/integrations/status"
+      itemsKey="integrations"
+      emptyText="Nuk ka të dhëna për integrimet."
+    />
+  );
+}
+
+export function AdminSystemStatusSection() {
+  return (
+    <StatusGridSection
+      title="Gjendja e sistemit"
+      description="Shiko statusin teknik të shërbimeve kryesore të platformës."
+      path="/admin/system-status"
+      itemsKey="services"
+      emptyText="Nuk ka të dhëna për gjendjen e sistemit."
+    />
+  );
+}
+
 export function AdminJournalsSection() {
   const emptyForm = { issn: "", name: "", publisher: "", quartile: "", wosCategory: "", ceeol: false, isPredatory: false };
   const [items, setItems] = useState([]);

@@ -811,6 +811,106 @@ router.get("/analytics", requireAdmin, async (req, res) => {
   }
 });
 
+router.get("/integrations/status", requireAdmin, async (req, res) => {
+  const integrations = [
+    {
+      id: "orcid",
+      name: "ORCID",
+      status: "Nuk ka të dhëna",
+      description: "Importimi dhe verifikimi i profilit të hulumtuesit",
+      checkedAt: null,
+    },
+    {
+      id: "crossref",
+      name: "CrossRef",
+      status: "Nuk ka të dhëna",
+      description: "Verifikimi i DOI dhe marrja e metadatave",
+      checkedAt: null,
+    },
+    {
+      id: "scopus-wos",
+      name: "Scopus / WoS",
+      status: "Nuk ka të dhëna",
+      description: "Metrikat, citimet dhe klasifikimi i revistave",
+      checkedAt: null,
+    },
+    {
+      id: "email",
+      name: "Microsoft 365 / Email",
+      status: "Nuk ka të dhëna",
+      description: "Dërgimi i njoftimeve dhe komunikimi institucional",
+      checkedAt: null,
+    },
+  ];
+
+  res.json({ integrations });
+});
+
+router.get("/system-status", requireAdmin, async (req, res) => {
+  const checkedAt = new Date().toISOString();
+  const services = [
+    {
+      id: "api",
+      name: "API",
+      status: "Online",
+      description: "Shërbimet kryesore të backend-it",
+      checkedAt,
+    },
+  ];
+
+  try {
+    const result = await db.query(`select now() as checked_at`);
+    services.push({
+      id: "database",
+      name: "Databaza",
+      status: "Online",
+      description: "Lidhja dhe përgjigjja e databazës",
+      checkedAt: result.rows[0]?.checked_at || checkedAt,
+    });
+  } catch (error) {
+    services.push({
+      id: "database",
+      name: "Databaza",
+      status: "Problem",
+      description: "Lidhja dhe përgjigjja e databazës",
+      checkedAt,
+    });
+  }
+
+  services.push(
+    {
+      id: "email",
+      name: "Email",
+      status: "Nuk ka të dhëna",
+      description: "Dërgimi i emailave dhe njoftimeve",
+      checkedAt: null,
+    },
+    {
+      id: "storage",
+      name: "Ruajtja e fajllave",
+      status: "Nuk ka të dhëna",
+      description: "Dokumentet, faturat dhe fajllat e ngarkuar",
+      checkedAt: null,
+    },
+    {
+      id: "uploads",
+      name: "Ngarkimet",
+      status: "Nuk ka të dhëna",
+      description: "Procesimi i fajllave nga përdoruesit",
+      checkedAt: null,
+    },
+    {
+      id: "errors",
+      name: "Gabimet e fundit",
+      status: "Nuk ka të dhëna",
+      description: "Gabimet e regjistruara në sistem",
+      checkedAt: null,
+    }
+  );
+
+  res.json({ services });
+});
+
 router.get("/journals", requireAdmin, async (req, res) => {
   try {
     const search = String(req.query.search || "").trim().toLowerCase();

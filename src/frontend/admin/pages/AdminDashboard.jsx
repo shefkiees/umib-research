@@ -12,11 +12,13 @@ import BackupSection from "../components/BackupSection";
 import {
     AdminAnalyticsSection,
     AdminBudgetSection,
+    AdminIntegrationsSection,
     AdminJournalsSection,
     AdminNotificationsSection,
     AdminPublicationReviewSection,
     AdminReportsSection,
     AdminSettingsSection,
+    AdminSystemStatusSection,
 } from "../components/AdminFeatureSections";
 import { apiUrl } from "../../utils/api";
 
@@ -167,6 +169,8 @@ const navLabels = [
     "Historiku i veprimeve",
     "Njoftimet",
     "Statistikat",
+    "Integrimet",
+    "Gjendja e sistemit",
     "Revistat",
     "Shqyrtimi i publikimeve",
     "Raportet",
@@ -1482,6 +1486,22 @@ export default function AdminDashboard() {
         resultCount = 0;
 
         content = <AdminAnalyticsSection />;
+
+    }
+
+    if (activePage === "Integrimet") {
+
+        resultCount = 0;
+
+        content = <AdminIntegrationsSection />;
+
+    }
+
+    if (activePage === "Gjendja e sistemit") {
+
+        resultCount = 0;
+
+        content = <AdminSystemStatusSection />;
 
     }
 
