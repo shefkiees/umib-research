@@ -150,6 +150,30 @@ const getCallbackErrorCode = (error) => {
   return "oauth_callback_failed";
 };
 
+async function updateLastLoginAt(userId) {
+  console.log("last_login_update_started", { userId });
+
+  const result = await db.query(
+    `update users
+     set last_login_at = now(),
+         updated_at = now()
+     where id = $1
+     returning id, email, last_login_at`,
+    [userId]
+  );
+
+  const row = result.rows[0] || null;
+
+  console.log("last_login_update_finished", {
+    userId,
+    updated: result.rowCount,
+    email: row?.email,
+    lastLoginAt: row?.last_login_at,
+  });
+
+  return row;
+}
+
 function mapUserRowToProfile(row) {
   if (!row) {
     return null;
@@ -455,13 +479,7 @@ router.get("/google/callback", (req, res, next) => {
       const dashboardRoute = DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
 
       try {
-        await db.query(
-          `update users
-           set last_login_at = now(),
-               updated_at = now()
-           where id = $1`,
-          [user.id]
-        );
+        await updateLastLoginAt(user.id);
       } catch (lastLoginError) {
         console.warn("Updating last_login_at after login failed:", {
           userId: user.id,
