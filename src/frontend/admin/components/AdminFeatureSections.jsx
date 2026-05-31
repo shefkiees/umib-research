@@ -78,6 +78,83 @@ const normalizeSettingsProfile = (user = {}) => {
   };
 };
 
+const ADMIN_SETTINGS_TEXT = {
+  sq: {
+    title: "Cilësimet",
+    description: "Konfigurimet kryesore për profilin dhe panelin kërkimor.",
+    loading: "Cilësimet po ngarkohen.",
+    loadError: "Cilësimet nuk u ngarkuan.",
+    profileTitle: "Informacionet e Profilit",
+    fullName: "Emri i plotë",
+    academicTitle: "Thirrja akademike",
+    email: "Adresa Email",
+    orcidId: "ORCID iD",
+    orcidSchool: "Shkolla nga ORCID",
+    orcidAffiliation: "Affiliation nga ORCID",
+    notConnected: "Nuk është lidhur",
+    noPublicData: "Nuk ka të dhëna publike",
+    faculty: "Fakulteti",
+    department: "Departamenti",
+    office: "Zyra",
+    scientificTitle: "Thirrja shkencore",
+    editProfile: "Ndrysho të dhënat",
+    cancel: "Anulo",
+    saveData: "Ruaj të dhënat",
+    saving: "Duke ruajtur...",
+    profileSaved: "Të dhënat u ruajtën.",
+    profileSaveError: "Të dhënat nuk u ruajtën.",
+    preferencesTitle: "Preferencat e Sistemit",
+    emailNotifications: "Njoftime me email",
+    emailDescription: "Merr njoftime për çdo publikim ose rimbursim",
+    active: "Aktive",
+    inactive: "Joaktive",
+    savingPreference: "Duke ruajtur...",
+    languageLabel: "Gjuha e ndërfaqes",
+    languageDescription: "Zgjidh gjuhën e shfaqjes për dashboard-in.",
+    albanian: "Shqip",
+    english: "Anglisht",
+    preferencesSaved: "Preferencat u ruajtën.",
+    preferencesSaveError: "Preferencat nuk u ruajtën.",
+  },
+  en: {
+    title: "Settings",
+    description: "Main preferences for the profile and research dashboard.",
+    loading: "Settings are loading.",
+    loadError: "Settings could not be loaded.",
+    profileTitle: "Profile Information",
+    fullName: "Full name",
+    academicTitle: "Academic title",
+    email: "Email address",
+    orcidId: "ORCID iD",
+    orcidSchool: "School from ORCID",
+    orcidAffiliation: "Affiliation from ORCID",
+    notConnected: "Not connected",
+    noPublicData: "No public data",
+    faculty: "Faculty",
+    department: "Department",
+    office: "Office",
+    scientificTitle: "Scientific title",
+    editProfile: "Edit details",
+    cancel: "Cancel",
+    saveData: "Save details",
+    saving: "Saving...",
+    profileSaved: "Details were saved.",
+    profileSaveError: "Details could not be saved.",
+    preferencesTitle: "System Preferences",
+    emailNotifications: "Email notifications",
+    emailDescription: "Receive notifications for every publication or reimbursement",
+    active: "Active",
+    inactive: "Inactive",
+    savingPreference: "Saving...",
+    languageLabel: "Interface language",
+    languageDescription: "Choose the display language for the dashboard.",
+    albanian: "Albanian",
+    english: "English",
+    preferencesSaved: "Preferences were saved.",
+    preferencesSaveError: "Preferences could not be saved.",
+  },
+};
+
 export function AdminNotificationsSection({ onNotificationsChange } = {}) {
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -517,8 +594,10 @@ export function AdminSettingsSection() {
   const [preferences, setPreferences] = useState({ emailNotifications: true });
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreferenceSaving, setIsPreferenceSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const text = ADMIN_SETTINGS_TEXT[language] || ADMIN_SETTINGS_TEXT.sq;
 
   useEffect(() => {
     let isMounted = true;
@@ -539,7 +618,7 @@ export function AdminSettingsSection() {
         }
       } catch (err) {
         if (isMounted) {
-          setError(err.message || "Cilësimet nuk u ngarkuan.");
+          setError(err.message || text.loadError);
         }
       }
     };
@@ -554,7 +633,7 @@ export function AdminSettingsSection() {
   if (!profile || !draft) {
     return (
       <section className="admin-page-card admin-feature-section">
-        {error ? <p className="admin-inline-error">{error}</p> : <EmptyState text="Cilësimet po ngarkohen." />}
+        {error ? <p className="admin-inline-error">{error}</p> : <EmptyState text={text.loading} />}
       </section>
     );
   }
@@ -584,9 +663,9 @@ export function AdminSettingsSection() {
       setProfile(nextProfile);
       setDraft(nextProfile);
       setIsEditing(false);
-      setMessage("Të dhënat u ruajtën.");
+      setMessage(text.profileSaved);
     } catch (err) {
-      setError(err.message || "Të dhënat nuk u ruajtën.");
+      setError(err.message || text.profileSaveError);
     } finally {
       setIsSaving(false);
     }
@@ -595,6 +674,7 @@ export function AdminSettingsSection() {
   const updateEmailNotifications = async (value) => {
     const previousValue = preferences.emailNotifications;
     setPreferences({ emailNotifications: value });
+    setIsPreferenceSaving(true);
     setMessage("");
     setError("");
 
@@ -604,24 +684,26 @@ export function AdminSettingsSection() {
         body: JSON.stringify({ emailNotifications: value }),
       });
       setPreferences({ emailNotifications: Boolean(data.emailNotifications) });
-      setMessage("Preferencat u ruajtën.");
+      setMessage(text.preferencesSaved);
     } catch (err) {
       setPreferences({ emailNotifications: previousValue });
-      setError("Preferencat nuk u ruajtën.");
+      setError(text.preferencesSaveError);
+    } finally {
+      setIsPreferenceSaving(false);
     }
   };
 
   const updateLanguage = (value) => {
     setLanguage(value);
-    setMessage("Preferencat u ruajtën.");
+    setMessage((ADMIN_SETTINGS_TEXT[value] || ADMIN_SETTINGS_TEXT.sq).preferencesSaved);
   };
 
   return (
     <section className="admin-page-card admin-feature-section admin-settings-page">
       <div className="admin-page-head">
         <div>
-          <h3>Cilësimet</h3>
-          <p>Konfigurimet kryesore për profilin dhe panelin kërkimor.</p>
+          <h3>{text.title}</h3>
+          <p>{text.description}</p>
         </div>
       </div>
       {message ? <p className="admin-feature-message">{message}</p> : null}
@@ -629,48 +711,48 @@ export function AdminSettingsSection() {
 
       <div className="admin-settings-grid">
         <article className="admin-settings-card">
-          <h4>Informacionet e Profilit</h4>
+          <h4>{text.profileTitle}</h4>
           <div className="admin-settings-list">
             <div>
-              <span>Emri i plotë</span>
+              <span>{text.fullName}</span>
               {isEditing ? <input value={draft.name} onChange={setDraftValue("name")} /> : <strong>{profile.name || "-"}</strong>}
             </div>
             <div>
-              <span>Thirrja akademike</span>
+              <span>{text.academicTitle}</span>
               {isEditing ? <input value={draft.academicTitle} onChange={setDraftValue("academicTitle")} /> : <strong>{profile.academicTitle || profile.role || "-"}</strong>}
             </div>
             <div>
-              <span>Adresa Email</span>
+              <span>{text.email}</span>
               <strong>{profile.email || "-"}</strong>
             </div>
             <div>
-              <span>ORCID iD</span>
-              <strong>{profile.orcidId || "Nuk është lidhur"}</strong>
+              <span>{text.orcidId}</span>
+              <strong>{profile.orcidId || text.notConnected}</strong>
             </div>
             <div>
-              <span>Shkolla nga ORCID</span>
-              <strong>{profile.school || "Nuk ka të dhëna publike"}</strong>
+              <span>{text.orcidSchool}</span>
+              <strong>{profile.school || text.noPublicData}</strong>
             </div>
             <div>
-              <span>Affiliation nga ORCID</span>
-              <strong>{profile.currentAffiliation || "Nuk ka të dhëna publike"}</strong>
+              <span>{text.orcidAffiliation}</span>
+              <strong>{profile.currentAffiliation || text.noPublicData}</strong>
             </div>
             {isEditing ? (
               <>
                 <div>
-                  <span>Fakulteti</span>
+                  <span>{text.faculty}</span>
                   <input value={draft.faculty} onChange={setDraftValue("faculty")} />
                 </div>
                 <div>
-                  <span>Departamenti</span>
+                  <span>{text.department}</span>
                   <input value={draft.department} onChange={setDraftValue("department")} />
                 </div>
                 <div>
-                  <span>Zyra</span>
+                  <span>{text.office}</span>
                   <input value={draft.office} onChange={setDraftValue("office")} />
                 </div>
                 <div>
-                  <span>Thirrja shkencore</span>
+                  <span>{text.scientificTitle}</span>
                   <input value={draft.scientificTitle} onChange={setDraftValue("scientificTitle")} />
                 </div>
               </>
@@ -679,32 +761,33 @@ export function AdminSettingsSection() {
           <div className="admin-settings-actions">
             {isEditing ? (
               <>
-                <button className="admin-small-btn" type="button" onClick={() => { setDraft(profile); setIsEditing(false); }} disabled={isSaving}>Anulo</button>
+                <button className="admin-small-btn" type="button" onClick={() => { setDraft(profile); setIsEditing(false); }} disabled={isSaving}>{text.cancel}</button>
                 <button className="admin-primary-btn" type="button" onClick={saveProfile} disabled={isSaving}>
-                  {isSaving ? "Duke ruajtur..." : "Ruaj të dhënat"}
+                  {isSaving ? text.saving : text.saveData}
                 </button>
               </>
             ) : (
-              <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>Ndrysho të dhënat</button>
+              <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>{text.editProfile}</button>
             )}
           </div>
         </article>
 
         <article className="admin-settings-card">
-          <h4>Preferencat e Sistemit</h4>
+          <h4>{text.preferencesTitle}</h4>
           <div className="admin-settings-options">
             <div className="admin-settings-option">
               <div>
-                <span>Njoftime me email</span>
-                <p>Merr njoftime për çdo publikim ose rimbursim</p>
-                <strong>{preferences.emailNotifications ? "Aktive" : "Joaktive"}</strong>
+                <span>{text.emailNotifications}</span>
+                <p>{text.emailDescription}</p>
+                <strong>{isPreferenceSaving ? text.savingPreference : preferences.emailNotifications ? text.active : text.inactive}</strong>
               </div>
               <label className="admin-settings-switch">
                 <input
                   type="checkbox"
                   checked={preferences.emailNotifications}
+                  disabled={isPreferenceSaving}
                   onChange={(event) => updateEmailNotifications(event.target.checked)}
-                  aria-label="Njoftime me email"
+                  aria-label={text.emailNotifications}
                 />
                 <span></span>
               </label>
@@ -712,12 +795,12 @@ export function AdminSettingsSection() {
 
             <div className="admin-settings-option admin-settings-option--stacked">
               <div>
-                <span>Gjuha e ndërfaqes</span>
-                <p>Zgjidh gjuhën e shfaqjes për dashboard-in.</p>
+                <span>{text.languageLabel}</span>
+                <p>{text.languageDescription}</p>
               </div>
-              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label="Gjuha e ndërfaqes">
-                <option value="sq">Shqip</option>
-                <option value="en">Anglisht</option>
+              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={text.languageLabel}>
+                <option value="sq">{text.albanian}</option>
+                <option value="en">{text.english}</option>
               </select>
             </div>
           </div>
