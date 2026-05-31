@@ -4,6 +4,40 @@ import { syncMissingSupabaseAuthUsers } from "../services/supabaseAuthSync.servi
 
 const router = express.Router();
 const ACCESS_RESET_STATUSES = new Set(["pending", "in_progress", "completed", "rejected"]);
+const USER_ROLES = new Set(["admin", "committee", "professor", "prorector"]);
+const USER_STATUSES = new Set(["active", "inactive", "suspended"]);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function mapUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.full_name || row.email || "",
+    role: row.role || "professor",
+    status: row.status || "active",
+    faculty: row.faculty || "",
+    department: row.department || "",
+    office: row.office || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function writeAuditLog({ actorId, action, entityId, metadata }) {
+  try {
+    await db.query(
+      `insert into audit_logs (actor_id, action, entity_type, entity_id, metadata)
+       values ($1, $2, 'user', $3, $4::jsonb)`,
+      [actorId, action, entityId, JSON.stringify(metadata || {})]
+    );
+  } catch (error) {
+    console.warn("admin_user_audit_log_failed", {
+      action,
+      entityId,
+      message: error?.message,
+    });
+  }
+}
 
 function requireAdmin(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -37,6 +71,160 @@ router.post("/auth-sync", requireAdmin, async (req, res) => {
     res.status(500).json({
       error: "auth_sync_failed",
       message: error?.message || "Auth sync failed.",
+    });
+  }
+});
+
+router.get("/users", requireAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+       from users
+       order by created_at desc, email asc`
+    );
+
+    res.json({ users: result.rows.map(mapUser) });
+  } catch (error) {
+    console.error("GET /api/admin/users failed:", error);
+    res.status(500).json({
+      error: "admin_users_failed",
+      message: "Perdoruesit nuk u ngarkuan.",
+    });
+  }
+});
+
+router.patch("/users/:id/role", requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.params.id || "").trim();
+    const role = String(req.body?.role || "").trim().toLowerCase();
+
+    if (!UUID_PATTERN.test(userId)) {
+      res.status(400).json({ error: "invalid_user_id", message: "Perdoruesi nuk eshte valid." });
+      return;
+    }
+
+    if (!USER_ROLES.has(role)) {
+      res.status(400).json({ error: "invalid_role", message: "Roli nuk eshte valid." });
+      return;
+    }
+
+    const currentResult = await db.query(
+      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+       from users
+       where id = $1
+       limit 1`,
+      [userId]
+    );
+
+    if (currentResult.rowCount === 0) {
+      res.status(404).json({ error: "not_found", message: "Perdoruesi nuk u gjet." });
+      return;
+    }
+
+    const currentUser = currentResult.rows[0];
+
+    if (currentUser.id === req.user.id && currentUser.role === "admin" && role !== "admin") {
+      res.status(400).json({
+        error: "cannot_change_own_admin_role",
+        message: "Nuk mund ta largoni rolin admin nga llogaria juaj.",
+      });
+      return;
+    }
+
+    const result = await db.query(
+      `update users
+       set role = $2,
+           updated_at = now()
+       where id = $1
+       returning id, email, full_name, role, status, faculty, department, office, created_at, updated_at`,
+      [userId, role]
+    );
+
+    await writeAuditLog({
+      actorId: req.user.id,
+      action: "admin.user.role_update",
+      entityId: userId,
+      metadata: {
+        email: currentUser.email,
+        previousRole: currentUser.role,
+        role,
+      },
+    });
+
+    res.json({ user: mapUser(result.rows[0]) });
+  } catch (error) {
+    console.error("PATCH /api/admin/users/:id/role failed:", error);
+    res.status(500).json({
+      error: "admin_user_role_update_failed",
+      message: "Roli nuk u perditesua.",
+    });
+  }
+});
+
+router.patch("/users/:id/status", requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.params.id || "").trim();
+    const status = String(req.body?.status || "").trim().toLowerCase();
+
+    if (!UUID_PATTERN.test(userId)) {
+      res.status(400).json({ error: "invalid_user_id", message: "Perdoruesi nuk eshte valid." });
+      return;
+    }
+
+    if (!USER_STATUSES.has(status)) {
+      res.status(400).json({ error: "invalid_status", message: "Statusi nuk eshte valid." });
+      return;
+    }
+
+    const currentResult = await db.query(
+      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+       from users
+       where id = $1
+       limit 1`,
+      [userId]
+    );
+
+    if (currentResult.rowCount === 0) {
+      res.status(404).json({ error: "not_found", message: "Perdoruesi nuk u gjet." });
+      return;
+    }
+
+    const currentUser = currentResult.rows[0];
+
+    if (currentUser.id === req.user.id && status !== "active") {
+      res.status(400).json({
+        error: "cannot_deactivate_self",
+        message: "Nuk mund ta deaktivizoni llogarine tuaj.",
+      });
+      return;
+    }
+
+    const result = await db.query(
+      `update users
+       set status = $2,
+           updated_at = now()
+       where id = $1
+       returning id, email, full_name, role, status, faculty, department, office, created_at, updated_at`,
+      [userId, status]
+    );
+
+    await writeAuditLog({
+      actorId: req.user.id,
+      action: "admin.user.status_update",
+      entityId: userId,
+      metadata: {
+        email: currentUser.email,
+        previousStatus: currentUser.status || "active",
+        status,
+      },
+    });
+
+    res.json({ user: mapUser(result.rows[0]) });
+  } catch (error) {
+    console.error("PATCH /api/admin/users/:id/status failed:", error);
+    res.status(500).json({
+      error: "admin_user_status_update_failed",
+      message: "Statusi nuk u perditesua.",
     });
   }
 });

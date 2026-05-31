@@ -14,23 +14,23 @@ import { apiUrl } from "../../utils/api";
 import "../styles/AdminDashboard.css";
 import "../styles/AdminSection.css";
 
-
-
-const usersData = [
-
-    { id: "USR-001", name: "Prof. Arben Hoxha", email: "a.hoxha@umib.edu", role: "Professor", status: "Active", faculty: "FSHN" },
-
-    { id: "USR-002", name: "Dr. Mira Krasniqi", email: "m.krasniqi@umib.edu", role: "Commission", status: "Active", faculty: "FE" },
-
-    { id: "USR-003", name: "Prof. Edon Berisha", email: "e.berisha@umib.edu", role: "Pro Rector", status: "Active", faculty: "Rektorati" },
-
-    { id: "USR-004", name: "Dr. Lulzim Gashi", email: "l.gashi@umib.edu", role: "Professor", status: "Deactivated", faculty: "FIM" },
-
-    { id: "USR-005", name: "Ana Rexhepi", email: "a.rexhepi@umib.edu", role: "Admin", status: "Active", faculty: "IT" },
-
-    { id: "USR-006", name: "Dr. Burim Maliqi", email: "b.maliqi@umib.edu", role: "Professor", status: "Active", faculty: "FSHN" },
-
+const ROLE_OPTIONS = [
+    { value: "admin", label: "Admin" },
+    { value: "committee", label: "Committee" },
+    { value: "professor", label: "Professor" },
+    { value: "prorector", label: "ProRector" },
 ];
+
+const ROLE_LABELS = ROLE_OPTIONS.reduce((labels, item) => ({
+    ...labels,
+    [item.value]: item.label,
+}), {});
+
+const STATUS_LABELS = {
+    active: "Active",
+    inactive: "Inactive",
+    suspended: "Suspended",
+};
 
 
 
@@ -174,7 +174,7 @@ const backupData = [
 
 
 
-const navLabels = ["Përdoruesit", "Rolet", "Rivendosja e qasjes", "Audit Logs", "Backup"];
+const navLabels = ["Perdoruesit", "Rolet", "Rivendosja e qasjes", "Audit Logs", "Backup"];
 
 const accessResetStatusLabels = {
     pending: "Ne pritje",
@@ -209,9 +209,9 @@ const formatAccessResetDate = (value) => {
 
 const getStatusClass = (status) => {
 
-    if (status === "Active") return "admin-chip admin-chip--active";
+    if (status === "active") return "admin-chip admin-chip--active";
 
-    if (status === "Deactivated") return "admin-chip admin-chip--inactive";
+    if (status === "inactive" || status === "suspended") return "admin-chip admin-chip--inactive";
 
     return "admin-chip admin-chip--neutral";
 
@@ -221,14 +221,30 @@ const getStatusClass = (status) => {
 
 const getRoleClass = (role) => {
 
-    if (role === "Admin") return "admin-chip admin-chip--admin";
+    if (role === "admin") return "admin-chip admin-chip--admin";
 
-    if (role === "Commission") return "admin-chip admin-chip--commission";
+    if (role === "committee") return "admin-chip admin-chip--commission";
 
-    if (role === "Pro Rector") return "admin-chip admin-chip--prorector";
+    if (role === "prorector") return "admin-chip admin-chip--prorector";
 
     return "admin-chip admin-chip--professor";
 
+};
+
+const formatAdminDate = (value) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+
+    return date.toLocaleDateString("sq-AL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    });
 };
 
 
@@ -237,7 +253,7 @@ export default function AdminDashboard() {
 
     const navigate = useNavigate();
 
-    const [activePage, setActivePage] = useState("Përdoruesit");
+    const [activePage, setActivePage] = useState("Perdoruesit");
 
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -246,6 +262,16 @@ export default function AdminDashboard() {
     const [isAccessResetLoading, setIsAccessResetLoading] = useState(false);
 
     const [accessResetError, setAccessResetError] = useState("");
+
+    const [users, setUsers] = useState([]);
+
+    const [isUsersLoading, setIsUsersLoading] = useState(false);
+
+    const [usersError, setUsersError] = useState("");
+
+    const [updatingUserId, setUpdatingUserId] = useState("");
+
+    const [selectedUser, setSelectedUser] = useState(null);
 
     const [notifications, setNotifications] = useState([
 
@@ -256,6 +282,59 @@ export default function AdminDashboard() {
         { id: 3, text: "Integrimi me Crossref pati vonesë", isRead: true, createdAt: "para 3 ore" },
 
     ]);
+
+    useEffect(() => {
+
+        let isMounted = true;
+
+        const loadUsers = async () => {
+
+            setIsUsersLoading(true);
+
+            setUsersError("");
+
+            try {
+
+                const response = await fetch(apiUrl("/admin/users"), {
+                    credentials: "include",
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || "admin_users_failed");
+                }
+
+                if (isMounted) {
+                    setUsers(Array.isArray(data.users) ? data.users : []);
+                }
+
+            } catch (error) {
+
+                console.error("Admin users load failed:", error);
+
+                if (isMounted) {
+                    setUsers([]);
+                    setUsersError("Perdoruesit nuk u ngarkuan.");
+                }
+
+            } finally {
+
+                if (isMounted) {
+                    setIsUsersLoading(false);
+                }
+
+            }
+
+        };
+
+        loadUsers();
+
+        return () => {
+            isMounted = false;
+        };
+
+    }, []);
 
 
     useEffect(() => {
@@ -319,15 +398,15 @@ export default function AdminDashboard() {
 
     const filteredUsers = useMemo(() => {
 
-        if (!normalizedQuery) return usersData;
+        if (!normalizedQuery) return users;
 
-        return usersData.filter((item) =>
+        return users.filter((item) =>
 
-            `${item.id} ${item.name} ${item.email} ${item.role} ${item.status}`.toLowerCase().includes(normalizedQuery)
+            `${item.id} ${item.name} ${item.email} ${item.role} ${item.status} ${item.faculty} ${item.department}`.toLowerCase().includes(normalizedQuery)
 
         );
 
-    }, [normalizedQuery]);
+    }, [normalizedQuery, users]);
 
 
 
@@ -435,6 +514,92 @@ export default function AdminDashboard() {
             navigate("/login", { replace: true });
 
             return;
+
+        }
+
+    };
+
+    const replaceUser = (nextUser) => {
+
+        setUsers((prev) => prev.map((item) => (item.id === nextUser.id ? nextUser : item)));
+
+        setSelectedUser((prev) => (prev?.id === nextUser.id ? nextUser : prev));
+
+    };
+
+
+    const updateUserRole = async (userId, role) => {
+
+        setUpdatingUserId(userId);
+
+        setUsersError("");
+
+        try {
+
+            const response = await fetch(apiUrl(`/admin/users/${userId}/role`), {
+                method: "PATCH",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ role }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "Roli nuk u perditesua.");
+            }
+
+            replaceUser(data.user);
+
+        } catch (error) {
+
+            console.error("Admin user role update failed:", error);
+            setUsersError(error.message || "Roli nuk u perditesua.");
+
+        } finally {
+
+            setUpdatingUserId("");
+
+        }
+
+    };
+
+
+    const updateUserStatus = async (userId, status) => {
+
+        setUpdatingUserId(userId);
+
+        setUsersError("");
+
+        try {
+
+            const response = await fetch(apiUrl(`/admin/users/${userId}/status`), {
+                method: "PATCH",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ status }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "Statusi nuk u perditesua.");
+            }
+
+            replaceUser(data.user);
+
+        } catch (error) {
+
+            console.error("Admin user status update failed:", error);
+            setUsersError(error.message || "Statusi nuk u perditesua.");
+
+        } finally {
+
+            setUpdatingUserId("");
 
         }
 
@@ -623,15 +788,23 @@ export default function AdminDashboard() {
 
                 <div>
 
-                    <h3>Menaxhimi i Përdoruesve</h3>
+                    <h3>Menaxhimi i perdoruesve</h3>
 
-                    <p>UC-14 • Aktivizo, çaktivizo dhe ndrysho rolet për përdoruesit e sistemit.</p>
+                    <p>Shiko perdoruesit, ndrysho rolet dhe menaxho statusin e llogarive.</p>
 
                 </div>
 
-                <div className="admin-page-figure">{filteredUsers.length} përdorues</div>
+                <div className="admin-page-figure">{filteredUsers.length} perdorues</div>
 
             </div>
+
+            {usersError ? <p className="admin-inline-error" role="alert">{usersError}</p> : null}
+
+            {isUsersLoading ? (
+
+                <p className="admin-empty">Duke ngarkuar perdoruesit...</p>
+
+            ) : (
 
             <div className="admin-table-wrap">
 
@@ -645,11 +818,15 @@ export default function AdminDashboard() {
 
                             <th>Email</th>
 
+                            <th>Fakulteti</th>
+
+                            <th>Departamenti</th>
+
                             <th>Roli</th>
 
                             <th>Statusi</th>
 
-                            <th>Fakulteti</th>
+                            <th>Krijuar</th>
 
                             <th>Veprimet</th>
 
@@ -667,27 +844,60 @@ export default function AdminDashboard() {
 
                                 <td>{item.email}</td>
 
+                                <td>{item.faculty || "-"}</td>
+
+                                <td>{item.department || "-"}</td>
+
                                 <td>
 
-                                    <span className={getRoleClass(item.role)}>{item.role}</span>
+                                    <div className="admin-role-control">
+                                        <select
+                                            className="admin-select"
+                                            value={item.role}
+                                            onChange={(event) => updateUserRole(item.id, event.target.value)}
+                                            disabled={updatingUserId === item.id}
+                                            aria-label={`Ndrysho rolin per ${item.email}`}
+                                        >
+                                            {ROLE_OPTIONS.map((role) => (
+                                                <option key={role.value} value={role.value}>{role.label}</option>
+                                            ))}
+                                        </select>
+
+                                        <span className={getRoleClass(item.role)}>{ROLE_LABELS[item.role] || item.role}</span>
+                                    </div>
 
                                 </td>
 
                                 <td>
 
-                                    <span className={getStatusClass(item.status)}>{item.status}</span>
+                                    <span className={getStatusClass(item.status)}>{STATUS_LABELS[item.status] || item.status}</span>
 
                                 </td>
 
-                                <td>{item.faculty}</td>
+                                <td>{formatAdminDate(item.createdAt)}</td>
 
                                 <td>
 
-                                    <button type="button" className="admin-action-button">
+                                    <div className="admin-actions-row">
 
-                                        ...
+                                        <button
+                                            type="button"
+                                            className={`admin-small-btn${item.status === "active" ? " danger" : ""}`}
+                                            onClick={() => updateUserStatus(item.id, item.status === "active" ? "inactive" : "active")}
+                                            disabled={updatingUserId === item.id}
+                                        >
+                                            {item.status === "active" ? "Deaktivizo" : "Aktivizo"}
+                                        </button>
 
-                                    </button>
+                                        <button
+                                            type="button"
+                                            className="admin-small-btn"
+                                            onClick={() => setSelectedUser(item)}
+                                        >
+                                            Shiko
+                                        </button>
+
+                                    </div>
 
                                 </td>
 
@@ -701,7 +911,43 @@ export default function AdminDashboard() {
 
             </div>
 
-            {filteredUsers.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
+            )}
+
+            {!isUsersLoading && filteredUsers.length === 0 ? <p className="admin-empty">Nuk ka rezultate per kerkimin aktual.</p> : null}
+
+            {selectedUser ? (
+                <div className="admin-user-details" role="dialog" aria-label="Detajet e perdoruesit">
+                    <div>
+                        <h4>{selectedUser.name}</h4>
+                        <p>{selectedUser.email}</p>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>Fakulteti</dt>
+                            <dd>{selectedUser.faculty || "-"}</dd>
+                        </div>
+                        <div>
+                            <dt>Departamenti</dt>
+                            <dd>{selectedUser.department || "-"}</dd>
+                        </div>
+                        <div>
+                            <dt>Roli</dt>
+                            <dd>{ROLE_LABELS[selectedUser.role] || selectedUser.role}</dd>
+                        </div>
+                        <div>
+                            <dt>Statusi</dt>
+                            <dd>{STATUS_LABELS[selectedUser.status] || selectedUser.status}</dd>
+                        </div>
+                        <div>
+                            <dt>Krijuar</dt>
+                            <dd>{formatAdminDate(selectedUser.createdAt)}</dd>
+                        </div>
+                    </dl>
+                    <button type="button" className="admin-small-btn" onClick={() => setSelectedUser(null)}>
+                        Mbyll
+                    </button>
+                </div>
+            ) : null}
 
         </section>
 

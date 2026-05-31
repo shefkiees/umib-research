@@ -165,6 +165,7 @@ function mapUserRowToProfile(row) {
     email: row.email,
     name: row.full_name || row.email || "",
     role: row.role,
+    status: row.status || "active",
     academicTitle: row.academic_title || "",
     scientificTitle: row.scientific_title || "",
     faculty: row.faculty || "",
@@ -187,7 +188,7 @@ router.get("/me", async (req, res) => {
     }
 
     const result = await db.query(
-      `SELECT id, google_id, orcid_id, email, full_name, role, academic_title, scientific_title, faculty, department, office,
+      `SELECT id, google_id, orcid_id, email, full_name, role, status, academic_title, scientific_title, faculty, department, office,
               orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at
        FROM users
        WHERE id = $1
@@ -249,7 +250,7 @@ router.put("/me", async (req, res) => {
            scientific_title = $7,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, google_id, orcid_id, email, full_name, role, academic_title, scientific_title, faculty, department, office,
+       RETURNING id, google_id, orcid_id, email, full_name, role, status, academic_title, scientific_title, faculty, department, office,
                  orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at`,
       [
         req.user.id,

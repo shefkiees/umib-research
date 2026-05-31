@@ -18,6 +18,8 @@ create table if not exists users (
   password_hash text not null default '',
   role text not null default 'professor'
     check (role in ('professor', 'committee', 'prorector', 'admin')),
+  status text not null default 'active'
+    check (status in ('active', 'inactive', 'suspended')),
   academic_title text,
   scientific_title text,
   faculty text,
@@ -35,6 +37,10 @@ alter table users add column if not exists orcid_id text;
 alter table users add column if not exists academic_title text;
 alter table users add column if not exists scientific_title text;
 alter table users add column if not exists office text;
+alter table users add column if not exists status text not null default 'active';
+alter table users drop constraint if exists users_status_check;
+alter table users add constraint users_status_check
+check (status in ('active', 'inactive', 'suspended'));
 alter table users add column if not exists orcid_profile jsonb not null default '{}'::jsonb;
 alter table users add column if not exists orcid_educations jsonb not null default '[]'::jsonb;
 alter table users add column if not exists orcid_employments jsonb not null default '[]'::jsonb;

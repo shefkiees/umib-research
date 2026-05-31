@@ -103,7 +103,7 @@ if (googleAuthConfigured) {
              DO UPDATE SET
                google_id = EXCLUDED.google_id,
                updated_at = NOW()
-             RETURNING id, google_id, orcid_id, email, full_name, role, faculty, department, office`,
+             RETURNING id, google_id, orcid_id, email, full_name, role, status, faculty, department, office`,
             [
               profile.id,
               email,
@@ -121,6 +121,12 @@ if (googleAuthConfigured) {
             });
           }
 
+          if ((dbUser.status || "active") !== "active") {
+            return done(null, false, {
+              message: "User account is inactive.",
+            });
+          }
+
           return done(null, {
             id: dbUser.id,
             googleId: dbUser.google_id,
@@ -128,6 +134,7 @@ if (googleAuthConfigured) {
             email: dbUser.email,
             displayName: dbUser.full_name,
             role: dbUser.role,
+            status: dbUser.status || "active",
             faculty: dbUser.faculty,
             department: dbUser.department,
             office: dbUser.office,
@@ -152,7 +159,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id, done) => {
   try {
     const result = await db.query(
-      `SELECT id, google_id, orcid_id, email, full_name, role, faculty, department, office
+      `SELECT id, google_id, orcid_id, email, full_name, role, status, faculty, department, office
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -165,6 +172,10 @@ passport.deserializeUser(async (id, done) => {
 
     const dbUser = result.rows[0];
 
+    if ((dbUser.status || "active") !== "active") {
+      return done(null, false);
+    }
+
     return done(null, {
       id: dbUser.id,
       googleId: dbUser.google_id,
@@ -172,6 +183,7 @@ passport.deserializeUser(async (id, done) => {
       email: dbUser.email,
       displayName: dbUser.full_name,
       role: dbUser.role,
+      status: dbUser.status || "active",
       faculty: dbUser.faculty,
       department: dbUser.department,
       office: dbUser.office,
