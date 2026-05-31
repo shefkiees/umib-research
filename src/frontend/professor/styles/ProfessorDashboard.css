@@ -2276,53 +2276,6 @@ body {
   background: #eef2f7;
 }
 
-.reimbursement-paper-summary {
-  width: 100%;
-  border: 1px solid #d8e2ee;
-  border-radius: 10px;
-  background: #eef2f7;
-  color: #17324f;
-  padding: 10px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-}
-
-.reimbursement-paper-summary-block {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.reimbursement-paper-summary-block + .reimbursement-paper-summary-block {
-  border-top: 1px solid #d8e2ee;
-  padding-top: 10px;
-}
-
-.reimbursement-paper-summary-block span {
-  color: #64748b;
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.reimbursement-paper-summary-block strong,
-.reimbursement-paper-summary-block p {
-  margin: 0;
-  color: #17324f;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.reimbursement-paper-summary-block strong {
-  font-weight: 900;
-}
-
-.reimbursement-paper-summary-block p {
-  font-weight: 500;
-  white-space: pre-wrap;
-}
-
 .reimbursement-author-field,
 .reimbursement-coauthors-field {
   gap: 6px;

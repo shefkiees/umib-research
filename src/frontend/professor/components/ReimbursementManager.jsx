@@ -69,7 +69,7 @@ const CONFERENCE_UI_LABELS = {
   conferenceDate: "Data",
   organizer: "Organizatori",
   invitationProgram: "Ftesa dhe programi",
-  abstractTitle: "Abstrakti dhe titulli i punimit",
+  abstractTitle: "Abstrakti",
   coParticipant: "Bashkautorët",
   acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
   authorsAffiliation: "Autorët e punimit (affiliation)",
@@ -81,7 +81,7 @@ const CONFERENCE_UI_LABELS = {
 
 const CONFERENCE_UI_PLACEHOLDERS = {
   invitationProgram: "Vendos URL ose përshkrim të ftesës/programit",
-  abstractTitle: "Shkruaj titullin dhe abstraktin e punimit",
+  abstractTitle: "Shkruaj abstraktin e punimit",
   acceptanceConfirmation: "Vendos URL ose shënim për konfirmimin e pranimit",
   authorsAffiliation: "Shkruaj autorët dhe përkatësinë institucionale",
   eventPublicationLink: "Vendos linkun e ngjarjes ose publikimit",
@@ -655,44 +655,13 @@ function getPublicationAuthorAffiliations(publication) {
 }
 
 function getPublicationWorkSummary(publication) {
-  const title = cleanDisplayValue(publication?.title);
-  const abstract = cleanDisplayValue(publication?.abstract);
-
-  return [
-    title ? `Titulli: ${title}` : "",
-    abstract ? `Abstrakti: ${abstract}` : "",
-  ].filter(Boolean).join("\n\n");
+  return cleanDisplayValue(publication?.abstract);
 }
 
 function getPublicationDoiLink(publication) {
   const doi = cleanDisplayValue(publication?.doi);
 
   return doi ? `https://doi.org/${doi}` : "";
-}
-
-function parsePublicationWorkSummary(value) {
-  const text = cleanDisplayValue(value);
-
-  if (!text) {
-    return { title: "", abstract: "" };
-  }
-
-  const titleMatch = text.match(/Titulli:\s*([\s\S]*?)(?:\n\s*\n\s*Abstrakti:|$)/i);
-  const abstractMatch = text.match(/Abstrakti:\s*([\s\S]*)$/i);
-
-  if (titleMatch || abstractMatch) {
-    return {
-      title: cleanDisplayValue(titleMatch?.[1] || ""),
-      abstract: cleanDisplayValue(abstractMatch?.[1] || ""),
-    };
-  }
-
-  const [title, ...abstractParts] = text.split(/\n\s*\n/);
-
-  return {
-    title: cleanDisplayValue(title),
-    abstract: cleanDisplayValue(abstractParts.join("\n\n")),
-  };
 }
 
 function getPublicationIndexingFields(publication) {
@@ -1549,6 +1518,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       authorsAffiliation: affiliations,
       eventPublicationLink: getPublicationDoiLink(selectedPublication),
     }));
+    setIsAbstractExpanded(false);
   };
 
   const validateForm = (action) => {
@@ -1988,29 +1958,32 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       );
     }
 
-    if (selectedType === "conference" && field === "abstractTitle" && options.readOnly) {
-      const summary = parsePublicationWorkSummary(form.abstractTitle);
+    if (selectedType === "conference" && field === "abstractTitle") {
+      const abstractText = cleanDisplayValue(form.abstractTitle);
+      const hasLongAbstract = abstractText.length > 320 || abstractText.split(/\r?\n/).length > 4;
 
       return (
-        <div className={`${className} reimbursement-paper-summary-field`}>
+        <label className={`${className} reimbursement-abstract-field`}>
           <span>{tx(displayLabel)}</span>
-          <div className="reimbursement-paper-summary" aria-readonly="true">
-            {summary.title ? (
-              <div className="reimbursement-paper-summary-block">
-                <span>Titulli i punimit</span>
-                <strong>{summary.title}</strong>
-              </div>
-            ) : null}
-            {summary.abstract ? (
-              <div className="reimbursement-paper-summary-block">
-                <span>Abstrakti</span>
-                <p>{summary.abstract}</p>
-              </div>
-            ) : null}
-            {!summary.title && !summary.abstract ? <span className="reimbursement-muted-value">{t("common.noData")}</span> : null}
-          </div>
+          <textarea
+            className="reimbursement-abstract-textarea"
+            value={form[field]}
+            onChange={handleFieldChange(field)}
+            rows={isAbstractExpanded ? 8 : 3}
+            required={options.required}
+            placeholder={tx(displayPlaceholder)}
+          />
+          {hasLongAbstract ? (
+            <button
+              type="button"
+              className="reimbursement-abstract-toggle"
+              onClick={() => setIsAbstractExpanded((current) => !current)}
+            >
+              {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            </button>
+          ) : null}
           {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
-        </div>
+        </label>
       );
     }
 
@@ -2085,7 +2058,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderSchemaField = (fieldConfig) => {
     const isPublicationReadOnly = selectedType === "publication"
       && (fieldConfig.source === "publication" || PUBLICATION_READ_ONLY_FIELDS.has(fieldConfig.field));
-    const isConferencePaperReadOnly = selectedType === "conference" && CONFERENCE_PAPER_FIELDS.has(fieldConfig.field);
+    const isConferencePaperReadOnly = selectedType === "conference"
+      && CONFERENCE_PAPER_FIELDS.has(fieldConfig.field)
+      && fieldConfig.field !== "abstractTitle";
     const conferenceFieldConfig = selectedType === "conference" && fieldConfig.field === "authorsAffiliation"
       ? { ...fieldConfig, type: "textarea", rows: 3 }
       : fieldConfig;
