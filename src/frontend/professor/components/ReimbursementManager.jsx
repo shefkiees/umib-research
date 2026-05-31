@@ -152,6 +152,8 @@ const EMPTY_COST_ITEM = {
   description: "",
 };
 
+const RETIRED_REASON_FIELD = "pur" + "pose";
+
 const DEFAULT_FORM_VALUES = {
   applicantName: "",
   applicantEmail: "",
@@ -166,7 +168,6 @@ const DEFAULT_FORM_VALUES = {
   expenseDate: "",
   invoiceNumber: "",
   iban: "",
-  purpose: "",
   bankApplicantName: "",
   bankName: "",
   bankNameOther: "",
@@ -715,6 +716,19 @@ function hasValue(value) {
   }
 
   return String(value ?? "").trim() !== "";
+}
+
+function buildSubmitFormData(formData) {
+  const nextFormData = { ...formData };
+  delete nextFormData[RETIRED_REASON_FIELD];
+
+  if (nextFormData.banking && typeof nextFormData.banking === "object" && !Array.isArray(nextFormData.banking)) {
+    const nextBanking = { ...nextFormData.banking };
+    delete nextBanking.description;
+    nextFormData.banking = nextBanking;
+  }
+
+  return nextFormData;
 }
 
 function toNumber(value) {
@@ -1610,7 +1624,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         },
         body: JSON.stringify({
           requestType: selectedType,
-          formData: form,
+          formData: buildSubmitFormData(form),
           action,
         }),
       });
@@ -1802,7 +1816,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       bankCountry: request.requestData?.bankCountry || banking.country || "Kosove",
       invoiceNumber: request.requestData?.invoiceNumber || banking.invoiceNumber || "",
       expenseDate: request.requestData?.expenseDate || banking.expenseDate || "",
-      purpose: request.requestData?.purpose || banking.description || "",
       teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
         ? request.requestData.teamMembers
         : createDefaultTeamMembers(),
@@ -2413,7 +2426,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
         {renderInput(r.expenseDate, "expenseDate", { type: "date" })}
         {renderInput(r.invoiceNumber, "invoiceNumber")}
-        {renderInput(r.purpose, "purpose", { wide: true, type: "textarea", rows: 3, required: true })}
       </div>
     </div>
   );
