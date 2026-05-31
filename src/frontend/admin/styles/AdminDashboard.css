@@ -773,30 +773,55 @@
 }
 
 .admin-users-table-wrap {
-    overflow-x: hidden;
-    padding-inline: 18px;
+    overflow-x: auto;
+    padding-inline: 20px;
 }
 
 .admin-users-table {
     table-layout: fixed;
-    font-size: 0.88rem;
+    min-width: 1180px;
+    font-size: 0.9rem;
 }
 
 .admin-users-table th,
 .admin-users-table td {
-    padding: 11px 7px;
-    overflow-wrap: anywhere;
+    padding: 12px 10px;
+    vertical-align: middle;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .admin-users-table th:nth-child(1) { width: 11%; }
-.admin-users-table th:nth-child(2) { width: 16%; }
-.admin-users-table th:nth-child(3) { width: 8%; }
-.admin-users-table th:nth-child(4) { width: 8%; }
-.admin-users-table th:nth-child(5) { width: 13%; }
-.admin-users-table th:nth-child(6) { width: 9%; }
-.admin-users-table th:nth-child(7) { width: 12%; }
-.admin-users-table th:nth-child(8) { width: 8%; }
-.admin-users-table th:nth-child(9) { width: 15%; }
+.admin-users-table th:nth-child(2) { width: 19%; }
+.admin-users-table th:nth-child(3) { width: 13%; }
+.admin-users-table th:nth-child(4) { width: 10%; }
+.admin-users-table th:nth-child(5) { width: 11%; }
+.admin-users-table th:nth-child(6) { width: 8%; }
+.admin-users-table th:nth-child(7) { width: 13%; }
+.admin-users-table th:nth-child(8) { width: 7%; }
+.admin-users-table th:nth-child(9) { width: 8%; }
+
+.admin-users-table th:nth-child(2),
+.admin-users-table td:nth-child(2),
+.admin-users-table th:nth-child(7),
+.admin-users-table td:nth-child(7),
+.admin-users-table th:nth-child(8),
+.admin-users-table td:nth-child(8) {
+    white-space: nowrap;
+}
+
+.admin-user-email-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-user-faculty-cell,
+.admin-user-department-cell {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+    line-height: 1.35;
+}
 
 .admin-users-table th:nth-child(5),
 .admin-users-table td:nth-child(5) {
@@ -821,10 +846,14 @@
 
 .admin-users-table .admin-user-actions-cell {
     min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 .admin-users-table .admin-user-actions {
     gap: 6px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
 }
 
 .admin-users-table .admin-user-actions .admin-small-btn {
@@ -835,6 +864,11 @@
 }
 
 .admin-users-table .admin-last-login-cell {
+    white-space: nowrap;
+    font-size: 0.84rem;
+}
+
+.admin-users-table .admin-created-at-cell {
     white-space: nowrap;
     font-size: 0.84rem;
 }

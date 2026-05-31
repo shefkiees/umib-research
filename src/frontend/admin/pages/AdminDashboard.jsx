@@ -240,11 +240,11 @@ const formatAdminDate = (value) => {
         return "-";
     }
 
-    return date.toLocaleDateString("sq-AL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    });
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}.${month}.${year}`;
 };
 
 const formatAdminDateTime = (value) => {
@@ -256,14 +256,11 @@ const formatAdminDateTime = (value) => {
         return "Asnjëherë";
     }
 
-    return date.toLocaleString("sq-AL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-    });
+    const datePart = formatAdminDate(value);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return `${datePart} • ${hours}:${minutes}`;
 };
 
 
@@ -866,11 +863,11 @@ export default function AdminDashboard() {
 
                                 <td>{item.name}</td>
 
-                                <td>{item.email}</td>
+                                <td className="admin-user-email-cell" title={item.email}>{item.email}</td>
 
-                                <td>{item.faculty || "-"}</td>
+                                <td className="admin-user-faculty-cell">{item.faculty || "-"}</td>
 
-                                <td>{item.department || "-"}</td>
+                                <td className="admin-user-department-cell">{item.department || "-"}</td>
 
                                 <td>
 
@@ -896,7 +893,7 @@ export default function AdminDashboard() {
 
                                 <td className="admin-last-login-cell">{formatAdminDateTime(item.lastLoginAt || item.last_login_at)}</td>
 
-                                <td>{formatAdminDate(item.createdAt)}</td>
+                                <td className="admin-created-at-cell">{formatAdminDate(item.createdAt)}</td>
 
                                 <td className="admin-user-actions-cell">
 
