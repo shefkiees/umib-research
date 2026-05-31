@@ -570,19 +570,6 @@ export default function AdminDashboard() {
 
     const hasMoreAuditLogs = filteredAuditLogs.length > visibleAuditLogs.length;
 
-    const auditSummary = useMemo(() => {
-        const failedCount = auditLogs.filter((item) => item.status === "failed").length;
-        const successCount = auditLogs.filter((item) => item.status === "success").length;
-        const missingIpCount = auditLogs.filter((item) => !item.ipAddress).length;
-
-        return {
-            total: auditLogs.length,
-            success: successCount,
-            failed: failedCount,
-            missingIp: missingIpCount,
-        };
-    }, [auditLogs]);
-
     const filteredBackup = useMemo(() => {
 
         if (!normalizedQuery) return backupData;
@@ -880,8 +867,6 @@ export default function AdminDashboard() {
 
                     <h3>Historiku i veprimeve</h3>
 
-                    <p>Veprimet administrative dhe tentimet e qasjes në panelin admin</p>
-
                 </div>
 
                 <button type="button" className="admin-roles-config-button admin-filter-button" onClick={clearAuditFilters}>
@@ -892,25 +877,6 @@ export default function AdminDashboard() {
 
                 </button>
 
-            </div>
-
-            <div className="admin-audit-summary-grid">
-                <article>
-                    <span>Totali</span>
-                    <strong>{auditSummary.total}</strong>
-                </article>
-                <article>
-                    <span>Sukses</span>
-                    <strong>{auditSummary.success}</strong>
-                </article>
-                <article>
-                    <span>Dështuan</span>
-                    <strong>{auditSummary.failed}</strong>
-                </article>
-                <article>
-                    <span>Pa IP</span>
-                    <strong>{auditSummary.missingIp}</strong>
-                </article>
             </div>
 
             <div className="admin-audit-filters">
