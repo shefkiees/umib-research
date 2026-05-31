@@ -36,7 +36,7 @@ const mainItems = [
 
   { label: "Njoftimet", route: "Njoftimet", icon: Bell }, 
 
-  { label: "Analitika", route: "Analitika", icon: BarChart3 }, 
+  { label: "Statistikat", route: "Statistikat", icon: BarChart3 }, 
 
   { label: "Rezervimi", route: "Rezervimi", icon: Database }, 
 

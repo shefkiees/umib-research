@@ -166,7 +166,7 @@ const navLabels = [
     "Rivendosja e qasjes",
     "Historiku i veprimeve",
     "Njoftimet",
-    "Analitika",
+    "Statistikat",
     "Revistat",
     "Shqyrtimi i publikimeve",
     "Raportet",
@@ -1477,7 +1477,7 @@ export default function AdminDashboard() {
 
     }
 
-    if (activePage === "Analitika") {
+    if (activePage === "Statistikat") {
 
         resultCount = 0;
 

@@ -124,7 +124,7 @@ export function AdminAnalyticsSection() {
         setData(payload);
         setError("");
       })
-      .catch((err) => setError(err.message || "Analitika nuk u ngarkua."));
+      .catch((err) => setError(err.message || "Statistikat nuk u ngarkuan."));
   }, []);
 
   const roleLabels = {
@@ -144,8 +144,7 @@ export function AdminAnalyticsSection() {
     <section className="admin-page-card admin-feature-section">
       <div className="admin-page-head">
         <div>
-          <h3>Analitika</h3>
-          <p>Shëndeti, përdorimi, qasja dhe siguria e sistemit</p>
+          <h3>Statistikat</h3>
         </div>
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
