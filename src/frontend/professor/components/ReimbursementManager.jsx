@@ -78,6 +78,14 @@ const CONFERENCE_UI_LABELS = {
   eventPublicationLink: "Linku i publikimit të ngjarjes",
 };
 
+const CONFERENCE_UI_PLACEHOLDERS = {
+  invitationProgram: "Vendos URL ose përshkrim të ftesës/programit",
+  abstractTitle: "Shkruaj titullin dhe abstraktin e punimit",
+  acceptanceConfirmation: "Vendos URL ose shënim për konfirmimin e pranimit",
+  authorsAffiliation: "Shkruaj autorët dhe përkatësinë institucionale",
+  eventPublicationLink: "Vendos linkun e ngjarjes ose publikimit",
+};
+
 const COST_CATEGORY_OPTIONS = [
   { value: "materialCost", label: "Materiale 40%" },
   { value: "administrativeCost", label: "Administrative 30%" },
@@ -1876,6 +1884,9 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       : selectedType === "conference"
         ? (CONFERENCE_UI_LABELS[field] || label)
         : label;
+    const displayPlaceholder = selectedType === "conference"
+      ? (CONFERENCE_UI_PLACEHOLDERS[field] || options.placeholder)
+      : options.placeholder;
 
     if (selectedType === "publication" && field === "mainAuthor") {
       const author = stripMarkup(form.mainAuthor);
@@ -1941,7 +1952,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             onChange={handleFieldChange(field)}
             rows={options.rows || 3}
             required={options.required}
-            placeholder={tx(options.placeholder)}
+            placeholder={tx(displayPlaceholder)}
             readOnly={options.readOnly}
             aria-readonly={options.readOnly || undefined}
           />
@@ -1981,7 +1992,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           onChange={handleFieldChange(field)}
           required={options.required}
           inputMode={options.inputMode}
-          placeholder={tx(options.placeholder)}
+          placeholder={tx(displayPlaceholder)}
           min={options.min}
           step={options.step}
           readOnly={options.readOnly}
