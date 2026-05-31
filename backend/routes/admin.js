@@ -652,6 +652,22 @@ router.get("/notifications", requireAdmin, async (req, res) => {
   }
 });
 
+router.patch("/notifications/read-all", requireAdmin, async (req, res) => {
+  try {
+    await db.query(
+      `update notifications
+       set is_read = true
+       where user_id = $1 or user_id is null`,
+      [req.user.id]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("PATCH /api/admin/notifications/read-all failed:", error);
+    res.status(500).json({ error: "notifications_update_failed", message: "Njoftimet nuk u përditësuan." });
+  }
+});
+
 router.patch("/notifications/:id/read", requireAdmin, async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
@@ -672,22 +688,6 @@ router.patch("/notifications/:id/read", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("PATCH /api/admin/notifications/:id/read failed:", error);
     res.status(500).json({ error: "notification_update_failed", message: "Njoftimi nuk u përditësua." });
-  }
-});
-
-router.patch("/notifications/read-all", requireAdmin, async (req, res) => {
-  try {
-    await db.query(
-      `update notifications
-       set is_read = true
-       where user_id = $1 or user_id is null`,
-      [req.user.id]
-    );
-
-    res.json({ ok: true });
-  } catch (error) {
-    console.error("PATCH /api/admin/notifications/read-all failed:", error);
-    res.status(500).json({ error: "notifications_update_failed", message: "Njoftimet nuk u përditësuan." });
   }
 });
 

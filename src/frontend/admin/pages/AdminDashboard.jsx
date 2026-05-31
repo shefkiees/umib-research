@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -376,16 +376,39 @@ export default function AdminDashboard() {
 
     const [profileRefreshKey, setProfileRefreshKey] = useState(0);
 
-    const [notifications, setNotifications] = useState([
+    const [notifications, setNotifications] = useState([]);
 
-        { id: 1, text: "3 tentativa të pasuksesshme login", isRead: false, createdAt: "para 5 min" },
+    const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
 
-        { id: 2, text: "1 përdorues është çaktivizuar për siguri", isRead: false, createdAt: "para 1 ore" },
+    const [notificationsError, setNotificationsError] = useState("");
 
-        { id: 3, text: "Integrimi me Crossref pati vonesë", isRead: true, createdAt: "para 3 ore" },
+    const loadAdminNotifications = useCallback(async () => {
+        setIsNotificationsLoading(true);
+        setNotificationsError("");
 
-    ]);
+        try {
+            const response = await fetch(apiUrl("/admin/notifications"), {
+                credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
 
+            if (!response.ok) {
+                throw new Error(data.message || "notifications_failed");
+            }
+
+            setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+        } catch (error) {
+            console.error("Admin notifications load failed:", error);
+            setNotifications([]);
+            setNotificationsError("Njoftimet nuk u ngarkuan.");
+        } finally {
+            setIsNotificationsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadAdminNotifications();
+    }, [loadAdminNotifications]);
     useEffect(() => {
 
         let isMounted = true;
@@ -646,10 +669,56 @@ export default function AdminDashboard() {
 
 
 
-    const markAllNotificationsAsRead = () => {
+    const markNotificationAsRead = async (item) => {
+        if (!item || item.isRead || item.source === "audit") return;
 
+        const previousNotifications = notifications;
+        setNotifications((prev) => prev.map((notification) =>
+            notification.id === item.id ? { ...notification, isRead: true } : notification
+        ));
+
+        try {
+            const response = await fetch(apiUrl(`/admin/notifications/${item.id}/read`), {
+                method: "PATCH",
+                credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "notification_update_failed");
+            }
+
+            await loadAdminNotifications();
+        } catch (error) {
+            console.error("Admin notification mark read failed:", error);
+            setNotifications(previousNotifications);
+            setNotificationsError("Njoftimi nuk u perditesua.");
+        }
+    };
+
+    const markAllNotificationsAsRead = async () => {
+        if (!notifications.some((item) => !item.isRead && item.source !== "audit")) return;
+
+        const previousNotifications = notifications;
         setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
 
+        try {
+            const response = await fetch(apiUrl("/admin/notifications/read-all"), {
+                method: "PATCH",
+                credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "notifications_update_failed");
+            }
+
+            await loadAdminNotifications();
+        } catch (error) {
+            console.error("Admin notifications mark all read failed:", error);
+            setNotifications(previousNotifications);
+            setNotificationsError("Njoftimet nuk u perditesuan.");
+        }
     };
 
     const updateAuditFilter = (field) => (event) => {
@@ -1599,7 +1668,7 @@ export default function AdminDashboard() {
 
         resultCount = 0;
 
-        content = <AdminNotificationsSection />;
+        content = <AdminNotificationsSection onNotificationsChange={loadAdminNotifications} />;
 
     }
 
@@ -1703,7 +1772,13 @@ export default function AdminDashboard() {
 
                     notifications={notifications}
 
+                    notificationsLoading={isNotificationsLoading}
+
+                    notificationsError={notificationsError}
+
                     onMarkAllRead={markAllNotificationsAsRead}
+
+                    onNotificationRead={markNotificationAsRead}
 
                     onProfileAction={handleProfileAction}
 

@@ -408,6 +408,19 @@
     color: var(--text-light);
 }
 
+.admin-notification-popover-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.admin-notification-popover-item:disabled {
+    cursor: default;
+}
+
 .admin-profile-menu {
     width: 230px;
     display: grid;

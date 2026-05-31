@@ -30,6 +30,14 @@ function getRoleLabel(role) {
   return ROLE_LABELS[role] || role || "Admin";
 }
 
+function formatNotificationTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}, ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function AdminTopbar({ 
 
   activePage, 
@@ -44,7 +52,13 @@ export default function AdminTopbar({
 
   notifications, 
 
+  notificationsLoading = false,
+
+  notificationsError = "",
+
   onMarkAllRead, 
+
+  onNotificationRead,
 
   onProfileAction, 
 
@@ -98,7 +112,7 @@ export default function AdminTopbar({
 
     }; 
 
-  }, [profileRefreshKey]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -128,7 +142,7 @@ export default function AdminTopbar({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [profileRefreshKey]);
 
  
 
@@ -210,7 +224,7 @@ export default function AdminTopbar({
 
                 <strong>Njoftimet</strong> 
 
-                <button type="button" onClick={onMarkAllRead}> 
+                <button type="button" onClick={onMarkAllRead} disabled={notificationCount === 0 || notificationsLoading}> 
 
                   Shëno si të lexuara 
 
@@ -220,17 +234,56 @@ export default function AdminTopbar({
 
               <ul> 
 
-                {notifications.map((item) => ( 
+                {notificationsLoading ? (
+
+                  <li className="is-read">
+
+                    <p>Duke ngarkuar njoftimet...</p>
+
+                  </li>
+
+                ) : null}
+
+                {!notificationsLoading && notificationsError ? (
+
+                  <li className="is-read">
+
+                    <p>{notificationsError}</p>
+
+                  </li>
+
+                ) : null}
+
+                {!notificationsLoading && !notificationsError && notifications.map((item) => ( 
 
                   <li key={item.id} className={item.isRead ? "is-read" : ""}> 
 
-                    <p>{item.text}</p> 
+                    <button
+                      type="button"
+                      className="admin-notification-popover-item"
+                      onClick={() => onNotificationRead?.(item)}
+                      disabled={item.isRead || item.source === "audit"}
+                    >
 
-                    <span>{item.createdAt}</span> 
+                      <p>{item.title || item.text || item.message || "Njoftim"}</p>
+
+                      <span>{formatNotificationTime(item.createdAt)}</span>
+
+                    </button>
 
                   </li> 
 
                 ))} 
+
+                {!notificationsLoading && !notificationsError && notifications.length === 0 ? (
+
+                  <li className="is-read">
+
+                    <p>Nuk ka njoftime aktualisht.</p>
+
+                  </li>
+
+                ) : null}
 
               </ul> 
 

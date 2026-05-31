@@ -49,7 +49,7 @@ function EmptyState({ text = "Nuk ka të dhëna për t'u shfaqur." }) {
   return <p className="admin-empty">{text}</p>;
 }
 
-export function AdminNotificationsSection() {
+export function AdminNotificationsSection({ onNotificationsChange } = {}) {
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
@@ -78,11 +78,13 @@ export function AdminNotificationsSection() {
     if (item.source === "audit") return;
     await requestJson(`/admin/notifications/${item.id}/read`, { method: "PATCH" });
     await load();
+    onNotificationsChange?.();
   };
 
   const markAllRead = async () => {
     await requestJson("/admin/notifications/read-all", { method: "PATCH" });
     await load();
+    onNotificationsChange?.();
   };
 
   return (
