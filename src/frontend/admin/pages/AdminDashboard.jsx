@@ -262,6 +262,7 @@ const formatAdminDateTime = (value) => {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
     });
 };
 
@@ -893,7 +894,7 @@ export default function AdminDashboard() {
 
                                 </td>
 
-                                <td>{formatAdminDateTime(item.lastLoginAt || item.last_login_at)}</td>
+                                <td className="admin-last-login-cell">{formatAdminDateTime(item.lastLoginAt || item.last_login_at)}</td>
 
                                 <td>{formatAdminDate(item.createdAt)}</td>
 

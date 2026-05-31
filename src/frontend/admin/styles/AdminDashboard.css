@@ -823,6 +823,11 @@
     font-size: 0.82rem;
 }
 
+.admin-users-table .admin-last-login-cell {
+    white-space: nowrap;
+    font-size: 0.84rem;
+}
+
 /* Chips */
 .admin-chip,
 .admin-role-chip,

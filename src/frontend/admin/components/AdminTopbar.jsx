@@ -2,6 +2,34 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { Bell, Search, User, Settings, Link2, ArrowRight } from "lucide-react"; 
 
+import { apiUrl } from "../../utils/api";
+
+const ROLE_LABELS = {
+  admin: "Admin",
+  committee: "Committee",
+  professor: "Professor",
+  prorector: "ProRector",
+  ProRector: "ProRector",
+};
+
+function getProfileName(user) {
+  const firstLastName = [user?.first_name || user?.firstName, user?.last_name || user?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return firstLastName || user?.full_name || user?.fullName || user?.name || user?.email || "Admin";
+}
+
+function getProfileInitial(name, email) {
+  const source = name || email || "A";
+  return source.trim().charAt(0).toUpperCase();
+}
+
+function getRoleLabel(role) {
+  return ROLE_LABELS[role] || role || "Admin";
+}
+
 export default function AdminTopbar({ 
 
   activePage, 
@@ -27,6 +55,8 @@ export default function AdminTopbar({
   const [isProfileOpen, setIsProfileOpen] = useState(false); 
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false); 
+
+  const [profileUser, setProfileUser] = useState(null); 
 
   const profileRef = useRef(null); 
 
@@ -68,25 +98,43 @@ export default function AdminTopbar({
 
   }, []); 
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfileUser = async () => {
+      try {
+        const response = await fetch(apiUrl("/auth/me"), {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setProfileUser(data.user || null);
+        }
+      } catch (error) {
+        console.warn("Admin profile user could not be loaded.", error);
+      }
+    };
+
+    loadProfileUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
  
 
   const title = activePage; 
 
-  const name = "Administrator"; 
-
-  const role = "System Admin"; 
-
-  const initials = name 
-
-    .split(" ") 
-
-    .map((part) => part[0]) 
-
-    .join("") 
-
-    .slice(0, 2) 
-
-    .toUpperCase(); 
+  const name = getProfileName(profileUser);
+  const role = getRoleLabel(profileUser?.role);
+  const initials = getProfileInitial(name, profileUser?.email);
 
  
 
