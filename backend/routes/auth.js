@@ -445,7 +445,7 @@ router.get("/google/callback", (req, res, next) => {
       return;
     }
 
-    req.logIn(user, (loginError) => {
+    req.logIn(user, async (loginError) => {
       if (loginError) {
         console.error("Creating session after Google login failed:", loginError);
         redirectToLoginWithError(res, "session_login_failed", req);
@@ -453,6 +453,21 @@ router.get("/google/callback", (req, res, next) => {
       }
 
       const dashboardRoute = DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
+
+      try {
+        await db.query(
+          `update users
+           set last_login_at = now(),
+               updated_at = now()
+           where id = $1`,
+          [user.id]
+        );
+      } catch (lastLoginError) {
+        console.warn("Updating last_login_at after login failed:", {
+          userId: user.id,
+          message: lastLoginError?.message,
+        });
+      }
 
       console.log("LOGIN SUCCESS");
       res.redirect(`${getClientUrl(req)}${dashboardRoute}`);

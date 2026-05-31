@@ -18,6 +18,8 @@ function mapUser(row) {
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
+    lastLoginAt: row.last_login_at,
+    last_login_at: row.last_login_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -78,7 +80,7 @@ router.post("/auth-sync", requireAdmin, async (req, res) => {
 router.get("/users", requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
-      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+      `select id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at
        from users
        order by created_at desc, email asc`
     );
@@ -109,7 +111,7 @@ router.patch("/users/:id/role", requireAdmin, async (req, res) => {
     }
 
     const currentResult = await db.query(
-      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+      `select id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at
        from users
        where id = $1
        limit 1`,
@@ -136,7 +138,7 @@ router.patch("/users/:id/role", requireAdmin, async (req, res) => {
        set role = $2,
            updated_at = now()
        where id = $1
-       returning id, email, full_name, role, status, faculty, department, office, created_at, updated_at`,
+       returning id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at`,
       [userId, role]
     );
 
@@ -177,7 +179,7 @@ router.patch("/users/:id/status", requireAdmin, async (req, res) => {
     }
 
     const currentResult = await db.query(
-      `select id, email, full_name, role, status, faculty, department, office, created_at, updated_at
+      `select id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at
        from users
        where id = $1
        limit 1`,
@@ -204,7 +206,7 @@ router.patch("/users/:id/status", requireAdmin, async (req, res) => {
        set status = $2,
            updated_at = now()
        where id = $1
-       returning id, email, full_name, role, status, faculty, department, office, created_at, updated_at`,
+       returning id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at`,
       [userId, status]
     );
 

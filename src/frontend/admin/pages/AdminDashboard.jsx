@@ -247,6 +247,24 @@ const formatAdminDate = (value) => {
     });
 };
 
+const formatAdminDateTime = (value) => {
+    if (!value) return "Asnjëherë";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Asnjëherë";
+    }
+
+    return date.toLocaleString("sq-AL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+};
+
 
 
 export default function AdminDashboard() {
@@ -829,6 +847,8 @@ export default function AdminDashboard() {
 
                             <th>Statusi</th>
 
+                            <th>Kyçja e fundit</th>
+
                             <th>Krijuar</th>
 
                             <th>Veprimet</th>
@@ -872,6 +892,8 @@ export default function AdminDashboard() {
                                     <span className={getStatusClass(item.status)}>{STATUS_LABELS[item.status] || item.status}</span>
 
                                 </td>
+
+                                <td>{formatAdminDateTime(item.lastLoginAt || item.last_login_at)}</td>
 
                                 <td>{formatAdminDate(item.createdAt)}</td>
 
@@ -936,6 +958,10 @@ export default function AdminDashboard() {
                         <div>
                             <dt>Statusi</dt>
                             <dd>{STATUS_LABELS[selectedUser.status] || selectedUser.status}</dd>
+                        </div>
+                        <div>
+                            <dt>Kyçja e fundit</dt>
+                            <dd>{formatAdminDateTime(selectedUser.lastLoginAt || selectedUser.last_login_at)}</dd>
                         </div>
                         <div>
                             <dt>Krijuar</dt>

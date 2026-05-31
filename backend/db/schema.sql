@@ -29,6 +29,7 @@ create table if not exists users (
   orcid_educations jsonb not null default '[]'::jsonb,
   orcid_employments jsonb not null default '[]'::jsonb,
   orcid_last_synced_at timestamptz,
+  last_login_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -45,6 +46,7 @@ alter table users add column if not exists orcid_profile jsonb not null default 
 alter table users add column if not exists orcid_educations jsonb not null default '[]'::jsonb;
 alter table users add column if not exists orcid_employments jsonb not null default '[]'::jsonb;
 alter table users add column if not exists orcid_last_synced_at timestamptz;
+alter table users add column if not exists last_login_at timestamptz;
 create index if not exists users_orcid_id_idx
   on users (orcid_id)
   where orcid_id is not null;
