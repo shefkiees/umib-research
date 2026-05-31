@@ -272,6 +272,16 @@ const getAuditStatusClass = (status) => {
     return "admin-audit-status";
 };
 
+const getAuditPersonLabel = (person) => {
+    if (!person) return "-";
+    return person.name || person.email || "-";
+};
+
+const getAuditTargetLabel = (item) => {
+    if (!item) return "-";
+    return item.target?.name || item.target?.email || item.entityId || "-";
+};
+
 
 
 export default function AdminDashboard() {
@@ -925,7 +935,7 @@ export default function AdminDashboard() {
                                     <td className="admin-audit-ip-cell">{item.ipAddress || "-"}</td>
                                     <td>
                                         {item.details ? (
-                                            <button type="button" className="admin-small-btn" onClick={() => setSelectedAuditLog(item)}>
+                                            <button type="button" className="admin-small-btn admin-audit-view-btn" onClick={() => setSelectedAuditLog(item)}>
                                                 Shiko
                                             </button>
                                         ) : "-"}
@@ -950,25 +960,42 @@ export default function AdminDashboard() {
                             Mbyll
                         </button>
                     </div>
-                    <dl>
-                        <div>
-                            <dt>Data/Ora</dt>
-                            <dd>{formatAuditDateTime(selectedAuditLog.createdAt)}</dd>
-                        </div>
-                        <div>
-                            <dt>Admini</dt>
-                            <dd>{selectedAuditLog.admin?.email || selectedAuditLog.admin?.name || "-"}</dd>
-                        </div>
-                        <div>
-                            <dt>Target</dt>
-                            <dd>{selectedAuditLog.target?.email || selectedAuditLog.target?.name || selectedAuditLog.entityId || "-"}</dd>
-                        </div>
-                        <div>
-                            <dt>IP</dt>
-                            <dd>{selectedAuditLog.ipAddress || "-"}</dd>
-                        </div>
-                    </dl>
-                    <pre>{JSON.stringify(selectedAuditLog.details, null, 2)}</pre>
+                    <div className="admin-audit-detail-grid">
+                        <article>
+                            <span>Admini</span>
+                            <strong>{getAuditPersonLabel(selectedAuditLog.admin)}</strong>
+                            <small>{selectedAuditLog.admin?.email || "-"}</small>
+                        </article>
+                        <article>
+                            <span>Veprimi</span>
+                            <strong>{selectedAuditLog.actionLabel || selectedAuditLog.action || "-"}</strong>
+                        </article>
+                        <article>
+                            <span>Target</span>
+                            <strong>{getAuditTargetLabel(selectedAuditLog)}</strong>
+                            <small>{selectedAuditLog.target?.email || selectedAuditLog.entityId || "-"}</small>
+                        </article>
+                        <article>
+                            <span>Vlera e vjetër</span>
+                            <strong>{selectedAuditLog.oldValue || "-"}</strong>
+                        </article>
+                        <article>
+                            <span>{selectedAuditLog.action === "admin.user.status_update" ? "Statusi i ri" : "Vlera e re"}</span>
+                            <strong>{selectedAuditLog.newValue || "-"}</strong>
+                        </article>
+                        <article>
+                            <span>Statusi</span>
+                            <strong>{auditStatusLabels[selectedAuditLog.status] || selectedAuditLog.status || "-"}</strong>
+                        </article>
+                        <article>
+                            <span>IP</span>
+                            <strong>{selectedAuditLog.ipAddress || "-"}</strong>
+                        </article>
+                        <article>
+                            <span>Data</span>
+                            <strong>{formatAuditDateTime(selectedAuditLog.createdAt)}</strong>
+                        </article>
+                    </div>
                 </div>
             ) : null}
 
