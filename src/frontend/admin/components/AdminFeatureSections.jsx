@@ -588,13 +588,11 @@ export function AdminBudgetSection() {
 }
 
 export function AdminSettingsSection() {
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [draft, setDraft] = useState(null);
-  const [preferences, setPreferences] = useState({ emailNotifications: true });
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPreferenceSaving, setIsPreferenceSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const text = ADMIN_SETTINGS_TEXT[language] || ADMIN_SETTINGS_TEXT.sq;
@@ -604,16 +602,12 @@ export function AdminSettingsSection() {
 
     const load = async () => {
       try {
-        const [profileData, preferencesData] = await Promise.all([
-          requestJson("/auth/me"),
-          requestJson("/notifications/preferences"),
-        ]);
+        const profileData = await requestJson("/auth/me");
         const nextProfile = normalizeSettingsProfile(profileData.user || {});
 
         if (isMounted) {
           setProfile(nextProfile);
           setDraft(nextProfile);
-          setPreferences({ emailNotifications: Boolean(preferencesData.emailNotifications) });
           setError("");
         }
       } catch (err) {
@@ -669,33 +663,6 @@ export function AdminSettingsSection() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const updateEmailNotifications = async (value) => {
-    const previousValue = preferences.emailNotifications;
-    setPreferences({ emailNotifications: value });
-    setIsPreferenceSaving(true);
-    setMessage("");
-    setError("");
-
-    try {
-      const data = await requestJson("/notifications/preferences", {
-        method: "PUT",
-        body: JSON.stringify({ emailNotifications: value }),
-      });
-      setPreferences({ emailNotifications: Boolean(data.emailNotifications) });
-      setMessage(text.preferencesSaved);
-    } catch (err) {
-      setPreferences({ emailNotifications: previousValue });
-      setError(text.preferencesSaveError);
-    } finally {
-      setIsPreferenceSaving(false);
-    }
-  };
-
-  const updateLanguage = (value) => {
-    setLanguage(value);
-    setMessage((ADMIN_SETTINGS_TEXT[value] || ADMIN_SETTINGS_TEXT.sq).preferencesSaved);
   };
 
   return (
@@ -772,39 +739,6 @@ export function AdminSettingsSection() {
           </div>
         </article>
 
-        <article className="admin-settings-card">
-          <h4>{text.preferencesTitle}</h4>
-          <div className="admin-settings-options">
-            <div className="admin-settings-option">
-              <div>
-                <span>{text.emailNotifications}</span>
-                <p>{text.emailDescription}</p>
-                <strong>{isPreferenceSaving ? text.savingPreference : preferences.emailNotifications ? text.active : text.inactive}</strong>
-              </div>
-              <label className="admin-settings-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.emailNotifications}
-                  disabled={isPreferenceSaving}
-                  onChange={(event) => updateEmailNotifications(event.target.checked)}
-                  aria-label={text.emailNotifications}
-                />
-                <span></span>
-              </label>
-            </div>
-
-            <div className="admin-settings-option admin-settings-option--stacked">
-              <div>
-                <span>{text.languageLabel}</span>
-                <p>{text.languageDescription}</p>
-              </div>
-              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={text.languageLabel}>
-                <option value="sq">{text.albanian}</option>
-                <option value="en">{text.english}</option>
-              </select>
-            </div>
-          </div>
-        </article>
       </div>
     </section>
   );
