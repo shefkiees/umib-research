@@ -139,35 +139,27 @@ export function AdminAnalyticsSection() {
   const usersByFaculty = data?.usersByFaculty || [];
   const usersByDepartment = data?.usersByDepartment || [];
   const adminActivity = data?.adminActivity || [];
-  const recentLogins = data?.recentLogins || [];
-  const recentChanges = data?.recentAdminChanges || [];
-  const formatDateTime = (value) => {
-    if (!value) return "-";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-    return String(date.getDate()).padStart(2, "0") + "." + String(date.getMonth() + 1).padStart(2, "0") + "." + date.getFullYear() + ", " + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
-  };
 
   return (
     <section className="admin-page-card admin-feature-section">
       <div className="admin-page-head">
         <div>
           <h3>Analitika</h3>
-          <p>Sh?ndeti, p?rdorimi, qasja dhe siguria e sistemit</p>
+          <p>Shëndeti, përdorimi, qasja dhe siguria e sistemit</p>
         </div>
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
 
       <div className="admin-feature-cards admin-operational-stats">
-        <article><span>P?rdorues gjithsej</span><strong>{summary.total}</strong></article>
-        <article><span>P?rdorues aktiv?</span><strong>{summary.active}</strong></article>
-        <article><span>P?rdorues joaktiv?</span><strong>{summary.inactive}</strong></article>
-        <article><span>T? pezulluar</span><strong>{summary.suspended}</strong></article>
-        <article><span>Tentime pa leje</span><strong>{access.total}</strong><p>Pa ky?je: {access.unauthenticated} ? Pa rol: {access.forbidden}</p></article>
+        <article><span>Përdorues gjithsej</span><strong>{summary.total}</strong></article>
+        <article><span>Përdorues aktivë</span><strong>{summary.active}</strong></article>
+        <article><span>Përdorues joaktivë</span><strong>{summary.inactive}</strong></article>
+        <article><span>Të pezulluar</span><strong>{summary.suspended}</strong></article>
+        <article><span>Tentime pa leje</span><strong>{access.total}</strong><p>Pa kyçje: {access.unauthenticated} • Pa rol: {access.forbidden}</p></article>
       </div>
 
       <div className="admin-analytics-grid">
-        <ChartCard title="P?rdorues sipas rolit">
+        <ChartCard title="Përdorues sipas rolit">
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={usersByRole} dataKey="count" nameKey="role" outerRadius={82} label>
@@ -177,23 +169,23 @@ export function AdminAnalyticsSection() {
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="P?rdorues sipas fakultetit">
+        <ChartCard title="Përdorues sipas fakultetit">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={usersByFaculty}>
               <XAxis dataKey="faculty" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="P?rdorues" dataKey="count" fill="#1f5f99" />
+              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="P?rdorues sipas departamentit">
+        <ChartCard title="Përdorues sipas departamentit">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={usersByDepartment}>
               <XAxis dataKey="department" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="P?rdorues" dataKey="count" fill="#2e7d32" />
+              <Bar name="Përdorues" dataKey="count" fill="#2e7d32" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Aktiviteti i admin?ve">
+        <ChartCard title="Aktiviteti i adminëve">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={adminActivity}>
               <XAxis dataKey="adminName" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
@@ -201,29 +193,6 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-      </div>
-
-      <div className="admin-operational-lists">
-        <article>
-          <h4>Ky?jet e fundit</h4>
-          {recentLogins.length ? recentLogins.map((item) => (
-            <div className="admin-operational-row" key={item.id}>
-              <div><strong>{item.name}</strong><span>{item.email}</span></div>
-              <span>{roleLabels[item.role] || item.role || "-"}</span>
-              <time>{formatDateTime(item.lastLoginAt)}</time>
-            </div>
-          )) : <EmptyState text="Nuk ka ky?je t? regjistruara." />}
-        </article>
-        <article>
-          <h4>Ndryshimet administrative t? fundit</h4>
-          {recentChanges.length ? recentChanges.map((item) => (
-            <div className="admin-operational-row" key={item.id}>
-              <div><strong>{item.actionLabel}</strong><span>{item.target || "-"}</span></div>
-              <span>{item.adminName || item.adminEmail || "Admin"}</span>
-              <time>{formatDateTime(item.createdAt)}</time>
-            </div>
-          )) : <EmptyState text="Nuk ka ndryshime administrative." />}
-        </article>
       </div>
     </section>
   );
