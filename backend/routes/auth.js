@@ -11,7 +11,7 @@ const LOGIN_ROUTE = "/login";
 const PROFESSOR_DASHBOARD_ROUTE = "/professor/dashboard";
 const ACCESS_RESET_SUCCESS_MESSAGE = "Nese ky email ekziston ne sistem, kerkesa do te procesohet nga stafi pergjegjes.";
 const DASHBOARD_BY_ROLE = {
-  admin: "/prorector/dashboard",
+  admin: "/admin/dashboard",
   committee: "/committee/dashboard",
   professor: PROFESSOR_DASHBOARD_ROUTE,
   prorector: "/prorector/dashboard"
