@@ -118,14 +118,6 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "abstract",
 ]);
 
-const CONFERENCE_READ_ONLY_FIELDS = new Set([
-  "conferenceTitle",
-  "eventPlaceDate",
-  "location",
-  "conferenceDate",
-  "eventPublicationLink",
-]);
-
 const PUBLICATION_LABELS = {
   publicationTitle: "Titulli i punimit",
   mainAuthor: "Autori kryesor",
@@ -176,6 +168,14 @@ const EMPTY_COST_ITEM = {
 };
 
 const RETIRED_REASON_FIELD = "pur" + "pose";
+
+const CONFERENCE_MANUAL_FIELDS = new Set([
+  "conferenceTitle",
+  "location",
+  "conferenceDate",
+  "organizer",
+  "eventPublicationLink",
+]);
 
 const DEFAULT_FORM_VALUES = {
   applicantName: "",
@@ -525,22 +525,6 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("Quartile", form.scopusQuartile),
-    ].filter(Boolean),
-  };
-}
-
-function getConferenceMetadataDisplaySection(form, conference) {
-  const website = conference?.website || form.eventPublicationLink;
-
-  return {
-    title: "Të dhënat e konferencës",
-    fields: [
-      createDisplayField("Emërtimi i ngjarjes", conference?.title || form.conferenceTitle),
-      createDisplayField("Akronimi", conference?.acronym),
-      createDisplayField("Fusha shkencore", conference?.field),
-      createDisplayField("Vendi", conference?.location || form.location),
-      createDisplayField("Data", normalizeDate(conference?.conferenceDate || form.conferenceDate)),
-      createDisplayField("Linku i publikimit të ngjarjes", website, website ? { href: website } : {}),
     ].filter(Boolean),
   };
 }
@@ -1144,11 +1128,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     );
   }, [fallbackRows, hasLoadedRequests, requests, searchQuery]);
 
-  const selectedConference = useMemo(
-    () => context.conferences.find((item) => String(item.id) === String(form.conferenceId)) || null,
-    [context.conferences, form.conferenceId]
-  );
-
   useEffect(() => {
     let isMounted = true;
 
@@ -1521,22 +1500,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       coParticipant: authors.coauthors,
       abstractTitle: getPublicationWorkSummary(selectedPublication),
       authorsAffiliation: affiliations || authors.affiliation,
-    }));
-  };
-
-  const handleConferenceSelect = (event) => {
-    const conferenceId = event.target.value;
-    const selectedConference = context.conferences.find((item) => String(item.id) === conferenceId);
-    const placeDate = [selectedConference?.location, selectedConference?.conferenceDate].filter(Boolean).join(" / ");
-
-    setForm((prev) => ({
-      ...prev,
-      conferenceId,
-      conferenceTitle: selectedConference?.title || prev.conferenceTitle,
-      location: selectedConference?.location || prev.location,
-      conferenceDate: selectedConference?.conferenceDate || prev.conferenceDate,
-      eventPlaceDate: placeDate || prev.eventPlaceDate,
-      eventPublicationLink: selectedConference?.website || prev.eventPublicationLink,
     }));
   };
 
@@ -2064,6 +2027,12 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const getSectionFields = (sectionId) =>
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
+  const renderConferenceSubheading = (title) => (
+    <div className="reimbursement-form-subheading reimbursement-wide">
+      <h5>{title}</h5>
+    </div>
+  );
+
   const renderPublicationDisplayField = (field) => (
     <div className="reimbursement-publication-info-row" key={`${field.label}-${field.value}`}>
       <span>{field.label}</span>
@@ -2086,24 +2055,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       {section.title ? <h5>{section.title}</h5> : null}
       <div className="reimbursement-publication-info-grid">
         {section.fields.map(renderPublicationDisplayField)}
-      </div>
-    </section>
-  );
-
-  const renderConferenceMetadataSection = (section) => (
-    <section className="reimbursement-conference-metadata reimbursement-wide">
-      {section.title ? <h5>{section.title}</h5> : null}
-      <div className="reimbursement-conference-metadata-grid">
-        {section.fields.map((field) => (
-          <div className="reimbursement-conference-metadata-row" key={`${field.label}-${field.value}`}>
-            <span>{field.label}</span>
-            {field.href ? (
-              <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
-            ) : (
-              <strong>{field.value}</strong>
-            )}
-          </div>
-        ))}
       </div>
     </section>
   );
@@ -2221,27 +2172,19 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   );
 
   const renderConferenceFields = () => {
-    const metadataSection = selectedConference ? getConferenceMetadataDisplaySection(form, selectedConference) : null;
-    const conferenceDetailFields = getSectionFields("conferenceDetails").filter(
-      (fieldConfig) => !(selectedConference && CONFERENCE_READ_ONLY_FIELDS.has(fieldConfig.field))
-    );
+    const conferenceDetailFields = getSectionFields("conferenceDetails");
+    const manualConferenceFields = conferenceDetailFields.filter((fieldConfig) => CONFERENCE_MANUAL_FIELDS.has(fieldConfig.field));
+    const paperParticipationFields = [
+      ...getSectionFields("participants"),
+      ...conferenceDetailFields.filter((fieldConfig) => !CONFERENCE_MANUAL_FIELDS.has(fieldConfig.field)),
+    ];
 
     return (
       <div className="reimbursement-form-grid">
-        {context.conferences.length ? (
-          <label className="reimbursement-field reimbursement-wide">
-            <span>{t("navigation.conferences")}</span>
-            <select value={form.conferenceId} onChange={handleConferenceSelect}>
-              <option value="">{r.choose}</option>
-              {context.conferences.map((conference) => (
-                <option key={conference.id} value={conference.id}>
-                  {[conference.title, conference.location, conference.conferenceDate].filter(Boolean).join(" | ")}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
+        {renderConferenceSubheading("Të dhënat e konferencës")}
+        {manualConferenceFields.map(renderSchemaField)}
 
+        {renderConferenceSubheading("Të dhënat e punimit dhe pjesëmarrjes")}
         {context.publications.length ? (
           <label className="reimbursement-field reimbursement-wide">
             <span>Zgjidh publikimin</span>
@@ -2256,9 +2199,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </label>
         ) : null}
 
-        {metadataSection?.fields.length ? renderConferenceMetadataSection(metadataSection) : null}
-        {getSectionFields("participants").map(renderSchemaField)}
-        {conferenceDetailFields.map(renderSchemaField)}
+        {paperParticipationFields.map(renderSchemaField)}
       </div>
     );
   };
