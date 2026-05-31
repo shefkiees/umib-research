@@ -63,6 +63,21 @@ const FIELD_OPTIONS = {
   speakerType: SPEAKER_TYPE_OPTIONS,
 };
 
+const CONFERENCE_UI_LABELS = {
+  conferenceTitle: "Emërtimi i ngjarjes",
+  location: "Vendi",
+  conferenceDate: "Data",
+  organizer: "Organizatori",
+  invitationProgram: "Ftesa dhe programi",
+  abstractTitle: "Abstrakti dhe titulli i punimit",
+  acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
+  authorsAffiliation: "Autorët e punimit (affiliation)",
+  speakerWithPaperPoster: "Folës me kumtesë/poster",
+  chairPanelist: "Kryesues/panelist",
+  artisticSportEvent: "Ngjarje artistike/sportive",
+  eventPublicationLink: "Linku i publikimit të ngjarjes",
+};
+
 const COST_CATEGORY_OPTIONS = [
   { value: "materialCost", label: "Materiale 40%" },
   { value: "administrativeCost", label: "Administrative 30%" },
@@ -512,14 +527,14 @@ function getConferenceMetadataDisplaySection(form, conference) {
   const website = conference?.website || form.eventPublicationLink;
 
   return {
-    title: "Te dhenat e konferences",
+    title: "Të dhënat e konferencës",
     fields: [
-      createDisplayField("Emri i konferences", conference?.title || form.conferenceTitle),
+      createDisplayField("Emërtimi i ngjarjes", conference?.title || form.conferenceTitle),
       createDisplayField("Akronimi", conference?.acronym),
       createDisplayField("Fusha shkencore", conference?.field),
-      createDisplayField("Lokacioni", conference?.location || form.location),
-      createDisplayField("Data e konferences", normalizeDate(conference?.conferenceDate || form.conferenceDate)),
-      createDisplayField("Website / linku i konferences", website, website ? { href: website } : {}),
+      createDisplayField("Vendi", conference?.location || form.location),
+      createDisplayField("Data", normalizeDate(conference?.conferenceDate || form.conferenceDate)),
+      createDisplayField("Linku i publikimit të ngjarjes", website, website ? { href: website } : {}),
       createDisplayField("Statusi", conference?.statusLabel || conference?.status),
     ].filter(Boolean),
   };
@@ -1856,7 +1871,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       options.readOnly ? "reimbursement-readonly-field" : "",
     ].filter(Boolean).join(" ");
     const fieldError = fieldErrors[field];
-    const displayLabel = selectedType === "publication" ? (PUBLICATION_LABELS[field] || label) : label;
+    const displayLabel = selectedType === "publication"
+      ? (PUBLICATION_LABELS[field] || label)
+      : selectedType === "conference"
+        ? (CONFERENCE_UI_LABELS[field] || label)
+        : label;
 
     if (selectedType === "publication" && field === "mainAuthor") {
       const author = stripMarkup(form.mainAuthor);
@@ -2587,7 +2606,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               <div className="reimbursement-section-head">
                 <FileText size={18} />
                 <div>
-                  <h4>{r.academicTitle}</h4>
+                  <h4>
+                    {selectedType === "conference"
+                      ? "Detajet e konferencës, simpoziumit ose aktivitetit"
+                      : r.academicTitle}
+                  </h4>
                   <p>{t("professor.reimbursements.academicDescription", { type: tx(selectedTypeConfig.label) })}</p>
                 </div>
               </div>
@@ -2600,7 +2623,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Wallet size={18} />
               <div>
-                <h4>{bankRequired ? r.financeBankTitle : r.financeTitle}</h4>
+                <h4>
+                  {selectedType === "conference"
+                    ? "Të dhënat bankare të përfituesit"
+                    : bankRequired ? r.financeBankTitle : r.financeTitle}
+                </h4>
                 <p>{bankRequired ? r.financeBankDescription : r.financeDescription}</p>
               </div>
             </div>
