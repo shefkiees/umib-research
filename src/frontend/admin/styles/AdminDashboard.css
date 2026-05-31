@@ -861,15 +861,23 @@
 }
 
 .admin-audit-row-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
     white-space: nowrap;
+    min-width: 0;
+}
+
+.admin-audit-view-btn {
+    min-width: 70px;
+    padding-inline: 10px;
 }
 
 .admin-audit-delete-btn {
-    width: 36px;
-    height: 36px;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
     border: 1px solid #f0caca;
     border-radius: 10px;
     background: #ffffff;
@@ -928,6 +936,41 @@
 
 .admin-table tbody tr:hover {
     background: #f8fafc;
+}
+
+.admin-audit-table-wrap {
+    padding-inline: 20px;
+}
+
+.admin-audit-table {
+    table-layout: fixed;
+    min-width: 1320px;
+    font-size: 0.9rem;
+}
+
+.admin-audit-table th,
+.admin-audit-table td {
+    padding: 12px 10px;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.admin-audit-table th:nth-child(1) { width: 11%; }
+.admin-audit-table th:nth-child(2) { width: 14%; }
+.admin-audit-table th:nth-child(3) { width: 12%; }
+.admin-audit-table th:nth-child(4) { width: 14%; }
+.admin-audit-table th:nth-child(5) { width: 10%; }
+.admin-audit-table th:nth-child(6) { width: 10%; }
+.admin-audit-table th:nth-child(7) { width: 9%; }
+.admin-audit-table th:nth-child(8) { width: 10%; }
+.admin-audit-table th:nth-child(9) { width: 10%; }
+
+.admin-audit-table th:nth-child(9),
+.admin-audit-table td:nth-child(9) {
+    min-width: 138px;
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
 }
 
 .admin-users-table-wrap {
