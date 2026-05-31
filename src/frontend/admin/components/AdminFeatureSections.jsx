@@ -111,6 +111,8 @@ const ADMIN_SETTINGS_TEXT = {
     savingPreference: "Duke ruajtur...",
     languageLabel: "Gjuha e ndërfaqes",
     languageDescription: "Zgjidh gjuhën e shfaqjes për dashboard-in.",
+    languageHint: "Ndryshimi ruhet automatikisht dhe zbatohet në këtë dashboard.",
+    currentLanguage: "Gjuha aktive",
     albanian: "Shqip",
     english: "Anglisht",
     preferencesSaved: "Preferencat u ruajtën.",
@@ -148,6 +150,8 @@ const ADMIN_SETTINGS_TEXT = {
     savingPreference: "Saving...",
     languageLabel: "Interface language",
     languageDescription: "Choose the display language for the dashboard.",
+    languageHint: "The change is saved automatically and applied to this dashboard.",
+    currentLanguage: "Active language",
     albanian: "Albanian",
     english: "English",
     preferencesSaved: "Preferences were saved.",
@@ -624,6 +628,16 @@ export function AdminSettingsSection() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!message) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setMessage("");
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [message]);
+
   if (!profile || !draft) {
     return (
       <section className="admin-page-card admin-feature-section">
@@ -675,10 +689,9 @@ export function AdminSettingsSection() {
       <div className="admin-page-head">
         <div>
           <h3>{text.title}</h3>
-          <p>{text.description}</p>
         </div>
       </div>
-      {message ? <p className="admin-feature-message">{message}</p> : null}
+      {message ? <p className="admin-feature-message admin-settings-message" role="status">{message}</p> : null}
       {error ? <p className="admin-inline-error">{error}</p> : null}
 
       <div className="admin-settings-grid">
@@ -744,13 +757,17 @@ export function AdminSettingsSection() {
           </div>
         </article>
 
-        <article className="admin-settings-card">
-          <h4>{text.preferencesTitle}</h4>
+        <article className="admin-settings-card admin-settings-card--preferences">
+          <div className="admin-settings-card-head">
+            <h4>{text.preferencesTitle}</h4>
+            <span>{text.currentLanguage}: {language === "en" ? text.english : text.albanian}</span>
+          </div>
           <div className="admin-settings-options">
-            <div className="admin-settings-option admin-settings-option--stacked">
-              <div>
+            <div className="admin-settings-option admin-settings-option--language">
+              <div className="admin-settings-option-copy">
                 <span>{text.languageLabel}</span>
                 <p>{text.languageDescription}</p>
+                <small>{text.languageHint}</small>
               </div>
               <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={text.languageLabel}>
                 <option value="sq">{text.albanian}</option>

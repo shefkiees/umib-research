@@ -38,6 +38,21 @@ function formatNotificationTime(value) {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}, ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function looksLikeDateText(value) {
+  return /^\d{1,2}\.\d{1,2}\.\d{4}(?:,\s*\d{1,2}:\d{2})?$/.test(String(value || "").trim());
+}
+
+function getNotificationTitle(item, fallback) {
+  const candidates = [item?.title, item?.message, item?.text, item?.category];
+  return candidates.find((value) => value && !looksLikeDateText(value)) || fallback || "Njoftim";
+}
+
+function getNotificationMessage(item, title) {
+  const message = item?.message || item?.text || "";
+  if (!message || message === title || looksLikeDateText(message)) return "";
+  return message;
+}
+
 export default function AdminTopbar({ 
 
   activePage, 
@@ -256,7 +271,12 @@ export default function AdminTopbar({
 
                 ) : null}
 
-                {!notificationsLoading && !notificationsError && notifications.map((item) => ( 
+                {!notificationsLoading && !notificationsError && notifications.map((item) => {
+                  const title = getNotificationTitle(item, labels?.topbar?.fallbackNotification || "Njoftim");
+                  const message = getNotificationMessage(item, title);
+                  const time = formatNotificationTime(item.createdAt || item.created_at);
+
+                  return (
 
                   <li key={item.id} className={item.isRead ? "is-read" : ""}> 
 
@@ -267,15 +287,20 @@ export default function AdminTopbar({
                       disabled={item.isRead || item.source === "audit"}
                     >
 
-                      <p>{item.title || item.text || item.message || labels?.topbar?.fallbackNotification || "Njoftim"}</p>
+                      <span className="admin-notification-category">{item.category || labels?.topbar?.fallbackNotification || "Njoftim"}</span>
 
-                      <span>{formatNotificationTime(item.createdAt)}</span>
+                      <p>{title}</p>
+
+                      {message ? <small>{message}</small> : null}
+
+                      {time ? <span>{time}</span> : null}
 
                     </button>
 
                   </li> 
 
-                ))} 
+                  );
+                })} 
 
                 {!notificationsLoading && !notificationsError && notifications.length === 0 ? (
 
