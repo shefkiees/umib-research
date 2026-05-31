@@ -184,7 +184,7 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Aktiviteti i adminëve">
+        <ChartCard title="Aktiviteti">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={adminActivity}>
               <XAxis dataKey="adminName" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />

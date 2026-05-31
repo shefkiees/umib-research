@@ -8,11 +8,7 @@ import {
 
   ClipboardList, 
 
-  Database,
-
   KeyRound, 
-
-  Bell,
 
   BarChart3,
 
@@ -34,11 +30,7 @@ const mainItems = [
 
   { label: "Historiku i veprimeve", route: "Historiku i veprimeve", icon: ClipboardList }, 
 
-  { label: "Njoftimet", route: "Njoftimet", icon: Bell }, 
-
   { label: "Statistikat", route: "Statistikat", icon: BarChart3 }, 
-
-  { label: "Rezervimi", route: "Rezervimi", icon: Database }, 
 
 ]; 
 
