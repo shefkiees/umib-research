@@ -279,8 +279,6 @@ function normalizeBankingData(formData, amount, currency) {
     iban: normalizeIban(formData.bankAccountNumber || formData.iban),
     swift: swift || detectedBank?.swift || "",
     country: normalizeText(formData.bankCountry),
-    invoiceNumber: normalizeText(formData.invoiceNumber),
-    expenseDate: normalizeText(formData.expenseDate),
     detectedBankCode,
     bankDetectedAutomatically: Boolean(detectedBank && bankSelectionSource !== "manual" && (!bankName || bankName === detectedBank.name)),
   };
@@ -1062,8 +1060,6 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     iban: banking.iban,
     swiftCode: banking.swift,
     bankCountry: banking.country,
-    invoiceNumber: banking.invoiceNumber,
-    expenseDate: banking.expenseDate,
     banking,
     auto: autoFields,
     requestType,
