@@ -1323,7 +1323,7 @@ export default function AdminDashboard() {
                     <span className="admin-user-total-icon">
                         <Users size={18} />
                     </span>
-                    <span>{filteredUsers.length}</span>
+                    <span>{language === "en" ? `Total ${filteredUsers.length} users` : `Gjithsej ${filteredUsers.length} përdorues`}</span>
                 </div>
 
             </div>
