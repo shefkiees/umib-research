@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { Filter, ArrowRight, CheckCircle2, Shield, FileText, LogOut as LogOutIcon, User, Settings, Link2, Bell } from "lucide-react";
+import { Filter, ArrowRight, CheckCircle2, Shield, FileText, LogOut as LogOutIcon, User, Settings, Link2, Bell, Users } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
 
@@ -790,11 +790,14 @@ export default function AdminDashboard() {
 
                     <h3>Menaxhimi i perdoruesve</h3>
 
-                    <p>Shiko perdoruesit, ndrysho rolet dhe menaxho statusin e llogarive.</p>
-
                 </div>
 
-                <div className="admin-page-figure">{filteredUsers.length} perdorues</div>
+                <div className="admin-page-figure admin-user-total" aria-label="Totali i perdoruesve">
+                    <span className="admin-user-total-icon">
+                        <Users size={18} />
+                    </span>
+                    <span>{filteredUsers.length}</span>
+                </div>
 
             </div>
 
@@ -850,21 +853,17 @@ export default function AdminDashboard() {
 
                                 <td>
 
-                                    <div className="admin-role-control">
-                                        <select
-                                            className="admin-select"
-                                            value={item.role}
-                                            onChange={(event) => updateUserRole(item.id, event.target.value)}
-                                            disabled={updatingUserId === item.id}
-                                            aria-label={`Ndrysho rolin per ${item.email}`}
-                                        >
-                                            {ROLE_OPTIONS.map((role) => (
-                                                <option key={role.value} value={role.value}>{role.label}</option>
-                                            ))}
-                                        </select>
-
-                                        <span className={getRoleClass(item.role)}>{ROLE_LABELS[item.role] || item.role}</span>
-                                    </div>
+                                    <select
+                                        className="admin-select admin-role-select"
+                                        value={item.role}
+                                        onChange={(event) => updateUserRole(item.id, event.target.value)}
+                                        disabled={updatingUserId === item.id}
+                                        aria-label={`Ndrysho rolin per ${item.email}`}
+                                    >
+                                        {ROLE_OPTIONS.map((role) => (
+                                            <option key={role.value} value={role.value}>{role.label}</option>
+                                        ))}
+                                    </select>
 
                                 </td>
 

@@ -539,13 +539,22 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 140px;
-    padding: 12px 18px;
-    border-radius: 999px;
-    background: #eef3ff;
+    gap: 8px;
+    min-width: auto;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid #dbe6f4;
     color: #1f4f84;
     font-weight: 700;
-    font-size: 0.96rem;
+    font-size: 0.98rem;
+}
+
+.admin-user-total-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1f5f99;
 }
 
 /* Buttons */
@@ -659,15 +668,23 @@
 }
 
 .admin-select {
-    height: 36px;
-    min-width: 132px;
+    height: 34px;
+    min-width: 128px;
     border: 1px solid #d8e1ec;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #ffffff;
     color: var(--text-dark);
-    padding: 0 10px;
+    padding: 0 34px 0 11px;
     font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 34px;
     outline: none;
+}
+
+.admin-role-select {
+    display: block;
+    width: 136px;
+    margin: 0;
 }
 
 .admin-select:focus {
