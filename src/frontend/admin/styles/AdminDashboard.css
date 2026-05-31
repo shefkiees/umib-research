@@ -788,15 +788,25 @@
     overflow-wrap: anywhere;
 }
 
-.admin-users-table th:nth-child(1) { width: 12%; }
-.admin-users-table th:nth-child(2) { width: 17%; }
-.admin-users-table th:nth-child(3) { width: 9%; }
-.admin-users-table th:nth-child(4) { width: 9%; }
-.admin-users-table th:nth-child(5) { width: 10%; }
-.admin-users-table th:nth-child(6) { width: 8%; }
+.admin-users-table th:nth-child(1) { width: 11%; }
+.admin-users-table th:nth-child(2) { width: 16%; }
+.admin-users-table th:nth-child(3) { width: 8%; }
+.admin-users-table th:nth-child(4) { width: 8%; }
+.admin-users-table th:nth-child(5) { width: 13%; }
+.admin-users-table th:nth-child(6) { width: 9%; }
 .admin-users-table th:nth-child(7) { width: 12%; }
 .admin-users-table th:nth-child(8) { width: 8%; }
 .admin-users-table th:nth-child(9) { width: 15%; }
+
+.admin-users-table th:nth-child(5),
+.admin-users-table td:nth-child(5) {
+    padding-right: 12px;
+}
+
+.admin-users-table th:nth-child(6),
+.admin-users-table td:nth-child(6) {
+    padding-left: 12px;
+}
 
 .admin-users-table .admin-chip {
     padding: 5px 8px;
@@ -804,8 +814,9 @@
 }
 
 .admin-users-table .admin-role-select {
-    width: 112px;
-    min-width: 112px;
+    width: 132px;
+    min-width: 132px;
+    max-width: 100%;
 }
 
 .admin-users-table .admin-user-actions-cell {
