@@ -647,6 +647,23 @@ function getPublicationAuthorFields(publication) {
   };
 }
 
+function getPublicationAuthorAffiliations(publication) {
+  const authors = Array.isArray(publication?.authors) ? publication.authors : [];
+  const affiliations = authors
+    .map(authorAffiliation)
+    .filter(Boolean)
+    .filter((affiliation, index, items) => items.indexOf(affiliation) === index);
+
+  return affiliations.join("; ");
+}
+
+function getPublicationWorkSummary(publication) {
+  return [publication?.title, publication?.abstract]
+    .map(cleanDisplayValue)
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function getPublicationIndexingFields(publication) {
   const indexing = Array.isArray(publication?.indexing) ? publication.indexing : [];
   const indexingPlatform = indexing
@@ -1485,6 +1502,28 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setFieldErrors((prev) => ({ ...prev, publicationId: "" }));
   };
 
+  const handleConferencePublicationSelect = (event) => {
+    const publicationId = event.target.value;
+    const selectedPublication = context.publications.find((item) => String(item.id) === publicationId);
+
+    if (!selectedPublication) {
+      setForm((prev) => ({ ...prev, publicationId }));
+      return;
+    }
+
+    const authors = getPublicationAuthorFields(selectedPublication);
+    const affiliations = getPublicationAuthorAffiliations(selectedPublication);
+
+    setForm((prev) => ({
+      ...prev,
+      publicationId,
+      mainAuthor: authors.mainAuthor,
+      coParticipant: authors.coauthors,
+      abstractTitle: getPublicationWorkSummary(selectedPublication),
+      authorsAffiliation: affiliations || authors.affiliation,
+    }));
+  };
+
   const handleConferenceSelect = (event) => {
     const conferenceId = event.target.value;
     const selectedConference = context.conferences.find((item) => String(item.id) === conferenceId);
@@ -2197,6 +2236,20 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               {context.conferences.map((conference) => (
                 <option key={conference.id} value={conference.id}>
                   {[conference.title, conference.location, conference.conferenceDate].filter(Boolean).join(" | ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {context.publications.length ? (
+          <label className="reimbursement-field reimbursement-wide">
+            <span>Zgjidh publikimin</span>
+            <select value={form.publicationId} onChange={handleConferencePublicationSelect}>
+              <option value="">Zgjidh publikimin</option>
+              {context.publications.map((publication) => (
+                <option key={publication.id} value={publication.id}>
+                  {publication.title || publication.doi || r.publicationWithoutTitle}
                 </option>
               ))}
             </select>
