@@ -33,6 +33,43 @@ export const ADMIN_TEXT = {
       integrations: "Integrime",
       logout: "Dil",
     },
+    users: {
+      title: "Menaxhimi i përdoruesve",
+      total: (count) => `Gjithsej ${count} përdorues`,
+      totalAria: "Totali i përdoruesve",
+      loading: "Duke ngarkuar përdoruesit...",
+      noResults: "Nuk ka rezultate për kërkimin aktual.",
+      columns: {
+        name: "Emri",
+        email: "Email",
+        faculty: "Fakulteti",
+        department: "Departamenti",
+        role: "Roli",
+        status: "Statusi",
+        lastLogin: "Kyçja e fundit",
+        created: "Krijuar",
+        actions: "Veprimet",
+      },
+      actions: {
+        activate: "Aktivizo",
+        deactivate: "Deaktivizo",
+        view: "Shiko",
+        close: "Mbyll",
+        changeRole: (email) => `Ndrysho rolin për ${email}`,
+      },
+      statuses: {
+        active: "Aktiv",
+        inactive: "Joaktiv",
+        suspended: "Pezulluar",
+      },
+      roles: {
+        admin: "Admin",
+        committee: "Komisioni",
+        professor: "Profesor",
+        prorector: "Prorektor",
+      },
+      detailsAria: "Detajet e përdoruesit",
+    },
   },
   en: {
     modules: "MODULES",
@@ -68,10 +105,46 @@ export const ADMIN_TEXT = {
       integrations: "Integrations",
       logout: "Sign out",
     },
+    users: {
+      title: "User Management",
+      total: (count) => `Total ${count} users`,
+      totalAria: "Total users",
+      loading: "Loading users...",
+      noResults: "No results for the current search.",
+      columns: {
+        name: "Name",
+        email: "Email",
+        faculty: "Faculty",
+        department: "Department",
+        role: "Role",
+        status: "Status",
+        lastLogin: "Last login",
+        created: "Created",
+        actions: "Actions",
+      },
+      actions: {
+        activate: "Activate",
+        deactivate: "Deactivate",
+        view: "View",
+        close: "Close",
+        changeRole: (email) => `Change role for ${email}`,
+      },
+      statuses: {
+        active: "Active",
+        inactive: "Inactive",
+        suspended: "Suspended",
+      },
+      roles: {
+        admin: "Admin",
+        committee: "Committee",
+        professor: "Professor",
+        prorector: "Pro-Rector",
+      },
+      detailsAria: "User details",
+    },
   },
 };
 
 export function getAdminText(language) {
   return ADMIN_TEXT[language] || ADMIN_TEXT.sq;
 }
-

@@ -1315,15 +1315,15 @@ export default function AdminDashboard() {
 
                 <div>
 
-                    <h3>Menaxhimi i përdoruesve</h3>
+                    <h3>{adminText.users.title}</h3>
 
                 </div>
 
-                <div className="admin-page-figure admin-user-total" aria-label="Totali i përdoruesve">
+                <div className="admin-page-figure admin-user-total" aria-label={adminText.users.totalAria}>
                     <span className="admin-user-total-icon">
                         <Users size={18} />
                     </span>
-                    <span>{language === "en" ? `Total ${filteredUsers.length} users` : `Gjithsej ${filteredUsers.length} përdorues`}</span>
+                    <span>{adminText.users.total(filteredUsers.length)}</span>
                 </div>
 
             </div>
@@ -1332,7 +1332,7 @@ export default function AdminDashboard() {
 
             {isUsersLoading ? (
 
-                <p className="admin-empty">Duke ngarkuar përdoruesit...</p>
+                <p className="admin-empty">{adminText.users.loading}</p>
 
             ) : (
 
@@ -1344,23 +1344,23 @@ export default function AdminDashboard() {
 
                         <tr>
 
-                            <th>Emri</th>
+                            <th>{adminText.users.columns.name}</th>
 
-                            <th>Email</th>
+                            <th>{adminText.users.columns.email}</th>
 
-                            <th>Fakulteti</th>
+                            <th>{adminText.users.columns.faculty}</th>
 
-                            <th>Departamenti</th>
+                            <th>{adminText.users.columns.department}</th>
 
-                            <th>Roli</th>
+                            <th>{adminText.users.columns.role}</th>
 
-                            <th>Statusi</th>
+                            <th>{adminText.users.columns.status}</th>
 
-                            <th>Kyçja e fundit</th>
+                            <th>{adminText.users.columns.lastLogin}</th>
 
-                            <th>Krijuar</th>
+                            <th>{adminText.users.columns.created}</th>
 
-                            <th>Veprimet</th>
+                            <th>{adminText.users.columns.actions}</th>
 
                         </tr>
 
@@ -1387,10 +1387,10 @@ export default function AdminDashboard() {
                                         value={item.role}
                                         onChange={(event) => updateUserRole(item.id, event.target.value)}
                                         disabled={updatingUserId === item.id}
-                                        aria-label={`Ndrysho rolin per ${item.email}`}
+                                        aria-label={adminText.users.actions.changeRole(item.email)}
                                     >
                                         {ROLE_OPTIONS.map((role) => (
-                                            <option key={role.value} value={role.value}>{role.label}</option>
+                                            <option key={role.value} value={role.value}>{adminText.users.roles[role.value] || role.label}</option>
                                         ))}
                                     </select>
 
@@ -1398,7 +1398,7 @@ export default function AdminDashboard() {
 
                                 <td>
 
-                                    <span className={getStatusClass(item.status)}>{STATUS_LABELS[item.status] || item.status}</span>
+                                    <span className={getStatusClass(item.status)}>{adminText.users.statuses[item.status] || STATUS_LABELS[item.status] || item.status}</span>
 
                                 </td>
 
@@ -1416,7 +1416,7 @@ export default function AdminDashboard() {
                                             onClick={() => updateUserStatus(item.id, item.status === "active" ? "inactive" : "active")}
                                             disabled={updatingUserId === item.id}
                                         >
-                                            {item.status === "active" ? "Deaktivizo" : "Aktivizo"}
+                                            {item.status === "active" ? adminText.users.actions.deactivate : adminText.users.actions.activate}
                                         </button>
 
                                         <button
@@ -1424,7 +1424,7 @@ export default function AdminDashboard() {
                                             className="admin-small-btn"
                                             onClick={() => setSelectedUser(item)}
                                         >
-                                            Shiko
+                                            {adminText.users.actions.view}
                                         </button>
 
                                     </div>
@@ -1443,42 +1443,42 @@ export default function AdminDashboard() {
 
             )}
 
-            {!isUsersLoading && filteredUsers.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
+            {!isUsersLoading && filteredUsers.length === 0 ? <p className="admin-empty">{adminText.users.noResults}</p> : null}
 
             {selectedUser ? (
-                <div className="admin-user-details" role="dialog" aria-label="Detajet e përdoruesit">
+                <div className="admin-user-details" role="dialog" aria-label={adminText.users.detailsAria}>
                     <div>
                         <h4>{selectedUser.name}</h4>
                         <p>{selectedUser.email}</p>
                     </div>
                     <dl>
                         <div>
-                            <dt>Fakulteti</dt>
+                            <dt>{adminText.users.columns.faculty}</dt>
                             <dd>{selectedUser.faculty || "-"}</dd>
                         </div>
                         <div>
-                            <dt>Departamenti</dt>
+                            <dt>{adminText.users.columns.department}</dt>
                             <dd>{selectedUser.department || "-"}</dd>
                         </div>
                         <div>
-                            <dt>Roli</dt>
-                            <dd>{ROLE_LABELS[selectedUser.role] || selectedUser.role}</dd>
+                            <dt>{adminText.users.columns.role}</dt>
+                            <dd>{adminText.users.roles[selectedUser.role] || ROLE_LABELS[selectedUser.role] || selectedUser.role}</dd>
                         </div>
                         <div>
-                            <dt>Statusi</dt>
-                            <dd>{STATUS_LABELS[selectedUser.status] || selectedUser.status}</dd>
+                            <dt>{adminText.users.columns.status}</dt>
+                            <dd>{adminText.users.statuses[selectedUser.status] || STATUS_LABELS[selectedUser.status] || selectedUser.status}</dd>
                         </div>
                         <div>
-                            <dt>Kyçja e fundit</dt>
+                            <dt>{adminText.users.columns.lastLogin}</dt>
                             <dd>{formatAdminDateTime(selectedUser.lastLoginAt || selectedUser.last_login_at)}</dd>
                         </div>
                         <div>
-                            <dt>Krijuar</dt>
+                            <dt>{adminText.users.columns.created}</dt>
                             <dd>{formatAdminDate(selectedUser.createdAt)}</dd>
                         </div>
                     </dl>
                     <button type="button" className="admin-small-btn" onClick={() => setSelectedUser(null)}>
-                        Mbyll
+                        {adminText.users.actions.close}
                     </button>
                 </div>
             ) : null}

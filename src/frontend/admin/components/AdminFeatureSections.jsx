@@ -588,7 +588,7 @@ export function AdminBudgetSection() {
 }
 
 export function AdminSettingsSection() {
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [draft, setDraft] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -665,6 +665,11 @@ export function AdminSettingsSection() {
     }
   };
 
+  const updateLanguage = (value) => {
+    setLanguage(value);
+    setMessage((ADMIN_SETTINGS_TEXT[value] || ADMIN_SETTINGS_TEXT.sq).preferencesSaved);
+  };
+
   return (
     <section className="admin-page-card admin-feature-section admin-settings-page">
       <div className="admin-page-head">
@@ -736,6 +741,22 @@ export function AdminSettingsSection() {
             ) : (
               <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>{text.editProfile}</button>
             )}
+          </div>
+        </article>
+
+        <article className="admin-settings-card">
+          <h4>{text.preferencesTitle}</h4>
+          <div className="admin-settings-options">
+            <div className="admin-settings-option admin-settings-option--stacked">
+              <div>
+                <span>{text.languageLabel}</span>
+                <p>{text.languageDescription}</p>
+              </div>
+              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={text.languageLabel}>
+                <option value="sq">{text.albanian}</option>
+                <option value="en">{text.english}</option>
+              </select>
+            </div>
           </div>
         </article>
 
