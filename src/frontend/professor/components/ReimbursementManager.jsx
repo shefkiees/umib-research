@@ -188,8 +188,6 @@ const DEFAULT_FORM_VALUES = {
   academicTitle: "",
   amount: "",
   currency: "EUR",
-  expenseDate: "",
-  invoiceNumber: "",
   iban: "",
   bankApplicantName: "",
   bankName: "",
@@ -1836,8 +1834,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       iban: request.requestData?.iban || banking.iban || "",
       swiftCode: request.requestData?.swiftCode || banking.swift || "",
       bankCountry: request.requestData?.bankCountry || banking.country || "Kosove",
-      invoiceNumber: request.requestData?.invoiceNumber || banking.invoiceNumber || "",
-      expenseDate: request.requestData?.expenseDate || banking.expenseDate || "",
       teamMembers: Array.isArray(request.requestData?.teamMembers) && request.requestData.teamMembers.length
         ? request.requestData.teamMembers
         : createDefaultTeamMembers(),
@@ -2452,9 +2448,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             {renderInput(r.country, "bankCountry")}
           </>
         ) : null}
-
-        {renderInput(r.expenseDate, "expenseDate", { type: "date" })}
-        {renderInput(r.invoiceNumber, "invoiceNumber")}
       </div>
     </div>
   );
