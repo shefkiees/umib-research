@@ -541,7 +541,6 @@ function getConferenceMetadataDisplaySection(form, conference) {
       createDisplayField("Vendi", conference?.location || form.location),
       createDisplayField("Data", normalizeDate(conference?.conferenceDate || form.conferenceDate)),
       createDisplayField("Linku i publikimit të ngjarjes", website, website ? { href: website } : {}),
-      createDisplayField("Statusi", conference?.statusLabel || conference?.status),
     ].filter(Boolean),
   };
 }
@@ -2052,6 +2051,24 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </section>
   );
 
+  const renderConferenceMetadataSection = (section) => (
+    <section className="reimbursement-conference-metadata reimbursement-wide">
+      {section.title ? <h5>{section.title}</h5> : null}
+      <div className="reimbursement-conference-metadata-grid">
+        {section.fields.map((field) => (
+          <div className="reimbursement-conference-metadata-row" key={`${field.label}-${field.value}`}>
+            <span>{field.label}</span>
+            {field.href ? (
+              <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
+            ) : (
+              <strong>{field.value}</strong>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
   const renderPublicationAuthors = () => {
     const mainAuthor = cleanDisplayValue(form.mainAuthor);
     const coauthors = splitCoauthors(form.coauthors);
@@ -2186,7 +2203,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </label>
         ) : null}
 
-        {metadataSection?.fields.length ? renderPublicationDisplaySection(metadataSection) : null}
+        {metadataSection?.fields.length ? renderConferenceMetadataSection(metadataSection) : null}
         {getSectionFields("participants").map(renderSchemaField)}
         {conferenceDetailFields.map(renderSchemaField)}
       </div>

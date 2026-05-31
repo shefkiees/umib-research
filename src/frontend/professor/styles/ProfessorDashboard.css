@@ -2147,6 +2147,59 @@ body {
   text-decoration: underline;
 }
 
+.reimbursement-conference-metadata {
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 12px 14px;
+}
+
+.reimbursement-conference-metadata h5 {
+  margin: 0 0 10px;
+  color: #17324f;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.reimbursement-conference-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 18px;
+  row-gap: 9px;
+}
+
+.reimbursement-conference-metadata-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.reimbursement-conference-metadata-row span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.reimbursement-conference-metadata-row strong,
+.reimbursement-conference-metadata-row a {
+  color: #17324f;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-conference-metadata-row a {
+  color: #1d67aa;
+  text-decoration: none;
+}
+
+.reimbursement-conference-metadata-row a:hover {
+  text-decoration: underline;
+}
+
 .reimbursement-publication-main-author {
   margin-bottom: 8px;
 }
@@ -2975,9 +3028,15 @@ body {
   .reimbursement-type-grid,
   .reimbursement-form-grid,
   .reimbursement-publication-info-grid,
+  .reimbursement-conference-metadata-grid,
   .reimbursement-bank-grid,
   .reimbursement-document-checklist {
     grid-template-columns: 1fr;
+  }
+
+  .reimbursement-conference-metadata-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .reimbursement-flow-header,
