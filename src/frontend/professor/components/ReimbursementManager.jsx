@@ -177,6 +177,13 @@ const CONFERENCE_MANUAL_FIELDS = new Set([
   "eventPublicationLink",
 ]);
 
+const CONFERENCE_PAPER_FIELDS = new Set([
+  "mainAuthor",
+  "coParticipant",
+  "abstractTitle",
+  "authorsAffiliation",
+]);
+
 const DEFAULT_FORM_VALUES = {
   applicantName: "",
   applicantEmail: "",
@@ -2174,17 +2181,15 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderConferenceFields = () => {
     const conferenceDetailFields = getSectionFields("conferenceDetails");
     const manualConferenceFields = conferenceDetailFields.filter((fieldConfig) => CONFERENCE_MANUAL_FIELDS.has(fieldConfig.field));
-    const paperParticipationFields = [
+    const allPaperParticipationFields = [
       ...getSectionFields("participants"),
       ...conferenceDetailFields.filter((fieldConfig) => !CONFERENCE_MANUAL_FIELDS.has(fieldConfig.field)),
     ];
+    const paperFields = allPaperParticipationFields.filter((fieldConfig) => CONFERENCE_PAPER_FIELDS.has(fieldConfig.field));
+    const participationFields = allPaperParticipationFields.filter((fieldConfig) => !CONFERENCE_PAPER_FIELDS.has(fieldConfig.field));
 
     return (
       <div className="reimbursement-form-grid">
-        {renderConferenceSubheading("Të dhënat e konferencës")}
-        {manualConferenceFields.map(renderSchemaField)}
-
-        {renderConferenceSubheading("Të dhënat e punimit dhe pjesëmarrjes")}
         {context.publications.length ? (
           <label className="reimbursement-field reimbursement-wide">
             <span>Zgjidh publikimin</span>
@@ -2199,7 +2204,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </label>
         ) : null}
 
-        {paperParticipationFields.map(renderSchemaField)}
+        {renderConferenceSubheading("Të dhënat e punimit")}
+        {paperFields.map(renderSchemaField)}
+
+        {renderConferenceSubheading("Të dhënat e konferencës")}
+        {manualConferenceFields.map(renderSchemaField)}
+
+        {renderConferenceSubheading("Të dhënat e pjesëmarrjes")}
+        {participationFields.map(renderSchemaField)}
       </div>
     );
   };
