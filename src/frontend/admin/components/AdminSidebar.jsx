@@ -16,16 +16,6 @@ import {
 
   BarChart3,
 
-  BookOpen,
-
-  FileCheck2,
-
-  FileText,
-
-  Wallet,
-
-  Settings,
-
 } from "lucide-react"; 
 
 import umibLogo from "../../../assets/umiblogo.jpg";
@@ -47,16 +37,6 @@ const mainItems = [
   { label: "Njoftimet", route: "Njoftimet", icon: Bell }, 
 
   { label: "Analitika", route: "Analitika", icon: BarChart3 }, 
-
-  { label: "Revistat", route: "Revistat", icon: BookOpen }, 
-
-  { label: "Shqyrtimi i publikimeve", route: "Shqyrtimi i publikimeve", icon: FileCheck2 }, 
-
-  { label: "Raportet", route: "Raportet", icon: FileText }, 
-
-  { label: "Buxheti", route: "Buxheti", icon: Wallet }, 
-
-  { label: "Konfigurimet", route: "Konfigurimet", icon: Settings }, 
 
   { label: "Rezervimi", route: "Rezervimi", icon: Database }, 
 
