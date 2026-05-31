@@ -304,6 +304,37 @@ router.get("/audit-logs", requireAdmin, async (req, res) => {
   }
 });
 
+router.delete("/audit-logs/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+
+    if (!UUID_PATTERN.test(id)) {
+      res.status(400).json({ error: "invalid_audit_log_id", message: "Veprimi nuk eshte valid." });
+      return;
+    }
+
+    const result = await db.query(
+      `delete from audit_logs
+       where id = $1
+       returning id`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: "audit_log_not_found", message: "Veprimi nuk u gjet." });
+      return;
+    }
+
+    res.json({ ok: true, id });
+  } catch (error) {
+    console.error("DELETE /api/admin/audit-logs/:id failed:", error);
+    res.status(500).json({
+      error: "audit_log_delete_failed",
+      message: "Veprimi nuk u fshi.",
+    });
+  }
+});
+
 router.patch("/users/:id/role", requireAdmin, async (req, res) => {
   try {
     const userId = String(req.params.id || "").trim();

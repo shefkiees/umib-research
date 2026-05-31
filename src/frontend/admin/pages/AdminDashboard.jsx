@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { ArrowRight, RotateCcw, X, User, Settings, Link2, Bell, Users } from "lucide-react";
+import { ArrowRight, RotateCcw, Trash2, X, User, Settings, Link2, Bell, Users } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
 
@@ -346,6 +346,8 @@ export default function AdminDashboard() {
     const [selectedAuditLog, setSelectedAuditLog] = useState(null);
 
     const [auditVisibleCount, setAuditVisibleCount] = useState(AUDIT_PAGE_SIZE);
+
+    const [deletingAuditLogId, setDeletingAuditLogId] = useState("");
 
     const [users, setUsers] = useState([]);
 
@@ -737,6 +739,36 @@ export default function AdminDashboard() {
             startDate: "",
             endDate: "",
         });
+    };
+
+    const deleteAuditLog = async (item) => {
+        if (!item?.id) return;
+
+        const confirmed = window.confirm("A je i sigurt qe deshiron ta fshish kete veprim nga historiku?");
+        if (!confirmed) return;
+
+        setDeletingAuditLogId(item.id);
+        setAuditError("");
+
+        try {
+            const response = await fetch(apiUrl(`/admin/audit-logs/${item.id}`), {
+                method: "DELETE",
+                credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "audit_log_delete_failed");
+            }
+
+            setAuditLogs((prev) => prev.filter((log) => log.id !== item.id));
+            setSelectedAuditLog((prev) => (prev?.id === item.id ? null : prev));
+        } catch (error) {
+            console.error("Audit log delete failed:", error);
+            setAuditError(error.message || "Veprimi nuk u fshi.");
+        } finally {
+            setDeletingAuditLogId("");
+        }
     };
 
 
@@ -1175,11 +1207,23 @@ export default function AdminDashboard() {
                                     </td>
                                     <td className="admin-audit-ip-cell">{item.ipAddress || "-"}</td>
                                     <td>
-                                        {item.details ? (
-                                            <button type="button" className="admin-small-btn admin-audit-view-btn" onClick={() => setSelectedAuditLog(item)}>
-                                                Shiko
+                                        <div className="admin-audit-row-actions">
+                                            {item.details ? (
+                                                <button type="button" className="admin-small-btn admin-audit-view-btn" onClick={() => setSelectedAuditLog(item)}>
+                                                    Shiko
+                                                </button>
+                                            ) : null}
+                                            <button
+                                                type="button"
+                                                className="admin-audit-delete-btn"
+                                                onClick={() => deleteAuditLog(item)}
+                                                disabled={deletingAuditLogId === item.id}
+                                                aria-label="Fshi veprimin"
+                                                title="Fshi veprimin"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
-                                        ) : "-"}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
