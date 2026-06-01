@@ -84,6 +84,59 @@
   font-size: 1.35rem;
 }
 
+.review-filters {
+  border: 1px solid #e3e8ef;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.review-filter-group {
+  display: grid;
+  gap: 8px;
+}
+
+.review-filter-group > span {
+  color: #53677e;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.review-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-filter-chips button {
+  border: 1px solid #d8e2ee;
+  background: #ffffff;
+  color: #174a7b;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.review-filter-chips button:hover {
+  background: #eef7ff;
+  border-color: #1d67aa;
+}
+
+.review-filter-chips button.active {
+  background: #174a7b;
+  border-color: #174a7b;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(23, 74, 123, 0.18);
+}
+
 .review-message,
 .review-empty {
   border-radius: 10px;
