@@ -111,6 +111,7 @@ function normalizeCommitteeProfile(user = {}) {
   return {
     name: displayName,
     role: "Komision",
+    systemRole: String(user.role || "").trim().toLowerCase(),
     email: user.email || "",
     unit: user.department || user.faculty || "Komision",
   };
@@ -277,12 +278,14 @@ export default function CommitteeDashboard() {
   const [committeeProfile, setCommitteeProfile] = useState({
     name: "Komision",
     role: "Komision",
+    systemRole: "",
     email: "",
     unit: "Komision",
   });
   const [committeeDraft, setCommitteeDraft] = useState({
     name: "Komision",
     role: "Komision",
+    systemRole: "",
     email: "",
     unit: "Komision",
   });
@@ -1234,6 +1237,7 @@ export default function CommitteeDashboard() {
         title="Shqyrtimi i rimbursimeve"
         description="Kerkesat reale nga databaza per pranim, shqyrtim, korrigjim, aprovim ose refuzim nga komisioni."
         showReviewFilters
+        canApprove={committeeProfile.systemRole === "committee"}
         onStatusUpdated={syncPendingSubmissionStatus}
       />
     );

@@ -57,13 +57,13 @@ function formatAmount(request) {
   return `${request.amount} ${request.currency || "EUR"}`;
 }
 
-function getActions(role, status) {
+function getActions(role, status, canApprove = true) {
   if (role === "committee") {
     return [
       { status: "received", label: "Prano", icon: CheckCircle2 },
       { status: "in_review", label: "Ne shqyrtim", icon: Search },
       { status: "needs_correction", label: "Korrigjim", icon: RotateCcw, requiresNote: true },
-      ...(status === "submitted" || status === "in_review"
+      ...(canApprove && (status === "submitted" || status === "in_review")
         ? [{ status: "approved", label: "Aprovo", icon: CheckCircle2 }]
         : []),
       { status: "rejected", label: "Refuzo", icon: XCircle, requiresNote: true, tone: "danger" },
@@ -107,6 +107,7 @@ export default function ReimbursementReviewPanel({
   title = "Rimbursime",
   description = "Kerkesat akademike per shqyrtim institucional.",
   showReviewFilters = false,
+  canApprove = true,
   onStatusUpdated,
 }) {
   const [requests, setRequests] = useState([]);
@@ -341,7 +342,7 @@ export default function ReimbursementReviewPanel({
       ) : visibleRequests.length ? (
         <div className="review-list">
           {visibleRequests.map((request) => {
-            const actions = getActions(role, request.status);
+            const actions = getActions(role, request.status, canApprove);
 
             return (
               <article className="review-item" key={request.id}>

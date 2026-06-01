@@ -2003,6 +2003,17 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     }
 
     const current = currentResult.rows[0];
+    const actorRole = normalizeRole(actor.role);
+
+    if (nextStatus === "approved" && ["submitted", "in_review"].includes(current.status) && actorRole !== "committee") {
+      await client.query("rollback");
+      res.status(403).json({
+        error: "committee_approval_forbidden",
+        message: "Vetëm komisioni mund ta aprovojë këtë kërkesë.",
+      });
+      return;
+    }
+
     const allowedStatuses = getAllowedStatuses(actor, current.status);
 
     if (!allowedStatuses.includes(nextStatus)) {
@@ -2022,7 +2033,10 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
       [current.id, nextStatus]
     );
 
-    const isCommitteeApproval = normalizeRole(actor.role) === "committee" && nextStatus === "approved";
+    const isCommitteeApproval =
+      nextStatus === "approved"
+      && ["submitted", "in_review"].includes(current.status)
+      && actorRole === "committee";
     const historyNote = isCommitteeApproval
       ? COMMITTEE_APPROVAL_EVENT_NOTE
       : note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`;
