@@ -2856,40 +2856,58 @@ body {
 }
 
 .reimbursement-request-item {
-  align-items: center;
-  padding: 12px;
+  align-items: stretch;
+  padding: 14px;
+  border-radius: 12px;
 }
 
 .reimbursement-request-item .prof-list-content {
+  width: 100%;
   min-width: 0;
+}
+
+.reimbursement-card-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.reimbursement-card-summary {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
 }
 
 .reimbursement-request-actions {
   margin-left: auto;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-direction: column;
   justify-content: flex-end;
 }
 
-.reimbursement-request-list {
-  gap: 10px;
+.reimbursement-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
-.reimbursement-request-item .prof-list-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+.reimbursement-request-list {
+  gap: 8px;
 }
 
 .reimbursement-request-item .prof-list-content h4 {
-  font-size: 0.95rem;
-  margin-bottom: 4px;
+  font-size: 0.98rem;
+  line-height: 1.3;
+  margin-bottom: 0;
 }
 
 .reimbursement-request-item .prof-list-content p {
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .reimbursement-history-line {
@@ -2928,10 +2946,10 @@ body {
 .reimbursement-date-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 6px;
+  gap: 6px 10px;
+  margin-top: 0;
   color: #53677e;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.45;
 }
 
@@ -2944,22 +2962,77 @@ body {
 
 .reimbursement-type-chip {
   border: 1px solid #b8d2ff;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #eaf2ff;
   color: #174a7b;
-  padding: 2px 9px;
+  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.reimbursement-type-chip strong {
   font-weight: 900;
 }
 
 .reimbursement-document-number {
-  margin-top: 5px;
-  color: #53677e;
-  font-size: 0.82rem;
+  margin-top: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.reimbursement-card-subline {
+  color: #475569;
+  font-weight: 750;
 }
 
 .reimbursement-download-btn {
-  min-height: 32px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.reimbursement-request-item .status-badge {
+  padding: 5px 9px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.reimbursement-card-details {
+  margin-top: 8px;
+}
+
+.reimbursement-details-toggle {
+  border: 0;
+  background: transparent;
+  color: #1d67aa;
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reimbursement-details-toggle:hover {
+  color: #123f68;
+}
+
+.reimbursement-details-toggle span {
+  font-size: 0.66rem;
+}
+
+.reimbursement-details-panel {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #edf1f5;
 }
 
 .reimbursement-upload-box {
@@ -3002,7 +3075,7 @@ body {
 }
 
 .reimbursement-attachment-list {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .reimbursement-attachment-list button {
@@ -3029,9 +3102,9 @@ body {
 }
 
 .reimbursement-timeline {
-  margin-top: 10px;
+  margin-top: 8px;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   border-left: 2px solid #d8e2ee;
   padding-left: 12px;
 }
@@ -3178,7 +3251,8 @@ body {
   .reimbursement-message,
   .reimbursement-action-bar,
   .reimbursement-request-item,
-  .reimbursement-request-actions {
+  .reimbursement-request-actions,
+  .reimbursement-card-main {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -3204,6 +3278,11 @@ body {
 
   .reimbursement-request-actions {
     margin-left: 0;
+    width: 100%;
+  }
+
+  .reimbursement-action-buttons {
+    justify-content: flex-start;
   }
 
   .reimbursement-inline-control {
