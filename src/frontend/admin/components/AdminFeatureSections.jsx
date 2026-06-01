@@ -344,7 +344,14 @@ export function AdminAnalyticsSection() {
         <ChartCard title="Përdoruesit sipas rolit">
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
-              <Pie data={usersByRole} dataKey="count" nameKey="role" outerRadius={82} label>
+              <Pie
+                data={usersByRole}
+                dataKey="count"
+                nameKey="role"
+                outerRadius={82}
+                labelLine={false}
+                label={{ position: "inside", fill: "#ffffff", fontSize: 13, fontWeight: 800 }}
+              >
                 {usersByRole.map((entry, index) => <Cell key={entry.role} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={tooltipFormatter} /><Legend />
