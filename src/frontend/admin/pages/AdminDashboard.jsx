@@ -184,6 +184,12 @@ const getAuditTargetLabel = (item) => {
     return item.target?.name || item.target?.email || item.entityId || "-";
 };
 
+const normalizeSearchValue = (value) =>
+    String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
 
 
 export default function AdminDashboard() {
@@ -459,7 +465,7 @@ export default function AdminDashboard() {
 
     }, [auditFilters, auditRefreshKey]);
 
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const normalizedQuery = normalizeSearchValue(searchQuery.trim());
 
     useEffect(() => {
         setAuditVisibleCount(AUDIT_PAGE_SIZE);
@@ -492,6 +498,32 @@ export default function AdminDashboard() {
         return roleLabel || statusLabel || accessResetLabel || rawValue;
     }, [adminText]);
 
+    const getAuditSearchText = useCallback((item) => {
+        const detailsText = item.details && typeof item.details === "object"
+            ? JSON.stringify(item.details)
+            : item.details;
+
+        return normalizeSearchValue([
+            item.id,
+            item.action,
+            item.actionLabel,
+            item.admin?.name,
+            item.admin?.email,
+            getAuditTargetLabel(item),
+            item.target?.name,
+            item.target?.email,
+            item.entityId,
+            item.oldValue,
+            item.newValue,
+            formatAuditValue(item.oldValue),
+            formatAuditValue(item.newValue),
+            item.status,
+            auditStatusLabels[item.status],
+            item.ipAddress,
+            detailsText,
+        ].filter(Boolean).join(" "));
+    }, [formatAuditValue]);
+
     const filteredAuditLogs = useMemo(() => {
 
         const statusFilter = auditFilters.status;
@@ -501,13 +533,9 @@ export default function AdminDashboard() {
 
         if (!normalizedQuery) return sourceLogs;
 
-        return sourceLogs.filter((item) =>
+        return sourceLogs.filter((item) => getAuditSearchText(item).includes(normalizedQuery));
 
-            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${formatAuditValue(item.oldValue)} ${formatAuditValue(item.newValue)} ${item.status || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
-
-        );
-
-    }, [auditFilters.status, auditLogs, formatAuditValue, normalizedQuery]);
+    }, [auditFilters.status, auditLogs, getAuditSearchText, normalizedQuery]);
 
     const visibleAuditLogs = filteredAuditLogs.slice(0, auditVisibleCount);
 
