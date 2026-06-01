@@ -2966,11 +2966,11 @@ body {
   border-radius: 999px;
   background: #f8fbff;
   color: #174a7b;
-  padding: 1px 7px;
+  padding: 2px 8px;
   display: inline-flex;
   align-items: center;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.74rem;
+  font-weight: 850;
   letter-spacing: 0;
 }
 
@@ -3017,8 +3017,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.74rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
