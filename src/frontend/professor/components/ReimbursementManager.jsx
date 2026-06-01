@@ -1101,17 +1101,8 @@ function ReimbursementHistoryList({
                         {requestTypeLabel}
                       </span>
                     </div>
-                    {request.documentNumber ? (
-                      <p className="reimbursement-document-number">#{request.documentNumber}</p>
-                    ) : null}
-                    <p className="reimbursement-card-subline">
-                      {[formatAmount(request), historyDate].filter(Boolean).join(" • ")}
-                    </p>
                   </div>
                   <div className="reimbursement-request-actions">
-                    <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
-                      {statusLabel}
-                    </span>
                     {!request.isLegacy ? (
                       <div className="reimbursement-action-buttons">
                         {["draft", "needs_correction"].includes(request.status) ? (
@@ -1161,19 +1152,19 @@ function ReimbursementHistoryList({
                       <div className="reimbursement-details-panel">
                         <div className="reimbursement-details-grid">
                           <div className="reimbursement-detail-field">
-                            <span>Nr. Dokumentit</span>
-                            <strong>{request.documentNumber ? `#${request.documentNumber}` : "-"}</strong>
-                          </div>
-                          <div className="reimbursement-detail-field">
                             <span>Statusi</span>
                             <strong>{statusLabel}</strong>
+                          </div>
+                          <div className="reimbursement-detail-field">
+                            <span>Nr. Dokumentit</span>
+                            <strong>{request.documentNumber ? `#${request.documentNumber}` : "-"}</strong>
                           </div>
                           <div className="reimbursement-detail-field">
                             <span>Shuma</span>
                             <strong>{formatAmount(request)}</strong>
                           </div>
                           <div className="reimbursement-detail-field">
-                            <span>Data dhe ora</span>
+                            <span>Data dhe Ora</span>
                             <strong>{historyDate || "-"}</strong>
                           </div>
                         </div>
