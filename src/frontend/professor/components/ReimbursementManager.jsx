@@ -24,6 +24,22 @@ const STATUS_LABELS = {
   paid: "Paguar",
 };
 
+const HISTORY_REQUEST_TYPE_LABELS = {
+  publication: "F1 - Publikime shkencore",
+  conference: "F2 - Konferenca dhe Simpoziume",
+  project: "F3 - Projekte shkencore",
+};
+
+const HISTORY_STATUS_FILTERS = [
+  { id: "all", label: "Të gjitha", statuses: [] },
+  { id: "draft", label: "Draft", statuses: ["draft"] },
+  { id: "submitted", label: "Dërguar", statuses: ["submitted"] },
+  { id: "in_review", label: "Në shqyrtim", statuses: ["received", "in_review"] },
+  { id: "correction", label: "Korrigjim", statuses: ["needs_correction"] },
+  { id: "approved", label: "Aprovuar", statuses: ["committee_approved", "approved", "paid"] },
+  { id: "rejected", label: "Refuzuar", statuses: ["rejected"] },
+];
+
 const ALLOWED_ATTACHMENT_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -971,10 +987,27 @@ function getLatestHistoryLabel(history = []) {
   return [label, date].filter(Boolean).join(" | ");
 }
 
+function getHistoryRequestTypeLabel(request) {
+  return HISTORY_REQUEST_TYPE_LABELS[request.requestType] || request.requestTypeLabel || request.requestType || "";
+}
+
+function getHistoryDateRows(request) {
+  return [
+    { label: "Krijuar më", value: normalizeDate(request.createdAt) },
+    { label: "Dorëzuar më", value: normalizeDate(request.submittedAt) },
+    { label: "Përditësuar më", value: normalizeDate(request.updatedAt) },
+  ].filter((item) => item.value);
+}
+
 function ReimbursementHistoryList({
   r,
   tx,
   visibleRequests,
+  statusFilters,
+  activeStatusFilter,
+  onStatusFilterChange,
+  isLoading,
+  loadError,
   downloadingDocument,
   error,
   onDownloadDocument,
@@ -991,10 +1024,31 @@ function ReimbursementHistoryList({
         </div>
       </div>
 
+      <div className="reimbursement-status-tabs" role="tablist" aria-label="Filtro statusin e rimbursimeve">
+        {statusFilters.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            className={activeStatusFilter === filter.id ? "active" : ""}
+            onClick={() => onStatusFilterChange(filter.id)}
+            role="tab"
+            aria-selected={activeStatusFilter === filter.id}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       {error ? <p className="reimbursement-message error" role="alert">{tx(error)}</p> : null}
+      {loadError ? <p className="reimbursement-message error" role="alert">{loadError}</p> : null}
 
       <div className="prof-list reimbursement-request-list">
-        {visibleRequests.length ? (
+        {isLoading ? (
+          <div className="reimbursement-loading">
+            <Loader2 size={18} className="reimbursement-spin" />
+            Duke ngarkuar rimbursimet...
+          </div>
+        ) : visibleRequests.length ? (
           visibleRequests.map((request) => (
             <div className="prof-list-item reimbursement-request-item" key={request.id}>
               <div className="prof-list-icon">
@@ -1002,11 +1056,22 @@ function ReimbursementHistoryList({
               </div>
               <div className="prof-list-content">
                 <h4>{request.title}</h4>
-                <p>
-                  {[tx(request.requestTypeLabel), formatAmount(request), normalizeDate(request.submittedAt || request.createdAt)]
-                    .filter(Boolean)
-                    .join(" | ")}
-                </p>
+                <div className="reimbursement-row-meta">
+                  <span className="reimbursement-type-chip">{getHistoryRequestTypeLabel(request)}</span>
+                  <span><strong>{r.amount}:</strong> {formatAmount(request)}</span>
+                </div>
+                {request.documentNumber ? (
+                  <p className="reimbursement-document-number">
+                    <strong>Nr. dokumentit:</strong> {request.documentNumber}
+                  </p>
+                ) : null}
+                <div className="reimbursement-date-row">
+                  {getHistoryDateRows(request).map((item) => (
+                    <span key={`${request.id}-${item.label}`}>
+                      <strong>{item.label}:</strong> {item.value}
+                    </span>
+                  ))}
+                </div>
                 {request.statusHistory?.length ? (
                   <p className="reimbursement-history-line">
                     {r.latestHistory}: {tx(getLatestHistoryLabel(request.statusHistory))}
@@ -1076,9 +1141,12 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const [requests, setRequests] = useState([]);
   const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [isLoadingContext, setIsLoadingContext] = useState(true);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [requestsError, setRequestsError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadingDocument, setDownloadingDocument] = useState("");
   const [previewingDocument, setPreviewingDocument] = useState("");
+  const [activeStatusFilter, setActiveStatusFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [editingRequest, setEditingRequest] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -1124,19 +1192,23 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   }, [bankRequired, form, isAccountNumberValid, selectedFiles.length, selectedType]);
 
   const visibleRequests = useMemo(() => {
-    const rows = hasLoadedRequests ? requests : normalizeLegacyRows(fallbackRows);
+    const rows = hasLoadedRequests ? requests : requestsError ? [] : normalizeLegacyRows(fallbackRows);
     const normalizedQuery = searchQuery.trim().toLowerCase();
+    const activeFilter = HISTORY_STATUS_FILTERS.find((filter) => filter.id === activeStatusFilter);
+    const filteredByStatus = activeFilter?.statuses?.length
+      ? rows.filter((row) => activeFilter.statuses.includes(row.status))
+      : rows;
 
     if (!normalizedQuery) {
-      return rows;
+      return filteredByStatus;
     }
 
-    return rows.filter((row) =>
-      `${row.title} ${row.requestTypeLabel} ${row.amount} ${row.currency} ${row.status} ${row.submittedAt}`
+    return filteredByStatus.filter((row) =>
+      `${row.title} ${row.documentNumber} ${getHistoryRequestTypeLabel(row)} ${row.requestTypeLabel} ${row.amount} ${row.currency} ${row.status} ${row.statusLabel} ${row.submittedAt} ${row.createdAt} ${row.updatedAt}`
         .toLowerCase()
         .includes(normalizedQuery)
     );
-  }, [fallbackRows, hasLoadedRequests, requests, searchQuery]);
+  }, [activeStatusFilter, fallbackRows, hasLoadedRequests, requests, requestsError, searchQuery]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1178,13 +1250,16 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }
 
     async function loadRequests() {
+      setIsLoadingRequests(true);
+      setRequestsError("");
+
       try {
         const response = await fetch(apiUrl("/reimbursements"), {
           credentials: "include",
         });
 
         if (!response.ok) {
-          return;
+          throw new Error("Nuk mund të ngarkohen rimbursimet. Provo përsëri.");
         }
 
         const data = await response.json();
@@ -1193,9 +1268,14 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           setRequests(Array.isArray(data) ? data : []);
           setHasLoadedRequests(true);
         }
-      } catch {
+      } catch (loadError) {
         if (isMounted) {
           setHasLoadedRequests(false);
+          setRequestsError(loadError.message || "Nuk mund të ngarkohen rimbursimet. Provo përsëri.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingRequests(false);
         }
       }
     }
@@ -2923,6 +3003,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           r={r}
           tx={tx}
           visibleRequests={visibleRequests}
+          statusFilters={HISTORY_STATUS_FILTERS}
+          activeStatusFilter={activeStatusFilter}
+          onStatusFilterChange={setActiveStatusFilter}
+          isLoading={isLoadingRequests}
+          loadError={requestsError}
           downloadingDocument={downloadingDocument}
           error={error}
           onDownloadDocument={handleDownloadDocument}
