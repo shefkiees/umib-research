@@ -974,29 +974,40 @@ function normalizeLegacyRows(rows) {
   }));
 }
 
-function getLatestHistoryLabel(history = []) {
-  const latest = history[history.length - 1];
-
-  if (!latest) {
-    return "";
-  }
-
-  const label = STATUS_LABELS[latest.status] || latest.status || "";
-  const date = normalizeDate(latest.createdAt);
-
-  return [label, date].filter(Boolean).join(" | ");
-}
-
 function getHistoryRequestTypeLabel(request) {
   return HISTORY_REQUEST_TYPE_LABELS[request.requestType] || request.requestTypeLabel || request.requestType || "";
 }
 
-function getHistoryDateRows(request) {
-  return [
-    { label: "Krijuar më", value: normalizeDate(request.createdAt) },
-    { label: "Dorëzuar më", value: normalizeDate(request.submittedAt) },
-    { label: "Përditësuar më", value: normalizeDate(request.updatedAt) },
-  ].filter((item) => item.value);
+function getHistoryRequestTypeParts(request) {
+  const label = getHistoryRequestTypeLabel(request);
+  const [code, ...nameParts] = label.split(" - ");
+
+  return {
+    code: nameParts.length ? code : "",
+    name: nameParts.length ? nameParts.join(" - ") : label,
+  };
+}
+
+function formatCompactDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}.${month}.${year}`;
+}
+
+function getHistoryMainDate(request) {
+  return formatCompactDate(request.submittedAt || request.createdAt || request.updatedAt);
 }
 
 function ReimbursementHistoryList({
@@ -1015,6 +1026,22 @@ function ReimbursementHistoryList({
   renderAttachments,
   renderStatusTimeline,
 }) {
+  const [expandedRequestIds, setExpandedRequestIds] = useState(() => new Set());
+
+  const toggleRequestDetails = (requestId) => {
+    setExpandedRequestIds((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(requestId)) {
+        next.delete(requestId);
+      } else {
+        next.add(requestId);
+      }
+
+      return next;
+    });
+  };
+
   return (
     <article className="prof-card reimbursement-list-card">
       <div className="prof-card-header">
@@ -1049,75 +1076,92 @@ function ReimbursementHistoryList({
             Duke ngarkuar rimbursimet...
           </div>
         ) : visibleRequests.length ? (
-          visibleRequests.map((request) => (
+          visibleRequests.map((request) => {
+            const typeParts = getHistoryRequestTypeParts(request);
+            const isExpanded = expandedRequestIds.has(request.id);
+            const hasDetails = request.statusHistory?.length || request.attachments?.length;
+
+            return (
             <div className="prof-list-item reimbursement-request-item" key={request.id}>
-              <div className="prof-list-icon">
-                <Wallet size={20} />
-              </div>
               <div className="prof-list-content">
-                <h4>{request.title}</h4>
-                <div className="reimbursement-row-meta">
-                  <span className="reimbursement-type-chip">{getHistoryRequestTypeLabel(request)}</span>
-                  <span><strong>{r.amount}:</strong> {formatAmount(request)}</span>
-                </div>
-                {request.documentNumber ? (
-                  <p className="reimbursement-document-number">
-                    <strong>Nr. dokumentit:</strong> {request.documentNumber}
-                  </p>
-                ) : null}
-                <div className="reimbursement-date-row">
-                  {getHistoryDateRows(request).map((item) => (
-                    <span key={`${request.id}-${item.label}`}>
-                      <strong>{item.label}:</strong> {item.value}
-                    </span>
-                  ))}
-                </div>
-                {request.statusHistory?.length ? (
-                  <p className="reimbursement-history-line">
-                    {r.latestHistory}: {tx(getLatestHistoryLabel(request.statusHistory))}
-                  </p>
-                ) : null}
-                {renderAttachments(request)}
-                {renderStatusTimeline(request.statusHistory)}
-              </div>
-              <div className="reimbursement-request-actions">
-                <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
-                  {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
-                </span>
-                {!request.isLegacy ? (
-                  <>
-                    {["draft", "needs_correction"].includes(request.status) ? (
-                      <button
-                        type="button"
-                        className="reimbursement-download-btn"
-                        onClick={() => onEditRequest(request)}
-                      >
-                        {r.edit}
-                      </button>
+                <div className="reimbursement-card-main">
+                  <div className="reimbursement-card-summary">
+                    <h4>{request.title}</h4>
+                    <div className="reimbursement-row-meta">
+                      <span className="reimbursement-type-chip">
+                        {typeParts.code ? <strong>{typeParts.code}</strong> : null}
+                        {typeParts.name}
+                      </span>
+                    </div>
+                    {request.documentNumber ? (
+                      <p className="reimbursement-document-number">#{request.documentNumber}</p>
                     ) : null}
+                    <p className="reimbursement-card-subline">
+                      {[formatAmount(request), getHistoryMainDate(request)].filter(Boolean).join(" • ")}
+                    </p>
+                  </div>
+                  <div className="reimbursement-request-actions">
+                    <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
+                      {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
+                    </span>
+                    {!request.isLegacy ? (
+                      <div className="reimbursement-action-buttons">
+                        {["draft", "needs_correction"].includes(request.status) ? (
+                          <button
+                            type="button"
+                            className="reimbursement-download-btn"
+                            onClick={() => onEditRequest(request)}
+                          >
+                            {r.edit}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="reimbursement-download-btn"
+                          onClick={() => onDownloadDocument(request, "pdf")}
+                          disabled={downloadingDocument === `${request.id}-pdf`}
+                        >
+                          <Download size={14} />
+                          {downloadingDocument === `${request.id}-pdf` ? "PDF..." : "PDF"}
+                        </button>
+                        <button
+                          type="button"
+                          className="reimbursement-download-btn"
+                          onClick={() => onDownloadDocument(request, "docx")}
+                          disabled={downloadingDocument === `${request.id}-docx`}
+                        >
+                          <Download size={14} />
+                          {downloadingDocument === `${request.id}-docx` ? "DOCX..." : "DOCX"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {hasDetails ? (
+                  <div className="reimbursement-card-details">
                     <button
                       type="button"
-                      className="reimbursement-download-btn"
-                      onClick={() => onDownloadDocument(request, "pdf")}
-                      disabled={downloadingDocument === `${request.id}-pdf`}
+                      className="reimbursement-details-toggle"
+                      onClick={() => toggleRequestDetails(request.id)}
+                      aria-expanded={isExpanded}
                     >
-                      <Download size={16} />
-                      {downloadingDocument === `${request.id}-pdf` ? "PDF..." : "PDF"}
+                      <span aria-hidden="true">{isExpanded ? "▲" : "▼"}</span>
+                      {isExpanded ? "Fshih detajet" : "Shfaq detajet"}
                     </button>
-                    <button
-                      type="button"
-                      className="reimbursement-download-btn"
-                      onClick={() => onDownloadDocument(request, "docx")}
-                      disabled={downloadingDocument === `${request.id}-docx`}
-                    >
-                      <Download size={16} />
-                      {downloadingDocument === `${request.id}-docx` ? "DOCX..." : "DOCX"}
-                    </button>
-                  </>
+
+                    {isExpanded ? (
+                      <div className="reimbursement-details-panel">
+                        {renderAttachments(request)}
+                        {renderStatusTimeline(request.statusHistory)}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>
-          ))
+            );
+          })
         ) : (
           <div className="reimbursement-empty">
             {r.empty}
