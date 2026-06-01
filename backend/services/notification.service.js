@@ -103,16 +103,18 @@ export function mapUserPreferences(row = {}) {
   };
 }
 
-export async function createNotification(client, { userId, title, message, category }) {
+export async function createNotification(client, { userId, title, message, category, metadata = {} }) {
   if (!userId) {
     return null;
   }
 
+  await client.query("alter table notifications add column if not exists metadata jsonb not null default '{}'::jsonb");
+
   const { rows } = await client.query(
-    `insert into notifications (user_id, title, message, category)
-     values ($1, $2, $3, $4)
-     returning id, user_id, title, message, category, is_read, created_at`,
-    [userId, title, message, category || null]
+    `insert into notifications (user_id, title, message, category, metadata)
+     values ($1, $2, $3, $4, $5::jsonb)
+     returning id, user_id, title, message, category, metadata, is_read, created_at`,
+    [userId, title, message, category || null, JSON.stringify(metadata || {})]
   );
   const notification = rows[0] || null;
 

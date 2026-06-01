@@ -1380,6 +1380,10 @@ router.patch("/:id/metadata-review", requireAuthenticatedUser, async (req, res) 
           "Ju lutem rishikoni publikimin dhe ridergojeni.",
         ].filter(Boolean).join(" "),
         category: "Publikime",
+        metadata: {
+          type: "publication_revision",
+          publicationId: row.id,
+        },
       });
     }
 

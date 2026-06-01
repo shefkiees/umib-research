@@ -584,12 +584,19 @@ create table if not exists notifications (
   title text not null,
   message text not null,
   category text,
+  metadata jsonb not null default '{}'::jsonb,
   is_read boolean not null default false,
   created_at timestamptz not null default now()
 );
 
+alter table notifications add column if not exists metadata jsonb not null default '{}'::jsonb;
+
 create index if not exists notifications_user_id_idx
 on notifications (user_id, is_read, created_at desc);
+
+create index if not exists notifications_metadata_publication_idx
+on notifications ((metadata->>'publicationId'))
+where metadata ? 'publicationId';
 
 create table if not exists admin_journals (
   id uuid primary key default gen_random_uuid(),

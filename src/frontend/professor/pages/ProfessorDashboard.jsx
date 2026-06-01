@@ -253,6 +253,7 @@ const mapNotificationRow = (row = {}) => ({
   title: row.title || "",
   message: row.message || "",
   category: row.category || "",
+  metadata: row.metadata || {},
   isRead: Boolean(row.is_read ?? row.isRead),
   createdAt: formatDate(row.created_at || row.createdAt),
 });
@@ -508,51 +509,47 @@ export default function ProfessorDashboard() {
     };
   }, [navigate]);
 
+  const loadNotifications = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) {
+      setIsNotificationsLoading(true);
+    }
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl("/notifications"), {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("notifications_load_failed");
+      }
+
+      const data = await response.json();
+      setNotifications(Array.isArray(data) ? data.map(mapNotificationRow) : []);
+    } catch (error) {
+      console.error("Notifications load failed:", error);
+      setNotifications([]);
+      setNotificationsError("Notifications could not be loaded. Please try again.");
+    } finally {
+      if (showLoading) {
+        setIsNotificationsLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!hasAuthenticatedSession) {
       return undefined;
     }
 
-    let isMounted = true;
-
-    const loadNotifications = async () => {
-      setIsNotificationsLoading(true);
-      setNotificationsError("");
-
-      try {
-        const response = await fetch(apiUrl("/notifications"), {
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("notifications_load_failed");
-        }
-
-        const data = await response.json();
-
-        if (isMounted) {
-          setNotifications(Array.isArray(data) ? data.map(mapNotificationRow) : []);
-        }
-      } catch (error) {
-        console.error("Notifications load failed:", error);
-
-        if (isMounted) {
-          setNotifications([]);
-          setNotificationsError("Notifications could not be loaded. Please try again.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsNotificationsLoading(false);
-        }
-      }
-    };
-
     loadNotifications();
+    const interval = window.setInterval(() => {
+      loadNotifications({ showLoading: false });
+    }, 15000);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [hasAuthenticatedSession]);
+    return () => window.clearInterval(interval);
+  }, [hasAuthenticatedSession, loadNotifications]);
 
   useEffect(() => {
     if (!hasAuthenticatedSession) {
@@ -2067,6 +2064,7 @@ export default function ProfessorDashboard() {
           notifications={notifications}
           onMarkAllRead={markAllNotificationsAsRead}
           onNotificationAction={markNotificationAsRead}
+          onNotificationsOpen={() => loadNotifications({ showLoading: false })}
           searchPlaceholder={searchPlaceholder}
           notificationsAriaLabel={t("topbar.notificationsAriaLabel")}
           notificationsTitle={t("topbar.notificationsTitle")}

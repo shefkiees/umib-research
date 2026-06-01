@@ -15,6 +15,7 @@ export default function TopBar({
   notifications = [],
   onMarkAllRead,
   onNotificationAction,
+  onNotificationsOpen,
   searchPlaceholder = "Kerko publikime, konferenca ose kerkesa...",
   notificationsAriaLabel = "Njoftime",
   notificationsTitle = "Njoftimet",
@@ -124,7 +125,15 @@ export default function TopBar({
             className="prof-icon-btn"
             type="button"
             aria-label={notificationsAriaLabel}
-            onClick={() => setIsNotificationsOpen((current) => !current)}
+            onClick={() => {
+              setIsNotificationsOpen((current) => {
+                const next = !current;
+                if (next && typeof onNotificationsOpen === "function") {
+                  onNotificationsOpen();
+                }
+                return next;
+              });
+            }}
           >
             <Bell size={20} />
             {notificationCount > 0 ? <span className="prof-bell-badge">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}
