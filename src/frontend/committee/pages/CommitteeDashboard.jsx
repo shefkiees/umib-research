@@ -426,6 +426,7 @@ export default function CommitteeDashboard() {
         searchQuery={searchQuery}
         title="Shqyrtimi i rimbursimeve"
         description="Kerkesat reale nga databaza per pranim, shqyrtim, korrigjim, aprovim ose refuzim nga komisioni."
+        showReviewFilters
       />
     );
   }
