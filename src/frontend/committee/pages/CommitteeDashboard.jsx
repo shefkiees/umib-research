@@ -105,7 +105,7 @@ function hasUibmAffiliation(publication) {
 }
 
 function getMetadataStatus(publication) {
-  if (publication.metadataVerified || publication.metadata_verified) return "Verifikuar";
+  if (publication.metadataVerified || publication.metadata_verified) return "Nga DOI";
   if (publication.doi) return "DOI pa verifikim";
   return "Manual";
 }
