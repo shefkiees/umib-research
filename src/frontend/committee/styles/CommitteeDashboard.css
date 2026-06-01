@@ -1121,6 +1121,7 @@
 
 .committee-metadata-section {
 	position: relative;
+	padding: 28px;
 }
 
 .committee-metadata-head {
@@ -1128,20 +1129,31 @@
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #e2e8f0;
 }
 
 .committee-metadata-summary {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-	margin: 16px 0;
+	gap: 0;
+	margin: 0 0 18px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	overflow: hidden;
+	background: #ffffff;
 }
 
 .committee-metadata-summary article {
-	border: 1px solid #dbe5f2;
-	border-radius: 12px;
-	background: #f8fbff;
-	padding: 12px 14px;
+	border: 0;
+	border-right: 1px solid #e2e8f0;
+	border-radius: 0;
+	background: #ffffff;
+	padding: 14px 16px;
+}
+
+.committee-metadata-summary article:last-child {
+	border-right: 0;
 }
 
 .committee-metadata-summary span {
@@ -1155,40 +1167,28 @@
 	display: block;
 	margin-top: 4px;
 	color: #17324f;
-	font-size: 1.3rem;
-}
-
-.committee-metadata-filters {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-bottom: 16px;
-}
-
-.committee-metadata-filters button,
-.committee-details-btn {
-	border: 1px solid #d7e1ee;
-	background: #ffffff;
-	color: #1f4f84;
-	font-weight: 700;
-	border-radius: 999px;
-	cursor: pointer;
-}
-
-.committee-metadata-filters button {
-	padding: 7px 12px;
-	font-size: 0.84rem;
-}
-
-.committee-metadata-filters button.is-active,
-.committee-metadata-filters button:hover,
-.committee-details-btn:hover {
-	border-color: #1f5f99;
-	background: #eef5ff;
+	font-size: 1.25rem;
 }
 
 .committee-metadata-table {
 	min-width: 1120px;
+}
+
+.committee-details-btn {
+	height: 32px;
+	border: 1px solid #d7e1ee;
+	background: #ffffff;
+	color: #1f4f84;
+	font-weight: 700;
+	border-radius: 8px;
+	padding: 0 12px;
+	font-size: 0.82rem;
+	cursor: pointer;
+}
+
+.committee-details-btn:hover {
+	border-color: #1f5f99;
+	background: #eef5ff;
 }
 
 .committee-metadata-table th:nth-child(1) { width: 22%; }
@@ -1250,12 +1250,6 @@
 .committee-metadata-badge.is-warning {
 	background: #fff4d8;
 	color: #9a6700;
-}
-
-.committee-details-btn {
-	height: 34px;
-	padding: 0 12px;
-	font-size: 0.82rem;
 }
 
 .committee-metadata-drawer-backdrop {

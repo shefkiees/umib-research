@@ -872,6 +872,8 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   if (!isReviewScope) {
     params.push(req.user.id);
     filters.push(`p.owner_id = $${params.length}`);
+  } else if (normalizeText(req.query.includeDrafts) !== "true") {
+    filters.push("p.status <> 'draft'");
   }
 
   if (status) {

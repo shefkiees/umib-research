@@ -50,15 +50,6 @@ const publicationTypeLabels = {
   book: "Libër / kapitull",
 };
 
-const metadataFilters = [
-  { id: "all", label: "Të gjitha" },
-  { id: "submitted", label: "Në pritje" },
-  { id: "missing-doi", label: "Pa DOI" },
-  { id: "verified", label: "Të verifikuara" },
-  { id: "unverified", label: "Pa verifikim" },
-  { id: "missing-uibm", label: "Pa UIBM affiliation" },
-];
-
 function formatDate(value) {
   if (!value) {
     return "-";
@@ -128,7 +119,6 @@ export default function CommitteeDashboard() {
   const [metadataPublications, setMetadataPublications] = useState([]);
   const [isMetadataLoading, setIsMetadataLoading] = useState(false);
   const [metadataError, setMetadataError] = useState("");
-  const [metadataFilter, setMetadataFilter] = useState("all");
   const [selectedMetadataPublication, setSelectedMetadataPublication] = useState(null);
   const [committeeProfile, setCommitteeProfile] = useState({
     name: "Komisioni Shkencor",
@@ -241,6 +231,7 @@ export default function CommitteeDashboard() {
       try {
         const response = await fetch(apiUrl("/publications?scope=review&limit=50"), {
           credentials: "include",
+          cache: "no-store",
         });
         const data = await response.json().catch(() => ({}));
 
@@ -303,20 +294,11 @@ export default function CommitteeDashboard() {
   }, [normalizedQuery]);
 
   const filteredMetadataPublications = useMemo(() => {
-    const filteredByState = metadataPublications.filter((item) => {
-      if (metadataFilter === "submitted") return item.status === "submitted";
-      if (metadataFilter === "missing-doi") return !item.doi;
-      if (metadataFilter === "verified") return Boolean(item.metadataVerified || item.metadata_verified);
-      if (metadataFilter === "unverified") return !item.metadataVerified && !item.metadata_verified;
-      if (metadataFilter === "missing-uibm") return !hasUibmAffiliation(item);
-      return true;
-    });
-
     if (!normalizedQuery) {
-      return filteredByState;
+      return metadataPublications;
     }
 
-    return filteredByState.filter((item) => {
+    return metadataPublications.filter((item) => {
       const authorsText = getPublicationAuthors(item)
         .map((author) => `${getAuthorName(author)} ${getAuthorAffiliation(author)}`)
         .join(" ");
@@ -337,7 +319,7 @@ export default function CommitteeDashboard() {
 
       return normalizeForSearch(row).includes(normalizedQuery);
     });
-  }, [metadataFilter, metadataPublications, normalizedQuery]);
+  }, [metadataPublications, normalizedQuery]);
 
   const metadataSummary = useMemo(() => ({
     total: metadataPublications.length,
@@ -499,11 +481,7 @@ export default function CommitteeDashboard() {
       <div className="committee-page-head committee-metadata-head">
         <div>
           <h3>Metadata e publikimeve</h3>
-          <p>Të dhëna reale nga publikimet: DOI, journal/konferenca, autorët, affiliation dhe statusi i verifikimit.</p>
         </div>
-        <button className="committee-api-chip" type="button">
-          Live data
-        </button>
       </div>
 
       <div className="committee-metadata-summary">
@@ -523,19 +501,6 @@ export default function CommitteeDashboard() {
           <span>Pa UIBM affiliation</span>
           <strong>{metadataSummary.missingUibm}</strong>
         </article>
-      </div>
-
-      <div className="committee-metadata-filters" aria-label="Filtrat e metadatave">
-        {metadataFilters.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            className={metadataFilter === filter.id ? "is-active" : ""}
-            onClick={() => setMetadataFilter(filter.id)}
-          >
-            {filter.label}
-          </button>
-        ))}
       </div>
 
       {metadataError ? <p className="committee-empty" role="alert">{metadataError}</p> : null}
