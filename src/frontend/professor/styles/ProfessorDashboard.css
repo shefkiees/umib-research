@@ -2303,6 +2303,19 @@ body {
   background: #eef2f7;
 }
 
+.reimbursement-conference-publication-grid {
+  align-items: start;
+}
+
+.reimbursement-publication-derived-field {
+  gap: 7px;
+}
+
+.reimbursement-readonly-display {
+  cursor: default;
+  user-select: text;
+}
+
 .reimbursement-author-field,
 .reimbursement-coauthors-field {
   gap: 6px;
@@ -2343,6 +2356,8 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .reimbursement-coauthor-chip {
@@ -2356,6 +2371,7 @@ body {
   line-height: 1.25;
   padding: 5px 9px;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .reimbursement-muted-value {
@@ -2371,6 +2387,7 @@ body {
 .reimbursement-abstract-box {
   width: 100%;
   min-height: 72px;
+  max-width: 100%;
   border: 1px solid #cfe0f3;
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
@@ -2385,6 +2402,7 @@ body {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  overflow-wrap: anywhere;
 }
 
 .reimbursement-abstract-box.expanded {
@@ -2408,6 +2426,41 @@ body {
 .reimbursement-abstract-toggle:hover {
   background: #eef7ff;
   color: #174a7b;
+}
+
+.reimbursement-affiliation-field {
+  gap: 7px;
+}
+
+.reimbursement-affiliation-card {
+  width: 100%;
+  max-width: 100%;
+  min-height: 78px;
+  border: 1px solid #cfe0f3;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #263647;
+  font-size: 0.82rem;
+  font-weight: 550;
+  line-height: 1.55;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-affiliation-card.empty {
+  color: #64748b;
+  font-style: italic;
+  background: #f9fbfe;
+}
+
+.reimbursement-publication-derived-field .reimbursement-main-author,
+.reimbursement-publication-derived-field .reimbursement-coauthor-list,
+.reimbursement-publication-derived-field .reimbursement-abstract-box,
+.reimbursement-publication-derived-field .reimbursement-affiliation-card {
+  border-color: #cfe0f3;
+  background: #f8fbff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .reimbursement-field input.reimbursement-autofill-input,
