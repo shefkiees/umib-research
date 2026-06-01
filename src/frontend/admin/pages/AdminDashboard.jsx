@@ -478,6 +478,20 @@ export default function AdminDashboard() {
         );
 
     }, [normalizedQuery, users]);
+
+    const formatAuditValue = useCallback((value) => {
+        const rawValue = String(value ?? "").trim();
+
+        if (!rawValue || rawValue === "-") return "-";
+
+        const normalizedValue = rawValue.toLowerCase();
+        const roleLabel = adminText.users?.roles?.[normalizedValue] || ROLE_LABELS[normalizedValue];
+        const statusLabel = adminText.users?.statuses?.[normalizedValue] || STATUS_LABELS[normalizedValue];
+        const accessResetLabel = accessResetStatusLabels[normalizedValue];
+
+        return roleLabel || statusLabel || accessResetLabel || rawValue;
+    }, [adminText]);
+
     const filteredAuditLogs = useMemo(() => {
 
         const statusFilter = auditFilters.status;
@@ -489,11 +503,11 @@ export default function AdminDashboard() {
 
         return sourceLogs.filter((item) =>
 
-            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${item.status || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
+            `${item.id} ${item.actionLabel} ${item.admin?.email || ""} ${item.admin?.name || ""} ${item.target?.email || ""} ${item.target?.name || ""} ${item.oldValue || ""} ${item.newValue || ""} ${formatAuditValue(item.oldValue)} ${formatAuditValue(item.newValue)} ${item.status || ""} ${item.ipAddress || ""}`.toLowerCase().includes(normalizedQuery)
 
         );
 
-    }, [auditFilters.status, auditLogs, normalizedQuery]);
+    }, [auditFilters.status, auditLogs, formatAuditValue, normalizedQuery]);
 
     const visibleAuditLogs = filteredAuditLogs.slice(0, auditVisibleCount);
 
@@ -971,8 +985,8 @@ export default function AdminDashboard() {
                                             <span className="admin-audit-muted">{item.target?.email || item.entityId || "-"}</span>
                                         ) : null}
                                     </td>
-                                    <td>{item.oldValue || "-"}</td>
-                                    <td>{item.newValue || "-"}</td>
+                                    <td>{formatAuditValue(item.oldValue)}</td>
+                                    <td>{formatAuditValue(item.newValue)}</td>
                                     <td>
                                         {item.status ? (
                                             <span className={getAuditStatusClass(item.status)}>
@@ -1046,11 +1060,11 @@ export default function AdminDashboard() {
                             </article>
                             <article>
                                 <span>Vlera e vjetër</span>
-                                <strong>{selectedAuditLog.oldValue || "-"}</strong>
+                                <strong>{formatAuditValue(selectedAuditLog.oldValue)}</strong>
                             </article>
                             <article>
                                 <span>{selectedAuditLog.action === "admin.user.status_update" ? "Statusi i ri" : "Vlera e re"}</span>
-                                <strong>{selectedAuditLog.newValue || "-"}</strong>
+                                <strong>{formatAuditValue(selectedAuditLog.newValue)}</strong>
                             </article>
                             <article>
                                 <span>Statusi</span>
