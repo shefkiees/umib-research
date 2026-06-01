@@ -397,7 +397,7 @@ function getPublicationDisplaySections(form) {
   ].filter(Boolean);
   const authorFields = [
     createDisplayField(publicationType === "book" ? "Autori" : "Autori kryesor", form.mainAuthor),
-    createDisplayField("Përkatësia e autorëve", form.affiliation),
+    createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
   ].filter(Boolean);
 
   if (publicationType === "conference_paper") {
@@ -502,7 +502,7 @@ function getPublicationMetadataDisplaySection(form) {
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
-        createDisplayField("Përkatësia e autorëve", form.affiliation),
+        createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
         doiField,
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
         createDisplayField("Quartile", form.scopusQuartile),
@@ -525,7 +525,7 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
-      createDisplayField("Përkatësia e autorëve", form.affiliation),
+      createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
       doiField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
       createDisplayField("Impact Factor", form.impactFactor),
