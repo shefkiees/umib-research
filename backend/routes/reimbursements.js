@@ -370,6 +370,8 @@ function getCurrentUserProfile(row) {
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
+    academicTitle: row.academic_title || "",
+    scientificTitle: row.scientific_title || "",
     orcidId: row.orcid_id || "",
   };
 }
@@ -390,7 +392,8 @@ function buildEditableAutoFields(user, formData) {
 
 async function loadCurrentUser(userId) {
   const result = await db.query(
-    `select id, google_id, orcid_id, email, full_name, role, faculty, department, office
+    `select id, google_id, orcid_id, email, full_name, role, faculty, department, office,
+            academic_title, scientific_title
      from users
      where id = $1
      limit 1`,

@@ -1210,7 +1210,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   }, []);
 
   useEffect(() => {
-    if (isLoadingContext || hasHydratedAutoFields) {
+    if (isLoadingContext) {
       return;
     }
 
@@ -1221,19 +1221,23 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       return;
     }
 
-    setForm((prev) => ({
-      ...prev,
-      applicantName: prev.applicantName || defaults.applicantName,
-      applicantEmail: prev.applicantEmail || defaults.applicantEmail,
-      applicantFaculty: prev.applicantFaculty || defaults.applicantFaculty,
-      applicantDepartment: prev.applicantDepartment || defaults.applicantDepartment,
-      applicantOffice: prev.applicantOffice || defaults.applicantOffice,
-      applicantOrcidId: prev.applicantOrcidId || defaults.applicantOrcidId,
-      scientificTitle: prev.scientificTitle || defaults.scientificTitle,
-      academicTitle: prev.academicTitle || defaults.academicTitle,
-      bankApplicantName: prev.bankApplicantName || defaults.bankApplicantName,
-      applyingUnit: prev.applyingUnit || defaults.applyingUnit,
-    }));
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        applicantName: prev.applicantName || defaults.applicantName,
+        applicantEmail: prev.applicantEmail || defaults.applicantEmail,
+        applicantFaculty: prev.applicantFaculty || defaults.applicantFaculty,
+        applicantDepartment: prev.applicantDepartment || defaults.applicantDepartment,
+        applicantOffice: prev.applicantOffice || defaults.applicantOffice,
+        applicantOrcidId: prev.applicantOrcidId || defaults.applicantOrcidId,
+        scientificTitle: prev.scientificTitle || defaults.scientificTitle,
+        academicTitle: prev.academicTitle || defaults.academicTitle,
+        bankApplicantName: prev.bankApplicantName || defaults.bankApplicantName,
+        applyingUnit: prev.applyingUnit || defaults.applyingUnit,
+      };
+
+      return Object.keys(defaults).some((field) => prev[field] !== next[field]) ? next : prev;
+    });
     setHasHydratedAutoFields(true);
   }, [effectiveProfile, hasHydratedAutoFields, isLoadingContext]);
 
