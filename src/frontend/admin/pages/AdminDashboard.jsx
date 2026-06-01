@@ -8,17 +8,11 @@ import AdminSidebar from "../components/AdminSidebar";
 
 import AdminTopbar from "../components/AdminTopbar";
 
-import BackupSection from "../components/BackupSection";
 import {
     AdminAnalyticsSection,
-    AdminBudgetSection,
     AdminIntegrationsSection,
-    AdminJournalsSection,
     AdminNotificationsSection,
-    AdminPublicationReviewSection,
-    AdminReportsSection,
     AdminSettingsSection,
-    AdminSystemStatusSection,
 } from "../components/AdminFeatureSections";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -47,100 +41,6 @@ const STATUS_LABELS = {
 
 
 
-const rolesData = [
-
-    {
-
-        id: "ROL-001",
-
-        name: "Profesor",
-
-        users: 84,
-
-        badge: "Aktiv",
-
-        actions: [
-
-            "Dorëzo punime",
-
-            "Shiko statusin",
-
-            "Edito profilin",
-
-        ],
-
-    },
-
-    {
-
-        id: "ROL-002",
-
-        name: "Komisioni",
-
-        users: 12,
-
-        badge: "Aktiv",
-
-        actions: [
-
-            "Vlerëso punime",
-
-            "Komento",
-
-            "Aprovo / Refuzo",
-
-        ],
-
-    },
-
-    {
-
-        id: "ROL-003",
-
-        name: "Prorektor",
-
-        users: 3,
-
-        badge: "Aktiv",
-
-        actions: [
-
-            "Aprovim final",
-
-            "Raporte",
-
-            "Mbikëqyrje komisionesh",
-
-        ],
-
-    },
-
-    {
-
-        id: "ROL-004",
-
-        name: "Admin",
-
-        users: 2,
-
-        badge: "Aktiv",
-
-        actions: [
-
-            "Akses i plotë",
-
-            "Menaxhim përdoruesish",
-
-            "Historiku i veprimeve",
-
-        ],
-
-    },
-
-];
-
-
-
 const auditActionOptions = [
     { value: "", label: "Të gjitha veprimet" },
     { value: "admin.auth.login", label: "Kyçje e adminit" },
@@ -150,35 +50,6 @@ const auditActionOptions = [
     { value: "admin.user.status_update", label: "Ndryshim statusi" },
     { value: "admin.access_reset.status_update", label: "Ndryshim qasjeje" },
 
-];
-
-const backupData = [
-
-    { id: "BCK-001", type: "Rezervim i plotë", date: "2024-04-19", size: "2.5 GB", status: "Përfunduar" },
-
-    { id: "BCK-002", type: "Rezervim shtesë", date: "2024-04-18", size: "500 MB", status: "Përfunduar" },
-
-    { id: "BCK-003", type: "Baza e të dhënave", date: "2024-04-17", size: "1.2 GB", status: "Dështoi" },
-
-];
-
-
-
-const navLabels = [
-    "Përdoruesit",
-    "Rolet",
-    "Rivendosja e qasjes",
-    "Historiku i veprimeve",
-    "Njoftimet",
-    "Statistikat",
-    "Integrimet",
-    "Gjendja e sistemit",
-    "Revistat",
-    "Shqyrtimi i publikimeve",
-    "Raportet",
-    "Buxheti",
-    "Cilësimet",
-    "Rezervimi",
 ];
 
 const accessResetStatusLabels = {
@@ -607,23 +478,6 @@ export default function AdminDashboard() {
         );
 
     }, [normalizedQuery, users]);
-
-
-
-    const filteredRoles = useMemo(() => {
-
-        if (!normalizedQuery) return rolesData;
-
-        return rolesData.filter((item) =>
-
-            `${item.id} ${item.name} ${item.users} ${item.actions.join(" ")}`.toLowerCase().includes(normalizedQuery)
-
-        );
-
-    }, [normalizedQuery]);
-
-
-
     const filteredAuditLogs = useMemo(() => {
 
         const statusFilter = auditFilters.status;
@@ -644,20 +498,6 @@ export default function AdminDashboard() {
     const visibleAuditLogs = filteredAuditLogs.slice(0, auditVisibleCount);
 
     const hasMoreAuditLogs = filteredAuditLogs.length > visibleAuditLogs.length;
-
-    const filteredBackup = useMemo(() => {
-
-        if (!normalizedQuery) return backupData;
-
-        return backupData.filter((item) =>
-
-            `${item.id} ${item.type} ${item.date} ${item.size} ${item.status}`.toLowerCase().includes(normalizedQuery)
-
-        );
-
-    }, [normalizedQuery]);
-
-
     const filteredAccessResetRequests = useMemo(() => {
 
         if (!normalizedQuery) return accessResetRequests;
@@ -776,20 +616,12 @@ export default function AdminDashboard() {
         }
     };
 
-
-
     const profileMenuItems = [
-
         { id: "Njoftime", label: adminText.profileMenu.notifications, icon: Bell },
-
         { id: "Ndrysho profilin", label: adminText.profileMenu.editProfile, icon: User },
-
         { id: "Cilësimet", label: adminText.profileMenu.settings, icon: Settings },
-
         { id: "Integrime", label: adminText.profileMenu.integrations, icon: Link2 },
-
         { id: "Logout", label: adminText.profileMenu.logout, icon: ArrowRight, tone: "danger" },
-
     ];
 
 
@@ -874,7 +706,6 @@ export default function AdminDashboard() {
     };
 
     const handleProfileAction = (actionId) => {
-
         if (actionId === "Njoftime") {
 
             setActivePage("Njoftimet");
@@ -1048,69 +879,6 @@ export default function AdminDashboard() {
         }
 
     };
-
-
-
-    const renderSimpleTable = (title, description, columns, rows) => (
-
-        <section className="admin-page-card admin-stats-only-card">
-
-            <div className="admin-page-head">
-
-                <h3>{title}</h3>
-
-                <p>{description}</p>
-
-            </div>
-
-            <div className="admin-table-wrap">
-
-                <table className="admin-table">
-
-                    <thead>
-
-                        <tr>
-
-                            {columns.map((column) => (
-
-                                <th key={column.key}>{column.label}</th>
-
-                            ))}
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                        {rows.map((row) => (
-
-                            <tr key={row.id}>
-
-                                {columns.map((column) => (
-
-                                    <td key={`${row.id}-${column.key}`}>{row[column.key]}</td>
-
-                                ))}
-
-                            </tr>
-
-                        ))}
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-            {rows.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
-
-        </section>
-
-    );
-
-
-
     const renderAuditLogs = () => (
 
         <section className="admin-page-card admin-stats-only-card admin-audit-section">
@@ -1486,78 +1254,6 @@ export default function AdminDashboard() {
         </section>
 
     );
-
-
-
-    const renderRolesSection = () => (
-
-        <section className="admin-page-card admin-stats-only-card admin-roles-section">
-
-            <div className="admin-page-head admin-page-head--roles">
-
-                <div>
-
-                    <h3>Rolet & Lejet</h3>
-
-                    <p>Cakto role dhe kontrollo privilegjet</p>
-
-                </div>
-
-                <button type="button" className="admin-roles-config-button">
-
-                    Konfiguro
-
-                </button>
-
-            </div>
-
-            <div className="admin-roles-grid">
-
-                {filteredRoles.map((role) => (
-
-                    <article key={role.id} className="admin-role-card">
-
-                        <div className="admin-role-card-header">
-
-                            <div>
-
-                                <h4>{role.name}</h4>
-
-                                <p>{role.users} përdorues</p>
-
-                            </div>
-
-                            <span className="admin-chip admin-chip--active">{role.badge}</span>
-
-                        </div>
-
-                        <div className="admin-role-actions">
-
-                            {role.actions.map((action) => (
-
-                                <span key={action} className="admin-role-action">
-
-                                    {action}
-
-                                </span>
-
-                            ))}
-
-                        </div>
-
-                    </article>
-
-                ))}
-
-            </div>
-
-            {filteredRoles.length === 0 ? <p className="admin-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
-
-        </section>
-
-    );
-
-
     const renderAccessResetRequests = () => (
 
         <section className="admin-page-card admin-stats-only-card">
@@ -1675,28 +1371,9 @@ export default function AdminDashboard() {
         </section>
 
     );
-
-
-
-    const renderBackupSection = () => <BackupSection />;
-
-
-
     let resultCount = filteredUsers.length;
 
     let content = renderUsersTable();
-
-
-
-    if (activePage === "Rolet") {
-
-        resultCount = rolesData.length;
-
-        content = renderRolesSection();
-
-    }
-
-
     if (activePage === "Rivendosja e qasjes") {
 
         resultCount = filteredAccessResetRequests.length;
@@ -1739,46 +1416,6 @@ export default function AdminDashboard() {
 
     }
 
-    if (activePage === "Gjendja e sistemit") {
-
-        resultCount = 0;
-
-        content = <AdminSystemStatusSection />;
-
-    }
-
-    if (activePage === "Revistat") {
-
-        resultCount = 0;
-
-        content = <AdminJournalsSection />;
-
-    }
-
-    if (activePage === "Shqyrtimi i publikimeve") {
-
-        resultCount = 0;
-
-        content = <AdminPublicationReviewSection />;
-
-    }
-
-    if (activePage === "Raportet") {
-
-        resultCount = 0;
-
-        content = <AdminReportsSection />;
-
-    }
-
-    if (activePage === "Buxheti") {
-
-        resultCount = 0;
-
-        content = <AdminBudgetSection />;
-
-    }
-
     if (activePage === "Cilësimet") {
 
         resultCount = 0;
@@ -1787,23 +1424,11 @@ export default function AdminDashboard() {
 
     }
 
-
-
-    if (activePage === "Rezervimi") {
-
-        resultCount = 3;
-
-        content = renderBackupSection();
-
-    }
-
-
-
     return (
 
         <div className="admin-layout">
 
-            <AdminSidebar activePage={activePage} onNavigate={setActivePage} navLabels={navLabels} labels={adminText} />
+            <AdminSidebar activePage={activePage} onNavigate={setActivePage} labels={adminText} />
 
 
 
