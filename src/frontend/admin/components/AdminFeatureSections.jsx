@@ -28,6 +28,30 @@ const normalizeAnalyticsRows = (items, key, fallbackLabel) =>
     }))
     .filter((item) => item.count > 0);
 
+const hasReadableCategoryName = (value) => {
+  const label = String(value || "").trim();
+  if (!label) return false;
+  if (/^pa\s+/i.test(label)) return true;
+
+  const lettersOnly = label.replace(/[^a-zA-ZÀ-ž]/g, "");
+  const hasVowel = /[aeiouyëAEIOUYË]/.test(lettersOnly);
+  const hasEnoughShape = label.length >= 3 && /[a-zA-ZÀ-ž]/.test(label);
+
+  return hasEnoughShape && hasVowel;
+};
+
+const normalizeInstitutionRows = (items, key, fallbackLabel, unclearLabel) => {
+  const grouped = new Map();
+
+  normalizeAnalyticsRows(items, key, fallbackLabel).forEach((item) => {
+    const label = hasReadableCategoryName(item.label) ? item.label : unclearLabel;
+    grouped.set(label, (grouped.get(label) || 0) + item.count);
+  });
+
+  return Array.from(grouped, ([label, count]) => ({ label, count }))
+    .sort((first, second) => second.count - first.count || first.label.localeCompare(second.label, "sq-AL"));
+};
+
 const formatPersonName = (value) => {
   const rawValue = String(value || "").trim();
   const rawName = rawValue.includes("@") ? rawValue.split("@")[0] : rawValue;
@@ -46,6 +70,19 @@ const formatPersonName = (value) => {
     )
     .join(" ");
 };
+
+function CategoryTooltip({ active, payload, label, singularLabel }) {
+  if (!active || !payload?.length) return null;
+
+  const count = Number(payload[0]?.value || 0);
+
+  return (
+    <div className="admin-category-tooltip">
+      <strong>{label}</strong>
+      <span>{count} {singularLabel}</span>
+    </div>
+  );
+}
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -281,8 +318,8 @@ export function AdminAnalyticsSection() {
   const summary = data?.userSummary || { total: 0, active: 0, inactive: 0, suspended: 0 };
   const access = data?.accessAttempts || { total: 0, unauthenticated: 0, forbidden: 0 };
   const usersByRole = (data?.usersByRole || []).map((item) => ({ ...item, role: roleLabels[item.role] || item.role || "Pa rol" }));
-  const usersByFaculty = normalizeAnalyticsRows(data?.usersByFaculty, "faculty", "Pa fakultet");
-  const usersByDepartment = normalizeAnalyticsRows(data?.usersByDepartment, "department", "Pa departament");
+  const usersByFaculty = normalizeInstitutionRows(data?.usersByFaculty, "faculty", "Pa fakultet", "Fakultet i paqartë");
+  const usersByDepartment = normalizeInstitutionRows(data?.usersByDepartment, "department", "Pa departament", "Departament i paqartë");
   const adminActivity = normalizeAnalyticsRows(data?.adminActivity, "adminName", "Admin")
     .map((item) => ({ ...item, label: formatPersonName(item.label) }));
 
@@ -314,11 +351,18 @@ export function AdminAnalyticsSection() {
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Përdoruesit sipas fakultetit">
+        <ChartCard
+          title="Përdoruesit sipas fakultetit"
+          description="Bazuar në fakultetin e regjistruar në profilin e përdoruesit"
+          className="admin-chart-card--clean admin-faculty-card"
+        >
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={usersByFaculty}>
-              <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" />
+            <BarChart data={usersByFaculty} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="30%">
+              <CartesianGrid vertical={false} stroke="#edf2f7" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+              <Tooltip cursor={{ fill: "rgba(31, 95, 153, 0.07)" }} content={<CategoryTooltip singularLabel="përdorues" />} />
+              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-category-bar" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

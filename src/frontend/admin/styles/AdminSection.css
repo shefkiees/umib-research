@@ -268,6 +268,59 @@
     transform: translateY(-1px);
 }
 
+.admin-chart-card--clean {
+    border-color: #d9e4f2;
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-chart-card--clean:hover {
+    border-color: #bfd0e6;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.065);
+    transform: translateY(-1px);
+}
+
+.admin-faculty-card h4 {
+    color: #172033;
+    font-size: 1rem;
+    letter-spacing: 0;
+}
+
+.admin-category-bar .recharts-rectangle {
+    opacity: 0.94;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+.admin-category-bar .recharts-rectangle:hover {
+    opacity: 1;
+    filter: drop-shadow(0 6px 10px rgba(31, 95, 153, 0.18));
+}
+
+.admin-category-tooltip {
+    min-width: 170px;
+    border: 1px solid rgba(31, 95, 153, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.13);
+    padding: 10px 12px;
+}
+
+.admin-category-tooltip strong {
+    display: block;
+    color: #172033;
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.admin-category-tooltip span {
+    display: block;
+    margin-top: 4px;
+    color: #1f5f99;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
 .admin-activity-card h4 {
     color: #172033;
     font-size: 1rem;
