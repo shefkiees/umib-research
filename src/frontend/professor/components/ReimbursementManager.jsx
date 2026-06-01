@@ -71,7 +71,7 @@ const CONFERENCE_UI_LABELS = {
   abstractTitle: "Abstrakti",
   coParticipant: "Bashkautorët",
   acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
-  authorsAffiliation: "Autorët e punimit (affiliation)",
+  authorsAffiliation: "Autorët dhe përkatësia institucionale (Affiliation)",
   speakerWithPaperPoster: "Folës me kumtesë/poster",
   chairPanelist: "Kryesues/panelist",
   artisticSportEvent: "Ngjarje artistike/sportive",
@@ -1917,6 +1917,78 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     const displayPlaceholder = selectedType === "conference"
       ? (CONFERENCE_UI_PLACEHOLDERS[field] || options.placeholder)
       : options.placeholder;
+    const isConferencePublicationDerived = selectedType === "conference"
+      && form.publicationId
+      && CONFERENCE_PAPER_FIELDS.has(field);
+
+    if (isConferencePublicationDerived && field === "mainAuthor") {
+      const author = cleanDisplayValue(form.mainAuthor);
+
+      return (
+        <div className={`${className} reimbursement-author-field reimbursement-publication-derived-field`}>
+          <span>{tx(displayLabel)}</span>
+          <div className="reimbursement-main-author reimbursement-readonly-display">
+            <strong>{author || t("common.noData")}</strong>
+            <small>Publikimi i zgjedhur</small>
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
+
+    if (isConferencePublicationDerived && field === "coParticipant") {
+      const coauthors = splitCoauthors(form.coParticipant);
+
+      return (
+        <div className={`${className} reimbursement-coauthors-field reimbursement-publication-derived-field`}>
+          <span>{tx(displayLabel)}</span>
+          <div className="reimbursement-coauthor-list reimbursement-readonly-display" aria-readonly="true">
+            {coauthors.length ? coauthors.map((author) => (
+              <span className="reimbursement-coauthor-chip" key={author}>{author}</span>
+            )) : <span className="reimbursement-muted-value">{t("common.noData")}</span>}
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
+
+    if (isConferencePublicationDerived && field === "abstractTitle") {
+      const abstractText = cleanDisplayValue(form.abstractTitle);
+      const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
+
+      return (
+        <div className={`${className} reimbursement-abstract-field reimbursement-publication-derived-field reimbursement-wide`}>
+          <span>{tx(displayLabel)}</span>
+          <div className={`reimbursement-abstract-box reimbursement-readonly-display ${isAbstractExpanded ? "expanded" : ""}`} aria-readonly="true">
+            {abstractText || t("common.noData")}
+          </div>
+          {hasLongAbstract ? (
+            <button
+              type="button"
+              className="reimbursement-abstract-toggle"
+              onClick={() => setIsAbstractExpanded((current) => !current)}
+            >
+              {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            </button>
+          ) : null}
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
+
+    if (isConferencePublicationDerived && field === "authorsAffiliation") {
+      const affiliationText = cleanDisplayValue(form.authorsAffiliation);
+
+      return (
+        <div className={`${className} reimbursement-affiliation-field reimbursement-publication-derived-field reimbursement-wide`}>
+          <span>{tx(displayLabel)}</span>
+          <div className={`reimbursement-affiliation-card reimbursement-readonly-display ${affiliationText ? "" : "empty"}`} aria-readonly="true">
+            {affiliationText || "Përkatësia institucionale nuk është e disponueshme për këtë publikim."}
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
 
     if (selectedType === "publication" && field === "mainAuthor") {
       const author = stripMarkup(form.mainAuthor);
@@ -2075,7 +2147,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       && (fieldConfig.source === "publication" || PUBLICATION_READ_ONLY_FIELDS.has(fieldConfig.field));
     const isConferencePaperReadOnly = selectedType === "conference"
       && CONFERENCE_PAPER_FIELDS.has(fieldConfig.field)
-      && fieldConfig.field !== "abstractTitle";
+      && (fieldConfig.field !== "abstractTitle" || Boolean(form.publicationId));
     const conferenceFieldConfig = selectedType === "conference" && fieldConfig.field === "authorsAffiliation"
       ? { ...fieldConfig, type: "textarea", rows: 3 }
       : fieldConfig;
@@ -2244,7 +2316,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     const participationFields = allPaperParticipationFields.filter((fieldConfig) => !CONFERENCE_PAPER_FIELDS.has(fieldConfig.field));
 
     return (
-      <div className="reimbursement-form-grid">
+      <div className="reimbursement-form-grid reimbursement-conference-publication-grid">
         {context.publications.length ? (
           <label className="reimbursement-field reimbursement-wide">
             <span>Zgjidh publikimin</span>
