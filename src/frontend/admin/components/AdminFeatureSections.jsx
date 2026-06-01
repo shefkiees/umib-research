@@ -274,7 +274,7 @@ export function AdminAnalyticsSection() {
       </div>
 
       <div className="admin-analytics-grid">
-        <ChartCard title="Përdorues sipas rolit">
+        <ChartCard title="Përdoruesit sipas rolit">
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={usersByRole} dataKey="count" nameKey="role" outerRadius={82} label>
@@ -284,7 +284,7 @@ export function AdminAnalyticsSection() {
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Përdorues sipas fakultetit">
+        <ChartCard title="Përdoruesit sipas fakultetit">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={usersByFaculty}>
               <XAxis dataKey="faculty" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
@@ -292,7 +292,7 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Përdorues sipas departamentit">
+        <ChartCard title="Përdoruesit sipas departamentit">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={usersByDepartment}>
               <XAxis dataKey="department" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
