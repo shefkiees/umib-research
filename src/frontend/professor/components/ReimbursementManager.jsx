@@ -1673,6 +1673,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           savedRequest = withAttachments;
           setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
           setEditingRequest(savedRequest);
+          setSelectedFiles([]);
         }
       } catch {
         setSuccess(savedRequest);
