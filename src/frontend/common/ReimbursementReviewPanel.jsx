@@ -212,6 +212,13 @@ export default function ReimbursementReviewPanel({
       onStatusUpdated?.(updatedRequest);
       setNotes((prev) => ({ ...prev, [request.id]: "" }));
       await loadData();
+
+      if (action.status === "approved" && result.email?.error) {
+        setMessage("");
+        setError("Statusi u aprovua, por emaili njoftues nuk u dergua.");
+        return;
+      }
+
       setError("");
       setMessage(
         result.email?.error

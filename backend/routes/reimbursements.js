@@ -2065,6 +2065,10 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
           sent: !emailResult?.skipped,
           skipped: Boolean(emailResult?.skipped),
         };
+
+        if (emailResult?.skipped) {
+          email.error = "email_not_sent";
+        }
       } catch (emailError) {
         email = {
           sent: false,
