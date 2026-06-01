@@ -2049,7 +2049,7 @@ body {
   color: #17324f;
   font-size: 0.86rem;
   line-height: 1.25;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .reimbursement-type-card span {
@@ -2069,6 +2069,17 @@ body {
 .reimbursement-form {
   display: grid;
   gap: 14px;
+}
+
+.reimbursement-profile-title {
+  margin: 14px 0 10px;
+}
+
+.reimbursement-profile-title h4 {
+  margin: 0;
+  color: #17324f;
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .reimbursement-section {
