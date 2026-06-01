@@ -23,7 +23,7 @@ import "../styles/AdminSection.css";
 
 const ROLE_OPTIONS = [
     { value: "admin", label: "Admin" },
-    { value: "committee", label: "Komisioni" },
+    { value: "committee", label: "Komision" },
     { value: "professor", label: "Profesor" },
     { value: "prorector", label: "Prorektor" },
 ];

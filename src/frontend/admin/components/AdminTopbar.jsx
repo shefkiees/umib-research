@@ -6,7 +6,7 @@ import { apiUrl } from "../../utils/api";
 
 const ROLE_LABELS = {
   admin: "Admin",
-  committee: "Komisioni",
+  committee: "Komision",
   professor: "Profesor",
   prorector: "Prorektor",
   ProRector: "Prorektor",

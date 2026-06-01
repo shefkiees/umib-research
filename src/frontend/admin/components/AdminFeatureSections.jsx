@@ -141,88 +141,9 @@ const normalizeSettingsProfile = (user = {}) => {
   };
 };
 
-const ADMIN_SETTINGS_TEXT = {
-  sq: {
-    title: "Cilësimet",
-    description: "Konfigurimet kryesore për profilin dhe panelin kërkimor.",
-    loading: "Cilësimet po ngarkohen.",
-    loadError: "Cilësimet nuk u ngarkuan.",
-    profileTitle: "Informacionet e Profilit",
-    fullName: "Emri i plotë",
-    academicTitle: "Thirrja akademike",
-    email: "Adresa Email",
-    orcidId: "ORCID iD",
-    orcidSchool: "Shkolla nga ORCID",
-    orcidAffiliation: "Affiliation nga ORCID",
-    notConnected: "Nuk është lidhur",
-    noPublicData: "Nuk ka të dhëna publike",
-    faculty: "Fakulteti",
-    department: "Departamenti",
-    office: "Zyra",
-    scientificTitle: "Thirrja shkencore",
-    editProfile: "Ndrysho të dhënat",
-    cancel: "Anulo",
-    saveData: "Ruaj të dhënat",
-    saving: "Duke ruajtur...",
-    profileSaved: "Të dhënat u ruajtën.",
-    profileSaveError: "Të dhënat nuk u ruajtën.",
-    preferencesTitle: "Preferencat e Sistemit",
-    emailNotifications: "Njoftime me email",
-    emailDescription: "Merr njoftime për çdo publikim ose rimbursim",
-    active: "Aktive",
-    inactive: "Joaktive",
-    savingPreference: "Duke ruajtur...",
-    languageLabel: "Gjuha e ndërfaqes",
-    languageDescription: "Zgjidh gjuhën e shfaqjes për dashboard-in.",
-    languageHint: "Ndryshimi ruhet automatikisht dhe zbatohet në këtë dashboard.",
-    currentLanguage: "Gjuha aktive",
-    albanian: "Shqip",
-    english: "Anglisht",
-    preferencesSaved: "Preferencat u ruajtën.",
-    preferencesSaveError: "Preferencat nuk u ruajtën.",
-  },
-  en: {
-    title: "Settings",
-    description: "Main preferences for the profile and research dashboard.",
-    loading: "Settings are loading.",
-    loadError: "Settings could not be loaded.",
-    profileTitle: "Profile Information",
-    fullName: "Full name",
-    academicTitle: "Academic title",
-    email: "Email address",
-    orcidId: "ORCID iD",
-    orcidSchool: "School from ORCID",
-    orcidAffiliation: "Affiliation from ORCID",
-    notConnected: "Not connected",
-    noPublicData: "No public data",
-    faculty: "Faculty",
-    department: "Department",
-    office: "Office",
-    scientificTitle: "Scientific title",
-    editProfile: "Edit details",
-    cancel: "Cancel",
-    saveData: "Save details",
-    saving: "Saving...",
-    profileSaved: "Details were saved.",
-    profileSaveError: "Details could not be saved.",
-    preferencesTitle: "System Preferences",
-    emailNotifications: "Email notifications",
-    emailDescription: "Receive notifications for every publication or reimbursement",
-    active: "Active",
-    inactive: "Inactive",
-    savingPreference: "Saving...",
-    languageLabel: "Interface language",
-    languageDescription: "Choose the display language for the dashboard.",
-    languageHint: "The change is saved automatically and applied to this dashboard.",
-    currentLanguage: "Active language",
-    albanian: "Albanian",
-    english: "English",
-    preferencesSaved: "Preferences were saved.",
-    preferencesSaveError: "Preferences could not be saved.",
-  },
-};
 
 export function AdminNotificationsSection({ onNotificationsChange } = {}) {
+  const { t } = useLanguage();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
@@ -233,7 +154,7 @@ export function AdminNotificationsSection({ onNotificationsChange } = {}) {
       setItems(Array.isArray(data.notifications) ? data.notifications : []);
       setError("");
     } catch (err) {
-      setError(err.message || "Njoftimet nuk u ngarkuan.");
+      setError(err.message || t("admin.notificationsPage.loadError"));
     }
   };
 
@@ -264,39 +185,40 @@ export function AdminNotificationsSection({ onNotificationsChange } = {}) {
     <section className="admin-page-card admin-feature-section">
       <div className="admin-page-head">
         <div>
-          <h3>Njoftimet</h3>
+          <h3>{t("admin.notificationsPage.title")}</h3>
         </div>
         <button type="button" className="admin-roles-config-button" onClick={markAllRead}>
-          Shëno të gjitha si të lexuara
+          {t("admin.notificationsPage.markAllRead")}
         </button>
       </div>
       <div className="admin-segmented">
-        <button className={filter === "all" ? "is-active" : ""} type="button" onClick={() => setFilter("all")}>Të gjitha</button>
-        <button className={filter === "unread" ? "is-active" : ""} type="button" onClick={() => setFilter("unread")}>Të palexuara</button>
-        <button className={filter === "read" ? "is-active" : ""} type="button" onClick={() => setFilter("read")}>Të lexuara</button>
+        <button className={filter === "all" ? "is-active" : ""} type="button" onClick={() => setFilter("all")}>{t("admin.notificationsPage.all")}</button>
+        <button className={filter === "unread" ? "is-active" : ""} type="button" onClick={() => setFilter("unread")}>{t("admin.notificationsPage.unread")}</button>
+        <button className={filter === "read" ? "is-active" : ""} type="button" onClick={() => setFilter("read")}>{t("admin.notificationsPage.read")}</button>
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
       <div className="admin-notification-list">
         {visible.map((item) => (
           <article key={item.id} className={`admin-notification-card${item.isRead ? " is-read" : ""}`}>
             <div>
-              <span>{item.category || "Sistemi"}</span>
+              <span>{item.category || t("admin.notificationsPage.system")}</span>
               <h4>{item.title}</h4>
               <p>{item.message}</p>
               <small>{formatDate(item.createdAt)}</small>
             </div>
             {!item.isRead && item.source !== "audit" ? (
-              <button type="button" className="admin-small-btn" onClick={() => markRead(item)}>Shëno si të lexuar</button>
+              <button type="button" className="admin-small-btn" onClick={() => markRead(item)}>{t("admin.notificationsPage.markRead")}</button>
             ) : null}
           </article>
         ))}
       </div>
-      {visible.length === 0 ? <EmptyState text="Nuk ka njoftime për filtrin aktual." /> : null}
+      {visible.length === 0 ? <EmptyState text={t("admin.notificationsPage.empty")} /> : null}
     </section>
   );
 }
 
 export function AdminAnalyticsSection() {
+  const { language, t } = useLanguage();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -306,14 +228,14 @@ export function AdminAnalyticsSection() {
         setData(payload);
         setError("");
       })
-      .catch((err) => setError(err.message || "Statistikat nuk u ngarkuan."));
-  }, []);
+      .catch((err) => setError(err.message || t("admin.analytics.loadError")));
+  }, [t]);
 
   const roleLabels = {
-    admin: "Admin",
-    committee: "Komisioni",
-    professor: "Profesor",
-    prorector: "Prorektor",
+    admin: t("admin.users.roles.admin"),
+    committee: t("admin.users.roles.committee"),
+    professor: t("admin.users.roles.professor"),
+    prorector: t("admin.users.roles.prorector"),
   };
   const summary = data?.userSummary || { total: 0, active: 0, inactive: 0, suspended: 0 };
   const access = data?.accessAttempts || { total: 0, unauthenticated: 0, forbidden: 0 };
@@ -327,21 +249,21 @@ export function AdminAnalyticsSection() {
     <section className="admin-page-card admin-feature-section">
       <div className="admin-page-head">
         <div>
-          <h3>Statistikat</h3>
+          <h3>{t("admin.analytics.title")}</h3>
         </div>
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
 
       <div className="admin-feature-cards admin-operational-stats">
-        <article><span>Përdorues gjithsej</span><strong>{summary.total}</strong></article>
-        <article><span>Përdorues aktivë</span><strong>{summary.active}</strong></article>
-        <article><span>Përdorues joaktivë</span><strong>{summary.inactive}</strong></article>
-        <article><span>Të pezulluar</span><strong>{summary.suspended}</strong></article>
-        <article><span>Tentime pa leje</span><strong>{access.total}</strong><p>Pa kyçje: {access.unauthenticated} • Pa rol: {access.forbidden}</p></article>
+        <article><span>{t("admin.analytics.totalUsers")}</span><strong>{summary.total}</strong></article>
+        <article><span>{t("admin.analytics.activeUsers")}</span><strong>{summary.active}</strong></article>
+        <article><span>{t("admin.analytics.inactiveUsers")}</span><strong>{summary.inactive}</strong></article>
+        <article><span>{t("admin.analytics.suspendedUsers")}</span><strong>{summary.suspended}</strong></article>
+        <article><span>{t("admin.analytics.unauthorizedAttempts")}</span><strong>{access.total}</strong><p>{t("admin.analytics.unauthenticated")}: {access.unauthenticated} • {t("admin.analytics.forbidden")}: {access.forbidden}</p></article>
       </div>
 
       <div className="admin-analytics-grid">
-        <ChartCard title="Përdoruesit sipas rolit">
+        <ChartCard title={t("admin.analytics.usersByRole")}>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
@@ -359,8 +281,8 @@ export function AdminAnalyticsSection() {
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard
-          title="Përdoruesit sipas fakultetit"
-          description="Bazuar në fakultetin e regjistruar në profilin e përdoruesit"
+          title={t("admin.analytics.usersByFaculty")}
+          description={t("admin.analytics.usersByFacultyDescription")}
           className="admin-chart-card--clean admin-faculty-card"
         >
           <ResponsiveContainer width="100%" height={260}>
@@ -368,22 +290,22 @@ export function AdminAnalyticsSection() {
               <CartesianGrid vertical={false} stroke="#edf2f7" strokeDasharray="3 3" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-              <Tooltip cursor={{ fill: "rgba(31, 95, 153, 0.07)" }} content={<CategoryTooltip singularLabel="përdorues" />} />
-              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-category-bar" />
+              <Tooltip cursor={{ fill: "rgba(31, 95, 153, 0.07)" }} content={<CategoryTooltip singularLabel={t("admin.analytics.users").toLocaleLowerCase(language === "en" ? "en-US" : "sq-AL")} />} />
+              <Bar name={t("admin.analytics.users")} dataKey="count" fill="#1f5f99" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-category-bar" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Përdoruesit sipas departamentit">
+        <ChartCard title={t("admin.analytics.usersByDepartment")}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={usersByDepartment}>
               <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="Përdorues" dataKey="count" fill="#2e7d32" />
+              <Bar name={t("admin.analytics.users")} dataKey="count" fill="#2e7d32" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard
-          title="Përdoruesit më aktivë"
-          description="Bazuar në aktivitetin administrativ të 30 ditëve të fundit"
+          title={t("admin.analytics.mostActiveUsers")}
+          description={t("admin.analytics.mostActiveUsersDescription")}
           className="admin-chart-card--premium admin-activity-card"
         >
           <ResponsiveContainer width="100%" height={260}>
@@ -392,7 +314,7 @@ export function AdminAnalyticsSection() {
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
               <Tooltip cursor={{ fill: "rgba(201, 162, 79, 0.08)" }} content={<ActivityTooltip />} />
-              <Bar name="Veprime" dataKey="count" fill="#b88a2d" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-activity-bar" />
+              <Bar name={t("admin.analytics.actions")} dataKey="count" fill="#b88a2d" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-activity-bar" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -519,26 +441,27 @@ function StatusGridSection({ title, description, path, itemsKey, emptyText, show
 }
 
 export function AdminIntegrationsSection() {
+  const { t } = useLanguage();
+
   return (
     <StatusGridSection
-      title="Integrimet"
-      description="Monitoro lidhjet me shërbimet e jashtme akademike dhe institucionale."
+      title={t("admin.integrations.title")}
+      description={t("admin.integrations.description")}
       path="/admin/integrations/status"
       itemsKey="integrations"
-      emptyText="Nuk ka të dhëna për integrimet."
+      emptyText={t("admin.integrations.empty")}
     />
   );
 }
 
 export function AdminSettingsSection() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [draft, setDraft] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const text = ADMIN_SETTINGS_TEXT[language] || ADMIN_SETTINGS_TEXT.sq;
 
   useEffect(() => {
     let isMounted = true;
@@ -555,7 +478,7 @@ export function AdminSettingsSection() {
         }
       } catch (err) {
         if (isMounted) {
-          setError(err.message || text.loadError);
+          setError(err.message || t("admin.settings.loadError"));
         }
       }
     };
@@ -565,7 +488,7 @@ export function AdminSettingsSection() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!message) return undefined;
@@ -580,7 +503,7 @@ export function AdminSettingsSection() {
   if (!profile || !draft) {
     return (
       <section className="admin-page-card admin-feature-section">
-        {error ? <p className="admin-inline-error">{error}</p> : <EmptyState text={text.loading} />}
+        {error ? <p className="admin-inline-error">{error}</p> : <EmptyState text={t("admin.settings.loading")} />}
       </section>
     );
   }
@@ -610,9 +533,9 @@ export function AdminSettingsSection() {
       setProfile(nextProfile);
       setDraft(nextProfile);
       setIsEditing(false);
-      setMessage(text.profileSaved);
+      setMessage(t("admin.settings.profileSaved"));
     } catch (err) {
-      setError(err.message || text.profileSaveError);
+      setError(err.message || t("admin.settings.profileSaveError"));
     } finally {
       setIsSaving(false);
     }
@@ -620,14 +543,13 @@ export function AdminSettingsSection() {
 
   const updateLanguage = (value) => {
     setLanguage(value);
-    setMessage((ADMIN_SETTINGS_TEXT[value] || ADMIN_SETTINGS_TEXT.sq).preferencesSaved);
   };
 
   return (
     <section className="admin-page-card admin-feature-section admin-settings-page">
       <div className="admin-page-head">
         <div>
-          <h3>{text.title}</h3>
+          <h3>{t("admin.settings.title")}</h3>
         </div>
       </div>
       {message ? <p className="admin-feature-message admin-settings-message" role="status">{message}</p> : null}
@@ -635,48 +557,48 @@ export function AdminSettingsSection() {
 
       <div className="admin-settings-grid">
         <article className="admin-settings-card">
-          <h4>{text.profileTitle}</h4>
+          <h4>{t("admin.settings.profileTitle")}</h4>
           <div className="admin-settings-list">
             <div>
-              <span>{text.fullName}</span>
+              <span>{t("admin.settings.fullName")}</span>
               {isEditing ? <input value={draft.name} onChange={setDraftValue("name")} /> : <strong>{profile.name || "-"}</strong>}
             </div>
             <div>
-              <span>{text.academicTitle}</span>
+              <span>{t("admin.settings.academicTitle")}</span>
               {isEditing ? <input value={draft.academicTitle} onChange={setDraftValue("academicTitle")} /> : <strong>{profile.academicTitle || profile.role || "-"}</strong>}
             </div>
             <div>
-              <span>{text.email}</span>
+              <span>{t("admin.settings.email")}</span>
               <strong>{profile.email || "-"}</strong>
             </div>
             <div>
-              <span>{text.orcidId}</span>
-              <strong>{profile.orcidId || text.notConnected}</strong>
+              <span>{t("admin.settings.orcidId")}</span>
+              <strong>{profile.orcidId || t("admin.settings.notConnected")}</strong>
             </div>
             <div>
-              <span>{text.orcidSchool}</span>
-              <strong>{profile.school || text.noPublicData}</strong>
+              <span>{t("admin.settings.orcidSchool")}</span>
+              <strong>{profile.school || t("admin.settings.noPublicData")}</strong>
             </div>
             <div>
-              <span>{text.orcidAffiliation}</span>
-              <strong>{profile.currentAffiliation || text.noPublicData}</strong>
+              <span>{t("admin.settings.orcidAffiliation")}</span>
+              <strong>{profile.currentAffiliation || t("admin.settings.noPublicData")}</strong>
             </div>
             {isEditing ? (
               <>
                 <div>
-                  <span>{text.faculty}</span>
+                  <span>{t("admin.settings.faculty")}</span>
                   <input value={draft.faculty} onChange={setDraftValue("faculty")} />
                 </div>
                 <div>
-                  <span>{text.department}</span>
+                  <span>{t("admin.settings.department")}</span>
                   <input value={draft.department} onChange={setDraftValue("department")} />
                 </div>
                 <div>
-                  <span>{text.office}</span>
+                  <span>{t("admin.settings.office")}</span>
                   <input value={draft.office} onChange={setDraftValue("office")} />
                 </div>
                 <div>
-                  <span>{text.scientificTitle}</span>
+                  <span>{t("admin.settings.scientificTitle")}</span>
                   <input value={draft.scientificTitle} onChange={setDraftValue("scientificTitle")} />
                 </div>
               </>
@@ -685,32 +607,31 @@ export function AdminSettingsSection() {
           <div className="admin-settings-actions">
             {isEditing ? (
               <>
-                <button className="admin-small-btn" type="button" onClick={() => { setDraft(profile); setIsEditing(false); }} disabled={isSaving}>{text.cancel}</button>
+                <button className="admin-small-btn" type="button" onClick={() => { setDraft(profile); setIsEditing(false); }} disabled={isSaving}>{t("admin.settings.cancel")}</button>
                 <button className="admin-primary-btn" type="button" onClick={saveProfile} disabled={isSaving}>
-                  {isSaving ? text.saving : text.saveData}
+                  {isSaving ? t("admin.settings.saving") : t("admin.settings.saveData")}
                 </button>
               </>
             ) : (
-              <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>{text.editProfile}</button>
+              <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>{t("admin.settings.editProfile")}</button>
             )}
           </div>
         </article>
 
         <article className="admin-settings-card admin-settings-card--preferences">
           <div className="admin-settings-card-head">
-            <h4>{text.preferencesTitle}</h4>
-            <span>{text.currentLanguage}: {language === "en" ? text.english : text.albanian}</span>
+            <h4>{t("admin.settings.preferencesTitle")}</h4>
+            <span>{t("admin.settings.currentLanguage")}: {t(`admin.settings.languages.${language}`)}</span>
           </div>
           <div className="admin-settings-options">
             <div className="admin-settings-option admin-settings-option--language">
               <div className="admin-settings-option-copy">
-                <span>{text.languageLabel}</span>
-                <p>{text.languageDescription}</p>
-                <small>{text.languageHint}</small>
+                <span>{t("admin.settings.languageLabel")}</span>
+                <p>{t("admin.settings.languageDescription")}</p>
               </div>
-              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={text.languageLabel}>
-                <option value="sq">{text.albanian}</option>
-                <option value="en">{text.english}</option>
+              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={t("admin.settings.languageLabel")}>
+                <option value="sq">{t("admin.settings.languages.sq")}</option>
+                <option value="en">{t("admin.settings.languages.en")}</option>
               </select>
             </div>
           </div>

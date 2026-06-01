@@ -700,9 +700,9 @@
 }
 
 .admin-settings-option--language {
-    align-items: flex-end;
+    align-items: center;
     padding: 18px;
-    background: #f7faff;
+    background: linear-gradient(180deg, #f8fbff 0%, #f3f7fc 100%);
 }
 
 .admin-settings-option-copy {
@@ -730,6 +730,25 @@
 .admin-settings-option--language select {
     width: 190px;
     flex: 0 0 190px;
+    min-height: 42px;
+    border: 1px solid #cbd8e8;
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text-dark);
+    cursor: pointer;
+    font-weight: 800;
+    padding: 0 12px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.admin-settings-option--language select:hover {
+    border-color: #9fb6d2;
+}
+
+.admin-settings-option--language select:focus {
+    border-color: #1f5f99;
+    box-shadow: 0 0 0 3px rgba(31, 95, 153, 0.14);
+    outline: none;
 }
 
 .admin-settings-switch {

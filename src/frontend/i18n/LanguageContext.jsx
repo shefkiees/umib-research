@@ -35,7 +35,22 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key === LANGUAGE_STORAGE_KEY) {
+        setLanguageState(normalizeLanguage(event.newValue));
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(normalizeLanguage(nextLanguage));

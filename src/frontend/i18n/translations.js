@@ -1,3 +1,6 @@
+import { adminEn } from "./locales/en/admin";
+import { adminSq } from "./locales/sq/admin";
+
 export const LANGUAGE_STORAGE_KEY = "umibLanguage";
 export const DEFAULT_LANGUAGE = "sq";
 
@@ -147,6 +150,7 @@ const professorSettings = {
 
 export const translations = {
   sq: {
+    admin: adminSq,
     common: {
       appName: "UMIBRes",
       noData: "Nuk ka te dhena",
@@ -599,6 +603,7 @@ export const translations = {
     },
   },
   en: {
+    admin: adminEn,
     common: {
       appName: "UMIBRes",
       noData: "No data",
