@@ -2184,8 +2184,8 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     </div>
   );
 
-  const renderPublicationDisplaySection = (section) => (
-    <section className="reimbursement-publication-display-card reimbursement-wide" key={section.title}>
+  const renderPublicationDisplaySection = (section, className = "") => (
+    <section className={`reimbursement-publication-display-card reimbursement-wide ${className}`.trim()} key={section.title}>
       {section.title ? <h5>{section.title}</h5> : null}
       <div className="reimbursement-publication-info-grid">
         {section.fields.map(renderPublicationDisplayField)}
@@ -2267,6 +2267,75 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     );
   };
 
+  const getSelectedConferencePublication = () =>
+    context.publications.find((publication) => String(publication.id) === String(form.publicationId)) || null;
+
+  const renderConferencePublicationMetadata = () => {
+    const selectedPublication = getSelectedConferencePublication();
+
+    if (!selectedPublication) {
+      return null;
+    }
+
+    const authorFields = getPublicationAuthorFields(selectedPublication, { coauthorSeparator: "; " });
+    const indexing = getPublicationIndexingFields(selectedPublication);
+    const venue = selectedPublication.venue || selectedPublication.journal || "";
+    const publicationType = selectedPublication.publicationType || selectedPublication.publication_type || "";
+    const coauthors = splitCoauthors(form.coParticipant || authorFields.coauthors);
+    const doi = cleanDisplayValue(selectedPublication.doi);
+    const metadataSection = {
+      title: "",
+      fields: [
+        createDisplayField("Titulli i publikimit", selectedPublication.title),
+        createDisplayField("Lloji i publikimit", getPublicationTypeLabel(publicationType)),
+        createDisplayField("Burimi i publikimit", venue),
+        createDisplayField("Shtëpia botuese", selectedPublication.publisher),
+        createDisplayField("Data e publikimit", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year),
+        createDisplayField("Vëllimi", selectedPublication.volume),
+        createDisplayField("Numri i artikullit", selectedPublication.issue),
+        createDisplayField("ISSN", selectedPublication.issn),
+        createDisplayField("ISBN", selectedPublication.isbn),
+        createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
+        createAuthorListDisplayField("Bashkautorët", coauthors),
+        createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
+        createDisplayField("Platforma e indeksimit", indexing.indexingPlatform),
+        createDisplayField("Quartile", indexing.scopusQuartile),
+      ].filter(Boolean),
+    };
+    const affiliationText = cleanDisplayValue(form.authorsAffiliation);
+    const abstractText = cleanDisplayValue(form.abstractTitle || selectedPublication.abstract);
+    const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
+
+    return (
+      <>
+        {metadataSection.fields.length ? renderPublicationDisplaySection(metadataSection, "reimbursement-conference-publication-summary") : null}
+        <section className="reimbursement-publication-display-card reimbursement-conference-publication-summary reimbursement-publication-affiliation-group reimbursement-wide">
+          <h5>Autorët dhe përkatësia institucionale (Affiliation)</h5>
+          <div className={`reimbursement-affiliation-card reimbursement-readonly-display ${affiliationText ? "" : "empty"}`} aria-readonly="true">
+            {affiliationText || "Përkatësia institucionale nuk është e disponueshme për këtë publikim."}
+          </div>
+        </section>
+        {abstractText ? (
+          <section className="reimbursement-publication-display-card reimbursement-conference-publication-summary reimbursement-publication-abstract-group reimbursement-wide">
+            <h5>Abstrakti</h5>
+            <div className={`reimbursement-abstract-box reimbursement-readonly-display ${isAbstractExpanded ? "expanded" : ""}`} aria-readonly="true">
+              {abstractText}
+            </div>
+            {hasLongAbstract ? (
+              <button
+                type="button"
+                className="reimbursement-abstract-toggle"
+                onClick={() => setIsAbstractExpanded((current) => !current)}
+              >
+                {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+              </button>
+            ) : null}
+          </section>
+        ) : null}
+      </>
+    );
+  };
+
   const renderApplicantFields = () => (
     <div className="reimbursement-form-grid">
       {renderAutoField("Emri dhe mbiemri", "applicantName")}
@@ -2331,7 +2400,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </label>
         ) : null}
 
-        {paperFields.map(renderSchemaField)}
+        {form.publicationId ? renderConferencePublicationMetadata() : paperFields.map(renderSchemaField)}
 
         {manualConferenceFields.map(renderSchemaField)}
 
