@@ -25,10 +25,10 @@ const REVIEW_STATUS_FILTERS = [
 ];
 
 const REVIEW_FORM_FILTERS = [
-  { value: "all", label: "Te gjitha" },
-  { value: "publication", label: "F1 Publikime" },
-  { value: "conference", label: "F2 Konferenca" },
-  { value: "project", label: "F3 Projekte" },
+  { value: "all", label: "Të gjitha" },
+  { value: "publication", label: "Publikime shkencore" },
+  { value: "conference", label: "Konferenca dhe simpoziume" },
+  { value: "project", label: "Projekte shkencore" },
 ];
 
 function normalizeDate(value) {
