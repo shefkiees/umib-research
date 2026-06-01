@@ -214,7 +214,6 @@ const DEFAULT_FORM_VALUES = {
   publisher: "",
   abstract: "",
   publicationYear: "",
-  publicationFee: "",
   affiliation: "",
   indexingPlatform: "",
   impactFactor: "",

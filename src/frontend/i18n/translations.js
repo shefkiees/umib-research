@@ -1117,7 +1117,6 @@ const legacyEn = {
   "Linku i konferences": "Conference link",
   "Vendi i konferences": "Conference location",
   "Data e prezantimit": "Presentation date",
-  "Tarifa e publikimit": "Publication fee",
   "Deshmi e publikimit ose pranimit": "Proof of publication or acceptance",
   "DOI ose link i publikimit": "DOI or publication link",
   "Deshmi e revistes/konferences, nese aplikohet": "Journal/conference proof, if applicable",

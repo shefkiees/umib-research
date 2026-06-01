@@ -115,7 +115,6 @@ export const REIMBURSEMENT_SCHEMAS = {
           { field: "conferenceLink", label: "Linku i konferences", placeholder: "https://..." },
           { field: "conferenceLocation", label: "Vendi i konferences" },
           { field: "conferencePresentationDate", label: "Data e prezantimit", type: "date" },
-          { field: "publicationFee", label: "Tarifa e publikimit", placeholder: "p.sh. 450 EUR" },
         ],
       },
     ],
