@@ -1012,12 +1012,6 @@ function getHistoryMainDate(request) {
   return normalizeDate(request.submittedAt || request.createdAt || request.updatedAt);
 }
 
-function getHistoryNotes(history = []) {
-  return history
-    .map((item) => item.note)
-    .filter((note) => String(note ?? "").trim());
-}
-
 function ReimbursementHistoryList({
   r,
   tx,
@@ -1088,7 +1082,6 @@ function ReimbursementHistoryList({
             const isExpanded = expandedRequestIds.has(request.id);
             const statusLabel = tx(request.statusLabel || STATUS_LABELS[request.status] || request.status);
             const historyDate = getHistoryMainDate(request);
-            const historyNotes = getHistoryNotes(request.statusHistory);
 
             return (
             <div className="prof-list-item reimbursement-request-item" key={request.id}>
@@ -1173,17 +1166,6 @@ function ReimbursementHistoryList({
                           <section className="reimbursement-details-section">
                             <h5>Historiku i statusit</h5>
                             {renderStatusTimeline(request.statusHistory)}
-                          </section>
-                        ) : null}
-
-                        {historyNotes.length ? (
-                          <section className="reimbursement-details-section">
-                            <h5>Komentet/Shënimet</h5>
-                            <div className="reimbursement-note-list">
-                              {historyNotes.map((note, index) => (
-                                <p key={`${request.id}-note-${index}`}>{note}</p>
-                              ))}
-                            </div>
                           </section>
                         ) : null}
 
