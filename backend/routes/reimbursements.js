@@ -1484,7 +1484,29 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.isbn
+                m.volume, m.issue, m.pages, m.issn, m.isbn,
+                coalesce(
+                  (
+                    select json_agg(
+                      json_build_object(
+                        'id', pa.id,
+                        'fullName', pa.full_name,
+                        'firstName', pa.given_name,
+                        'lastName', pa.family_name,
+                        'givenName', pa.given_name,
+                        'familyName', pa.family_name,
+                        'affiliation', pa.affiliation,
+                        'isMainAuthor', pa.is_main_author,
+                        'authorOrder', pa.author_order,
+                        'position', pa.position
+                      )
+                      order by coalesce(nullif(pa.author_order, 0), pa.position), pa.created_at
+                    )
+                    from publication_authors pa
+                    where pa.publication_id = p.id
+                  ),
+                  '[]'::json
+                ) as authors
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
