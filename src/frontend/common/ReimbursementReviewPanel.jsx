@@ -15,6 +15,21 @@ const STATUS_LABELS = {
   paid: "Paguar",
 };
 
+const REVIEW_STATUS_FILTERS = [
+  { value: "all", label: "Te gjitha" },
+  { value: "submitted", label: "Te sapoderguara" },
+  { value: "received", label: "Te pranuara" },
+  { value: "in_review", label: "Ne shqyrtim" },
+  { value: "needs_correction", label: "Per korrigjim" },
+];
+
+const REVIEW_FORM_FILTERS = [
+  { value: "all", label: "Te gjitha" },
+  { value: "publication", label: "F1 Publikime" },
+  { value: "conference", label: "F2 Konferenca" },
+  { value: "project", label: "F3 Projekte" },
+];
+
 function normalizeDate(value) {
   if (!value) {
     return "";
@@ -72,10 +87,13 @@ export default function ReimbursementReviewPanel({
   searchQuery = "",
   title = "Rimbursime",
   description = "Kerkesat akademike per shqyrtim institucional.",
+  showReviewFilters = false,
 }) {
   const [requests, setRequests] = useState([]);
   const [stats, setStats] = useState(null);
   const [notes, setNotes] = useState({});
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [formFilter, setFormFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [updatingKey, setUpdatingKey] = useState("");
   const [downloadingKey, setDownloadingKey] = useState("");
@@ -85,16 +103,19 @@ export default function ReimbursementReviewPanel({
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const visibleRequests = useMemo(() => {
-    if (!normalizedQuery) {
-      return requests;
-    }
+    return requests.filter((request) => {
+      const matchesStatus = statusFilter === "all" || request.status === statusFilter;
+      const requestType = request.requestType || request.requestData?.requestType || "";
+      const matchesForm = formFilter === "all" || requestType === formFilter;
+      const matchesQuery =
+        !normalizedQuery ||
+        `${request.title} ${request.requestTypeLabel} ${request.owner?.name} ${request.owner?.faculty} ${request.statusLabel}`
+          .toLowerCase()
+          .includes(normalizedQuery);
 
-    return requests.filter((request) =>
-      `${request.title} ${request.requestTypeLabel} ${request.owner?.name} ${request.owner?.faculty} ${request.statusLabel}`
-        .toLowerCase()
-        .includes(normalizedQuery)
-    );
-  }, [normalizedQuery, requests]);
+      return matchesStatus && matchesForm && matchesQuery;
+    });
+  }, [formFilter, normalizedQuery, requests, statusFilter]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -241,6 +262,25 @@ export default function ReimbursementReviewPanel({
     );
   };
 
+  const renderFilterGroup = (label, options, selectedValue, onChange) => (
+    <div className="review-filter-group">
+      <span>{label}</span>
+      <div className="review-filter-chips">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={selectedValue === option.value ? "active" : ""}
+            onClick={() => onChange(option.value)}
+            aria-pressed={selectedValue === option.value}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <section className="review-panel">
       <div className="review-panel-head">
@@ -255,6 +295,13 @@ export default function ReimbursementReviewPanel({
       </div>
 
       {renderStats()}
+
+      {showReviewFilters ? (
+        <div className="review-filters" aria-label="Filtrat e shqyrtimit">
+          {renderFilterGroup("Statusi", REVIEW_STATUS_FILTERS, statusFilter, setStatusFilter)}
+          {renderFilterGroup("Formulari", REVIEW_FORM_FILTERS, formFilter, setFormFilter)}
+        </div>
+      ) : null}
 
       {error ? <p className="review-message error">{error}</p> : null}
       {message ? <p className="review-message success">{message}</p> : null}
