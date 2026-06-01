@@ -103,7 +103,7 @@ export function mapUserPreferences(row = {}) {
   };
 }
 
-export async function createNotification(client, { userId, title, message, category, metadata = {} }) {
+export async function createNotification(client, { userId, title, message, category, metadata = {}, sendEmail = true }) {
   if (!userId) {
     return null;
   }
@@ -117,6 +117,10 @@ export async function createNotification(client, { userId, title, message, categ
     [userId, title, message, category || null, JSON.stringify(metadata || {})]
   );
   const notification = rows[0] || null;
+
+  if (!sendEmail) {
+    return notification;
+  }
 
   try {
     const preferences = await getUserPreferences(client, userId);

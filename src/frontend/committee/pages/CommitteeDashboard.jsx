@@ -544,6 +544,20 @@ export default function CommitteeDashboard() {
   const getReviewForPublication = (publication) =>
     metadataReviews[publication.id] || createInitialReview(publication);
 
+  const syncPendingSubmissionStatus = (updatedRequest) => {
+    if (!updatedRequest?.id) {
+      return;
+    }
+
+    setPendingSubmissions((prev) => {
+      if (updatedRequest.status !== "submitted") {
+        return prev.filter((item) => item.id !== updatedRequest.id);
+      }
+
+      return prev.map((item) => (item.id === updatedRequest.id ? updatedRequest : item));
+    });
+  };
+
   const saveMetadataReview = (publication, updater) => {
     setMetadataReviews((prev) => {
       const current = prev[publication.id] || createInitialReview(publication);
@@ -1220,6 +1234,7 @@ export default function CommitteeDashboard() {
         title="Shqyrtimi i rimbursimeve"
         description="Kerkesat reale nga databaza per pranim, shqyrtim, korrigjim, aprovim ose refuzim nga komisioni."
         showReviewFilters
+        onStatusUpdated={syncPendingSubmissionStatus}
       />
     );
   }
@@ -1253,6 +1268,7 @@ export default function CommitteeDashboard() {
         searchQuery={searchQuery}
         title="Auditimi i rimbursimeve"
         description="Historiku institucional i kerkesave qe jane ne fazen e komisionit."
+        onStatusUpdated={syncPendingSubmissionStatus}
       />
     );
   }
@@ -1266,6 +1282,7 @@ export default function CommitteeDashboard() {
         searchQuery={searchQuery}
         title="Raporte te rimbursimeve"
         description="Statistikat dhe lista reale e kerkesave financiare qe i takojne fazes se komisionit."
+        onStatusUpdated={syncPendingSubmissionStatus}
       />
     );
   }

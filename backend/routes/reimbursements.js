@@ -10,7 +10,7 @@ import {
   getRequiredFields,
   requiresBank,
 } from "../../shared/reimbursementSchema.js";
-import { createNotification } from "../services/notification.service.js";
+import { createNotification, sendEmailNotification } from "../services/notification.service.js";
 
 const router = express.Router();
 
@@ -35,10 +35,13 @@ const STATUS_LABELS = {
   in_review: "Ne shqyrtim",
   needs_correction: "Kthyer per korrigjim",
   committee_approved: "Aprovuar nga komisioni",
-  approved: "Aprovuar final",
+  approved: "Aprovuar",
   rejected: "Refuzuar",
   paid: "Paguar",
 };
+
+const COMMITTEE_APPROVAL_EVENT_NOTE = "Kërkesa u aprovua nga komisioni.";
+const COMMITTEE_APPROVAL_EMAIL_SUBJECT = "Përditësim mbi kërkesën tuaj – UMIB";
 
 const ROLE_LABELS = {
   professor: "Profesor",
@@ -1122,6 +1125,102 @@ async function notifyOwner(client, reimbursementId, ownerId, status, note) {
     title: `Rimbursimi: ${STATUS_LABELS[status] || status}`,
     message: note || `Statusi i kerkeses suaj u ndryshua ne ${STATUS_LABELS[status] || status}.`,
     category: "Rimbursime",
+    metadata: {
+      reimbursementId,
+      status,
+    },
+    sendEmail: false,
+  });
+}
+
+function escapeHtml(value) {
+  return normalizeText(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatInstitutionalDate(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return formatDate(value) || formatDate(new Date());
+  }
+
+  return date.toLocaleDateString("sq-AL", {
+    year: "numeric",
+    month: "long",
+    day: "2-digit",
+  });
+}
+
+function buildCommitteeApprovalEmailHtml({ title, statusLabel, updatedAt, comment }) {
+  const safeTitle = escapeHtml(title || "Kërkesa juaj");
+  const safeStatus = escapeHtml(statusLabel || "Aprovuar");
+  const safeUpdatedAt = escapeHtml(formatInstitutionalDate(updatedAt));
+  const safeComment = escapeHtml(comment);
+
+  return `
+    <div style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#172033">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f4f7fb">
+        <tr>
+          <td align="center" style="padding:28px 16px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;border-collapse:collapse;background:#ffffff;border:1px solid #d9e2ef">
+              <tr>
+                <td style="padding:22px 28px;background:#153a63;color:#ffffff">
+                  <p style="margin:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase">Universiteti i Mitrovicës "Isa Boletini"</p>
+                  <h1 style="margin:8px 0 0;font-size:22px;line-height:1.3">Përditësim mbi kërkesën tuaj</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:28px">
+                  <p style="margin:0 0 16px;font-size:15px;line-height:1.6">I/e nderuar,</p>
+                  <p style="margin:0 0 20px;font-size:15px;line-height:1.6">Komisioni ka përditësuar statusin e kërkesës suaj në platformën UMIBRes.</p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 20px">
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;color:#536177;width:38%">Titulli i publikimit</td>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;font-weight:700">${safeTitle}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;color:#536177">Statusi i ri</td>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;font-weight:700">${safeStatus}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;color:#536177">Data e përditësimit</td>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5ebf3;font-weight:700">${safeUpdatedAt}</td>
+                    </tr>
+                  </table>
+                  ${safeComment ? `<div style="margin:0 0 20px;padding:14px 16px;background:#f7f9fc;border-left:4px solid #153a63"><strong style="display:block;margin:0 0 6px">Koment institucional</strong><p style="margin:0;line-height:1.6">${safeComment}</p></div>` : ""}
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#536177">Ky është njoftim automatik nga UMIBRes. Për pyetje shtesë, ju lutemi kontaktoni njësinë përgjegjëse institucionale.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+}
+
+async function sendCommitteeApprovalEmail({ to, title, statusLabel, updatedAt, comment }) {
+  const messageParts = [
+    `Titulli i publikimit: ${title || "Kërkesa juaj"}`,
+    `Statusi i ri: ${statusLabel || "Aprovuar"}`,
+    `Data e përditësimit: ${formatInstitutionalDate(updatedAt)}`,
+  ];
+
+  if (comment) {
+    messageParts.push(`Koment institucional: ${comment}`);
+  }
+
+  return sendEmailNotification({
+    to,
+    title: COMMITTEE_APPROVAL_EMAIL_SUBJECT,
+    message: messageParts.join("\n"),
+    category: "UMIBRes",
+    html: buildCommitteeApprovalEmailHtml({ title, statusLabel, updatedAt, comment }),
   });
 }
 
@@ -1250,7 +1349,13 @@ function getAllowedStatuses(user, currentStatus) {
   }
 
   if (role === "committee" && COMMITTEE_REVIEW_STATUSES.includes(currentStatus)) {
-    return ["received", "in_review", "needs_correction", "committee_approved", "rejected"];
+    const statuses = ["received", "in_review", "needs_correction", "rejected"];
+
+    if (["submitted", "in_review"].includes(currentStatus)) {
+      statuses.push("approved");
+    }
+
+    return statuses;
   }
 
   if (role === "prorector" && currentStatus === "committee_approved") {
@@ -1878,6 +1983,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
   }
 
   const client = await db.connect();
+  let responsePayload = null;
 
   try {
     await client.query("begin");
@@ -1916,16 +2022,50 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
       [current.id, nextStatus]
     );
 
-    const historyNote = note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`;
+    const isCommitteeApproval = normalizeRole(actor.role) === "committee" && nextStatus === "approved";
+    const historyNote = isCommitteeApproval
+      ? COMMITTEE_APPROVAL_EVENT_NOTE
+      : note || `Statusi u ndryshua ne ${STATUS_LABELS[nextStatus] || nextStatus}.`;
 
     await insertStatusHistory(client, current.id, current.status, nextStatus, actor, historyNote);
     await notifyOwner(client, current.id, current.owner_id, nextStatus, historyNote);
 
     const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+    responsePayload = mapReimbursementRow(rowWithHistory);
 
     await client.query("commit");
 
-    res.json({ data: mapReimbursementRow(rowWithHistory) });
+    let email = { sent: false, skipped: true };
+
+    if (isCommitteeApproval) {
+      try {
+        const emailResult = await sendCommitteeApprovalEmail({
+          to: responsePayload.owner?.email,
+          title: responsePayload.title,
+          statusLabel: responsePayload.statusLabel,
+          updatedAt: responsePayload.updatedAt || new Date(),
+          comment: note,
+        });
+
+        email = {
+          sent: !emailResult?.skipped,
+          skipped: Boolean(emailResult?.skipped),
+        };
+      } catch (emailError) {
+        email = {
+          sent: false,
+          skipped: false,
+          error: "email_send_failed",
+        };
+        console.warn("committee_approval_email_failed", {
+          reimbursementId: current.id,
+          ownerId: current.owner_id,
+          message: emailError.message,
+        });
+      }
+    }
+
+    res.json({ data: responsePayload, email });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("PATCH /api/reimbursements/:id/status failed:", error);

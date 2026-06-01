@@ -10,7 +10,7 @@ const STATUS_LABELS = {
   in_review: "Ne shqyrtim",
   needs_correction: "Kthyer per korrigjim",
   committee_approved: "Aprovuar nga komisioni",
-  approved: "Aprovuar final",
+  approved: "Aprovuar",
   rejected: "Refuzuar",
   paid: "Paguar",
 };
@@ -63,7 +63,9 @@ function getActions(role, status) {
       { status: "received", label: "Prano", icon: CheckCircle2 },
       { status: "in_review", label: "Ne shqyrtim", icon: Search },
       { status: "needs_correction", label: "Korrigjim", icon: RotateCcw, requiresNote: true },
-      { status: "committee_approved", label: "Aprovo", icon: CheckCircle2 },
+      ...(status === "submitted" || status === "in_review"
+        ? [{ status: "approved", label: "Aprovo", icon: CheckCircle2 }]
+        : []),
       { status: "rejected", label: "Refuzo", icon: XCircle, requiresNote: true, tone: "danger" },
     ].filter((item) => item.status !== status);
   }
@@ -83,6 +85,10 @@ function getActions(role, status) {
 }
 
 function getSuccessMessage(status) {
+  if (status === "approved") {
+    return "Kerkesa u aprovua nga komisioni.";
+  }
+
   if (status === "committee_approved") {
     return "Kërkesa u aprovua nga Komisioni dhe u largua nga lista e shqyrtimit.";
   }
@@ -101,6 +107,7 @@ export default function ReimbursementReviewPanel({
   title = "Rimbursime",
   description = "Kerkesat akademike per shqyrtim institucional.",
   showReviewFilters = false,
+  onStatusUpdated,
 }) {
   const [requests, setRequests] = useState([]);
   const [stats, setStats] = useState(null);
@@ -193,7 +200,7 @@ export default function ReimbursementReviewPanel({
           note,
         }),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(result.message || "Statusi nuk u perditesua.");
@@ -201,10 +208,15 @@ export default function ReimbursementReviewPanel({
 
       const updatedRequest = result.data || { ...request, status: action.status };
       setRequests((prev) => prev.map((item) => (item.id === updatedRequest.id ? updatedRequest : item)));
+      onStatusUpdated?.(updatedRequest);
       setNotes((prev) => ({ ...prev, [request.id]: "" }));
       await loadData();
       setError("");
-      setMessage(getSuccessMessage(updatedRequest.status));
+      setMessage(
+        result.email?.error
+          ? `${getSuccessMessage(updatedRequest.status)} Emaili njoftues nuk u dërgua.`
+          : getSuccessMessage(updatedRequest.status)
+      );
     } catch (updateError) {
       setError(updateError.message || "Ndodhi nje gabim gjate ndryshimit te statusit.");
     } finally {
