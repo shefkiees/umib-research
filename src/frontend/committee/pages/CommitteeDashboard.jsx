@@ -105,6 +105,17 @@ const correctionExamples = [
   "Dokumenti i ngarkuar nuk është i plotë",
 ];
 
+function normalizeCommitteeProfile(user = {}) {
+  const displayName = user.name || user.displayName || user.full_name || user.fullName || user.email || "Komision";
+
+  return {
+    name: displayName,
+    role: "Komision",
+    email: user.email || "",
+    unit: user.department || user.faculty || "Komision",
+  };
+}
+
 function formatDate(value) {
   if (!value) {
     return "-";
@@ -264,16 +275,16 @@ export default function CommitteeDashboard() {
   const [correctionError, setCorrectionError] = useState("");
   const [metadataDrawerMode, setMetadataDrawerMode] = useState("details");
   const [committeeProfile, setCommitteeProfile] = useState({
-    name: "Komisioni Shkencor",
-    role: "Paneli i vleresimit",
-    email: "komisioni@umib.edu",
-    unit: "Komisioni i Studimeve",
+    name: "Komision",
+    role: "Komision",
+    email: "",
+    unit: "Komision",
   });
   const [committeeDraft, setCommitteeDraft] = useState({
-    name: "Komisioni Shkencor",
-    role: "Paneli i vleresimit",
-    email: "komisioni@umib.edu",
-    unit: "Komisioni i Studimeve",
+    name: "Komision",
+    role: "Komision",
+    email: "",
+    unit: "Komision",
   });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([
@@ -307,6 +318,43 @@ export default function CommitteeDashboard() {
   ]);
 
   const normalizedQuery = normalizeForSearch(searchQuery.trim());
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCommitteeProfile = async () => {
+      try {
+        const response = await fetch(apiUrl("/auth/me"), {
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const nextProfile = normalizeCommitteeProfile(data.user || {});
+
+        if (isMounted) {
+          setCommitteeProfile(nextProfile);
+          setCommitteeDraft(nextProfile);
+        }
+      } catch (error) {
+        console.error("Committee profile load failed:", error);
+      }
+    };
+
+    loadCommitteeProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   const filteredFacultyStats = useMemo(() => {
     if (!normalizedQuery) {

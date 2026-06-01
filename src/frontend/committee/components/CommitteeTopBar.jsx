@@ -45,8 +45,8 @@ export default function CommitteeTopBar({
 	}, []);
 
 	const title = "UMIBRes";
-	const profileName = profile?.name || "Komisioni Shkencor";
-	const profileRole = profile?.role || "Paneli i vleresimit";
+	const profileName = profile?.name || "Komision";
+	const profileRole = "Komision";
 	const initials = profileName
 		.split(" ")
 		.map((part) => part[0])
