@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Legend,
   Pie,
@@ -26,6 +27,25 @@ const normalizeAnalyticsRows = (items, key, fallbackLabel) =>
       count: Number(item?.count || 0),
     }))
     .filter((item) => item.count > 0);
+
+const formatPersonName = (value) => {
+  const rawValue = String(value || "").trim();
+  const rawName = rawValue.includes("@") ? rawValue.split("@")[0] : rawValue;
+  if (!rawName) return "Admin";
+
+  return rawName
+    .replace(/[._]+/g, " ")
+    .split(/\s+/)
+    .map((part) =>
+      part
+        .split("-")
+        .map((segment) => (
+          segment ? `${segment.charAt(0).toLocaleUpperCase("sq-AL")}${segment.slice(1).toLocaleLowerCase("sq-AL")}` : segment
+        ))
+        .join("-")
+    )
+    .join(" ");
+};
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -263,7 +283,8 @@ export function AdminAnalyticsSection() {
   const usersByRole = (data?.usersByRole || []).map((item) => ({ ...item, role: roleLabels[item.role] || item.role || "Pa rol" }));
   const usersByFaculty = normalizeAnalyticsRows(data?.usersByFaculty, "faculty", "Pa fakultet");
   const usersByDepartment = normalizeAnalyticsRows(data?.usersByDepartment, "department", "Pa departament");
-  const adminActivity = normalizeAnalyticsRows(data?.adminActivity, "adminName", "Admin");
+  const adminActivity = normalizeAnalyticsRows(data?.adminActivity, "adminName", "Admin")
+    .map((item) => ({ ...item, label: formatPersonName(item.label) }));
 
   return (
     <section className="admin-page-card admin-feature-section">
@@ -309,11 +330,18 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Aktiviteti">
+        <ChartCard
+          title="Përdoruesit më aktivë"
+          description="Bazuar në aktivitetin administrativ të 30 ditëve të fundit"
+          className="admin-chart-card--premium admin-activity-card"
+        >
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={adminActivity}>
-              <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
-              <Bar name="Veprime" dataKey="count" fill="#c9a24f" />
+            <BarChart data={adminActivity} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="28%">
+              <CartesianGrid vertical={false} stroke="#eef2f7" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+              <Tooltip cursor={{ fill: "rgba(201, 162, 79, 0.08)" }} content={<ActivityTooltip />} />
+              <Bar name="Veprime" dataKey="count" fill="#b88a2d" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-activity-bar" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -322,8 +350,27 @@ export function AdminAnalyticsSection() {
   );
 }
 
-function ChartCard({ title, children }) {
-  return <article className="admin-chart-card"><h4>{title}</h4>{children}</article>;
+function ChartCard({ title, description, className = "", children }) {
+  return (
+    <article className={`admin-chart-card${className ? ` ${className}` : ""}`}>
+      <h4>{title}</h4>
+      {description ? <p className="admin-chart-description">{description}</p> : null}
+      {children}
+    </article>
+  );
+}
+
+function ActivityTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const count = Number(payload[0]?.value || 0);
+
+  return (
+    <div className="admin-activity-tooltip">
+      <strong>{formatPersonName(label)}</strong>
+      <span>{count} veprime administrative</span>
+    </div>
+  );
 }
 
 function StatusBadge({ status }) {
