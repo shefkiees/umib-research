@@ -84,6 +84,37 @@ function CategoryTooltip({ active, payload, label, singularLabel }) {
   );
 }
 
+function RolePieLabel({ cx, cy, midAngle, outerRadius, value, fill }) {
+  const connectorStartRadius = outerRadius + 4;
+  const connectorEndRadius = outerRadius + 22;
+  const labelRadius = outerRadius + 32;
+  const angle = -midAngle * (Math.PI / 180);
+  const startX = cx + connectorStartRadius * Math.cos(angle);
+  const startY = cy + connectorStartRadius * Math.sin(angle);
+  const endX = cx + connectorEndRadius * Math.cos(angle);
+  const endY = cy + connectorEndRadius * Math.sin(angle);
+  const textX = cx + labelRadius * Math.cos(angle);
+  const textY = cy + labelRadius * Math.sin(angle);
+  const textAnchor = textX > cx ? "start" : "end";
+
+  return (
+    <g>
+      <path d={`M${startX},${startY}L${endX},${endY}`} stroke={fill} strokeWidth={1.5} fill="none" />
+      <text
+        x={textX}
+        y={textY}
+        fill={fill}
+        textAnchor={textAnchor}
+        dominantBaseline="central"
+        fontSize={13}
+        fontWeight={800}
+      >
+        {value}
+      </text>
+    </g>
+  );
+}
+
 const formatDate = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -264,15 +295,15 @@ export function AdminAnalyticsSection() {
 
       <div className="admin-analytics-grid">
         <ChartCard title={t("admin.analytics.usersByRole")}>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
+          <ResponsiveContainer width="100%" height={270}>
+            <PieChart margin={{ top: 30, right: 58, bottom: 10, left: 58 }}>
               <Pie
                 data={usersByRole}
                 dataKey="count"
                 nameKey="role"
-                outerRadius={82}
+                outerRadius={68}
                 labelLine={false}
-                label={{ position: "inside", fill: "#ffffff", fontSize: 13, fontWeight: 800 }}
+                label={RolePieLabel}
               >
                 {usersByRole.map((entry, index) => <Cell key={entry.role} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
