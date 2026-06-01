@@ -1091,7 +1091,7 @@
 
 .admin-users-table .admin-user-actions {
     gap: 8px;
-    justify-content: flex-end;
+    justify-content: flex-start;
     flex-wrap: nowrap;
 }
 
@@ -1119,7 +1119,7 @@
 
 .admin-users-table th:nth-child(9),
 .admin-users-table td:nth-child(9) {
-    text-align: right;
+    text-align: left;
 }
 
 /* Chips */
