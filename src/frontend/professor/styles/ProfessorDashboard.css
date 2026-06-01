@@ -2857,7 +2857,7 @@ body {
 
 .reimbursement-request-item {
   align-items: stretch;
-  padding: 14px;
+  padding: 12px;
   border-radius: 12px;
 }
 
@@ -2876,7 +2876,7 @@ body {
 .reimbursement-card-summary {
   min-width: 0;
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 
 .reimbursement-request-actions {
@@ -2901,9 +2901,10 @@ body {
 }
 
 .reimbursement-request-item .prof-list-content h4 {
-  font-size: 0.98rem;
-  line-height: 1.3;
+  font-size: 0.92rem;
+  line-height: 1.28;
   margin-bottom: 0;
+  font-weight: 850;
 }
 
 .reimbursement-request-item .prof-list-content p {
@@ -2961,16 +2962,16 @@ body {
 }
 
 .reimbursement-type-chip {
-  border: 1px solid #b8d2ff;
-  border-radius: 8px;
-  background: #eaf2ff;
+  border: 1px solid #cbd8e8;
+  border-radius: 999px;
+  background: #f8fbff;
   color: #174a7b;
-  padding: 2px 7px;
+  padding: 1px 7px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.76rem;
-  font-weight: 750;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .reimbursement-type-chip strong {
@@ -3005,7 +3006,7 @@ body {
 }
 
 .reimbursement-card-details {
-  margin-top: 8px;
+  margin-top: 7px;
 }
 
 .reimbursement-details-toggle {
@@ -3031,8 +3032,64 @@ body {
 
 .reimbursement-details-panel {
   margin-top: 8px;
-  padding-top: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fbfdff;
+  display: grid;
+  gap: 12px;
+}
+
+.reimbursement-details-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.reimbursement-detail-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.reimbursement-detail-field span,
+.reimbursement-details-section h5 {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.reimbursement-detail-field strong {
+  color: #17324f;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-details-section {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid #edf1f5;
+}
+
+.reimbursement-note-list {
+  display: grid;
+  gap: 6px;
+}
+
+.reimbursement-note-list p {
+  margin: 0;
+  color: #334155;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  background: #ffffff;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 .reimbursement-upload-box {
@@ -3238,7 +3295,8 @@ body {
   .reimbursement-form-grid,
   .reimbursement-publication-info-grid,
   .reimbursement-conference-metadata-grid,
-  .reimbursement-bank-grid {
+  .reimbursement-bank-grid,
+  .reimbursement-details-grid {
     grid-template-columns: 1fr;
   }
 
