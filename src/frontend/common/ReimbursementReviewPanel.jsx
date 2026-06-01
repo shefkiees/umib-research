@@ -81,6 +81,18 @@ function getActions(role, status) {
   return [];
 }
 
+function getSuccessMessage(status) {
+  if (status === "committee_approved") {
+    return "Kërkesa u aprovua nga Komisioni dhe u largua nga lista e shqyrtimit.";
+  }
+
+  if (status === "rejected") {
+    return "Kërkesa u refuzua nga Komisioni dhe u largua nga lista e shqyrtimit.";
+  }
+
+  return `Statusi u ndryshua ne ${STATUS_LABELS[status] || status}.`;
+}
+
 export default function ReimbursementReviewPanel({
   role,
   scope,
@@ -159,7 +171,7 @@ export default function ReimbursementReviewPanel({
     const note = String(notes[request.id] || "").trim();
 
     if (action.requiresNote && !note) {
-      setError("Komenti institucional eshte obligativ per kete veprim.");
+      setError("Komenti institucional është obligativ për këtë veprim.");
       return;
     }
 
@@ -186,10 +198,12 @@ export default function ReimbursementReviewPanel({
         throw new Error(result.message || "Statusi nuk u perditesua.");
       }
 
-      setRequests((prev) => prev.map((item) => (item.id === result.data.id ? result.data : item)));
+      const updatedRequest = result.data || { ...request, status: action.status };
+      setRequests((prev) => prev.map((item) => (item.id === updatedRequest.id ? updatedRequest : item)));
       setNotes((prev) => ({ ...prev, [request.id]: "" }));
-      setMessage(`Statusi u ndryshua ne ${result.data.statusLabel || STATUS_LABELS[result.data.status]}.`);
       await loadData();
+      setError("");
+      setMessage(getSuccessMessage(updatedRequest.status));
     } catch (updateError) {
       setError(updateError.message || "Ndodhi nje gabim gjate ndryshimit te statusit.");
     } finally {
