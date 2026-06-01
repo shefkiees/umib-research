@@ -84,6 +84,8 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
 const RETIRED_REASON_FIELD = "pur" + "pose";
+const ATTACHMENTS_REQUIRED_MESSAGE =
+  "Kërkesa nuk mund të dërgohet për shqyrtim sepse nuk janë ngarkuar dokumentet mbështetëse. Kërkesa është ruajtur si draft.";
 
 const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "doi",
@@ -872,6 +874,17 @@ async function selectReimbursementWithHistoryById(id, client = db) {
   return hydrateReimbursementRowForPublication(client, result.rows[0] || null);
 }
 
+async function countReimbursementAttachments(client, reimbursementId) {
+  const result = await client.query(
+    `select count(*)::int as count
+     from reimbursement_attachments
+     where reimbursement_id = $1`,
+    [reimbursementId]
+  );
+
+  return Number(result.rows[0]?.count || 0);
+}
+
 async function canAccessReimbursement(row, user) {
   if (!row) {
     return false;
@@ -1513,6 +1526,7 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
 
   const action = normalizeText(req.body?.action || req.body?.status || "submit");
   const asDraft = action === "draft";
+  const requiresAttachmentBeforeSubmit = !asDraft;
   const formData = sanitizeRequestData(req.body?.formData);
   const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft });
 
@@ -1532,7 +1546,7 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const status = asDraft ? "draft" : "submitted";
+  const status = "draft";
   const client = await db.connect();
 
   try {
@@ -1581,14 +1595,17 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
       null,
       status,
       req.user,
-      asDraft ? "Kerkesa u ruajt si draft." : "Kerkesa u krijua dhe u dorezua per shqyrtim."
+      "Kerkesa u ruajt si draft."
     );
 
     const rowWithHistory = await selectReimbursementWithHistoryById(withDocuments.id, client);
 
     await client.query("commit");
 
-    res.status(201).json({ data: mapReimbursementRow(rowWithHistory) });
+    res.status(201).json({
+      data: mapReimbursementRow(rowWithHistory),
+      message: requiresAttachmentBeforeSubmit ? ATTACHMENTS_REQUIRED_MESSAGE : undefined,
+    });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("POST /api/reimbursements failed:", error);
@@ -1657,7 +1674,11 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const nextStatus = isSubmit ? "submitted" : current.status === "needs_correction" ? "needs_correction" : "draft";
+    const attachmentCount = isSubmit ? await countReimbursementAttachments(client, current.id) : 0;
+    const blockedSubmit = isSubmit && attachmentCount === 0;
+    const nextStatus = isSubmit && !blockedSubmit
+      ? "submitted"
+      : current.status === "needs_correction" ? "needs_correction" : "draft";
     const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
     const linkedPublication = publicationId
       ? await selectPublicationForReimbursement(client, req.user.id, publicationId)
@@ -1704,7 +1725,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
 
     const withDocuments = await createGeneratedDocuments(client, updateResult.rows[0]);
 
-    if (isSubmit && current.status !== "submitted") {
+    if (isSubmit && !blockedSubmit && current.status !== "submitted") {
       await insertStatusHistory(
         client,
         current.id,
@@ -1719,7 +1740,10 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
 
     await client.query("commit");
 
-    res.json({ data: mapReimbursementRow(rowWithHistory) });
+    res.json({
+      data: mapReimbursementRow(rowWithHistory),
+      message: blockedSubmit ? ATTACHMENTS_REQUIRED_MESSAGE : undefined,
+    });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("PUT /api/reimbursements/:id failed:", error);
@@ -1769,6 +1793,17 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
         error: "validation_failed",
         message: validationErrors[0].message,
         errors: validationErrors,
+      });
+      return;
+    }
+
+    const attachmentCount = await countReimbursementAttachments(client, current.id);
+
+    if (attachmentCount === 0) {
+      await client.query("rollback");
+      res.status(400).json({
+        error: "attachments_required",
+        message: ATTACHMENTS_REQUIRED_MESSAGE,
       });
       return;
     }

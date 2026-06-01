@@ -1631,6 +1631,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setSuccess(null);
 
     try {
+      const saveAction = action === "submit" ? "draft" : action;
       const requestUrl = editingRequest
         ? apiUrl(`/reimbursements/${editingRequest.id}`)
         : apiUrl("/reimbursements");
@@ -1643,7 +1644,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         body: JSON.stringify({
           requestType: selectedType,
           formData: buildSubmitFormData(form),
-          action,
+          action: saveAction,
         }),
       });
       const result = await response.json();
@@ -1660,7 +1661,29 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       }
 
       const withAttachments = await uploadSelectedFiles(result.data.id);
-      const savedRequest = withAttachments || result.data;
+      let savedRequest = withAttachments || result.data;
+
+      if (action === "submit") {
+        const submitResponse = await fetch(apiUrl(`/reimbursements/${savedRequest.id}/submit`), {
+          method: "POST",
+          credentials: "include",
+        });
+        const submitResult = await submitResponse.json();
+
+        if (submitResponse.status === 401) {
+          throw new Error("Sesioni ka skaduar. Kyquni perseri me Google.");
+        }
+
+        if (!submitResponse.ok) {
+          setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
+          setHasLoadedRequests(true);
+          setSuccess(savedRequest);
+          setEditingRequest(savedRequest);
+          throw new Error(submitResult.message || "Kerkesa nuk u dergua per shqyrtim.");
+        }
+
+        savedRequest = submitResult.data;
+      }
 
       setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
       setHasLoadedRequests(true);
