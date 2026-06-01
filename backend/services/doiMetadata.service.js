@@ -57,6 +57,34 @@ function normalizeIssn(value) {
   return normalizeText(value).replace(/[^0-9x]/gi, "").toUpperCase();
 }
 
+function firstTextValue(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return normalizeText(values.find((item) => normalizeText(item)) || "");
+}
+
+function getRawIdentifierValue(raw = {}, key) {
+  const upperKey = key.toUpperCase();
+  const lowerKey = key.toLowerCase();
+  const candidates = [
+    raw[upperKey],
+    raw[lowerKey],
+    raw._crossref?.[upperKey],
+    raw._crossref?.[lowerKey],
+    raw._doi_org?.[upperKey],
+    raw._doi_org?.[lowerKey],
+  ];
+
+  for (const candidate of candidates) {
+    const value = firstTextValue(candidate);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function formatIssn(value) {
   const normalized = normalizeIssn(value);
 
@@ -269,6 +297,19 @@ function shouldResolveQuartileForType(type) {
 function shouldRefreshCachedMetadata(metadata = {}) {
   const type = normalizeText(metadata.type);
   const hasCrossrefSnapshot = Boolean(metadata.raw_json?._crossref);
+  const comparableType = normalizeComparableText(type).replace(/\s+/g, "_");
+  const hasCachedIssn = hasText(metadata.issn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISSN"));
+  const hasCachedIsbn = hasText(metadata.isbn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISBN"));
+
+  if (!hasCrossrefSnapshot) {
+    if (["journal_article", "article_journal"].includes(comparableType) && !hasCachedIssn) {
+      return true;
+    }
+
+    if (["book", "book_chapter", "chapter", "reference_book"].includes(comparableType) && !hasCachedIsbn) {
+      return true;
+    }
+  }
 
   return type === "proceedings-article" && !isFullDate(metadata.published_date) && !hasCrossrefSnapshot;
 }
@@ -347,7 +388,32 @@ export async function getCachedDoiMetadata(db, doi) {
     return null;
   }
 
-  return { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
+  const metadata = { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
+
+  if (!hasIdentifierColumns) {
+    return metadata;
+  }
+
+  const rawIssn = getRawIdentifierValue(metadata.raw_json, "ISSN");
+  const rawIsbn = getRawIdentifierValue(metadata.raw_json, "ISBN");
+  const nextIssn = hasText(metadata.issn) ? metadata.issn : rawIssn;
+  const nextIsbn = hasText(metadata.isbn) ? metadata.isbn : rawIsbn;
+
+  if (nextIssn !== metadata.issn || nextIsbn !== metadata.isbn) {
+    await db.query(
+      `update publication_metadata
+       set issn = $2,
+           isbn = $3,
+           updated_at = now()
+       where doi = $1`,
+      [doi, nextIssn, nextIsbn]
+    );
+
+    metadata.issn = nextIssn;
+    metadata.isbn = nextIsbn;
+  }
+
+  return metadata;
 }
 
 export async function upsertDoiMetadata(dbOrClient, metadata) {
