@@ -2031,17 +2031,21 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .reimbursement-type-card {
+  min-height: 52px;
   border: 1px solid #dce7f2;
   border-radius: 10px;
   background: #fbfdff;
-  padding: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
   text-align: left;
   cursor: pointer;
   transition: var(--transition);
+  box-sizing: border-box;
 }
 
 .reimbursement-type-card strong {
@@ -2058,12 +2062,22 @@ body {
   line-height: 1.35;
 }
 
-.reimbursement-type-card:hover,
-.reimbursement-type-card.active {
+.reimbursement-type-card:hover {
   border-color: #1d67aa;
   background: #eef7ff;
   box-shadow: 0 10px 22px rgba(29, 103, 170, 0.1);
   transform: translateY(-1px);
+}
+
+.reimbursement-type-card.active {
+  border-color: #1d67aa;
+  background: #eef7ff;
+  box-shadow: 0 0 0 2px rgba(29, 103, 170, 0.14), 0 8px 18px rgba(29, 103, 170, 0.08);
+  transform: none;
+}
+
+.reimbursement-type-card.active:hover {
+  transform: none;
 }
 
 .reimbursement-form {
@@ -2083,7 +2097,7 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin-bottom: 14px;
+  margin-bottom: 9px;
   color: #1d4d7d;
 }
 
@@ -2112,7 +2126,7 @@ body {
 }
 
 .reimbursement-profile-head {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .reimbursement-form-grid {
@@ -2122,8 +2136,8 @@ body {
 }
 
 .reimbursement-publication-selector {
-  margin: 2px 0 4px;
-  gap: 8px;
+  margin: 0 0 2px;
+  gap: 5px;
 }
 
 .reimbursement-publication-selector > span {
@@ -2133,7 +2147,7 @@ body {
 }
 
 .reimbursement-publication-selector select {
-  min-height: 42px;
+  min-height: 40px;
   border-radius: 10px;
   background: #fbfdff;
 }
