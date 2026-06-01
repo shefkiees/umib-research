@@ -1104,6 +1104,11 @@
     font-size: 0.84rem;
 }
 
+.admin-users-table .admin-user-actions .admin-view-user-btn {
+    min-width: 68px;
+    padding-inline: 10px;
+}
+
 .admin-users-table .admin-last-login-cell {
     white-space: nowrap;
     font-size: 0.84rem;

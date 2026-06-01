@@ -1231,7 +1231,7 @@ export default function AdminDashboard() {
 
                                         <button
                                             type="button"
-                                            className="admin-small-btn"
+                                            className="admin-small-btn admin-view-user-btn"
                                             onClick={() => setSelectedUser(item)}
                                         >
                                             {adminText.users.actions.view}
