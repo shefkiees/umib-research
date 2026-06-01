@@ -32,9 +32,6 @@ const formatDateTime = (value) => {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}, ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 };
 
-const formatEuro = (value) =>
-  new Intl.NumberFormat("sq-AL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(value || 0));
-
 async function requestJson(path, options = {}) {
   const response = await fetch(apiUrl(path), {
     credentials: "include",
@@ -426,171 +423,6 @@ export function AdminIntegrationsSection() {
   );
 }
 
-export function AdminSystemStatusSection() {
-  return (
-    <StatusGridSection
-      title="Gjendja e sistemit"
-      description="Shiko statusin teknik të shërbimeve kryesore të platformës."
-      path="/admin/system-status"
-      itemsKey="services"
-      emptyText="Nuk ka të dhëna për gjendjen e sistemit."
-      showOverall
-      canRefresh
-    />
-  );
-}
-
-export function AdminJournalsSection() {
-  const emptyForm = { issn: "", name: "", publisher: "", quartile: "", wosCategory: "", ceeol: false, isPredatory: false };
-  const [items, setItems] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState("");
-  const [search, setSearch] = useState("");
-  const [csv, setCsv] = useState("");
-  const [message, setMessage] = useState("");
-
-  const load = async () => {
-    const data = await requestJson(`/admin/journals${search ? `?search=${encodeURIComponent(search)}` : ""}`);
-    setItems(Array.isArray(data.journals) ? data.journals : []);
-  };
-
-  useEffect(() => {
-    load().catch((err) => setMessage(err.message));
-  }, [search]);
-
-  const save = async () => {
-    const path = editingId ? `/admin/journals/${editingId}` : "/admin/journals";
-    const method = editingId ? "PATCH" : "POST";
-    await requestJson(path, { method, body: JSON.stringify(form) });
-    setForm(emptyForm);
-    setEditingId("");
-    setMessage("Revista u ruajt me sukses.");
-    await load();
-  };
-
-  const remove = async (id) => {
-    await requestJson(`/admin/journals/${id}`, { method: "DELETE" });
-    await load();
-  };
-
-  const importCsv = async () => {
-    const data = await requestJson("/admin/journals/import", { method: "POST", body: JSON.stringify({ csv }) });
-    setMessage(`${data.imported || 0} revista u importuan.`);
-    setCsv("");
-    await load();
-  };
-
-  return (
-    <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head"><h3>Revistat</h3></div>
-      {message ? <p className="admin-feature-message">{message}</p> : null}
-      <div className="admin-feature-form">
-        <input placeholder="ISSN" value={form.issn} onChange={(e) => setForm({ ...form, issn: e.target.value })} />
-        <input placeholder="Emri i revistës" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <input placeholder="Botuesi" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
-        <input placeholder="Kuartili" value={form.quartile} onChange={(e) => setForm({ ...form, quartile: e.target.value })} />
-        <input placeholder="Kategoria WoS" value={form.wosCategory} onChange={(e) => setForm({ ...form, wosCategory: e.target.value })} />
-        <label><input type="checkbox" checked={form.ceeol} onChange={(e) => setForm({ ...form, ceeol: e.target.checked })} /> CEEOL</label>
-        <label><input type="checkbox" checked={form.isPredatory} onChange={(e) => setForm({ ...form, isPredatory: e.target.checked })} /> Revistë predatore</label>
-        <button className="admin-small-btn" type="button" onClick={save}>Ruaj</button>
-      </div>
-      <div className="admin-feature-toolbar">
-        <input placeholder="Kërko revistë" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <textarea placeholder="Importo CSV: ISSN, Emri, Botuesi, Kuartili, Kategoria WoS, CEEOL, Predatore" value={csv} onChange={(e) => setCsv(e.target.value)} />
-        <button className="admin-small-btn" type="button" onClick={importCsv}>Importo CSV</button>
-      </div>
-      <DataTable columns={["ISSN", "Emri i revistës", "Botuesi", "Kuartili", "Kategoria WoS", "CEEOL", "Revistë predatore", "Veprimet"]}>
-        {items.map((item) => (
-          <tr key={item.id}>
-            <td>{item.issn || "-"}</td><td>{item.name}</td><td>{item.publisher || "-"}</td><td>{item.quartile || "-"}</td><td>{item.wosCategory || "-"}</td><td>{item.ceeol ? "Po" : "Jo"}</td><td>{item.isPredatory ? "Po" : "Jo"}</td>
-            <td><div className="admin-actions-row"><button className="admin-small-btn" type="button" onClick={() => { setForm(item); setEditingId(item.id); }}>Ndrysho</button><button className="admin-small-btn danger" type="button" onClick={() => remove(item.id)}>Fshij</button></div></td>
-          </tr>
-        ))}
-      </DataTable>
-      {items.length === 0 ? <EmptyState text="Nuk ka revista të regjistruara." /> : null}
-    </section>
-  );
-}
-
-export function AdminPublicationReviewSection() {
-  const [items, setItems] = useState([]);
-  const [commentById, setCommentById] = useState({});
-  const [message, setMessage] = useState("");
-
-  const load = async () => {
-    const data = await requestJson("/admin/publication-review");
-    setItems(Array.isArray(data.publications) ? data.publications : []);
-  };
-
-  useEffect(() => { load().catch((err) => setMessage(err.message)); }, []);
-
-  const act = async (id, action) => {
-    await requestJson(`/admin/publication-review/${id}`, { method: "PATCH", body: JSON.stringify({ action, comment: commentById[id] || "" }) });
-    setMessage("Publikimi u përditësua.");
-    await load();
-  };
-
-  return (
-    <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head"><h3>Shqyrtimi i publikimeve</h3></div>
-      {message ? <p className="admin-feature-message">{message}</p> : null}
-      <DataTable columns={["Publikimi", "Autori", "Lloji", "Statusi", "Koment", "Veprimet"]}>
-        {items.map((item) => (
-          <tr key={item.id}>
-            <td>{item.title}</td><td>{item.author || "-"}</td><td>{item.type || "-"}</td><td>{item.statusLabel}</td>
-            <td><input placeholder="Shto koment" value={commentById[item.id] || ""} onChange={(e) => setCommentById({ ...commentById, [item.id]: e.target.value })} /></td>
-            <td><div className="admin-actions-row"><button className="admin-small-btn" type="button" onClick={() => act(item.id, "approve")}>Aprovo</button><button className="admin-small-btn danger" type="button" onClick={() => act(item.id, "reject")}>Refuzo</button><button className="admin-small-btn" type="button" onClick={() => act(item.id, "request_changes")}>Kthe për përmirësim</button>{item.documentUrl ? <a className="admin-small-btn" href={item.documentUrl} target="_blank" rel="noreferrer">Shiko dokumentin</a> : null}</div></td>
-          </tr>
-        ))}
-      </DataTable>
-      {items.length === 0 ? <EmptyState text="Nuk ka publikime për shqyrtim." /> : null}
-    </section>
-  );
-}
-
-export function AdminReportsSection() {
-  const [data, setData] = useState({ reports: [] });
-
-  useEffect(() => { requestJson("/admin/reports").then(setData).catch(() => setData({ reports: [] })); }, []);
-
-  return (
-    <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head"><h3>Raportet</h3></div>
-      <div className="admin-feature-filters">
-        <input placeholder="Fakulteti" /><input placeholder="Departamenti" /><input placeholder="Periudha" /><input placeholder="Lloji i publikimit" /><input placeholder="Kuartili" />
-      </div>
-      <div className="admin-feature-cards">
-        {(data.reports || []).map((report) => <article key={report.id}><span>{report.title}</span><strong>{report.amount ? formatEuro(report.amount) : report.count}</strong></article>)}
-      </div>
-      <div className="admin-actions-row admin-feature-actions">
-        <a className="admin-small-btn" href={apiUrl("/admin/reports/export?format=pdf")}>Eksporto PDF</a>
-        <a className="admin-small-btn" href={apiUrl("/admin/reports/export?format=excel")}>Eksporto Excel</a>
-      </div>
-    </section>
-  );
-}
-
-export function AdminBudgetSection() {
-  const [budget, setBudget] = useState({ total: 0, committed: 0, spent: 0, remaining: 0, warnings: [75, 90, 100] });
-
-  useEffect(() => { requestJson("/admin/budget").then(setBudget).catch(() => {}); }, []);
-
-  return (
-    <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head"><h3>Buxheti</h3></div>
-      <div className="admin-feature-cards">
-        <article><span>Buxheti total</span><strong>{formatEuro(budget.total)}</strong></article>
-        <article><span>I zotuar</span><strong>{formatEuro(budget.committed)}</strong></article>
-        <article><span>I shpenzuar</span><strong>{formatEuro(budget.spent)}</strong></article>
-        <article><span>I mbetur</span><strong>{formatEuro(budget.remaining)}</strong></article>
-      </div>
-      <div className="admin-budget-warnings">
-        {(budget.warnings || []).map((warning) => <span key={warning}>Paralajmërim buxheti {warning}%</span>)}
-      </div>
-    </section>
-  );
-}
-
 export function AdminSettingsSection() {
   const { language, setLanguage } = useLanguage();
   const [profile, setProfile] = useState(null);
@@ -779,15 +611,5 @@ export function AdminSettingsSection() {
 
       </div>
     </section>
-  );
-}
-function DataTable({ columns, children }) {
-  return (
-    <div className="admin-table-wrap admin-feature-table-wrap">
-      <table className="admin-table admin-feature-table">
-        <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
   );
 }
