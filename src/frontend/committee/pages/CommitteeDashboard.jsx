@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart3, Bell, CircleUserRound, LogOut, Settings } from "lucide-react";
 import {
@@ -27,12 +27,6 @@ const facultyStatistics = [
   { faculty: "FED", label: "Fakulteti i Edukimit", department: "Fakulteti i Edukimit", publikime: 16, projekte: 5, rimbursime: 5 },
 ];
 
-const publicationRows = [
-  { id: "PB-120", title: "Smart Grids in Emerging Markets", unit: "FIMC", status: "Aprovuar" },
-  { id: "PB-115", title: "Applied Data Ethics in Education", unit: "FG", status: "Ne shqyrtim" },
-  { id: "PB-108", title: "Supply Chain Risk in Balkans", unit: "FTU", status: "Aprovuar" },
-];
-
 const conferenceRows = [
   { id: "CF-032", event: "IEEE BalkanCom", unit: "FIMC", status: "Konfirmuar" },
   { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
@@ -41,10 +35,31 @@ const conferenceRows = [
 
 const navLabels = ["Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
 
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("sq-AL", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("Dorëzimet në Pritje");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
+  const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
   const [committeeProfile, setCommitteeProfile] = useState({
     name: "Komisioni Shkencor",
     role: "Paneli i vleresimit",
@@ -101,15 +116,72 @@ export default function CommitteeDashboard() {
     });
   }, [normalizedQuery]);
 
-  const filteredPublications = useMemo(() => {
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPendingSubmissions = async () => {
+      setIsPendingSubmissionsLoading(true);
+      setPendingSubmissionsError("");
+
+      try {
+        const response = await fetch(apiUrl("/reimbursements?scope=review"), {
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          throw new Error("Sesioni nuk eshte aktiv.");
+        }
+
+        if (!response.ok) {
+          throw new Error("Dorëzimet në pritje nuk u ngarkuan nga databaza.");
+        }
+
+        const data = await response.json();
+        const rows = Array.isArray(data) ? data : [];
+
+        if (isMounted) {
+          setPendingSubmissions(rows.filter((item) => item.status === "submitted"));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPendingSubmissions([]);
+          setPendingSubmissionsError(error.message || "Dorëzimet në pritje nuk u ngarkuan.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsPendingSubmissionsLoading(false);
+        }
+      }
+    };
+
+    loadPendingSubmissions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredPendingSubmissions = useMemo(() => {
     if (!normalizedQuery) {
-      return publicationRows;
+      return pendingSubmissions;
     }
 
-    return publicationRows.filter((item) =>
-      `${item.id} ${item.title} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
+    return pendingSubmissions.filter((item) => {
+      const row = [
+        item.documentNumber,
+        item.id,
+        item.title,
+        item.requestTypeLabel,
+        item.owner?.name,
+        item.owner?.email,
+        item.owner?.faculty,
+        item.owner?.department,
+        item.statusLabel,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      return row.includes(normalizedQuery);
+    });
+  }, [normalizedQuery, pendingSubmissions]);
 
   const filteredConferences = useMemo(() => {
     if (!normalizedQuery) {
@@ -222,6 +294,53 @@ export default function CommitteeDashboard() {
     </section>
   );
 
+  const renderPendingSubmissions = () => (
+    <section className="committee-page-card committee-stats-only-card">
+      <div className="committee-page-head">
+        <h3>Dorëzimet në Pritje</h3>
+        <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>
+      </div>
+
+      {isPendingSubmissionsLoading ? (
+        <p className="committee-empty">Duke ngarkuar dorëzimet në pritje...</p>
+      ) : pendingSubmissionsError ? (
+        <p className="committee-empty" role="alert">{pendingSubmissionsError}</p>
+      ) : (
+        <>
+          <div className="committee-table-wrap">
+            <table className="committee-table">
+              <thead>
+                <tr>
+                  <th>ID / Dokumenti</th>
+                  <th>Titulli / Lloji</th>
+                  <th>Aplikanti</th>
+                  <th>Njësia akademike</th>
+                  <th>Data e dorëzimit</th>
+                  <th>Statusi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPendingSubmissions.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.documentNumber || row.id}</td>
+                    <td>{row.title || row.requestTypeLabel || "-"}</td>
+                    <td>{row.owner?.name || row.owner?.email || "-"}</td>
+                    <td>{row.owner?.faculty || row.owner?.department || "-"}</td>
+                    <td>{formatDate(row.submittedAt || row.createdAt)}</td>
+                    <td>{row.statusLabel || row.status || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredPendingSubmissions.length === 0 ? (
+            <p className="committee-empty">Nuk ka dorëzime në pritje për momentin.</p>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
+
   const renderStatistics = () => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-stats-head">
@@ -296,19 +415,8 @@ export default function CommitteeDashboard() {
     </section>
   );
 
-  let resultCount = filteredPublications.length;
-  let content = renderSimpleTable(
-    "Dorëzimet në Pritje",
-    "Permbledhje e dorëzimeve akademike ne pritje e shqyrtimi.",
-    [
-      { key: "id", label: "ID" },
-      { key: "title", label: "Titulli" },
-      { key: "unit", label: "Njesia" },
-      { key: "status", label: "Statusi" },
-    ],
-    filteredPublications
-  );
-
+  let resultCount = filteredPendingSubmissions.length;
+  let content = renderPendingSubmissions();
   if (activePage === "Shqyrtimi") {
     resultCount = 0;
     content = (
