@@ -25,9 +25,9 @@ const STATUS_LABELS = {
 };
 
 const HISTORY_REQUEST_TYPE_LABELS = {
-  publication: "F1 - Publikime shkencore",
-  conference: "F2 - Konferenca dhe Simpoziume",
-  project: "F3 - Projekte shkencore",
+  publication: "Publikim shkencor",
+  conference: "Konferencë dhe Simpozium",
+  project: "Projekt shkencor",
 };
 
 const HISTORY_STATUS_FILTERS = [
@@ -985,21 +985,37 @@ function normalizeLegacyRows(rows) {
 }
 
 function getHistoryRequestTypeLabel(request) {
-  return HISTORY_REQUEST_TYPE_LABELS[request.requestType] || request.requestTypeLabel || request.requestType || "";
-}
+  if (HISTORY_REQUEST_TYPE_LABELS[request.requestType]) {
+    return HISTORY_REQUEST_TYPE_LABELS[request.requestType];
+  }
 
-function getHistoryRequestTypeParts(request) {
-  const label = getHistoryRequestTypeLabel(request);
-  const [code, ...nameParts] = label.split(" - ");
+  const label = request.requestTypeLabel || request.requestType || "";
+  const cleanLabel = label.replace(/^F\d+\s*-\s*/i, "");
+  const normalizedLabel = cleanLabel.toLowerCase();
 
-  return {
-    code: nameParts.length ? code : "",
-    name: nameParts.length ? nameParts.join(" - ") : label,
-  };
+  if (normalizedLabel.includes("publikime")) {
+    return HISTORY_REQUEST_TYPE_LABELS.publication;
+  }
+
+  if (normalizedLabel.includes("konferenca")) {
+    return HISTORY_REQUEST_TYPE_LABELS.conference;
+  }
+
+  if (normalizedLabel.includes("projekte")) {
+    return HISTORY_REQUEST_TYPE_LABELS.project;
+  }
+
+  return cleanLabel;
 }
 
 function getHistoryMainDate(request) {
   return normalizeDate(request.submittedAt || request.createdAt || request.updatedAt);
+}
+
+function getHistoryNotes(history = []) {
+  return history
+    .map((item) => item.note)
+    .filter((note) => String(note ?? "").trim());
 }
 
 function ReimbursementHistoryList({
@@ -1068,9 +1084,11 @@ function ReimbursementHistoryList({
           </div>
         ) : visibleRequests.length ? (
           visibleRequests.map((request) => {
-            const typeParts = getHistoryRequestTypeParts(request);
+            const requestTypeLabel = getHistoryRequestTypeLabel(request);
             const isExpanded = expandedRequestIds.has(request.id);
-            const hasDetails = request.statusHistory?.length || request.attachments?.length;
+            const statusLabel = tx(request.statusLabel || STATUS_LABELS[request.status] || request.status);
+            const historyDate = getHistoryMainDate(request);
+            const historyNotes = getHistoryNotes(request.statusHistory);
 
             return (
             <div className="prof-list-item reimbursement-request-item" key={request.id}>
@@ -1080,20 +1098,19 @@ function ReimbursementHistoryList({
                     <h4>{request.title}</h4>
                     <div className="reimbursement-row-meta">
                       <span className="reimbursement-type-chip">
-                        {typeParts.code ? <strong>{typeParts.code}</strong> : null}
-                        {typeParts.name}
+                        {requestTypeLabel}
                       </span>
                     </div>
                     {request.documentNumber ? (
                       <p className="reimbursement-document-number">#{request.documentNumber}</p>
                     ) : null}
                     <p className="reimbursement-card-subline">
-                      {[formatAmount(request), getHistoryMainDate(request)].filter(Boolean).join(" • ")}
+                      {[formatAmount(request), historyDate].filter(Boolean).join(" • ")}
                     </p>
                   </div>
                   <div className="reimbursement-request-actions">
                     <span className={`status-badge ${String(request.status).toLowerCase().replace(/\s+/g, "-")}`}>
-                      {tx(request.statusLabel || STATUS_LABELS[request.status] || request.status)}
+                      {statusLabel}
                     </span>
                     {!request.isLegacy ? (
                       <div className="reimbursement-action-buttons">
@@ -1129,8 +1146,7 @@ function ReimbursementHistoryList({
                   </div>
                 </div>
 
-                {hasDetails ? (
-                  <div className="reimbursement-card-details">
+                <div className="reimbursement-card-details">
                     <button
                       type="button"
                       className="reimbursement-details-toggle"
@@ -1143,12 +1159,52 @@ function ReimbursementHistoryList({
 
                     {isExpanded ? (
                       <div className="reimbursement-details-panel">
-                        {renderAttachments(request)}
-                        {renderStatusTimeline(request.statusHistory)}
+                        <div className="reimbursement-details-grid">
+                          <div className="reimbursement-detail-field">
+                            <span>Nr. Dokumentit</span>
+                            <strong>{request.documentNumber ? `#${request.documentNumber}` : "-"}</strong>
+                          </div>
+                          <div className="reimbursement-detail-field">
+                            <span>Statusi</span>
+                            <strong>{statusLabel}</strong>
+                          </div>
+                          <div className="reimbursement-detail-field">
+                            <span>Shuma</span>
+                            <strong>{formatAmount(request)}</strong>
+                          </div>
+                          <div className="reimbursement-detail-field">
+                            <span>Data dhe ora</span>
+                            <strong>{historyDate || "-"}</strong>
+                          </div>
+                        </div>
+
+                        {request.statusHistory?.length ? (
+                          <section className="reimbursement-details-section">
+                            <h5>Historiku i statusit</h5>
+                            {renderStatusTimeline(request.statusHistory)}
+                          </section>
+                        ) : null}
+
+                        {historyNotes.length ? (
+                          <section className="reimbursement-details-section">
+                            <h5>Komentet/Shënimet</h5>
+                            <div className="reimbursement-note-list">
+                              {historyNotes.map((note, index) => (
+                                <p key={`${request.id}-note-${index}`}>{note}</p>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+
+                        {request.attachments?.length ? (
+                          <section className="reimbursement-details-section">
+                            <h5>Attachment-et</h5>
+                            {renderAttachments(request)}
+                          </section>
+                        ) : null}
                       </div>
                     ) : null}
-                  </div>
-                ) : null}
+                </div>
               </div>
             </div>
             );
