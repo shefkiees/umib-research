@@ -8,6 +8,7 @@ import {
   Pencil,
   RefreshCw,
   Save,
+  Send,
   Settings,
   ShieldX,
   Trash2,
@@ -180,6 +181,12 @@ const mapPublicationRow = (row = {}) => ({
   metadataSource: row.metadataSource || row.metadata_source || "manual",
   metadataVerified: Boolean(row.metadataVerified ?? row.metadata_verified),
   externalMetadataId: row.externalMetadataId || row.external_metadata_id || "",
+  metadataReviewStatus: row.metadataReviewStatus || row.metadata_review_status || "unchecked",
+  metadataReviewChecklist: row.metadataReviewChecklist || row.metadata_review_checklist || {},
+  metadataReviewComment: row.metadataReviewComment || row.metadata_review_comment || "",
+  reviewHistory: Array.isArray(row.reviewHistory || row.review_history) ? (row.reviewHistory || row.review_history) : [],
+  revisionRequestedAt: row.revisionRequestedAt || row.revision_requested_at || null,
+  resubmittedAt: row.resubmittedAt || row.resubmitted_at || null,
   createdAt: row.createdAt || row.created_at || null,
 });
 
@@ -786,6 +793,7 @@ export default function ProfessorDashboard() {
 
     return {
       ...payload,
+      status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: Array.isArray(draft.authors) ? draft.authors : [],
       indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
       quartile: draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "",
@@ -1116,6 +1124,37 @@ export default function ProfessorDashboard() {
       await loadPublications({ page: publicationsPage, query: searchQuery });
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
+    } finally {
+      setPublicationActionId("");
+    }
+  };
+
+  const resubmitPublication = async (id) => {
+    setPublicationActionId(id);
+    setPublicationsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/publications/${id}/resubmit`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ comment: "Publikimi u ridergua pas korrigjimit." }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Publikimi nuk u ridergua.");
+      }
+
+      cancelPublicationEdit();
+      await Promise.all([
+        loadPublications({ page: publicationsPage, query: searchQuery }),
+        loadNotifications(),
+      ]);
+    } catch (error) {
+      setPublicationsError(error.message || "Publikimi nuk u ridergua.");
     } finally {
       setPublicationActionId("");
     }
@@ -1472,6 +1511,38 @@ export default function ProfessorDashboard() {
     return row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || t("common.noData");
   };
 
+  const getRevisionIssues = (row = {}) => {
+    const checklist = row.metadataReviewChecklist || {};
+    const labels = {
+      doiOk: "DOI",
+      titleMatches: "Titulli",
+      venueOk: "Journal / Konferenca",
+      authorsOk: "Autoret",
+      uibmOk: "UIBM affiliation",
+      documentsOk: "Dokumentet",
+    };
+
+    return Object.entries(labels)
+      .filter(([key]) => checklist[key] === false)
+      .map(([, label]) => label);
+  };
+
+  const renderRevisionNotice = (row = {}) => {
+    if (row.status !== "needs_correction" && row.metadataReviewStatus !== "correction") {
+      return null;
+    }
+
+    const issues = getRevisionIssues(row);
+
+    return (
+      <div className="publication-revision-notice">
+        <strong>Publikimi kerkon korrigjim</strong>
+        <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
+        {issues.length ? <span>Pikat per kontroll: {issues.join(", ")}</span> : null}
+      </div>
+    );
+  };
+
   const renderPublicationActions = (row) => {
     if (editingPublicationId === row.id) {
       return (
@@ -1494,6 +1565,17 @@ export default function ProfessorDashboard() {
           >
             <X size={15} /> {t("common.cancel")}
           </button>
+          {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
+            <button
+              type="button"
+              className="prof-btn-primary"
+              onClick={() => resubmitPublication(row.id)}
+              disabled={publicationActionId === row.id}
+              aria-label="Ridergo"
+            >
+              <Send size={15} /> Ridergo
+            </button>
+          ) : null}
         </div>
       );
     }
@@ -1508,6 +1590,20 @@ export default function ProfessorDashboard() {
         >
           <Pencil size={15} /> {t("common.edit")}
         </button>
+        {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
+          <button
+            type="button"
+            className="prof-btn-primary"
+            onClick={() => {
+              startPublicationEdit(row);
+              setFocusedPublicationId(row.id);
+            }}
+            disabled={publicationActionId === row.id}
+            aria-label="Rishiko"
+          >
+            <Send size={15} /> Rishiko
+          </button>
+        ) : null}
         <button
           type="button"
           className="prof-btn-secondary"
@@ -1545,6 +1641,8 @@ export default function ProfessorDashboard() {
             <span>{t("professor.dashboard.authorsColumn")}</span>
             <span>{t("professor.dashboard.yearColumn")}</span>
             <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+            <span>Statusi</span>
+            <span>Veprimet</span>
           </div>
           {filteredPublications.map((row) => (
             <div
@@ -1555,6 +1653,7 @@ export default function ProfessorDashboard() {
             >
               <div className="publication-title-cell">
                 <h4>{renderPublicationTitle(row)}</h4>
+                {renderRevisionNotice(row)}
               </div>
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.authorsColumn")}</span>
@@ -1567,6 +1666,14 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.publicationForm.quartile")}</span>
                 {formatPublicationQuartile(row)}
+              </div>
+              <div className="publication-meta-cell">
+                <span className="publication-mobile-label">Statusi</span>
+                {renderStatus(row.status)}
+              </div>
+              <div className="publication-meta-cell publication-actions-cell">
+                <span className="publication-mobile-label">Veprimet</span>
+                {renderPublicationActions(row)}
               </div>
             </div>
           ))}
@@ -1643,6 +1750,7 @@ export default function ProfessorDashboard() {
                     <p>{t("professor.dashboard.editPublicationDescription")}</p>
                   </div>
                 </div>
+                {renderRevisionNotice(publications.find((item) => item.id === editingPublicationId) || publicationDraft)}
                 <PublicationForm
                   value={publicationDraft}
                   onChange={setPublicationDraft}

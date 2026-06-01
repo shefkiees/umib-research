@@ -255,9 +255,18 @@ alter table publications add column if not exists isbn text not null default '';
 alter table publications add column if not exists metadata_source text not null default 'manual';
 alter table publications add column if not exists metadata_verified boolean not null default false;
 alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
+alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
+alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
+alter table publications add column if not exists metadata_review_comment text not null default '';
+alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
+alter table publications add column if not exists revision_requested_at timestamptz;
+alter table publications add column if not exists resubmitted_at timestamptz;
 alter table publications drop constraint if exists publications_status_check;
 alter table publications add constraint publications_status_check
 check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'needs_correction'));
+alter table publications drop constraint if exists publications_metadata_review_status_check;
+alter table publications add constraint publications_metadata_review_status_check
+check (metadata_review_status in ('unchecked', 'in_review', 'ok', 'correction'));
 
 update publications p
 set
@@ -300,6 +309,33 @@ on publications (owner_id, publication_year);
 
 create index if not exists publications_owner_type_idx
 on publications (owner_id, publication_type);
+
+create index if not exists publications_metadata_review_status_idx
+on publications (metadata_review_status, updated_at desc);
+
+create table if not exists publication_review_history (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid not null references publications(id) on delete cascade,
+  previous_status text,
+  status text not null,
+  actor_id uuid references users(id) on delete set null,
+  actor_role text,
+  actor_name text,
+  comment text not null default '',
+  checklist jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table publication_review_history add column if not exists actor_role text;
+alter table publication_review_history add column if not exists actor_name text;
+alter table publication_review_history add column if not exists comment text not null default '';
+alter table publication_review_history add column if not exists checklist jsonb not null default '{}'::jsonb;
+
+create index if not exists publication_review_history_publication_idx
+on publication_review_history (publication_id, created_at desc);
+
+create index if not exists publication_review_history_actor_idx
+on publication_review_history (actor_id);
 
 create table if not exists publication_authors (
   id uuid primary key default gen_random_uuid(),
@@ -641,6 +677,7 @@ alter table publication_authors enable row level security;
 alter table publication_identifiers enable row level security;
 alter table publication_indexing enable row level security;
 alter table publication_attachments enable row level security;
+alter table publication_review_history enable row level security;
 alter table reimbursements enable row level security;
 alter table reimbursement_status_history enable row level security;
 alter table reimbursement_attachments enable row level security;

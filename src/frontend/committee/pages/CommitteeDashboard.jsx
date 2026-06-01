@@ -195,6 +195,26 @@ function createInitialReview(publication) {
   };
 }
 
+function mapMetadataReviewFromPublication(publication) {
+  const checklist = publication?.metadataReviewChecklist || publication?.metadata_review_checklist || createDefaultChecklist(publication);
+  const history = publication?.reviewHistory || publication?.review_history || [];
+
+  return {
+    status: publication?.metadataReviewStatus || publication?.metadata_review_status || "unchecked",
+    checklist: { ...createDefaultChecklist(publication), ...checklist },
+    comment: publication?.metadataReviewComment || publication?.metadata_review_comment || "",
+    history: history.map((entry) => ({
+      id: entry.id || `${entry.created_at || entry.createdAt}-${entry.status}`,
+      actor: entry.actor_name || entry.actorName || "UMIBRes",
+      status: entry.status || "unchecked",
+      statusLabel: getReviewStatusConfig(entry.status).label,
+      comment: entry.comment || "",
+      checklist: entry.checklist || {},
+      createdAt: entry.created_at || entry.createdAt,
+    })),
+  };
+}
+
 function getReviewCompleteness(review, publication) {
   const checklist = review?.checklist || createDefaultChecklist(publication);
   const checkedCount = metadataChecklistItems.filter((item) => checklist[item.key]).length;
@@ -367,7 +387,12 @@ export default function CommitteeDashboard() {
         }
 
         if (isMounted) {
-          setMetadataPublications(Array.isArray(data.data) ? data.data : []);
+          const rows = Array.isArray(data.data) ? data.data : [];
+          setMetadataPublications(rows);
+          setMetadataReviews((prev) => rows.reduce((reviews, publication) => ({
+            ...reviews,
+            [publication.id]: mapMetadataReviewFromPublication(publication),
+          }), prev));
         }
       } catch (error) {
         if (isMounted) {
@@ -529,40 +554,79 @@ export default function CommitteeDashboard() {
     }
   };
 
-  const markMetadataOk = (publication) => {
+  const syncMetadataReviewResponse = (publication, data) => {
+    const updatedPublication = data?.data || publication;
+    const nextReview = mapMetadataReviewFromPublication(updatedPublication);
+
+    setMetadataPublications((prev) =>
+      prev.map((item) => (item.id === updatedPublication.id ? updatedPublication : item))
+    );
+    setSelectedMetadataPublication((current) =>
+      current?.id === updatedPublication.id ? updatedPublication : current
+    );
+    setMetadataReviews((prev) => ({
+      ...prev,
+      [updatedPublication.id]: nextReview,
+    }));
+    setCorrectionComment(nextReview.comment || "");
+  };
+
+  const sendMetadataReview = async (publication, payload) => {
+    const response = await fetch(apiUrl(`/publications/${publication.id}/metadata-review`), {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || "Kontrolli i metadata-s nuk u ruajt.");
+    }
+
+    syncMetadataReviewResponse(publication, data);
+    return data;
+  };
+
+  const markMetadataOk = async (publication) => {
     const checklist = metadataChecklistItems.reduce((items, item) => ({
       ...items,
       [item.key]: true,
     }), {});
 
-    saveMetadataReview(publication, (current) => ({
-      status: "ok",
-      checklist,
-      history: [
-        {
-          id: `${Date.now()}-ok`,
-          actor: committeeProfile.name || committeeProfile.email || "Komisioni",
-          status: "ok",
-          statusLabel: metadataReviewStatuses.ok.label,
-          comment: "Metadata u verifikua si e plotë.",
-          createdAt: new Date().toISOString(),
-        },
-        ...(current.history || []),
-      ],
-    }));
-    setCorrectionError("");
+    try {
+      setCorrectionError("");
+      await sendMetadataReview(publication, {
+        status: "ok",
+        comment: "Metadata u verifikua si e plote.",
+        checklist,
+      });
+    } catch (error) {
+      setCorrectionError(error.message || "Metadata nuk u ruajt.");
+    }
   };
 
-  const requestMetadataCorrection = (publication) => {
+  const requestMetadataCorrection = async (publication) => {
     const comment = correctionComment.trim();
 
     if (!comment) {
-      setCorrectionError("Komenti është i detyrueshëm për korrigjim.");
+      setCorrectionError("Komenti eshte i detyrueshem per korrigjim.");
       return;
     }
 
-    addMetadataHistory(publication, "correction", comment);
-    setCorrectionError("");
+    try {
+      const review = getReviewForPublication(publication);
+      await sendMetadataReview(publication, {
+        status: "correction",
+        comment,
+        checklist: review.checklist || createDefaultChecklist(publication),
+      });
+      setCorrectionError("");
+    } catch (error) {
+      setCorrectionError(error.message || "Korrigjimi nuk u dergua te profesori.");
+    }
   };
 
   const openPublicationDocument = (publication) => {

@@ -15,6 +15,7 @@ const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "
 const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
+const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -27,6 +28,7 @@ const MAX_LIMIT = 50;
 const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DOI_IMPORT_RATE_LIMIT_MAX = 20;
 const doiImportRateLimits = new Map();
+let publicationReviewSchemaReady = false;
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -454,6 +456,20 @@ function mapPublication(row) {
     metadata_verified: Boolean(row.metadata_verified),
     externalMetadataId: row.external_metadata_id || "",
     external_metadata_id: row.external_metadata_id || "",
+    metadataReviewStatus: row.metadata_review_status || "unchecked",
+    metadata_review_status: row.metadata_review_status || "unchecked",
+    metadataReviewChecklist: row.metadata_review_checklist || {},
+    metadata_review_checklist: row.metadata_review_checklist || {},
+    metadataReviewComment: row.metadata_review_comment || "",
+    metadata_review_comment: row.metadata_review_comment || "",
+    revisionRequestedBy: row.revision_requested_by || null,
+    revision_requested_by: row.revision_requested_by || null,
+    revisionRequestedAt: row.revision_requested_at || null,
+    revision_requested_at: row.revision_requested_at || null,
+    resubmittedAt: row.resubmitted_at || null,
+    resubmitted_at: row.resubmitted_at || null,
+    reviewHistory: getArrayField(row, "review_history"),
+    review_history: getArrayField(row, "review_history"),
     status: row.status || "draft",
     createdAt: row.created_at || null,
     created_at: row.created_at || null,
@@ -467,6 +483,8 @@ const PUBLICATION_SELECT_SQL = `
   p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.isbn, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
+  p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
+  p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
   m.type as metadata_type, m.authors as metadata_authors,
   coalesce((
     select jsonb_agg(jsonb_build_object(
@@ -508,17 +526,37 @@ const PUBLICATION_SELECT_SQL = `
     ) order by pi.identifier_type, pi.identifier_value)
     from publication_identifiers pi
     where pi.publication_id = p.id
-  ), '[]'::jsonb) as identifiers
+  ), '[]'::jsonb) as identifiers,
+  coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', prh.id,
+      'previous_status', prh.previous_status,
+      'status', prh.status,
+      'actor_id', prh.actor_id,
+      'actor_role', prh.actor_role,
+      'actor_name', prh.actor_name,
+      'comment', prh.comment,
+      'checklist', prh.checklist,
+      'created_at', prh.created_at
+    ) order by prh.created_at desc)
+    from publication_review_history prh
+    where prh.publication_id = p.id
+  ), '[]'::jsonb) as review_history
 `;
 
 const LEGACY_PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
+  p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
+  p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
+  '[]'::jsonb as review_history,
   m.container_title, m.publisher, m.year, m.type as metadata_type, m.authors as metadata_authors, m.source_url
 `;
 
 let unifiedPublicationSchemaCache = null;
 
 async function hasUnifiedPublicationSchema(dbOrClient) {
+  await ensurePublicationReviewSchema(dbOrClient);
+
   if (unifiedPublicationSchemaCache !== null) {
     return unifiedPublicationSchemaCache;
   }
@@ -646,6 +684,45 @@ async function loadCurrentUser(userId) {
   return rows[0] || null;
 }
 
+async function ensurePublicationReviewSchema(client) {
+  if (publicationReviewSchemaReady) {
+    return;
+  }
+
+  await client.query(`
+    alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
+    alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
+    alter table publications add column if not exists metadata_review_comment text not null default '';
+    alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
+    alter table publications add column if not exists revision_requested_at timestamptz;
+    alter table publications add column if not exists resubmitted_at timestamptz;
+    alter table publications drop constraint if exists publications_status_check;
+    alter table publications add constraint publications_status_check
+      check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'needs_correction'));
+    alter table publications drop constraint if exists publications_metadata_review_status_check;
+    alter table publications add constraint publications_metadata_review_status_check
+      check (metadata_review_status in ('unchecked', 'in_review', 'ok', 'correction'));
+    create table if not exists publication_review_history (
+      id uuid primary key default gen_random_uuid(),
+      publication_id uuid not null references publications(id) on delete cascade,
+      previous_status text,
+      status text not null,
+      actor_id uuid references users(id) on delete set null,
+      actor_role text,
+      actor_name text,
+      comment text not null default '',
+      checklist jsonb not null default '{}'::jsonb,
+      created_at timestamptz not null default now()
+    );
+    create index if not exists publication_review_history_publication_idx
+      on publication_review_history (publication_id, created_at desc);
+    create index if not exists publications_metadata_review_status_idx
+      on publications (metadata_review_status, updated_at desc);
+  `);
+
+  publicationReviewSchemaReady = true;
+}
+
 async function fetchPublicationByDoi(client, ownerId, doi) {
   const isUnified = await hasUnifiedPublicationSchema(client);
 
@@ -663,6 +740,38 @@ async function fetchPublicationByDoi(client, ownerId, doi) {
 
 function sendPublicationError(res, status, error, message, extra = {}) {
   res.status(status).json({ error, message, ...extra });
+}
+
+function normalizeMetadataReviewChecklist(value = {}) {
+  const checklist = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    doiOk: Boolean(checklist.doiOk ?? checklist.doi_ok),
+    titleMatches: Boolean(checklist.titleMatches ?? checklist.title_matches),
+    venueOk: Boolean(checklist.venueOk ?? checklist.venue_ok),
+    authorsOk: Boolean(checklist.authorsOk ?? checklist.authors_ok),
+    uibmOk: Boolean(checklist.uibmOk ?? checklist.uibm_ok),
+    documentsOk: Boolean(checklist.documentsOk ?? checklist.documents_ok),
+  };
+}
+
+function getMetadataReviewIssueLabels(checklist = {}) {
+  const labels = {
+    doiOk: "DOI OK",
+    titleMatches: "Titulli perputhet me dokumentin",
+    venueOk: "Journal / Konferenca OK",
+    authorsOk: "Autoret OK",
+    uibmOk: "UIBM affiliation OK",
+    documentsOk: "Dokumentet OK",
+  };
+
+  return Object.entries(labels)
+    .filter(([key]) => !checklist[key])
+    .map(([, label]) => label);
+}
+
+function getActorName(user = {}) {
+  return normalizeText(user.full_name || user.name || user.email) || "UMIBRes";
 }
 
 function getDoiImportRateLimitKey(req) {
@@ -1172,6 +1281,169 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
 
     console.error("PUT /api/publications/:id failed:", error);
     res.status(500).json({ error: "update_failed", message: "Publikimi nuk u perditesua." });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/:id/metadata-review", requireAuthenticatedUser, async (req, res) => {
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+
+  if (!canReviewPublications(currentUser)) {
+    res.status(403).json({
+      error: "forbidden",
+      message: "Vetem Komisioni mund te kontrolloje metadata per publikime.",
+    });
+    return;
+  }
+
+  const status = normalizeText(req.body?.status || req.body?.metadataReviewStatus || req.body?.metadata_review_status);
+  const comment = normalizeText(req.body?.comment || req.body?.metadataReviewComment || req.body?.metadata_review_comment);
+  const checklist = normalizeMetadataReviewChecklist(req.body?.checklist || req.body?.metadataReviewChecklist || req.body?.metadata_review_checklist);
+
+  if (!VALID_METADATA_REVIEW_STATUSES.has(status)) {
+    res.status(400).json({ error: "invalid_metadata_review_status", message: "Statusi i metadata-s nuk eshte valid." });
+    return;
+  }
+
+  if (status === "correction" && !comment) {
+    res.status(400).json({ error: "comment_required", message: "Komenti eshte i detyrueshem per korrigjim." });
+    return;
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+    await ensurePublicationReviewSchema(client);
+
+    const existing = await fetchPublicationById(client, req.params.id, null);
+
+    if (!existing) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    const nextPublicationStatus = status === "correction"
+      ? "needs_correction"
+      : existing.status || "in_review";
+    const issueLabels = getMetadataReviewIssueLabels(checklist);
+
+    const { rows } = await client.query(
+      `update publications
+       set metadata_review_status = $2,
+           metadata_review_checklist = $3::jsonb,
+           metadata_review_comment = $4,
+           status = $5,
+           revision_requested_by = case when $2 = 'correction' then $6 else revision_requested_by end,
+           revision_requested_at = case when $2 = 'correction' then now() else revision_requested_at end,
+           updated_at = now()
+       where id = $1
+       returning id`,
+      [
+        req.params.id,
+        status,
+        JSON.stringify(checklist),
+        comment,
+        nextPublicationStatus,
+        req.user.id,
+      ]
+    );
+
+    await client.query(
+      `insert into publication_review_history
+       (publication_id, previous_status, status, actor_id, actor_role, actor_name, comment, checklist)
+       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
+      [
+        req.params.id,
+        existing.metadata_review_status || existing.metadataReviewStatus || "unchecked",
+        status,
+        req.user.id,
+        normalizeRole(currentUser.role),
+        getActorName(currentUser),
+        comment,
+        JSON.stringify({ ...checklist, issues: issueLabels }),
+      ]
+    );
+
+    const row = await fetchPublicationById(client, rows[0].id, null);
+
+    if (status === "correction") {
+      await createNotification(client, {
+        userId: row.ownerId || row.owner_id,
+        title: "Publikimi juaj kerkon korrigjim",
+        message: [
+          `Komisioni ka kerkuar perditesim te metadata-s per "${row.title || row.doi || "publikimin"}".`,
+          comment,
+          issueLabels.length ? `Pikat per kontroll: ${issueLabels.join(", ")}.` : "",
+          "Ju lutem rishikoni publikimin dhe ridergojeni.",
+        ].filter(Boolean).join(" "),
+        category: "Publikime",
+      });
+    }
+
+    await client.query("commit");
+    res.json({ data: mapPublication(row) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/publications/:id/metadata-review failed:", error);
+    res.status(500).json({ error: "metadata_review_failed", message: "Kontrolli i metadata-s nuk u ruajt." });
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/:id/resubmit", requireAuthenticatedUser, async (req, res) => {
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+  const comment = normalizeText(req.body?.comment || "Publikimi u ridergua pas korrigjimit.");
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+    await ensurePublicationReviewSchema(client);
+
+    const existing = await fetchPublicationById(client, req.params.id, req.user.id);
+
+    if (!existing) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Publikimi nuk u gjet." });
+      return;
+    }
+
+    const { rows } = await client.query(
+      `update publications
+       set status = 'in_review',
+           metadata_review_status = 'in_review',
+           resubmitted_at = now(),
+           updated_at = now()
+       where id = $1 and owner_id = $2
+       returning id`,
+      [req.params.id, req.user.id]
+    );
+
+    await client.query(
+      `insert into publication_review_history
+       (publication_id, previous_status, status, actor_id, actor_role, actor_name, comment, checklist)
+       values ($1, $2, 'in_review', $3, $4, $5, $6, $7::jsonb)`,
+      [
+        req.params.id,
+        existing.metadata_review_status || existing.metadataReviewStatus || "correction",
+        req.user.id,
+        normalizeRole(currentUser.role),
+        getActorName(currentUser),
+        comment,
+        JSON.stringify(existing.metadata_review_checklist || existing.metadataReviewChecklist || {}),
+      ]
+    );
+
+    const row = await fetchPublicationById(client, rows[0].id, req.user.id);
+    await client.query("commit");
+    res.json({ data: mapPublication(row) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("POST /api/publications/:id/resubmit failed:", error);
+    res.status(500).json({ error: "resubmit_failed", message: "Publikimi nuk u ridergua." });
   } finally {
     client.release();
   }

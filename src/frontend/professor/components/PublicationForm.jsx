@@ -111,6 +111,9 @@ export function publicationToDraft(publication = {}) {
     metadataSource: publication.metadataSource || publication.metadata_source || "manual",
     metadataVerified: Boolean(publication.metadataVerified ?? publication.metadata_verified),
     externalMetadataId: publication.externalMetadataId || publication.external_metadata_id || "",
+    metadataReviewStatus: publication.metadataReviewStatus || publication.metadata_review_status || "unchecked",
+    metadataReviewChecklist: publication.metadataReviewChecklist || publication.metadata_review_checklist || {},
+    metadataReviewComment: publication.metadataReviewComment || publication.metadata_review_comment || "",
   };
 }
 

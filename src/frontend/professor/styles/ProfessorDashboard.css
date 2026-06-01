@@ -1511,7 +1511,7 @@ body {
 .publication-table-head,
 .publication-table-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.7fr) minmax(170px, 1fr) minmax(90px, 0.45fr) minmax(90px, 0.45fr);
+  grid-template-columns: minmax(240px, 1.6fr) minmax(150px, 0.9fr) minmax(80px, 0.4fr) minmax(80px, 0.4fr) minmax(120px, 0.55fr) minmax(180px, 0.9fr);
   gap: 14px;
   align-items: center;
 }
@@ -1561,6 +1561,33 @@ body {
   color: #64748b;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.publication-revision-notice {
+  margin-top: 10px;
+  border: 1px solid #f3c47b;
+  border-radius: 10px;
+  background: #fff8eb;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.publication-revision-notice strong {
+  color: #9a6700;
+  font-size: 0.84rem;
+}
+
+.publication-revision-notice p,
+.publication-revision-notice span {
+  margin: 0;
+  color: #7c5a14;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.publication-actions-cell .publication-row-actions {
+  justify-content: flex-start;
 }
 
 .publication-mobile-label {
