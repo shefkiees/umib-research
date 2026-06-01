@@ -35,6 +35,30 @@ const conferenceRows = [
 
 const navLabels = ["Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
 
+const publicationStatusLabels = {
+  draft: "Draft",
+  submitted: "Në pritje",
+  in_review: "Në shqyrtim",
+  needs_correction: "Korrigjim",
+  approved: "Aprovuar",
+  rejected: "Refuzuar",
+};
+
+const publicationTypeLabels = {
+  journal_article: "Artikull reviste",
+  conference_paper: "Punim konference",
+  book: "Libër / kapitull",
+};
+
+const metadataFilters = [
+  { id: "all", label: "Të gjitha" },
+  { id: "submitted", label: "Në pritje" },
+  { id: "missing-doi", label: "Pa DOI" },
+  { id: "verified", label: "Të verifikuara" },
+  { id: "unverified", label: "Pa verifikim" },
+  { id: "missing-uibm", label: "Pa UIBM affiliation" },
+];
+
 function formatDate(value) {
   if (!value) {
     return "-";
@@ -53,6 +77,47 @@ function formatDate(value) {
   });
 }
 
+function normalizeForSearch(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getPublicationAuthors(publication) {
+  return Array.isArray(publication?.authors) ? publication.authors : [];
+}
+
+function getAuthorName(author) {
+  return author?.fullName || author?.full_name || author?.name || "";
+}
+
+function getAuthorAffiliation(author) {
+  return author?.affiliation || "";
+}
+
+function hasUibmAffiliation(publication) {
+  const text = getPublicationAuthors(publication)
+    .map((author) => getAuthorAffiliation(author))
+    .join(" ");
+
+  return /uibm|isa boletini|universiteti.*mitrovic|university.*mitrovic/i.test(text);
+}
+
+function getMetadataStatus(publication) {
+  if (publication.metadataVerified || publication.metadata_verified) return "Verifikuar";
+  if (publication.doi) return "DOI pa verifikim";
+  return "Manual";
+}
+
+function getPublicationTypeLabel(value) {
+  return publicationTypeLabels[value] || value || "-";
+}
+
+function getPublicationStatusLabel(value) {
+  return publicationStatusLabels[value] || value || "-";
+}
+
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("Dorëzimet në Pritje");
@@ -60,6 +125,11 @@ export default function CommitteeDashboard() {
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
+  const [metadataPublications, setMetadataPublications] = useState([]);
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState("");
+  const [metadataFilter, setMetadataFilter] = useState("all");
+  const [selectedMetadataPublication, setSelectedMetadataPublication] = useState(null);
   const [committeeProfile, setCommitteeProfile] = useState({
     name: "Komisioni Shkencor",
     role: "Paneli i vleresimit",
@@ -103,7 +173,7 @@ export default function CommitteeDashboard() {
     },
   ]);
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = normalizeForSearch(searchQuery.trim());
 
   const filteredFacultyStats = useMemo(() => {
     if (!normalizedQuery) {
@@ -161,6 +231,45 @@ export default function CommitteeDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMetadataPublications = async () => {
+      setIsMetadataLoading(true);
+      setMetadataError("");
+
+      try {
+        const response = await fetch(apiUrl("/publications?scope=review&limit=50"), {
+          credentials: "include",
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.message || "Metadata e publikimeve nuk u ngarkua.");
+        }
+
+        if (isMounted) {
+          setMetadataPublications(Array.isArray(data.data) ? data.data : []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setMetadataPublications([]);
+          setMetadataError(error.message || "Metadata e publikimeve nuk u ngarkua.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsMetadataLoading(false);
+        }
+      }
+    };
+
+    loadMetadataPublications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filteredPendingSubmissions = useMemo(() => {
     if (!normalizedQuery) {
       return pendingSubmissions;
@@ -192,6 +301,50 @@ export default function CommitteeDashboard() {
       `${item.id} ${item.event} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
     );
   }, [normalizedQuery]);
+
+  const filteredMetadataPublications = useMemo(() => {
+    const filteredByState = metadataPublications.filter((item) => {
+      if (metadataFilter === "submitted") return item.status === "submitted";
+      if (metadataFilter === "missing-doi") return !item.doi;
+      if (metadataFilter === "verified") return Boolean(item.metadataVerified || item.metadata_verified);
+      if (metadataFilter === "unverified") return !item.metadataVerified && !item.metadata_verified;
+      if (metadataFilter === "missing-uibm") return !hasUibmAffiliation(item);
+      return true;
+    });
+
+    if (!normalizedQuery) {
+      return filteredByState;
+    }
+
+    return filteredByState.filter((item) => {
+      const authorsText = getPublicationAuthors(item)
+        .map((author) => `${getAuthorName(author)} ${getAuthorAffiliation(author)}`)
+        .join(" ");
+      const row = [
+        item.title,
+        item.doi,
+        item.venue,
+        item.publisher,
+        item.publicationType,
+        item.publication_type,
+        item.publicationYear,
+        item.publication_year,
+        item.status,
+        getPublicationStatusLabel(item.status),
+        getMetadataStatus(item),
+        authorsText,
+      ].filter(Boolean).join(" ");
+
+      return normalizeForSearch(row).includes(normalizedQuery);
+    });
+  }, [metadataFilter, metadataPublications, normalizedQuery]);
+
+  const metadataSummary = useMemo(() => ({
+    total: metadataPublications.length,
+    verified: metadataPublications.filter((item) => item.metadataVerified || item.metadata_verified).length,
+    missingDoi: metadataPublications.filter((item) => !item.doi).length,
+    missingUibm: metadataPublications.filter((item) => !hasUibmAffiliation(item)).length,
+  }), [metadataPublications]);
 
   const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
@@ -341,6 +494,159 @@ export default function CommitteeDashboard() {
     </section>
   );
 
+  const renderMetadata = () => (
+    <section className="committee-page-card committee-stats-only-card committee-metadata-section">
+      <div className="committee-page-head committee-metadata-head">
+        <div>
+          <h3>Metadata e publikimeve</h3>
+          <p>Të dhëna reale nga publikimet: DOI, journal/konferenca, autorët, affiliation dhe statusi i verifikimit.</p>
+        </div>
+        <button className="committee-api-chip" type="button">
+          Live data
+        </button>
+      </div>
+
+      <div className="committee-metadata-summary">
+        <article>
+          <span>Publikime</span>
+          <strong>{metadataSummary.total}</strong>
+        </article>
+        <article>
+          <span>Metadata verifikuar</span>
+          <strong>{metadataSummary.verified}</strong>
+        </article>
+        <article>
+          <span>Pa DOI</span>
+          <strong>{metadataSummary.missingDoi}</strong>
+        </article>
+        <article>
+          <span>Pa UIBM affiliation</span>
+          <strong>{metadataSummary.missingUibm}</strong>
+        </article>
+      </div>
+
+      <div className="committee-metadata-filters" aria-label="Filtrat e metadatave">
+        {metadataFilters.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            className={metadataFilter === filter.id ? "is-active" : ""}
+            onClick={() => setMetadataFilter(filter.id)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {metadataError ? <p className="committee-empty" role="alert">{metadataError}</p> : null}
+
+      {isMetadataLoading ? (
+        <p className="committee-empty">Duke ngarkuar metadata nga databaza...</p>
+      ) : (
+        <div className="committee-table-wrap committee-metadata-table-wrap">
+          <table className="committee-table committee-metadata-table">
+            <thead>
+              <tr>
+                <th>Publikimi</th>
+                <th>DOI</th>
+                <th>Burimi</th>
+                <th>Autorët / Affiliation</th>
+                <th>Metadata</th>
+                <th>Statusi</th>
+                <th>Detaje</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMetadataPublications.map((item) => {
+                const authors = getPublicationAuthors(item);
+                const firstAuthor = authors[0];
+                const hasUibm = hasUibmAffiliation(item);
+
+                return (
+                  <tr key={item.id}>
+                    <td>
+                      <strong className="committee-metadata-title">{item.title || "Pa titull"}</strong>
+                      <span className="committee-metadata-muted">{getPublicationTypeLabel(item.publicationType || item.publication_type)}</span>
+                    </td>
+                    <td>
+                      {item.doi ? (
+                        <a href={`https://doi.org/${item.doi}`} target="_blank" rel="noreferrer">{item.doi}</a>
+                      ) : (
+                        <span className="committee-metadata-warning">Mungon</span>
+                      )}
+                    </td>
+                    <td>
+                      <strong>{item.venue || item.publisher || "-"}</strong>
+                      <span className="committee-metadata-muted">{item.publicationYear || item.publication_year || formatDate(item.publicationDate || item.publication_date)}</span>
+                    </td>
+                    <td>
+                      <strong>{getAuthorName(firstAuthor) || "-"}</strong>
+                      <span className={hasUibm ? "committee-metadata-ok" : "committee-metadata-warning"}>
+                        {hasUibm ? "UIBM affiliation OK" : "UIBM affiliation mungon"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`committee-metadata-badge ${item.metadataVerified || item.metadata_verified ? "is-ok" : "is-warning"}`}>
+                        {getMetadataStatus(item)}
+                      </span>
+                    </td>
+                    <td>{getPublicationStatusLabel(item.status)}</td>
+                    <td>
+                      <button type="button" className="committee-details-btn" onClick={() => setSelectedMetadataPublication(item)}>
+                        Shiko
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!isMetadataLoading && !metadataError && filteredMetadataPublications.length === 0 ? (
+        <p className="committee-empty">Nuk ka publikime për filtrin aktual.</p>
+      ) : null}
+
+      {selectedMetadataPublication ? (
+        <div className="committee-metadata-drawer-backdrop" role="presentation" onClick={() => setSelectedMetadataPublication(null)}>
+          <aside className="committee-metadata-drawer" role="dialog" aria-label="Detajet e metadatave" onClick={(event) => event.stopPropagation()}>
+            <div className="committee-metadata-drawer-head">
+              <div>
+                <h4>{selectedMetadataPublication.title || "Pa titull"}</h4>
+                <p>{selectedMetadataPublication.doi || "Pa DOI"}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedMetadataPublication(null)} aria-label="Mbyll detajet">×</button>
+            </div>
+            <dl className="committee-metadata-detail-grid">
+              <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
+              <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
+              <div><dt>Publisher</dt><dd>{selectedMetadataPublication.publisher || "-"}</dd></div>
+              <div><dt>Viti / Data</dt><dd>{selectedMetadataPublication.publicationYear || selectedMetadataPublication.publication_year || formatDate(selectedMetadataPublication.publicationDate || selectedMetadataPublication.publication_date)}</dd></div>
+              <div><dt>Metadata source</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>
+              <div><dt>Metadata status</dt><dd>{getMetadataStatus(selectedMetadataPublication)}</dd></div>
+              <div><dt>Statusi</dt><dd>{getPublicationStatusLabel(selectedMetadataPublication.status)}</dd></div>
+              <div><dt>UIBM affiliation</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
+            </dl>
+            <div className="committee-metadata-authors">
+              <h5>Autorët dhe affiliation</h5>
+              {getPublicationAuthors(selectedMetadataPublication).length ? (
+                getPublicationAuthors(selectedMetadataPublication).map((author, index) => (
+                  <article key={`${getAuthorName(author)}-${index}`}>
+                    <strong>{getAuthorName(author) || `Autori ${index + 1}`}</strong>
+                    <span>{getAuthorAffiliation(author) || "Pa affiliation"}</span>
+                  </article>
+                ))
+              ) : (
+                <p>Nuk ka autorë të regjistruar.</p>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+    </section>
+  );
+
   const renderStatistics = () => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-stats-head">
@@ -432,18 +738,8 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Metadata") {
-    resultCount = filteredConferences.length;
-    content = renderSimpleTable(
-      "Metadata",
-      "Informacione të detajuara rreth dorëzimeve akademike.",
-      [
-        { key: "id", label: "ID" },
-        { key: "event", label: "Përshkrimi" },
-        { key: "unit", label: "Njesia" },
-        { key: "status", label: "Statusi" },
-      ],
-      filteredConferences
-    );
+    resultCount = filteredMetadataPublications.length;
+    content = renderMetadata();
   }
 
   if (activePage === "Vendimet") {

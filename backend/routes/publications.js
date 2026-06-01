@@ -11,7 +11,7 @@ import {
 import { createNotification } from "../services/notification.service.js";
 
 const router = express.Router();
-const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "approved", "rejected"]);
+const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "needs_correction", "approved", "rejected"]);
 const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
@@ -19,6 +19,7 @@ const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
   in_review: "Ne shqyrtim",
+  needs_correction: "Kthyer per korrigjim",
   approved: "Aprovuar",
   rejected: "Refuzuar",
 };
@@ -856,8 +857,22 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query);
   const q = normalizeText(req.query.q || req.query.search);
   const status = normalizeText(req.query.status);
-  const filters = ["p.owner_id = $1"];
-  const params = [req.user.id];
+  const scope = normalizeText(req.query.scope).toLowerCase();
+  const isReviewScope = ["review", "committee", "all"].includes(scope);
+  const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
+  const canSeeReviewScope = canReviewPublications(currentUser);
+  const filters = [];
+  const params = [];
+
+  if (isReviewScope && !canSeeReviewScope) {
+    res.status(403).json({ error: "forbidden", message: "Nuk keni leje per te pare publikimet per shqyrtim." });
+    return;
+  }
+
+  if (!isReviewScope) {
+    params.push(req.user.id);
+    filters.push(`p.owner_id = $${params.length}`);
+  }
 
   if (status) {
     if (!VALID_PUBLICATION_STATUSES.has(status)) {
@@ -894,7 +909,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
         : `(p.title ilike $${qParam} or p.venue ilike $${qParam} or p.doi ilike $${qParam} or m.publisher ilike $${qParam} or m.container_title ilike $${qParam})`);
     }
 
-    const resolvedWhereClause = filters.join(" and ");
+    const resolvedWhereClause = filters.length ? filters.join(" and ") : "true";
     const dataParams = [...params, limit, offset];
     const limitParam = dataParams.length - 1;
     const offsetParam = dataParams.length;

@@ -1119,6 +1119,241 @@
 	font-weight: 600;
 }
 
+.committee-metadata-section {
+	position: relative;
+}
+
+.committee-metadata-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.committee-metadata-summary {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.committee-metadata-summary article {
+	border: 1px solid #dbe5f2;
+	border-radius: 12px;
+	background: #f8fbff;
+	padding: 12px 14px;
+}
+
+.committee-metadata-summary span {
+	display: block;
+	color: #64748b;
+	font-size: 0.82rem;
+	font-weight: 700;
+}
+
+.committee-metadata-summary strong {
+	display: block;
+	margin-top: 4px;
+	color: #17324f;
+	font-size: 1.3rem;
+}
+
+.committee-metadata-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.committee-metadata-filters button,
+.committee-details-btn {
+	border: 1px solid #d7e1ee;
+	background: #ffffff;
+	color: #1f4f84;
+	font-weight: 700;
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.committee-metadata-filters button {
+	padding: 7px 12px;
+	font-size: 0.84rem;
+}
+
+.committee-metadata-filters button.is-active,
+.committee-metadata-filters button:hover,
+.committee-details-btn:hover {
+	border-color: #1f5f99;
+	background: #eef5ff;
+}
+
+.committee-metadata-table {
+	min-width: 1120px;
+}
+
+.committee-metadata-table th:nth-child(1) { width: 22%; }
+.committee-metadata-table th:nth-child(2) { width: 15%; }
+.committee-metadata-table th:nth-child(3) { width: 16%; }
+.committee-metadata-table th:nth-child(4) { width: 20%; }
+.committee-metadata-table th:nth-child(5) { width: 11%; }
+.committee-metadata-table th:nth-child(6) { width: 9%; }
+.committee-metadata-table th:nth-child(7) { width: 7%; }
+
+.committee-metadata-title,
+.committee-metadata-table td strong {
+	display: block;
+	color: #12233a;
+	font-weight: 800;
+	line-height: 1.35;
+}
+
+.committee-metadata-muted,
+.committee-metadata-ok,
+.committee-metadata-warning {
+	display: block;
+	margin-top: 5px;
+	font-size: 0.82rem;
+	line-height: 1.35;
+}
+
+.committee-metadata-muted {
+	color: #64748b;
+}
+
+.committee-metadata-ok {
+	color: #1f7a4d;
+	font-weight: 700;
+}
+
+.committee-metadata-warning {
+	color: #b45309;
+	font-weight: 700;
+}
+
+.committee-metadata-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 28px;
+	padding: 0 10px;
+	border-radius: 999px;
+	font-size: 0.78rem;
+	font-weight: 800;
+	white-space: nowrap;
+}
+
+.committee-metadata-badge.is-ok {
+	background: #dff2e8;
+	color: #1e6d44;
+}
+
+.committee-metadata-badge.is-warning {
+	background: #fff4d8;
+	color: #9a6700;
+}
+
+.committee-details-btn {
+	height: 34px;
+	padding: 0 12px;
+	font-size: 0.82rem;
+}
+
+.committee-metadata-drawer-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 80;
+	background: rgba(15, 23, 42, 0.22);
+	display: flex;
+	justify-content: flex-end;
+}
+
+.committee-metadata-drawer {
+	width: min(560px, 100%);
+	height: 100%;
+	overflow-y: auto;
+	background: #ffffff;
+	box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+	padding: 24px;
+}
+
+.committee-metadata-drawer-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	border-bottom: 1px solid #e2e8f0;
+	padding-bottom: 16px;
+	margin-bottom: 18px;
+}
+
+.committee-metadata-drawer-head h4 {
+	margin: 0;
+	color: #12233a;
+	font-size: 1.15rem;
+}
+
+.committee-metadata-drawer-head p {
+	margin: 6px 0 0;
+	color: #64748b;
+}
+
+.committee-metadata-drawer-head button {
+	width: 34px;
+	height: 34px;
+	border: 1px solid #d7e1ee;
+	border-radius: 999px;
+	background: #ffffff;
+	cursor: pointer;
+	font-size: 1.2rem;
+}
+
+.committee-metadata-detail-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin: 0;
+}
+
+.committee-metadata-detail-grid div,
+.committee-metadata-authors article {
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 12px;
+	background: #f8fbff;
+}
+
+.committee-metadata-detail-grid dt {
+	color: #64748b;
+	font-size: 0.78rem;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.committee-metadata-detail-grid dd {
+	margin: 5px 0 0;
+	color: #12233a;
+	font-weight: 700;
+}
+
+.committee-metadata-authors {
+	margin-top: 18px;
+	display: grid;
+	gap: 10px;
+}
+
+.committee-metadata-authors h5 {
+	margin: 0;
+	font-size: 0.95rem;
+	color: #12233a;
+}
+
+.committee-metadata-authors article span {
+	display: block;
+	margin-top: 4px;
+	color: #64748b;
+	line-height: 1.4;
+}
+
 .committee-notification-center {
 	display: grid;
 	gap: 14px;
