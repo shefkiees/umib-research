@@ -747,11 +747,21 @@ function normalizeDate(value) {
     return String(value);
   }
 
-  return date.toLocaleDateString("sq-AL", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hasTime = value instanceof Date
+    ? date.getHours() || date.getMinutes() || date.getSeconds() || date.getMilliseconds()
+    : /(?:T|\s)\d{1,2}:\d{2}/.test(String(value));
+
+  if (!hasTime) {
+    return `${day}.${month}.${year}`;
+  }
+
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
 function hasValue(value) {
@@ -988,26 +998,8 @@ function getHistoryRequestTypeParts(request) {
   };
 }
 
-function formatCompactDate(value) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-
-  return `${day}.${month}.${year}`;
-}
-
 function getHistoryMainDate(request) {
-  return formatCompactDate(request.submittedAt || request.createdAt || request.updatedAt);
+  return normalizeDate(request.submittedAt || request.createdAt || request.updatedAt);
 }
 
 function ReimbursementHistoryList({
@@ -1047,7 +1039,6 @@ function ReimbursementHistoryList({
       <div className="prof-card-header">
         <div>
           <h3>{r.sentTitle}</h3>
-          <p>{r.sentDescription}</p>
         </div>
       </div>
 
