@@ -929,7 +929,12 @@ export default function CommitteeDashboard() {
         const selectedDocumentUrl = getPublicationDocumentUrl(selectedMetadataPublication);
         const selectedAuthors = getPublicationAuthors(selectedMetadataPublication);
         const failedChecklistItems = metadataChecklistItems.filter((checkItem) => !selectedReview.checklist?.[checkItem.key]);
-        const visibleHistory = (selectedReview.history || []).slice(0, 3);
+        const visibleHistory = (selectedReview.history || [])
+          .filter((entry, index, history) => {
+            const previous = history[index - 1];
+            return !previous || previous.status !== entry.status || previous.comment !== entry.comment;
+          })
+          .slice(0, 3);
 
         return (
           <div className="committee-metadata-drawer-backdrop" role="presentation" onClick={() => setSelectedMetadataPublication(null)}>
@@ -947,37 +952,11 @@ export default function CommitteeDashboard() {
               </div>
 
               <div className="committee-review-quick-summary">
-                <article>
-                  <span>Statusi</span>
-                  <strong>{getPublicationStatusLabel(selectedMetadataPublication.status)}</strong>
-                </article>
-                <article>
-                  <span>Checklist</span>
-                  <strong>{selectedCompleteness.checkedCount}/{selectedCompleteness.total}</strong>
-                </article>
-                <article>
-                  <span>UIBM affiliation</span>
-                  <strong className={hasUibmAffiliation(selectedMetadataPublication) ? "is-ok" : "is-warning"}>
-                    {hasUibmAffiliation(selectedMetadataPublication) ? "OK" : "Mungon"}
-                  </strong>
-                </article>
-              </div>
-
-              <div className="committee-review-top-actions">
-                <div className="committee-metadata-drawer-tabs" role="tablist" aria-label="Pamja e metadata-s">
-                  <button type="button" className={metadataDrawerMode === "details" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("details")}>Detajet</button>
-                  <button type="button" className={metadataDrawerMode === "compare" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("compare")}>Krahaso</button>
-                </div>
-                <div className="committee-review-inline-actions">
-                  <button type="button" className="is-primary" onClick={() => markMetadataOk(selectedMetadataPublication)}>
-                    <CheckCircle2 size={16} />
-                    Metadata OK
-                  </button>
-                  <button type="button" className="is-warning" onClick={() => requestMetadataCorrection(selectedMetadataPublication)}>
-                    <AlertTriangle size={16} />
-                    Kerko korrigjim
-                  </button>
-                </div>
+                <span>Statusi: <strong>{getPublicationStatusLabel(selectedMetadataPublication.status)}</strong></span>
+                <span>Checklist: <strong>{selectedCompleteness.checkedCount}/{selectedCompleteness.total}</strong></span>
+                <span>UIBM: <strong className={hasUibmAffiliation(selectedMetadataPublication) ? "is-ok" : "is-warning"}>
+                  {hasUibmAffiliation(selectedMetadataPublication) ? "OK" : "Mungon"}
+                </strong></span>
               </div>
 
               <section className="committee-review-panel">
@@ -1007,61 +986,6 @@ export default function CommitteeDashboard() {
                 ) : null}
               </section>
 
-              {metadataDrawerMode === "compare" ? (
-                <div className="committee-compare-grid">
-                  <section className="committee-review-panel">
-                    <h5>Metadata e formes</h5>
-                    <dl className="committee-metadata-detail-grid is-single">
-                      <div><dt>Titulli</dt><dd>{selectedMetadataPublication.title || "-"}</dd></div>
-                      <div><dt>DOI</dt><dd>{selectedMetadataPublication.doi || "Mungon"}</dd></div>
-                      <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
-                      <div><dt>Autoret</dt><dd>{selectedAuthors.map(getAuthorName).filter(Boolean).join(", ") || "-"}</dd></div>
-                      <div><dt>UIBM affiliation</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
-                    </dl>
-                  </section>
-                  <section className="committee-review-panel committee-document-panel">
-                    <h5>Dokumenti / PDF i ngarkuar</h5>
-                    {selectedDocumentUrl ? (
-                      <iframe title="Dokumenti i publikimit" src={selectedDocumentUrl} />
-                    ) : (
-                      <div className="committee-document-empty">
-                        <FileText size={24} />
-                        <strong>Nuk ka dokument te lidhur.</strong>
-                        <span>Komisioni mund te vazhdoje kontrollin nga metadata e regjistruar.</span>
-                      </div>
-                    )}
-                  </section>
-                </div>
-              ) : (
-                <>
-                  <dl className="committee-metadata-detail-grid">
-                    <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
-                    <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
-                    <div><dt>Publisher</dt><dd>{selectedMetadataPublication.publisher || "-"}</dd></div>
-                    <div><dt>Viti / Data</dt><dd>{selectedMetadataPublication.publicationYear || selectedMetadataPublication.publication_year || formatDate(selectedMetadataPublication.publicationDate || selectedMetadataPublication.publication_date)}</dd></div>
-                    <div><dt>Metadata source</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>
-                    <div><dt>Metadata status</dt><dd>{getMetadataStatus(selectedMetadataPublication)}</dd></div>
-                    <div><dt>Statusi i publikimit</dt><dd>{getPublicationStatusLabel(selectedMetadataPublication.status)}</dd></div>
-                    <div><dt>UIBM affiliation</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
-                  </dl>
-                  <div className="committee-metadata-authors">
-                    <h5>Autoret dhe affiliation</h5>
-                    {selectedAuthors.length ? (
-                      <div className="committee-authors-compact">
-                        <p>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ")}</p>
-                        <span>
-                          {hasUibmAffiliation(selectedMetadataPublication)
-                            ? "Affiliation institucionale eshte e pranishme."
-                            : "Affiliation institucionale mungon ose nuk eshte e qarte."}
-                        </span>
-                      </div>
-                    ) : (
-                      <p>Nuk ka autore te regjistruar.</p>
-                    )}
-                  </div>
-                </>
-              )}
-
               <section className="committee-review-panel committee-correction-panel">
                 <h5>Koment per korrigjim</h5>
                 <textarea
@@ -1087,6 +1011,35 @@ export default function CommitteeDashboard() {
                 {correctionError ? <p className="committee-review-error" role="alert">{correctionError}</p> : null}
               </section>
 
+              <section className="committee-review-panel committee-metadata-compact-panel">
+                <h5>Metadata</h5>
+                <dl className="committee-metadata-detail-grid">
+                  <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
+                  <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
+                  <div><dt>Publisher</dt><dd>{selectedMetadataPublication.publisher || "-"}</dd></div>
+                  <div><dt>Viti</dt><dd>{selectedMetadataPublication.publicationYear || selectedMetadataPublication.publication_year || formatDate(selectedMetadataPublication.publicationDate || selectedMetadataPublication.publication_date)}</dd></div>
+                  <div><dt>Burimi</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>
+                  <div><dt>Metadata</dt><dd>{getMetadataStatus(selectedMetadataPublication)}</dd></div>
+                  <div><dt>Autoret</dt><dd>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ") || "-"}</dd></div>
+                  <div><dt>UIBM affiliation</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
+                </dl>
+              </section>
+
+              {metadataDrawerMode === "compare" ? (
+                <section className="committee-review-panel committee-document-panel">
+                  <h5>Dokumenti i ngarkuar</h5>
+                  {selectedDocumentUrl ? (
+                    <iframe title="Dokumenti i publikimit" src={selectedDocumentUrl} />
+                  ) : (
+                    <div className="committee-document-empty">
+                      <FileText size={20} />
+                      <strong>Nuk ka dokument te lidhur.</strong>
+                      <span>Kontrollo metadata-n e regjistruar dhe kerko dokument shtese nese duhet.</span>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
               <section className="committee-review-history">
                 <div className="committee-history-head">
                   <h5>Historik kontrolli</h5>
@@ -1109,13 +1062,21 @@ export default function CommitteeDashboard() {
               </section>
 
               <div className="committee-review-action-bar">
+                <button type="button" className="is-primary" onClick={() => markMetadataOk(selectedMetadataPublication)}>
+                  <CheckCircle2 size={16} />
+                  Metadata OK
+                </button>
+                <button type="button" className="is-warning" onClick={() => requestMetadataCorrection(selectedMetadataPublication)}>
+                  <AlertTriangle size={16} />
+                  Kerko korrigjim
+                </button>
                 <button type="button" onClick={() => openPublicationDocument(selectedMetadataPublication)} disabled={!selectedDocumentUrl}>
                   <FileText size={16} />
                   Shiko dokumentin
                 </button>
-                <button type="button" onClick={() => setMetadataDrawerMode("compare")}>
+                <button type="button" onClick={() => setMetadataDrawerMode((mode) => (mode === "compare" ? "details" : "compare"))}>
                   <GitCompareArrows size={16} />
-                  Krahaso metadata
+                  {metadataDrawerMode === "compare" ? "Fsheh dokumentin" : "Krahaso metadata"}
                 </button>
               </div>
             </aside>
