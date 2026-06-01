@@ -16,11 +16,12 @@ const STATUS_LABELS = {
 };
 
 const REVIEW_STATUS_FILTERS = [
-  { value: "all", label: "Te gjitha" },
-  { value: "submitted", label: "Te sapoderguara" },
-  { value: "received", label: "Te pranuara" },
-  { value: "in_review", label: "Ne shqyrtim" },
-  { value: "needs_correction", label: "Per korrigjim" },
+  { value: "all", label: "Të gjitha" },
+  { value: "received", label: "Të pranuara" },
+  { value: "in_review", label: "Në shqyrtim" },
+  { value: "needs_correction", label: "Korrigjim" },
+  { value: "committee_approved", label: "Aprovim" },
+  { value: "rejected", label: "Refuzim" },
 ];
 
 const REVIEW_FORM_FILTERS = [
