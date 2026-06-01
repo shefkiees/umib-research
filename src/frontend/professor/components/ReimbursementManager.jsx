@@ -1660,8 +1660,24 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
         throw new Error(result.message || "Kerkesa nuk u ruajt.");
       }
 
-      const withAttachments = await uploadSelectedFiles(result.data.id);
-      let savedRequest = withAttachments || result.data;
+      let savedRequest = result.data;
+
+      setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
+      setHasLoadedRequests(true);
+      setEditingRequest(savedRequest);
+
+      try {
+        const withAttachments = await uploadSelectedFiles(savedRequest.id);
+
+        if (withAttachments) {
+          savedRequest = withAttachments;
+          setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
+          setEditingRequest(savedRequest);
+        }
+      } catch {
+        setSuccess(savedRequest);
+        throw new Error("Kërkesa është ruajtur si draft, por ngarkimi i dokumenteve dështoi. Ju lutem provoni përsëri.");
+      }
 
       if (action === "submit") {
         const submitResponse = await fetch(apiUrl(`/reimbursements/${savedRequest.id}/submit`), {
