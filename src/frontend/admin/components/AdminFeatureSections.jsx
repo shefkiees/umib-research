@@ -3,7 +3,6 @@ import {
   Bar,
   BarChart,
   Cell,
-  LabelList,
   Legend,
   Pie,
   PieChart,
@@ -18,7 +17,6 @@ import { useLanguage } from "../../i18n/LanguageContext";
 const COLORS = ["#1f5f99", "#2e7d32", "#c9a24f", "#b91c1c", "#6d5bd0", "#00838f"];
 
 const tooltipFormatter = (value, name) => [value, name === "count" ? "Numri" : name];
-const horizontalChartHeight = (items) => Math.max(220, Math.min(420, items.length * 44 + 56));
 
 const normalizeAnalyticsRows = (items, key, fallbackLabel) =>
   (Array.isArray(items) ? items : [])
@@ -296,38 +294,26 @@ export function AdminAnalyticsSection() {
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Përdoruesit sipas fakultetit">
-          <ResponsiveContainer width="100%" height={horizontalChartHeight(usersByFaculty)}>
-            <BarChart data={usersByFaculty} layout="vertical" margin={{ top: 8, right: 40, bottom: 8, left: 12 }}>
-              <XAxis type="number" allowDecimals={false} hide />
-              <YAxis type="category" dataKey="label" width={150} tickLine={false} axisLine={false} />
-              <Tooltip formatter={tooltipFormatter} />
-              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" radius={[0, 6, 6, 0]}>
-                <LabelList dataKey="count" position="right" />
-              </Bar>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByFaculty}>
+              <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Përdoruesit sipas departamentit">
-          <ResponsiveContainer width="100%" height={horizontalChartHeight(usersByDepartment)}>
-            <BarChart data={usersByDepartment} layout="vertical" margin={{ top: 8, right: 40, bottom: 8, left: 12 }}>
-              <XAxis type="number" allowDecimals={false} hide />
-              <YAxis type="category" dataKey="label" width={150} tickLine={false} axisLine={false} />
-              <Tooltip formatter={tooltipFormatter} />
-              <Bar name="Përdorues" dataKey="count" fill="#2e7d32" radius={[0, 6, 6, 0]}>
-                <LabelList dataKey="count" position="right" />
-              </Bar>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByDepartment}>
+              <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="Përdorues" dataKey="count" fill="#2e7d32" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Aktiviteti">
-          <ResponsiveContainer width="100%" height={horizontalChartHeight(adminActivity)}>
-            <BarChart data={adminActivity} layout="vertical" margin={{ top: 8, right: 40, bottom: 8, left: 12 }}>
-              <XAxis type="number" allowDecimals={false} hide />
-              <YAxis type="category" dataKey="label" width={150} tickLine={false} axisLine={false} />
-              <Tooltip formatter={tooltipFormatter} />
-              <Bar name="Veprime" dataKey="count" fill="#c9a24f" radius={[0, 6, 6, 0]}>
-                <LabelList dataKey="count" position="right" />
-              </Bar>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={adminActivity}>
+              <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
+              <Bar name="Veprime" dataKey="count" fill="#c9a24f" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
