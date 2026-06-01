@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { BookOpen, Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, Wallet } from "lucide-react";
+import { Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -2481,15 +2481,20 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   };
 
   const renderApplicantFields = () => (
-    <div className="reimbursement-form-grid">
-      {renderAutoField("Emri dhe mbiemri", "applicantName")}
-      {renderAutoField("Email", "applicantEmail", "email")}
-      {renderAutoField("Njesia akademike", "applicantFaculty")}
-      {renderAutoField("Departamenti", "applicantDepartment")}
-      {renderAutoField("ORCID iD", "applicantOrcidId")}
-      {renderInput("Thirrja shkencore", "scientificTitle")}
-      {renderInput("Thirrja akademike", "academicTitle")}
-    </div>
+    <>
+      <div className="reimbursement-profile-title">
+        <h4>{r.profileTitle}</h4>
+      </div>
+      <div className="reimbursement-form-grid">
+        {renderAutoField("Emri dhe mbiemri", "applicantName")}
+        {renderAutoField("Email", "applicantEmail", "email")}
+        {renderAutoField("Njesia akademike", "applicantFaculty")}
+        {renderAutoField("Departamenti", "applicantDepartment")}
+        {renderAutoField("ORCID iD", "applicantOrcidId")}
+        {renderInput("Thirrja shkencore", "scientificTitle")}
+        {renderInput("Thirrja akademike", "academicTitle")}
+      </div>
+    </>
   );
 
   const renderPublicationFields = () => (
@@ -2904,14 +2909,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
         <form className="reimbursement-form" onSubmit={handleSubmit}>
           <section className="reimbursement-section">
-            <div className="reimbursement-section-head">
-              <BookOpen size={18} />
-              <div>
-                <h4>{r.basicTitle}</h4>
-                <p>{r.basicDescription}</p>
-              </div>
-            </div>
-
             <div className="reimbursement-type-grid">
               {REQUEST_TYPES.map((type) => (
                 <button
@@ -2921,7 +2918,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
                   onClick={() => handleTypeSelect(type.id)}
                 >
                   <strong>{tx(type.label)}</strong>
-                  <span>{tx(type.description)}</span>
                 </button>
               ))}
             </div>
