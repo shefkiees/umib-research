@@ -1742,6 +1742,8 @@ body {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-dark);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .prof-list-content p {
@@ -2858,11 +2860,17 @@ body {
   padding: 12px;
 }
 
+.reimbursement-request-item .prof-list-content {
+  min-width: 0;
+}
+
 .reimbursement-request-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .reimbursement-request-list {
@@ -2887,6 +2895,66 @@ body {
 .reimbursement-history-line {
   color: #64748b;
   margin-top: 3px;
+}
+
+.reimbursement-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.reimbursement-status-tabs button {
+  border: 1px solid #cbd8e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #174a7b;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.reimbursement-status-tabs button:hover,
+.reimbursement-status-tabs button.active {
+  border-color: #1d67aa;
+  background: #eaf2ff;
+  color: #123f68;
+}
+
+.reimbursement-row-meta,
+.reimbursement-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 6px;
+  color: #53677e;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.reimbursement-row-meta span,
+.reimbursement-date-row span,
+.reimbursement-document-number {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reimbursement-type-chip {
+  border: 1px solid #b8d2ff;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #174a7b;
+  padding: 2px 9px;
+  font-weight: 900;
+}
+
+.reimbursement-document-number {
+  margin-top: 5px;
+  color: #53677e;
+  font-size: 0.82rem;
 }
 
 .reimbursement-download-btn {
@@ -2950,6 +3018,14 @@ body {
   font-size: 0.76rem;
   font-weight: 800;
   cursor: pointer;
+  max-width: min(100%, 280px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reimbursement-attachment-list button svg {
+  flex: 0 0 auto;
 }
 
 .reimbursement-timeline {
