@@ -928,29 +928,56 @@ export default function CommitteeDashboard() {
         const selectedCompleteness = getReviewCompleteness(selectedReview, selectedMetadataPublication);
         const selectedDocumentUrl = getPublicationDocumentUrl(selectedMetadataPublication);
         const selectedAuthors = getPublicationAuthors(selectedMetadataPublication);
+        const failedChecklistItems = metadataChecklistItems.filter((checkItem) => !selectedReview.checklist?.[checkItem.key]);
+        const visibleHistory = (selectedReview.history || []).slice(0, 3);
 
         return (
           <div className="committee-metadata-drawer-backdrop" role="presentation" onClick={() => setSelectedMetadataPublication(null)}>
             <aside className="committee-metadata-drawer" role="dialog" aria-label="Detajet e metadatave" onClick={(event) => event.stopPropagation()}>
-              <div className="committee-metadata-drawer-head">
-                <div>
+              <div className="committee-review-hero">
+                <div className="committee-review-hero-main">
+                  <span className={`committee-review-badge ${selectedStatus.className}`} title={selectedStatus.description}>
+                    <SelectedIcon size={14} />
+                    {selectedStatus.label}
+                  </span>
                   <h4>{selectedMetadataPublication.title || "Pa titull"}</h4>
                   <p>{selectedMetadataPublication.doi || "Pa DOI"}</p>
                 </div>
                 <button type="button" onClick={() => setSelectedMetadataPublication(null)} aria-label="Mbyll detajet">x</button>
               </div>
 
-              <div className="committee-review-toolbar">
-                <span className={`committee-review-badge ${selectedStatus.className}`} title={selectedStatus.description}>
-                  <SelectedIcon size={14} />
-                  {selectedStatus.label}
-                </span>
-                <span>{selectedCompleteness.checkedCount}/{selectedCompleteness.total} pika te kontrolluara</span>
+              <div className="committee-review-quick-summary">
+                <article>
+                  <span>Statusi</span>
+                  <strong>{getPublicationStatusLabel(selectedMetadataPublication.status)}</strong>
+                </article>
+                <article>
+                  <span>Checklist</span>
+                  <strong>{selectedCompleteness.checkedCount}/{selectedCompleteness.total}</strong>
+                </article>
+                <article>
+                  <span>UIBM affiliation</span>
+                  <strong className={hasUibmAffiliation(selectedMetadataPublication) ? "is-ok" : "is-warning"}>
+                    {hasUibmAffiliation(selectedMetadataPublication) ? "OK" : "Mungon"}
+                  </strong>
+                </article>
               </div>
 
-              <div className="committee-metadata-drawer-tabs" role="tablist" aria-label="Pamja e metadata-s">
-                <button type="button" className={metadataDrawerMode === "details" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("details")}>Detajet</button>
-                <button type="button" className={metadataDrawerMode === "compare" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("compare")}>Krahaso metadata</button>
+              <div className="committee-review-top-actions">
+                <div className="committee-metadata-drawer-tabs" role="tablist" aria-label="Pamja e metadata-s">
+                  <button type="button" className={metadataDrawerMode === "details" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("details")}>Detajet</button>
+                  <button type="button" className={metadataDrawerMode === "compare" ? "is-active" : ""} onClick={() => setMetadataDrawerMode("compare")}>Krahaso</button>
+                </div>
+                <div className="committee-review-inline-actions">
+                  <button type="button" className="is-primary" onClick={() => markMetadataOk(selectedMetadataPublication)}>
+                    <CheckCircle2 size={16} />
+                    Metadata OK
+                  </button>
+                  <button type="button" className="is-warning" onClick={() => requestMetadataCorrection(selectedMetadataPublication)}>
+                    <AlertTriangle size={16} />
+                    Kerko korrigjim
+                  </button>
+                </div>
               </div>
 
               <section className="committee-review-panel">
@@ -973,6 +1000,11 @@ export default function CommitteeDashboard() {
                     </label>
                   ))}
                 </div>
+                {failedChecklistItems.length ? (
+                  <p className="committee-checklist-note">
+                    Pika qe kerkojne vemendje: {failedChecklistItems.map((item) => item.label).join(", ")}
+                  </p>
+                ) : null}
               </section>
 
               {metadataDrawerMode === "compare" ? (
@@ -1015,12 +1047,14 @@ export default function CommitteeDashboard() {
                   <div className="committee-metadata-authors">
                     <h5>Autoret dhe affiliation</h5>
                     {selectedAuthors.length ? (
-                      selectedAuthors.map((author, index) => (
-                        <article key={`${getAuthorName(author)}-${index}`}>
-                          <strong>{getAuthorName(author) || `Autori ${index + 1}`}</strong>
-                          <span>{getAuthorAffiliation(author) || "Pa affiliation"}</span>
-                        </article>
-                      ))
+                      <div className="committee-authors-compact">
+                        <p>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ")}</p>
+                        <span>
+                          {hasUibmAffiliation(selectedMetadataPublication)
+                            ? "Affiliation institucionale eshte e pranishme."
+                            : "Affiliation institucionale mungon ose nuk eshte e qarte."}
+                        </span>
+                      </div>
                     ) : (
                       <p>Nuk ka autore te regjistruar.</p>
                     )}
@@ -1040,7 +1074,12 @@ export default function CommitteeDashboard() {
                 />
                 <div className="committee-correction-examples">
                   {correctionExamples.map((example) => (
-                    <button type="button" key={example} onClick={() => setCorrectionComment(example)}>
+                    <button
+                      type="button"
+                      key={example}
+                      className={correctionComment === example ? "is-selected" : ""}
+                      onClick={() => setCorrectionComment(example)}
+                    >
                       {example}
                     </button>
                   ))}
@@ -1049,9 +1088,12 @@ export default function CommitteeDashboard() {
               </section>
 
               <section className="committee-review-history">
-                <h5>Historik kontrolli</h5>
-                {selectedReview.history?.length ? (
-                  selectedReview.history.map((entry) => (
+                <div className="committee-history-head">
+                  <h5>Historik kontrolli</h5>
+                  {selectedReview.history?.length ? <span>{selectedReview.history.length} veprime</span> : null}
+                </div>
+                {visibleHistory.length ? (
+                  visibleHistory.map((entry) => (
                     <article key={entry.id}>
                       <span className={`committee-review-dot ${getReviewStatusConfig(entry.status).className}`} />
                       <div>
@@ -1067,14 +1109,6 @@ export default function CommitteeDashboard() {
               </section>
 
               <div className="committee-review-action-bar">
-                <button type="button" className="is-primary" onClick={() => markMetadataOk(selectedMetadataPublication)}>
-                  <CheckCircle2 size={16} />
-                  Sheno metadata OK
-                </button>
-                <button type="button" className="is-warning" onClick={() => requestMetadataCorrection(selectedMetadataPublication)}>
-                  <AlertTriangle size={16} />
-                  Kerko korrigjim
-                </button>
                 <button type="button" onClick={() => openPublicationDocument(selectedMetadataPublication)} disabled={!selectedDocumentUrl}>
                   <FileText size={16} />
                   Shiko dokumentin

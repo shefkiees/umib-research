@@ -1380,35 +1380,47 @@
 }
 
 .committee-metadata-drawer {
-	width: min(860px, 100%);
+	width: min(760px, 100%);
 	height: 100%;
 	overflow-y: auto;
 	background: #ffffff;
 	box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
-	padding: 24px 24px 96px;
+	padding: 22px 22px 84px;
 }
 
+.committee-review-hero,
 .committee-metadata-drawer-head {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 16px;
 	border-bottom: 1px solid #e2e8f0;
-	padding-bottom: 16px;
-	margin-bottom: 18px;
+	padding-bottom: 14px;
+	margin-bottom: 14px;
 }
 
+.committee-review-hero-main {
+	min-width: 0;
+	display: grid;
+	gap: 7px;
+}
+
+.committee-review-hero-main h4,
 .committee-metadata-drawer-head h4 {
 	margin: 0;
 	color: #12233a;
-	font-size: 1.15rem;
+	font-size: 1.08rem;
+	line-height: 1.35;
 }
 
+.committee-review-hero-main p,
 .committee-metadata-drawer-head p {
-	margin: 6px 0 0;
+	margin: 0;
 	color: #64748b;
+	font-size: 0.9rem;
 }
 
+.committee-review-hero button,
 .committee-metadata-drawer-head button {
 	width: 34px;
 	height: 34px;
@@ -1417,6 +1429,84 @@
 	background: #ffffff;
 	cursor: pointer;
 	font-size: 1.2rem;
+}
+
+.committee-review-quick-summary {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.committee-review-quick-summary article {
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #f8fbff;
+	padding: 11px 12px;
+	display: grid;
+	gap: 4px;
+}
+
+.committee-review-quick-summary span {
+	color: #64748b;
+	font-size: 0.74rem;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.committee-review-quick-summary strong {
+	color: #12233a;
+	font-size: 0.94rem;
+}
+
+.committee-review-quick-summary strong.is-ok {
+	color: #167347;
+}
+
+.committee-review-quick-summary strong.is-warning {
+	color: #9a6700;
+}
+
+.committee-review-top-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.committee-review-inline-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.committee-review-inline-actions button {
+	min-height: 36px;
+	border: 1px solid #d7e1ee;
+	border-radius: 10px;
+	background: #ffffff;
+	color: #1f4f84;
+	font-weight: 800;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 0 12px;
+	cursor: pointer;
+	transition: var(--transition);
+}
+
+.committee-review-inline-actions button.is-primary {
+	background: #1f4f84;
+	border-color: #1f4f84;
+	color: #ffffff;
+}
+
+.committee-review-inline-actions button.is-warning {
+	border-color: #f3c47b;
+	background: #fff7e8;
+	color: #9a6700;
 }
 
 .committee-review-toolbar {
@@ -1438,7 +1528,6 @@
 	display: inline-flex;
 	gap: 4px;
 	padding: 4px;
-	margin-bottom: 16px;
 	border: 1px solid #dbe4ef;
 	border-radius: 12px;
 	background: #f8fafc;
@@ -1464,7 +1553,7 @@
 .committee-metadata-detail-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 12px;
+	gap: 10px;
 	margin: 0;
 }
 
@@ -1475,8 +1564,8 @@
 .committee-metadata-detail-grid div,
 .committee-metadata-authors article {
 	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	padding: 12px;
+	border-radius: 10px;
+	padding: 10px;
 	background: #f8fbff;
 }
 
@@ -1494,7 +1583,7 @@
 }
 
 .committee-metadata-authors {
-	margin-top: 18px;
+	margin-top: 12px;
 	display: grid;
 	gap: 10px;
 }
@@ -1512,13 +1601,34 @@
 	line-height: 1.4;
 }
 
+.committee-authors-compact {
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	background: #f8fbff;
+	padding: 11px;
+	display: grid;
+	gap: 5px;
+}
+
+.committee-authors-compact p {
+	margin: 0;
+	color: #12233a;
+	font-weight: 700;
+	line-height: 1.45;
+}
+
+.committee-authors-compact span {
+	color: #64748b;
+	font-size: 0.84rem;
+}
+
 .committee-review-panel {
 	border: 1px solid #e2e8f0;
-	border-radius: 14px;
+	border-radius: 12px;
 	background: #ffffff;
-	padding: 16px;
-	margin-bottom: 16px;
-	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+	padding: 14px;
+	margin-bottom: 12px;
+	box-shadow: none;
 }
 
 .committee-review-panel h5,
@@ -1557,7 +1667,7 @@
 .committee-checklist-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
+	gap: 8px;
 }
 
 .committee-check-item {
@@ -1565,11 +1675,12 @@
 	align-items: center;
 	gap: 10px;
 	border: 1px solid #e2e8f0;
-	border-radius: 12px;
+	border-radius: 10px;
 	background: #f8fbff;
-	padding: 11px 12px;
+	padding: 9px 10px;
 	color: #17324f;
 	font-weight: 700;
+	font-size: 0.88rem;
 	cursor: pointer;
 	transition: var(--transition);
 }
@@ -1581,8 +1692,8 @@
 }
 
 .committee-checkmark {
-	width: 24px;
-	height: 24px;
+	width: 22px;
+	height: 22px;
 	border: 1px solid #cbd6e4;
 	border-radius: 999px;
 	background: #ffffff;
@@ -1591,6 +1702,14 @@
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+}
+
+.committee-checklist-note {
+	margin: 10px 0 0;
+	color: #9a6700;
+	font-size: 0.82rem;
+	font-weight: 700;
+	line-height: 1.4;
 }
 
 .committee-check-item.is-checked {
@@ -1637,7 +1756,7 @@
 
 .committee-correction-panel textarea {
 	width: 100%;
-	min-height: 92px;
+	min-height: 76px;
 	resize: vertical;
 	border: 1px solid #d7e1ee;
 	border-radius: 12px;
@@ -1670,6 +1789,12 @@
 	cursor: pointer;
 }
 
+.committee-correction-examples button.is-selected {
+	border-color: #1f5f99;
+	background: #eef5ff;
+	color: #153a63;
+}
+
 .committee-review-error {
 	margin: 10px 0 0;
 	color: #b91c1c;
@@ -1679,12 +1804,29 @@
 
 .committee-review-history {
 	border: 1px solid #e2e8f0;
-	border-radius: 14px;
-	padding: 16px;
+	border-radius: 12px;
+	padding: 14px;
 	background: #fbfdff;
 	display: grid;
-	gap: 12px;
-	margin-bottom: 16px;
+	gap: 10px;
+	margin-bottom: 12px;
+}
+
+.committee-history-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.committee-history-head h5 {
+	margin: 0;
+}
+
+.committee-history-head span {
+	color: #64748b;
+	font-size: 0.78rem;
+	font-weight: 800;
 }
 
 .committee-review-history article {
@@ -2198,7 +2340,7 @@
 	color: #1f5a96;
 	display: inline-flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: flex-end;
 }
 
 .committee-neo-stat-text span {
