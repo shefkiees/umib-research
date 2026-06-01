@@ -319,8 +319,6 @@ export function AdminAnalyticsSection() {
   const access = data?.accessAttempts || { total: 0, unauthenticated: 0, forbidden: 0 };
   const usersByRole = (data?.usersByRole || []).map((item) => ({ ...item, role: roleLabels[item.role] || item.role || "Pa rol" }));
   const usersByFaculty = normalizeInstitutionRows(data?.usersByFaculty, "faculty", "Pa fakultet", "Fakultet i paqartë");
-  const unclearFacultyCount = usersByFaculty.find((item) => item.label === "Fakultet i paqartë")?.count || 0;
-  const visibleFacultyRows = usersByFaculty.filter((item) => item.label !== "Fakultet i paqartë");
   const usersByDepartment = normalizeInstitutionRows(data?.usersByDepartment, "department", "Pa departament", "Departament i paqartë");
   const adminActivity = normalizeAnalyticsRows(data?.adminActivity, "adminName", "Admin")
     .map((item) => ({ ...item, label: formatPersonName(item.label) }));
@@ -358,16 +356,15 @@ export function AdminAnalyticsSection() {
           description="Bazuar në fakultetin e regjistruar në profilin e përdoruesit"
           className="admin-chart-card--clean admin-faculty-card"
         >
-          <DistributionList
-            items={visibleFacultyRows}
-            emptyText="Nuk ka fakultete të regjistruara."
-            valueLabel="përdorues"
-          />
-          {unclearFacultyCount > 0 ? (
-            <p className="admin-chart-footnote">
-              {unclearFacultyCount} përdorues {unclearFacultyCount === 1 ? "ka" : "kanë"} fakultet të paqartë në profil.
-            </p>
-          ) : null}
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={usersByFaculty} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="30%">
+              <CartesianGrid vertical={false} stroke="#edf2f7" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+              <Tooltip cursor={{ fill: "rgba(31, 95, 153, 0.07)" }} content={<CategoryTooltip singularLabel="përdorues" />} />
+              <Bar name="Përdorues" dataKey="count" fill="#1f5f99" radius={[8, 8, 0, 0]} maxBarSize={44} className="admin-category-bar" />
+            </BarChart>
+          </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Përdoruesit sipas departamentit">
           <ResponsiveContainer width="100%" height={260}>
@@ -404,34 +401,6 @@ function ChartCard({ title, description, className = "", children }) {
       {description ? <p className="admin-chart-description">{description}</p> : null}
       {children}
     </article>
-  );
-}
-
-function DistributionList({ items, emptyText, valueLabel }) {
-  if (!items.length) {
-    return <p className="admin-chart-empty">{emptyText}</p>;
-  }
-
-  const maxCount = Math.max(...items.map((item) => item.count), 1);
-
-  return (
-    <div className="admin-distribution-list">
-      {items.map((item) => {
-        const width = `${Math.max(8, (item.count / maxCount) * 100)}%`;
-
-        return (
-          <div className="admin-distribution-row" key={item.label}>
-            <div className="admin-distribution-row-head">
-              <span title={item.label}>{item.label}</span>
-              <strong>{item.count} {valueLabel}</strong>
-            </div>
-            <div className="admin-distribution-track" aria-hidden="true">
-              <div className="admin-distribution-fill" style={{ width }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
