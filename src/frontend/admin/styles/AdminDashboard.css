@@ -289,15 +289,15 @@
 }
 
 .admin-profile-btn {
-    width: 272px;
-    height: 58px;
+    width: 232px;
+    height: 48px;
     border-radius: 10px;
     border: 1px solid #cfd8e3;
     background: #f7f9fc;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px 0 12px;
+    padding: 0 10px 0 12px;
     cursor: pointer;
     transition: var(--transition);
     box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
@@ -306,28 +306,33 @@
 .admin-profile-identity {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    min-width: 0;
 }
 
 .admin-profile-text strong {
     display: block;
     color: var(--text-dark);
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 800;
     line-height: 1.1;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-profile-text span {
     display: block;
-    margin-top: 3px;
+    margin-top: 2px;
     color: var(--text-light);
-    font-size: 0.86rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 
 .admin-avatar {
-    width: 42px;
-    height: 42px;
+    width: 34px;
+    height: 34px;
     border-radius: 999px;
     background: #0e4d92;
     color: white;
@@ -335,7 +340,7 @@
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 0.88rem;
     border: 2px solid #ffffff;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
     flex-shrink: 0;
