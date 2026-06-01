@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, Wallet } from "lucide-react";
+import { Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, UserRound, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -2482,8 +2482,11 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const renderApplicantFields = () => (
     <>
-      <div className="reimbursement-profile-title">
-        <h4>{r.profileTitle}</h4>
+      <div className="reimbursement-section-head reimbursement-profile-head">
+        <UserRound size={18} />
+        <div>
+          <h4>{r.profileTitle}</h4>
+        </div>
       </div>
       <div className="reimbursement-form-grid">
         {renderAutoField("Emri dhe mbiemri", "applicantName")}
@@ -2500,7 +2503,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
   const renderPublicationFields = () => (
     <div className="reimbursement-form-grid">
       {context.publications.length ? (
-        <label className="reimbursement-field reimbursement-wide">
+        <label className="reimbursement-field reimbursement-wide reimbursement-publication-selector">
           <span>{r.choosePublication}</span>
           <select value={form.publicationId} onChange={handlePublicationSelect}>
             <option value="">{r.choosePublication}</option>
@@ -2536,7 +2539,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     return (
       <div className="reimbursement-form-grid reimbursement-conference-publication-grid">
         {context.publications.length ? (
-          <label className="reimbursement-field reimbursement-wide">
+          <label className="reimbursement-field reimbursement-wide reimbursement-publication-selector">
             <span>Zgjidh publikimin</span>
             <select value={form.publicationId} onChange={handleConferencePublicationSelect}>
               <option value="">Zgjidh publikimin</option>
@@ -2819,8 +2822,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
 
   const renderAttachmentUpload = () => (
     <div className="reimbursement-upload-box">
-      <p>{r.supportingDocumentsHint}</p>
-
       <label className="reimbursement-upload-label">
         <span>{r.uploadFiles}</span>
         <input
@@ -2933,19 +2934,18 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
           </section>
 
           <section className="reimbursement-section">
-            {selectedType === "publication" ? null : (
-              <div className="reimbursement-section-head">
-                <FileText size={18} />
-                <div>
-                  <h4>
-                    {selectedType === "conference"
+            <div className="reimbursement-section-head">
+              <FileText size={18} />
+              <div>
+                <h4>
+                  {selectedType === "publication"
+                    ? "Publikime shkencore"
+                    : selectedType === "conference"
                       ? "Detajet e konferencës, simpoziumit ose aktivitetit"
                       : r.academicTitle}
-                  </h4>
-                  <p>{t("professor.reimbursements.academicDescription", { type: tx(selectedTypeConfig.label) })}</p>
-                </div>
+                </h4>
               </div>
-            )}
+            </div>
 
             {renderTypeFields()}
           </section>
@@ -2954,12 +2954,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
             <div className="reimbursement-section-head">
               <Wallet size={18} />
               <div>
-                <h4>
-                  {selectedType === "conference"
-                    ? "Të dhënat bankare të përfituesit"
-                    : bankRequired ? r.financeBankTitle : r.financeTitle}
-                </h4>
-                <p>{bankRequired ? r.financeBankDescription : r.financeDescription}</p>
+                <h4>{r.financeBankTitle}</h4>
               </div>
             </div>
 
@@ -2971,7 +2966,6 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
               <Upload size={18} />
               <div>
                 <h4>{r.documentsTitle}</h4>
-                <p>{r.documentsDescription}</p>
               </div>
             </div>
 
