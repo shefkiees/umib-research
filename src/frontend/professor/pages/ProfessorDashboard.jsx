@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -1490,7 +1491,7 @@ export default function ProfessorDashboard() {
 
   const formatPublicationAuthors = (authors = []) => {
     const names = authors
-      .map((author) => author.fullName || author.full_name)
+      .map((author) => (typeof author === "string" ? author : author.fullName || author.full_name || author.name))
       .filter(Boolean);
 
     if (!names.length) {
@@ -1498,14 +1499,30 @@ export default function ProfessorDashboard() {
     }
 
     if (names.length <= 2) {
-      return names.join(", ");
+      return (
+        <span className="publication-authors-list-inline">
+          {names.map((name) => <span key={name}>{name}</span>)}
+        </span>
+      );
     }
 
-    return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+    return (
+      <span className="publication-authors-list-inline">
+        {names.slice(0, 2).map((name) => <span key={name}>{name}</span>)}
+        <span className="publication-author-more-badge">+{names.length - 2}</span>
+      </span>
+    );
   };
 
   const formatPublicationQuartile = (row = {}) => {
-    return row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || t("common.noData");
+    const quartile = row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "";
+    const quartileClass = String(quartile || "none").toLowerCase().replace(/\s+/g, "-");
+
+    return (
+      <span className={`publication-quartile-badge ${quartileClass}`}>
+        {quartile || t("common.noData")}
+      </span>
+    );
   };
 
   const getRevisionIssues = (row = {}) => {
@@ -1533,9 +1550,14 @@ export default function ProfessorDashboard() {
 
     return (
       <div className="publication-revision-notice">
-        <strong>Publikimi kerkon korrigjim</strong>
-        <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
-        {issues.length ? <span>Pikat per kontroll: {issues.join(", ")}</span> : null}
+        <span className="publication-revision-icon" aria-hidden="true">
+          <AlertTriangle size={15} />
+        </span>
+        <div>
+          <strong>Publikimi kerkon korrigjim</strong>
+          <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
+          {issues.length ? <span>Pikat per kontroll: {issues.join(", ")}</span> : null}
+        </div>
       </div>
     );
   };
