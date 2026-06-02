@@ -1556,7 +1556,11 @@ export default function ProfessorDashboard() {
         <div>
           <strong>Publikimi kerkon korrigjim</strong>
           <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
-          {issues.length ? <span>Pikat per kontroll: {issues.join(", ")}</span> : null}
+          {issues.length ? (
+            <div className="publication-revision-issues" aria-label="Pikat per kontroll">
+              {issues.map((issue) => <span key={issue}>{issue}</span>)}
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -1568,7 +1572,7 @@ export default function ProfessorDashboard() {
         <div className="publication-row-actions">
           <button
             type="button"
-            className="prof-btn-primary"
+            className="prof-btn-primary publication-action-btn publication-action-btn--primary"
             onClick={() => savePublicationEdit(row.id)}
             disabled={publicationActionId === row.id}
             aria-label={t("common.save")}
@@ -1577,7 +1581,7 @@ export default function ProfessorDashboard() {
           </button>
           <button
             type="button"
-            className="prof-btn-secondary"
+            className="prof-btn-secondary publication-action-btn publication-action-btn--secondary"
             onClick={cancelPublicationEdit}
             disabled={publicationActionId === row.id}
             aria-label={t("professor.dashboard.cancelEdit")}
@@ -1587,7 +1591,7 @@ export default function ProfessorDashboard() {
           {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
             <button
               type="button"
-              className="prof-btn-primary"
+              className="prof-btn-primary publication-action-btn publication-action-btn--review"
               onClick={() => resubmitPublication(row.id)}
               disabled={publicationActionId === row.id}
               aria-label="Ridergo"
@@ -1603,7 +1607,7 @@ export default function ProfessorDashboard() {
       <div className="publication-row-actions">
         <button
           type="button"
-          className="prof-btn-secondary"
+          className="prof-btn-secondary publication-action-btn publication-action-btn--secondary"
           onClick={() => startPublicationEdit(row)}
           aria-label={t("common.edit")}
         >
@@ -1612,7 +1616,7 @@ export default function ProfessorDashboard() {
         {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
           <button
             type="button"
-            className="prof-btn-primary"
+            className="prof-btn-primary publication-action-btn publication-action-btn--primary"
             onClick={() => {
               startPublicationEdit(row);
               setFocusedPublicationId(row.id);
@@ -1625,7 +1629,7 @@ export default function ProfessorDashboard() {
         ) : null}
         <button
           type="button"
-          className="prof-btn-secondary"
+          className="prof-btn-secondary publication-action-btn publication-action-btn--danger"
           onClick={() => deletePublication(row.id)}
           disabled={publicationActionId === row.id}
           aria-label={t("common.delete")}
