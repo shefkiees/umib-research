@@ -357,7 +357,7 @@ export const translations = {
         confirmDeletePublication: "A jeni te sigurt qe doni ta fshini kete publikim?",
         publicationForm: {
           doiLookupAria: "DOI per kerkim automatik",
-          getMetadata: "Merr metadata",
+          getMetadata: "Merr të dhënat",
           doiRequired: "Shenoni DOI per t'i marre metadatat, ose vazhdoni manualisht.",
           doiLoadFailed: "Metadatat per DOI nuk mund te ngarkohen. Mund te vazhdoni manualisht.",
           doiLookupFailed: "Kerkimi i DOI deshtoi. Mund te vazhdoni manualisht.",
@@ -395,8 +395,8 @@ export const translations = {
       doi: {
         title: "Kerko publikimin me DOI",
         placeholder: "Shkruani DOI p.sh. 10.1000/xyz123",
-        fetch: "Merr metadata",
-        fetching: "Duke marre...",
+        fetch: "Merr të dhënat",
+        fetching: "Duke marrë...",
         loading: "Duke ngarkuar te dhenat...",
         required: "Ju lutem shkruani DOI.",
         invalid: "DOI nuk eshte valid. Kontrolloni formatin dhe provoni perseri.",

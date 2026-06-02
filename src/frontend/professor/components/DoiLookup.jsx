@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Loader2, Search } from "lucide-react";
 import DoiMetadataCard from "./DoiMetadataCard";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -130,18 +131,12 @@ const DoiLookup = ({ onPublicationSaved }) => {
           }}
         />
         <button
+          type="button"
           onClick={handleFetch}
           disabled={loading}
-          style={{
-            padding: "10px 16px",
-            border: "none",
-            borderRadius: "6px",
-            background: "#2563eb",
-            color: "#fff",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1
-          }}
+          className={`publication-doi-action ${loading ? "is-loading" : ""}`.trim()}
         >
+          {loading ? <Loader2 size={16} className="publication-doi-action-spinner" /> : <Search size={16} />}
           {loading ? t("professor.doi.fetching") : t("professor.doi.fetch")}
         </button>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 
@@ -422,8 +422,13 @@ const PublicationForm = ({
             aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
             disabled={isLookingUpDoi || submitting}
           />
-          <button type="button" className="prof-btn-secondary" onClick={lookupDoi} disabled={isLookingUpDoi || submitting}>
-            <Search size={15} />
+          <button
+            type="button"
+            className={`prof-btn-secondary publication-doi-action ${isLookingUpDoi ? "is-loading" : ""}`.trim()}
+            onClick={lookupDoi}
+            disabled={isLookingUpDoi || submitting}
+          >
+            {isLookingUpDoi ? <Loader2 size={16} className="publication-doi-action-spinner" /> : <Search size={16} />}
             {isLookingUpDoi ? t("common.loading") : t("professor.dashboard.publicationForm.getMetadata")}
           </button>
         </div>
