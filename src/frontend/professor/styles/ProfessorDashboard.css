@@ -1698,8 +1698,8 @@ body {
 
 .publication-authors-list {
   display: grid;
-  gap: 14px;
-  max-width: 100%;
+  gap: 18px;
+  max-width: 820px;
 }
 
 .publication-author-field,
@@ -1713,12 +1713,6 @@ body {
   color: #0f172a;
   font-size: 0.9rem;
   font-weight: 800;
-}
-
-.publication-author-field small {
-  color: #64748b;
-  font-size: 0.78rem;
-  line-height: 1.45;
 }
 
 .publication-author-field input,
@@ -1745,74 +1739,6 @@ body {
   padding-inline: 0;
   color: #0f172a;
   font-weight: 600;
-}
-
-.publication-authors-list--readonly .publication-author-card {
-  background: transparent;
-}
-
-.publication-authors-list--readonly .publication-corresponding-toggle {
-  color: #475569;
-}
-
-.publication-author-card {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.publication-author-card--primary {
-  border-color: #cfe0f3;
-  background: #f8fbff;
-}
-
-.publication-author-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.publication-author-card-header strong {
-  display: block;
-  color: #0f172a;
-  font-size: 0.95rem;
-}
-
-.publication-author-eyebrow {
-  display: block;
-  margin-bottom: 2px;
-  color: #64748b;
-  font-size: 0.74rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.publication-author-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(190px, 0.55fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.publication-corresponding-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  margin-top: 24px;
-  color: #0f172a;
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
-.publication-corresponding-toggle input {
-  width: 18px;
-  height: 18px;
-  accent-color: #2563eb;
 }
 
 .publication-coauthors-header {
@@ -4324,14 +4250,6 @@ body {
   .publication-row-actions .prof-btn-secondary,
   .publication-remove-button {
     width: 100%;
-  }
-
-  .publication-author-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .publication-corresponding-toggle {
-    margin-top: 0;
   }
 
   .publication-row-actions .publication-action-btn {
