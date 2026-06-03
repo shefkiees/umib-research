@@ -38,6 +38,7 @@ export const createEmptyPublicationDraft = () => ({
   abstract: "",
   publicationType: "",
   venue: "",
+  conferenceLocation: "",
   publisher: "",
   publicationDate: "",
   publicationYear: "",
@@ -84,6 +85,7 @@ export function publicationToDraft(publication = {}) {
     abstract: publication.abstract || "",
     publicationType: publication.publicationType || publication.publication_type || "",
     venue: publication.venue || publication.journal || "",
+    conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
     publicationDate: (publication.publicationDate || publication.publication_date || "").slice(0, 10),
     publicationYear: publication.publicationYear || publication.publication_year || publication.year || "",
@@ -218,6 +220,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     abstract: metadata.abstract || "",
     publicationType: normalizeDoiType(metadata.type),
     venue: metadata.container_title || "",
+    conferenceLocation: metadata.conference_location || metadata.conferenceLocation || "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
@@ -317,11 +320,26 @@ const PublicationForm = ({
     setFormError("");
   };
 
-  const setPrimaryAuthorName = (fullName) => {
+  const setCorrespondingAuthor = (index, checked) => {
+    const currentAuthors = value.authors?.length ? value.authors : [{ ...EMPTY_AUTHOR }];
+    const nextAuthors = currentAuthors.map((author, authorIndex) => ({
+      ...author,
+      isCorrespondingAuthor: checked ? authorIndex === index : false,
+    }));
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    setFormError("");
+  };
+
+  const setPrimaryAuthorField = (field, nextValue) => {
     const authors = value.authors || [];
     const nextAuthors = authors.length
-      ? authors.map((author, index) => (index === 0 ? { ...author, fullName } : author))
-      : [{ ...EMPTY_AUTHOR, fullName }];
+      ? authors.map((author, index) => (index === 0 ? { ...author, [field]: nextValue } : author))
+      : [{ ...EMPTY_AUTHOR, [field]: nextValue }];
 
     onChange({
       ...value,
@@ -410,6 +428,11 @@ const PublicationForm = ({
   const authors = value.authors || [];
   const primaryAuthor = authors[0] || EMPTY_AUTHOR;
   const coauthors = authors.slice(1);
+  const venuePlaceholder = value.publicationType === "conference_paper"
+    ? "IEEE International Conference on Computer Vision"
+    : value.publicationType === "book"
+      ? "Lecture Notes in Computer Science"
+      : "Journal of Artificial Intelligence Research";
 
   return (
     <form className="publication-form" onSubmit={submit}>
@@ -447,13 +470,22 @@ const PublicationForm = ({
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
           </select>
         </label>
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.venue")}</span>
-          <input value={value.venue} onChange={updateField("venue")} readOnly={isDoiImported} />
+        <label className="prof-form-field reimbursement-wide">
+          <span>{t("professor.dashboard.publicationForm.publishedIn")}</span>
+          <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} readOnly={isDoiImported} />
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.publisher")}</span>
           <input value={value.publisher} onChange={updateField("publisher")} readOnly={isDoiImported} />
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.conferenceLocation")}</span>
+          <input
+            value={value.conferenceLocation || ""}
+            onChange={updateField("conferenceLocation")}
+            placeholder={t("professor.dashboard.publicationForm.conferenceLocationPlaceholder")}
+            readOnly={isDoiImported}
+          />
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.publishedAt")}</span>
@@ -540,16 +572,45 @@ const PublicationForm = ({
           </div>
         </div>
         <div className={`publication-authors-list ${isDoiImported ? "publication-authors-list--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
-          <label className="publication-author-field">
-            <span>{t("professor.dashboard.publicationForm.author")}</span>
-            <input
-              value={primaryAuthor.fullName}
-              onChange={(event) => setPrimaryAuthorName(event.target.value)}
-              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-              required
-              readOnly={isDoiImported}
-            />
-          </label>
+          <div className="publication-author-card publication-author-card--primary">
+            <div className="publication-author-card-header">
+              <div>
+                <span className="publication-author-eyebrow">{t("professor.dashboard.publicationForm.authorOrder", { index: 1 })}</span>
+                <strong>{t("professor.dashboard.publicationForm.author")}</strong>
+              </div>
+            </div>
+            <div className="publication-author-grid">
+              <label className="publication-author-field">
+                <span>{t("professor.dashboard.publicationForm.fullName")}</span>
+                <input
+                  value={primaryAuthor.fullName}
+                  onChange={(event) => setPrimaryAuthorField("fullName", event.target.value)}
+                  placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+                  required
+                  readOnly={isDoiImported}
+                />
+              </label>
+              <label className="publication-author-field">
+                <span>{t("professor.dashboard.publicationForm.institution")}</span>
+                <input
+                  value={primaryAuthor.affiliation || ""}
+                  onChange={(event) => setPrimaryAuthorField("affiliation", event.target.value)}
+                  placeholder={t("professor.dashboard.publicationForm.institutionPlaceholder")}
+                  readOnly={isDoiImported}
+                />
+                <small>{t("professor.dashboard.publicationForm.institutionHint")}</small>
+              </label>
+              <label className="publication-corresponding-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(primaryAuthor.isCorrespondingAuthor)}
+                  onChange={(event) => setCorrespondingAuthor(0, event.target.checked)}
+                  disabled={isDoiImported}
+                />
+                <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
+              </label>
+            </div>
+          </div>
 
           <div className="publication-coauthors-block">
             <div className="publication-coauthors-header">
@@ -568,24 +629,54 @@ const PublicationForm = ({
                   const authorIndex = index + 1;
 
                   return (
-                    <div className="publication-coauthor-row" key={`coauthor-${authorIndex}`}>
-                      <input
-                        value={author.fullName}
-                        onChange={(event) => setAuthorField(authorIndex, "fullName", event.target.value)}
-                        placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-                        readOnly={isDoiImported}
-                      />
-                      {!isDoiImported ? (
-                        <button
-                          type="button"
-                          className="publication-remove-button"
-                          onClick={() => removeAuthor(authorIndex)}
-                          aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index: index + 1 })}
-                        >
-                          <Trash2 size={14} aria-hidden="true" />
-                          <span>{t("professor.dashboard.publicationForm.remove")}</span>
-                        </button>
-                      ) : null}
+                    <div className="publication-author-card" key={`coauthor-${authorIndex}`}>
+                      <div className="publication-author-card-header">
+                        <div>
+                          <span className="publication-author-eyebrow">{t("professor.dashboard.publicationForm.authorOrder", { index: authorIndex + 1 })}</span>
+                          <strong>{t("professor.dashboard.publicationForm.coauthor")}</strong>
+                        </div>
+                        {!isDoiImported ? (
+                          <button
+                            type="button"
+                            className="publication-remove-button"
+                            onClick={() => removeAuthor(authorIndex)}
+                            aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index: index + 1 })}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            <span>{t("professor.dashboard.publicationForm.remove")}</span>
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="publication-author-grid">
+                        <label className="publication-author-field">
+                          <span>{t("professor.dashboard.publicationForm.fullName")}</span>
+                          <input
+                            value={author.fullName}
+                            onChange={(event) => setAuthorField(authorIndex, "fullName", event.target.value)}
+                            placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+                            readOnly={isDoiImported}
+                          />
+                        </label>
+                        <label className="publication-author-field">
+                          <span>{t("professor.dashboard.publicationForm.institution")}</span>
+                          <input
+                            value={author.affiliation || ""}
+                            onChange={(event) => setAuthorField(authorIndex, "affiliation", event.target.value)}
+                            placeholder={t("professor.dashboard.publicationForm.institutionPlaceholder")}
+                            readOnly={isDoiImported}
+                          />
+                          <small>{t("professor.dashboard.publicationForm.institutionHint")}</small>
+                        </label>
+                        <label className="publication-corresponding-toggle">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(author.isCorrespondingAuthor)}
+                            onChange={(event) => setCorrespondingAuthor(authorIndex, event.target.checked)}
+                            disabled={isDoiImported}
+                          />
+                          <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
+                        </label>
+                      </div>
                     </div>
                   );
                 })}
