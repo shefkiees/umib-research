@@ -68,22 +68,10 @@ const pickOrcidTitle = (items = []) => {
   return pickFirstText(firstItem.roleTitle, firstItem.title, firstItem.position, firstItem.department);
 };
 
-const updateAffiliationOrganization = (items = [], value = "") => {
-  const rows = Array.isArray(items) ? items : [];
-  const organization = String(value || "").trim();
-
-  if (!rows.length) {
-    return organization ? [{ organization }] : [];
-  }
-
-  return rows.map((item, index) => (
-    index === 0 ? { ...item, organization } : item
-  ));
-};
-
 const normalizeProfile = (user = {}) => {
   const orcidEducations = Array.isArray(user.orcidEducations) ? user.orcidEducations : [];
   const orcidEmployments = Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [];
+  const education = Array.isArray(user.education) ? user.education : orcidEducations;
 
   return {
     name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
@@ -91,7 +79,7 @@ const normalizeProfile = (user = {}) => {
     appRole: user.role || "professor",
     email: user.email || professorProfile.email,
     academicTitle: user.academicTitle || user.academic_title || professorProfile.academicTitle || pickOrcidTitle(orcidEmployments),
-    scientificTitle: user.scientificTitle || user.scientific_title || professorProfile.scientificTitle || pickOrcidTitle(orcidEducations),
+    scientificTitle: user.scientificTitle || user.scientific_title || professorProfile.scientificTitle || pickOrcidTitle(education),
     faculty: user.faculty || professorProfile.faculty,
     department: user.department || professorProfile.department,
     office: user.office || professorProfile.office,
@@ -99,6 +87,8 @@ const normalizeProfile = (user = {}) => {
     school: user.school || "",
     currentAffiliation: user.currentAffiliation || "",
     orcidProfile: user.orcidProfile || {},
+    profileOverrides: user.profileOverrides || user.profile_overrides || {},
+    education,
     orcidEducations,
     orcidEmployments,
     orcidLastSyncedAt: user.orcidLastSyncedAt || null,
@@ -953,7 +943,7 @@ export default function ProfessorDashboard() {
     setProfileDraft((prev) => ({
       ...prev,
       school: index === 0 ? organization : prev.school,
-      orcidEducations: (Array.isArray(prev.orcidEducations) ? prev.orcidEducations : []).map((item, itemIndex) => (
+      education: (Array.isArray(prev.education) ? prev.education : []).map((item, itemIndex) => (
         itemIndex === index ? { ...item, organization } : item
       )),
     }));
@@ -980,7 +970,7 @@ export default function ProfessorDashboard() {
           scientificTitle: profileDraft.scientificTitle,
           school: profileDraft.school,
           currentAffiliation: profileDraft.currentAffiliation,
-          orcidEducations: profileDraft.orcidEducations,
+          education: profileDraft.education,
         }),
       });
 
@@ -2303,7 +2293,7 @@ export default function ProfessorDashboard() {
                   <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} />
                 </label>
               </div>
-              {profileDraft.orcidEducations.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
+              {profileDraft.education.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
                 <div className="prof-orcid-details">
                   {profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
                     <div>
@@ -2317,10 +2307,10 @@ export default function ProfessorDashboard() {
                       ))}
                     </div>
                   ) : null}
-                  {profileDraft.orcidEducations.length ? (
+                  {profileDraft.education.length ? (
                     <div>
                       <h4>{settingsText.orcidEducation}</h4>
-                      {profileDraft.orcidEducations.slice(0, 3).map((item, index) => (
+                      {profileDraft.education.slice(0, 3).map((item, index) => (
                         <label className="prof-form-field prof-orcid-edit-field" key={`education-${item.putCode || index}`}>
                           <span>{settingsText.educationInstitution}</span>
                           <input value={item.organization || ""} onChange={handleProfileEducationChange(index)} placeholder={settingsText.noPublicData} />

@@ -182,6 +182,13 @@ function mapUserRowToProfile(row) {
 
   const orcidEducations = Array.isArray(row.orcid_educations) ? row.orcid_educations : [];
   const orcidEmployments = Array.isArray(row.orcid_employments) ? row.orcid_employments : [];
+  const profileOverrides = row.profile_overrides && typeof row.profile_overrides === "object"
+    ? row.profile_overrides
+    : {};
+  const overrideEducation = Array.isArray(profileOverrides.education) ? profileOverrides.education : null;
+  const displayEducation = overrideEducation || orcidEducations;
+  const overrideSchool = String(profileOverrides.school || "").trim();
+  const overrideAffiliation = String(profileOverrides.currentAffiliation || profileOverrides.current_affiliation || "").trim();
 
   return {
     id: row.id,
@@ -196,26 +203,15 @@ function mapUserRowToProfile(row) {
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
-    school: orcidEducations[0]?.organization || "",
-    currentAffiliation: orcidEmployments[0]?.organization || orcidEducations[0]?.organization || "",
+    school: overrideSchool || orcidEducations[0]?.organization || "",
+    currentAffiliation: overrideAffiliation || orcidEmployments[0]?.organization || orcidEducations[0]?.organization || "",
+    education: displayEducation,
+    profileOverrides,
     orcidProfile: row.orcid_profile || {},
     orcidEducations,
     orcidEmployments,
     orcidLastSyncedAt: row.orcid_last_synced_at || null,
   };
-}
-
-function updateFirstAffiliationOrganization(items = [], organization = "") {
-  const rows = Array.isArray(items) ? items : [];
-  const nextOrganization = String(organization || "").trim();
-
-  if (!rows.length) {
-    return nextOrganization ? [{ organization: nextOrganization }] : [];
-  }
-
-  return rows.map((item, index) => (
-    index === 0 ? { ...(item || {}), organization: nextOrganization } : item
-  ));
 }
 
 router.get("/me", async (req, res) => {
@@ -227,7 +223,7 @@ router.get("/me", async (req, res) => {
 
     const result = await db.query(
       `SELECT id, google_id, orcid_id, email, full_name, role, status, academic_title, scientific_title, faculty, department, office,
-              orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at
+              profile_overrides, orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -254,7 +250,7 @@ router.put("/me", async (req, res) => {
     }
 
     const currentResult = await db.query(
-      `SELECT id, orcid_id, orcid_educations, orcid_employments
+      `SELECT id, orcid_id, profile_overrides
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -276,11 +272,20 @@ router.put("/me", async (req, res) => {
     const nextScientificTitle = String(req.body?.scientificTitle || req.body?.scientific_title || "").trim();
     const nextSchool = String(req.body?.school || "").trim();
     const nextCurrentAffiliation = String(req.body?.currentAffiliation || req.body?.current_affiliation || "").trim();
-    const nextOrcidEducations = Array.isArray(req.body?.orcidEducations || req.body?.orcid_educations)
-      ? (req.body.orcidEducations || req.body.orcid_educations)
-      : currentUser.orcid_educations;
-    const normalizedEducations = updateFirstAffiliationOrganization(nextOrcidEducations, nextSchool);
-    const normalizedEmployments = updateFirstAffiliationOrganization(currentUser.orcid_employments, nextCurrentAffiliation);
+    const currentOverrides = currentUser.profile_overrides && typeof currentUser.profile_overrides === "object"
+      ? currentUser.profile_overrides
+      : {};
+    const nextEducation = Array.isArray(req.body?.education)
+      ? req.body.education
+      : Array.isArray(req.body?.orcidEducations || req.body?.orcid_educations)
+        ? (req.body.orcidEducations || req.body.orcid_educations)
+        : currentOverrides.education;
+    const nextProfileOverrides = {
+      ...currentOverrides,
+      school: nextSchool,
+      currentAffiliation: nextCurrentAffiliation,
+      education: Array.isArray(nextEducation) ? nextEducation : [],
+    };
 
     const result = await db.query(
       `UPDATE users
@@ -293,12 +298,11 @@ router.put("/me", async (req, res) => {
            office = $5,
            academic_title = $6,
            scientific_title = $7,
-           orcid_educations = $8::jsonb,
-           orcid_employments = $9::jsonb,
+           profile_overrides = $8::jsonb,
            updated_at = NOW()
        WHERE id = $1
        RETURNING id, google_id, orcid_id, email, full_name, role, status, academic_title, scientific_title, faculty, department, office,
-                 orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at`,
+                 profile_overrides, orcid_profile, orcid_educations, orcid_employments, orcid_last_synced_at`,
       [
         req.user.id,
         hasOrcidIdentity ? null : (nextName || null),
@@ -307,8 +311,7 @@ router.put("/me", async (req, res) => {
         nextOffice || null,
         nextAcademicTitle || null,
         nextScientificTitle || null,
-        JSON.stringify(normalizedEducations),
-        JSON.stringify(normalizedEmployments),
+        JSON.stringify(nextProfileOverrides),
       ]
     );
 
