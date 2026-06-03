@@ -1120,6 +1120,50 @@ body {
   margin-top: 10px;
 }
 
+.prof-education-list {
+  display: grid;
+  gap: 12px;
+}
+
+.prof-education-entry {
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.prof-education-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prof-education-location-field {
+  grid-column: 1 / -1;
+}
+
+.prof-education-location-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prof-orcid-empty {
+  margin: 0;
+}
+
+.prof-orcid-add-btn {
+  margin-top: 10px;
+  min-height: 36px;
+  border: 1px solid #c8def5;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1d4d7a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .prof-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -1160,6 +1204,11 @@ body {
   .prof-profile-edit-modal .prof-form-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .prof-education-entry-grid,
+  .prof-education-location-grid {
+    grid-template-columns: 1fr;
   }
 
   .prof-profile-edit-modal .prof-modal-actions {

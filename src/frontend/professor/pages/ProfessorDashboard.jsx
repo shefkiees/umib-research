@@ -937,16 +937,72 @@ export default function ProfessorDashboard() {
     setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleProfileEducationChange = (index) => (event) => {
-    const organization = event.target.value;
+  const handleProfileEducationFieldChange = (index, field) => (event) => {
+    const value = event.target.value;
 
     setProfileDraft((prev) => ({
       ...prev,
-      school: index === 0 ? organization : prev.school,
+      school: index === 0 && field === "organization" ? value : prev.school,
       education: (Array.isArray(prev.education) ? prev.education : []).map((item, itemIndex) => (
-        itemIndex === index ? { ...item, organization } : item
+        itemIndex === index ? { ...item, [field]: value } : item
       )),
     }));
+  };
+
+  const addProfileEducationEntry = () => {
+    setProfileDraft((prev) => ({
+      ...prev,
+      education: [
+        ...(Array.isArray(prev.education) ? prev.education : []),
+        {
+          organization: "",
+          department: "",
+          roleTitle: "",
+          startDate: "",
+          endDate: "",
+          city: "",
+          region: "",
+          country: "",
+        },
+      ],
+    }));
+  };
+
+  const renderProfileEducationEntry = (item = {}, index) => {
+    return (
+      <div className="prof-education-entry" key={`education-${item.putCode || index}`}>
+        <div className="prof-education-entry-grid">
+          <label className="prof-form-field">
+            <span>{settingsText.educationInstitution}</span>
+            <input value={item.organization || ""} onChange={handleProfileEducationFieldChange(index, "organization")} placeholder={settingsText.noPublicData} />
+          </label>
+          <label className="prof-form-field">
+            <span>{settingsText.educationDepartment}</span>
+            <input value={item.department || ""} onChange={handleProfileEducationFieldChange(index, "department")} placeholder={settingsText.noPublicData} />
+          </label>
+          <label className="prof-form-field">
+            <span>{settingsText.educationProgram}</span>
+            <input value={item.roleTitle || ""} onChange={handleProfileEducationFieldChange(index, "roleTitle")} placeholder={settingsText.noPublicData} />
+          </label>
+          <label className="prof-form-field">
+            <span>{settingsText.educationStartDate}</span>
+            <input value={item.startDate || ""} onChange={handleProfileEducationFieldChange(index, "startDate")} placeholder={settingsText.noPublicData} />
+          </label>
+          <label className="prof-form-field">
+            <span>{settingsText.educationEndDate}</span>
+            <input value={item.endDate || ""} onChange={handleProfileEducationFieldChange(index, "endDate")} placeholder={settingsText.noPublicData} />
+          </label>
+          <div className="prof-form-field prof-education-location-field">
+            <span>{settingsText.educationLocation}</span>
+            <div className="prof-education-location-grid">
+              <input value={item.city || ""} onChange={handleProfileEducationFieldChange(index, "city")} placeholder={settingsText.educationCity} />
+              <input value={item.region || ""} onChange={handleProfileEducationFieldChange(index, "region")} placeholder={settingsText.educationRegion} />
+              <input value={item.country || ""} onChange={handleProfileEducationFieldChange(index, "country")} placeholder={settingsText.educationCountry} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleProfileSave = async (event) => {
@@ -970,7 +1026,7 @@ export default function ProfessorDashboard() {
           scientificTitle: profileDraft.scientificTitle,
           school: profileDraft.school,
           currentAffiliation: profileDraft.currentAffiliation,
-          education: profileDraft.education,
+          education: Array.isArray(profileDraft.education) ? profileDraft.education : [],
         }),
       });
 
@@ -2293,8 +2349,7 @@ export default function ProfessorDashboard() {
                   <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} />
                 </label>
               </div>
-              {profileDraft.education.length || profileDraft.orcidEmployments.length || profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
-                <div className="prof-orcid-details">
+              <div className="prof-orcid-details">
                   {profileDraft.orcidProfile?.biography || profileDraft.orcidProfile?.keywords?.length || profileDraft.orcidProfile?.researcherUrls?.length ? (
                     <div>
                       <h4>{settingsText.orcidDetails}</h4>
@@ -2307,17 +2362,25 @@ export default function ProfessorDashboard() {
                       ))}
                     </div>
                   ) : null}
-                  {profileDraft.education.length ? (
+                  {Array.isArray(profileDraft.education) && profileDraft.education.length ? (
                     <div>
                       <h4>{settingsText.orcidEducation}</h4>
-                      {profileDraft.education.slice(0, 3).map((item, index) => (
-                        <label className="prof-form-field prof-orcid-edit-field" key={`education-${item.putCode || index}`}>
-                          <span>{settingsText.educationInstitution}</span>
-                          <input value={item.organization || ""} onChange={handleProfileEducationChange(index)} placeholder={settingsText.noPublicData} />
-                        </label>
-                      ))}
+                      <div className="prof-education-list">
+                        {profileDraft.education.map(renderProfileEducationEntry)}
+                      </div>
+                      <button type="button" className="prof-orcid-add-btn" onClick={addProfileEducationEntry}>
+                        {settingsText.addEducation}
+                      </button>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div>
+                      <h4>{settingsText.orcidEducation}</h4>
+                      <p className="prof-orcid-empty">{settingsText.educationEmpty}</p>
+                      <button type="button" className="prof-orcid-add-btn" onClick={addProfileEducationEntry}>
+                        {settingsText.addEducation}
+                      </button>
+                    </div>
+                  )}
                   {profileDraft.orcidEmployments.length ? (
                     <div>
                       <h4>{settingsText.orcidEmployment}</h4>
@@ -2327,7 +2390,6 @@ export default function ProfessorDashboard() {
                     </div>
                   ) : null}
                 </div>
-              ) : null}
               {profileError ? <p className="prof-modal-error" role="alert">{settingsText.profileSaveError}</p> : null}
               {!profileDraft.orcidId ? (
                 <button type="button" className="prof-orcid-link-btn" onClick={() => handleMenuAction("OrcidConnect")}>
