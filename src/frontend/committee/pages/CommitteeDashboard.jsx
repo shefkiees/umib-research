@@ -83,7 +83,7 @@ const metadataReviewFilterOptions = [
   { value: "all", label: "Të gjitha" },
   { value: "issues", label: "Me mungesa" },
   { value: "missing-doi", label: "Pa DOI" },
-  { value: "missing-uibm", label: "Pa UIBM affiliation" },
+  { value: "missing-uibm", label: "Pa perkatesi institucionale UIBM" },
   { value: "in_review", label: "Në kontroll" },
   { value: "ready", label: "Gati për aprovim" },
   { value: "correction", label: "Kërkon korrigjim" },
@@ -94,12 +94,12 @@ const metadataChecklistItems = [
   { key: "titleMatches", label: "Titulli përputhet me dokumentin" },
   { key: "venueOk", label: "Journal / Konferenca OK" },
   { key: "authorsOk", label: "Autorët OK" },
-  { key: "uibmOk", label: "UIBM affiliation OK" },
+  { key: "uibmOk", label: "Perkatesia institucionale UIBM OK" },
   { key: "documentsOk", label: "Dokumentet OK" },
 ];
 
 const correctionExamples = [
-  "Mungon UIBM affiliation",
+  "Mungon perkatesia institucionale UIBM",
   "DOI nuk përputhet me titullin",
   "Journal nuk është i saktë",
   "Dokumenti i ngarkuar nuk është i plotë",
@@ -881,7 +881,7 @@ export default function CommitteeDashboard() {
           <strong>{metadataSummary.missingDoi}</strong>
         </article>
         <article>
-          <span>Pa UIBM affiliation</span>
+          <span>Pa perkatesi institucionale UIBM</span>
           <strong>{metadataSummary.missingUibm}</strong>
         </article>
       </div>
@@ -939,7 +939,7 @@ export default function CommitteeDashboard() {
                     <td>
                       <strong>{getAuthorName(firstAuthor) || "-"}</strong>
                       <span className={hasUibm ? "committee-metadata-ok" : "committee-metadata-warning"}>
-                        {hasUibm ? "UIBM affiliation OK" : "UIBM affiliation mungon"}
+                        {hasUibm ? "Perkatesia institucionale UIBM OK" : "Perkatesia institucionale UIBM mungon"}
                       </span>
                     </td>
                     <td>
@@ -1081,6 +1081,7 @@ export default function CommitteeDashboard() {
                 <dl className="committee-metadata-detail-grid">
                   <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
                   <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
+                  <div><dt>Vendi i konferences</dt><dd>{selectedMetadataPublication.conferenceLocation || selectedMetadataPublication.conference_location || "-"}</dd></div>
                   <div><dt>Publisher</dt><dd>{selectedMetadataPublication.publisher || "-"}</dd></div>
                   <div><dt>Viti</dt><dd>{selectedMetadataPublication.publicationYear || selectedMetadataPublication.publication_year || formatDate(selectedMetadataPublication.publicationDate || selectedMetadataPublication.publication_date)}</dd></div>
                   <div><dt>Burimi</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>

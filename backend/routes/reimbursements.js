@@ -450,6 +450,8 @@ function mapPublicationRow(row) {
     publicationType: row.publication_type || row.publicationType || "",
     publication_type: row.publication_type || row.publicationType || "",
     venue: row.venue || row.container_title || "",
+    conferenceLocation: row.conference_location || row.conferenceLocation || "",
+    conference_location: row.conference_location || row.conferenceLocation || "",
     publisher: row.publisher || "",
     publicationDate: formatDate(row.publication_date || row.publicationDate || row.published_date),
     publication_date: formatDate(row.publication_date || row.publicationDate || row.published_date),
@@ -486,6 +488,7 @@ async function hasPublicationContextColumns(dbOrClient) {
        and column_name in (
          'abstract',
          'publication_type',
+         'conference_location',
          'publisher',
          'publication_date',
          'source_url',
@@ -504,7 +507,7 @@ async function hasPublicationContextColumns(dbOrClient) {
   );
 
   publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 10
+    Number(rows[0]?.count || 0) === 11
     && Number(tableResult.rows[0]?.count || 0) === 4;
   return publicationContextSchemaCache;
 }
@@ -581,6 +584,7 @@ function publicationToReadOnlyRequestData(publication) {
     publicationType: normalizeText(publication.publicationType || publication.publication_type),
     venue,
     journal: venue,
+    conferenceLocation: normalizeText(publication.conferenceLocation || publication.conference_location),
     publisher: normalizeText(publication.publisher),
     publicationDate: formatDate(publication.publicationDate || publication.publication_date),
     publicationYear: normalizeText(publication.publicationYear || publication.publication_year || publication.year),
@@ -638,7 +642,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
   const hasPublicationColumns = await hasPublicationContextColumns(dbOrClient);
   const result = hasPublicationColumns
     ? await dbOrClient.query(
-        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue,
+        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
                 coalesce(
@@ -1406,7 +1410,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
 
     const hasPublicationColumns = await hasPublicationContextColumns(db);
     const publicationsQuery = hasPublicationColumns
-      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue,
+      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
                 coalesce(

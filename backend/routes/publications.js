@@ -141,7 +141,7 @@ function normalizeAuthors(value) {
     return [];
   }
 
-  return value
+  const authors = value
     .map((author, index) => {
       const fullName = normalizeText(author.full_name || author.fullName || author.name);
       const givenName = normalizeText(author.given_name || author.givenName);
@@ -173,6 +173,15 @@ function normalizeAuthors(value) {
       };
     })
     .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
+
+  if (authors.length && !authors.some((author) => author.isCorrespondingAuthor)) {
+    return authors.map((author, index) => ({
+      ...author,
+      isCorrespondingAuthor: index === 0,
+    }));
+  }
+
+  return authors;
 }
 
 function normalizeIndexing(value) {
@@ -310,10 +319,15 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
+  const rawIndexing = Array.isArray(body.indexing) && body.indexing.length
+    ? body.indexing
+    : body.quartile
+      ? [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }]
+      : Array.isArray(body.indexing)
+        ? body.indexing
+        : [];
   const indexing = hasIndexingInput
-    ? normalizeIndexing(Array.isArray(body.indexing)
-      ? body.indexing
-      : [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }])
+    ? normalizeIndexing(rawIndexing)
     : undefined;
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
@@ -855,7 +869,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       orcid: "",
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
-      isCorrespondingAuthor: false,
+      isCorrespondingAuthor: index === mainAuthorIndex,
       authorOrder: index + 1,
     };
   }
@@ -880,6 +894,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       ?? author?.is_corresponding
       ?? author?.isCorresponding
       ?? author?.corresponding
+      ?? (index === mainAuthorIndex)
     ),
     authorOrder: index + 1,
   };

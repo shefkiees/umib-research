@@ -1907,7 +1907,7 @@ export default function ProfessorDashboard() {
       titleMatches: "Titulli",
       venueOk: "Journal / Konferenca",
       authorsOk: "Autoret",
-      uibmOk: "UIBM affiliation",
+      uibmOk: "Perkatesia institucionale UIBM",
       documentsOk: "Dokumentet",
     };
 

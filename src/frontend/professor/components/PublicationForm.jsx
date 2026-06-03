@@ -97,7 +97,7 @@ function normalizePublicationAuthors(authors = []) {
       ),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
-      isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
+      isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : index === 0,
     };
   });
 }
@@ -237,6 +237,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
       ?? normalizedAuthor.isCorresponding
       ?? normalizedAuthor.is_corresponding
       ?? normalizedAuthor.corresponding
+      ?? (index === mainAuthorIndex)
     ),
   };
 }

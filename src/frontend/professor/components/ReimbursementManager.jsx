@@ -716,6 +716,7 @@ function applyPublicationToForm(prev, publication) {
     publicationType: publication.publicationType || publication.publication_type || "",
     venue,
     journal: venue,
+    conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
     abstract: publication.abstract || "",
     publicationDate: normalizeInputDate(publication.publicationDate || publication.publication_date),
