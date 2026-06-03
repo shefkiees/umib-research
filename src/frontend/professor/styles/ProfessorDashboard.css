@@ -1726,13 +1726,6 @@ body {
   font-size: 0.95rem;
 }
 
-.publication-author-field input[type="checkbox"],
-.publication-corresponding-field input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #2563eb;
-}
-
 .publication-author-field input:focus,
 .publication-coauthor-row input:focus {
   outline: 0;
@@ -1740,26 +1733,7 @@ body {
   box-shadow: 0 0 0 3px rgba(29, 77, 125, 0.1);
 }
 
-.publication-author-details-row,
-.publication-coauthor-inputs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 10px;
-}
-
-.publication-corresponding-field {
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #0f172a;
-  font-size: 0.84rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.publication-authors-list--readonly input[readonly] {
+.publication-authors-list--readonly input {
   border-color: transparent;
   background: transparent;
   padding-inline: 0;
@@ -1784,18 +1758,6 @@ body {
   grid-template-columns: minmax(0, 1fr) 32px;
   align-items: center;
   gap: 10px;
-}
-
-@media (max-width: 720px) {
-  .publication-author-details-row,
-  .publication-coauthor-inputs {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .publication-corresponding-field {
-    min-height: auto;
-  }
 }
 
 .publication-add-coauthor {
