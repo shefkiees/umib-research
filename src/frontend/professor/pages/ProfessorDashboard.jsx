@@ -340,6 +340,25 @@ const formatRequestedAmounts = (amounts = []) => {
     .join(" / ") || "0 EUR";
 };
 
+const createEmptyBankAccountDraft = () => ({
+  id: "",
+  label: "",
+  bankApplicantName: "",
+  bankName: "",
+  bankAccountNumber: "",
+  iban: "",
+  swiftCode: "",
+  bankCountry: "Kosove",
+  currency: "EUR",
+  isDefault: false,
+});
+
+const maskBankAccountNumber = (value = "") => {
+  const normalized = String(value || "").replace(/\s+/g, "");
+
+  return normalized ? `**** ${normalized.slice(-4)}` : "";
+};
+
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
 const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
@@ -403,6 +422,12 @@ export default function ProfessorDashboard() {
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [isBankAccountsLoading, setIsBankAccountsLoading] = useState(false);
+  const [bankAccountsError, setBankAccountsError] = useState("");
+  const [bankAccountDraft, setBankAccountDraft] = useState(createEmptyBankAccountDraft);
+  const [editingBankAccountId, setEditingBankAccountId] = useState("");
+  const [bankAccountActionId, setBankAccountActionId] = useState("");
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [passwordResetEmail, setPasswordResetEmail] = useState("");
   const [isPasswordResetSending, setIsPasswordResetSending] = useState(false);
@@ -1003,6 +1028,177 @@ export default function ProfessorDashboard() {
         </div>
       </div>
     );
+  };
+
+  const loadBankAccounts = useCallback(async () => {
+    setIsBankAccountsLoading(true);
+    setBankAccountsError("");
+
+    try {
+      const response = await fetch(apiUrl("/auth/me/bank-accounts"), {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "bank_accounts_load_failed");
+      }
+
+      setBankAccounts(Array.isArray(data.bankAccounts) ? data.bankAccounts : []);
+    } catch (error) {
+      console.error("Bank accounts load failed:", error);
+      setBankAccountsError(settingsText.bankAccountLoadError);
+      setBankAccounts([]);
+    } finally {
+      setIsBankAccountsLoading(false);
+    }
+  }, [navigate, settingsText.bankAccountLoadError]);
+
+  useEffect(() => {
+    if (isEditProfileOpen) {
+      loadBankAccounts();
+    }
+  }, [isEditProfileOpen, loadBankAccounts]);
+
+  const resetBankAccountDraft = () => {
+    setBankAccountDraft(createEmptyBankAccountDraft());
+    setEditingBankAccountId("");
+  };
+
+  const handleBankAccountDraftChange = (field) => (event) => {
+    const value = field === "isDefault" ? event.target.checked : event.target.value;
+
+    setBankAccountDraft((prev) => ({
+      ...prev,
+      [field]: field === "swiftCode" || field === "currency" ? String(value).toUpperCase() : value,
+    }));
+  };
+
+  const startBankAccountEdit = (account) => {
+    setEditingBankAccountId(account.id);
+    setBankAccountDraft({
+      id: account.id || "",
+      label: account.label || "",
+      bankApplicantName: account.bankApplicantName || "",
+      bankName: account.bankName || "",
+      bankAccountNumber: account.bankAccountNumber || "",
+      iban: account.iban || "",
+      swiftCode: account.swiftCode || "",
+      bankCountry: account.bankCountry || "Kosove",
+      currency: account.currency || "EUR",
+      isDefault: Boolean(account.isDefault),
+    });
+  };
+
+  const handleBankAccountSave = async () => {
+    const accountId = editingBankAccountId;
+    setBankAccountActionId(accountId || "new");
+    setBankAccountsError("");
+
+    try {
+      const response = await fetch(
+        apiUrl(accountId ? `/auth/me/bank-accounts/${accountId}` : "/auth/me/bank-accounts"),
+        {
+          method: accountId ? "PUT" : "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bankAccountDraft),
+        }
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        const message = data.errors?.[0]?.message || data.message || settingsText.bankAccountSaveError;
+        throw new Error(message);
+      }
+
+      resetBankAccountDraft();
+      await loadBankAccounts();
+    } catch (error) {
+      console.error("Bank account save failed:", error);
+      setBankAccountsError(error.message || settingsText.bankAccountSaveError);
+    } finally {
+      setBankAccountActionId("");
+    }
+  };
+
+  const handleBankAccountDelete = async (accountId) => {
+    if (!window.confirm(settingsText.bankAccountDeleteConfirm)) {
+      return;
+    }
+
+    setBankAccountActionId(accountId);
+    setBankAccountsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/auth/me/bank-accounts/${accountId}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || settingsText.bankAccountSaveError);
+      }
+
+      if (editingBankAccountId === accountId) {
+        resetBankAccountDraft();
+      }
+
+      await loadBankAccounts();
+    } catch (error) {
+      console.error("Bank account delete failed:", error);
+      setBankAccountsError(error.message || settingsText.bankAccountSaveError);
+    } finally {
+      setBankAccountActionId("");
+    }
+  };
+
+  const handleBankAccountSetDefault = async (accountId) => {
+    setBankAccountActionId(accountId);
+    setBankAccountsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/auth/me/bank-accounts/${accountId}/default`), {
+        method: "PATCH",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || settingsText.bankAccountSaveError);
+      }
+
+      await loadBankAccounts();
+    } catch (error) {
+      console.error("Bank account default update failed:", error);
+      setBankAccountsError(error.message || settingsText.bankAccountSaveError);
+    } finally {
+      setBankAccountActionId("");
+    }
   };
 
   const handleProfileSave = async (event) => {
@@ -2385,6 +2581,118 @@ export default function ProfessorDashboard() {
                     </div>
                   ) : null}
                 </div>
+              <section className="prof-bank-accounts-section">
+                <div className="prof-bank-accounts-header">
+                  <div>
+                    <h4>{settingsText.bankAccountsTitle}</h4>
+                    <p>{settingsText.bankAccountsDescription}</p>
+                  </div>
+                </div>
+                {bankAccountsError ? <p className="prof-modal-error" role="alert">{bankAccountsError}</p> : null}
+                {isBankAccountsLoading ? (
+                  <p className="prof-bank-empty">{t("common.loading")}</p>
+                ) : bankAccounts.length ? (
+                  <div className="prof-bank-account-list">
+                    {bankAccounts.map((account) => (
+                      <article className="prof-bank-account-card" key={account.id}>
+                        <div className="prof-bank-account-main">
+                          <div className="prof-bank-account-title-row">
+                            <strong>{account.label || account.bankName || settingsText.bankAccountsTitle}</strong>
+                            {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
+                          </div>
+                          <p>{[account.bankApplicantName, account.bankName].filter(Boolean).join(" | ")}</p>
+                          <p>{[maskBankAccountNumber(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
+                        </div>
+                        <div className="prof-bank-account-card-actions">
+                          {!account.isDefault ? (
+                            <button
+                              type="button"
+                              className="prof-bank-text-btn"
+                              onClick={() => handleBankAccountSetDefault(account.id)}
+                              disabled={bankAccountActionId === account.id}
+                            >
+                              {settingsText.bankSetDefault}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="prof-bank-text-btn"
+                            onClick={() => startBankAccountEdit(account)}
+                            disabled={bankAccountActionId === account.id}
+                          >
+                            {settingsText.bankEdit}
+                          </button>
+                          <button
+                            type="button"
+                            className="prof-bank-danger-btn"
+                            onClick={() => handleBankAccountDelete(account.id)}
+                            disabled={bankAccountActionId === account.id}
+                          >
+                            {settingsText.bankDelete}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="prof-bank-empty">{settingsText.bankAccountsEmpty}</p>
+                )}
+                <div className="prof-bank-account-form">
+                  <h5>{editingBankAccountId ? settingsText.bankAccountEditTitle : settingsText.bankAccountAddTitle}</h5>
+                  <div className="prof-bank-account-grid">
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankAccountLabel}</span>
+                      <input value={bankAccountDraft.label} onChange={handleBankAccountDraftChange("label")} placeholder={settingsText.bankAccountLabelPlaceholder} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankApplicantName}</span>
+                      <input value={bankAccountDraft.bankApplicantName} onChange={handleBankAccountDraftChange("bankApplicantName")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankName}</span>
+                      <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankAccountNumber}</span>
+                      <input value={bankAccountDraft.bankAccountNumber} onChange={handleBankAccountDraftChange("bankAccountNumber")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankIban}</span>
+                      <input value={bankAccountDraft.iban} onChange={handleBankAccountDraftChange("iban")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankSwift}</span>
+                      <input value={bankAccountDraft.swiftCode} onChange={handleBankAccountDraftChange("swiftCode")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankCountry}</span>
+                      <input value={bankAccountDraft.bankCountry} onChange={handleBankAccountDraftChange("bankCountry")} />
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankCurrency}</span>
+                      <select value={bankAccountDraft.currency} onChange={handleBankAccountDraftChange("currency")}>
+                        {["EUR", "USD", "GBP", "CHF"].map((currency) => (
+                          <option value={currency} key={currency}>{currency}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="prof-bank-default-toggle">
+                    <input type="checkbox" checked={bankAccountDraft.isDefault} onChange={handleBankAccountDraftChange("isDefault")} />
+                    <span>{settingsText.bankDefault}</span>
+                  </label>
+                  <div className="prof-bank-form-actions">
+                    {editingBankAccountId ? (
+                      <button type="button" className="prof-btn-secondary" onClick={resetBankAccountDraft} disabled={Boolean(bankAccountActionId)}>
+                        {settingsText.bankCancelEdit}
+                      </button>
+                    ) : null}
+                    <button type="button" className="prof-btn-primary" onClick={handleBankAccountSave} disabled={Boolean(bankAccountActionId)}>
+                      {bankAccountActionId === "new" || bankAccountActionId === editingBankAccountId ? settingsText.saving : settingsText.bankSave}
+                    </button>
+                  </div>
+                </div>
+              </section>
               {profileError ? <p className="prof-modal-error" role="alert">{settingsText.profileSaveError}</p> : null}
               {!profileDraft.orcidId ? (
                 <button type="button" className="prof-orcid-link-btn" onClick={() => handleMenuAction("OrcidConnect")}>

@@ -1164,6 +1164,147 @@ body {
   cursor: pointer;
 }
 
+.prof-bank-accounts-section {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.prof-bank-accounts-header h4,
+.prof-bank-account-form h5 {
+  margin: 0;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.prof-bank-accounts-header p,
+.prof-bank-empty {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.prof-bank-account-list {
+  display: grid;
+  gap: 10px;
+}
+
+.prof-bank-account-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #d8e2ee;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.prof-bank-account-main {
+  min-width: 0;
+}
+
+.prof-bank-account-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prof-bank-account-title-row strong {
+  color: var(--text-dark);
+  font-size: 0.94rem;
+}
+
+.prof-bank-account-card p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.prof-bank-default-badge {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.prof-bank-account-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.prof-bank-text-btn,
+.prof-bank-danger-btn {
+  min-height: 32px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.prof-bank-text-btn {
+  border: 1px solid #c8def5;
+  background: #ffffff;
+  color: #1d4d7a;
+}
+
+.prof-bank-danger-btn {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.prof-bank-text-btn:disabled,
+.prof-bank-danger-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.prof-bank-account-form {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #d8e2ee;
+  padding-top: 14px;
+}
+
+.prof-bank-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prof-bank-default-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.prof-bank-default-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.prof-bank-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .prof-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -1207,8 +1348,19 @@ body {
   }
 
   .prof-education-entry-grid,
-  .prof-education-location-grid {
+  .prof-education-location-grid,
+  .prof-bank-account-grid {
     grid-template-columns: 1fr;
+  }
+
+  .prof-bank-account-card,
+  .prof-bank-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .prof-bank-account-card-actions {
+    justify-content: flex-start;
   }
 
   .prof-profile-edit-modal .prof-modal-actions {
