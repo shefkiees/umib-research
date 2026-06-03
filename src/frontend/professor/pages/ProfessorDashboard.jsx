@@ -166,6 +166,9 @@ const mapPublicationRow = (row = {}) => ({
   publicationType: row.publicationType || row.publication_type || "",
   journal: row.venue || row.publisher || "Pa reviste/konference",
   venue: row.venue || "",
+  publishedIn: row.publishedIn || row.published_in || row.venue || "",
+  conferenceLocation: row.conferenceLocation || row.conference_location || "",
+  conference_location: row.conferenceLocation || row.conference_location || "",
   publisher: row.publisher || "",
   publicationDate: row.publicationDate || row.publication_date || "",
   year: row.publicationYear || row.publication_year || "",
@@ -874,6 +877,7 @@ export default function ProfessorDashboard() {
 
     return {
       ...payload,
+      publishedIn: draft.venue || draft.publishedIn || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: Array.isArray(draft.authors) ? draft.authors : [],
       indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
