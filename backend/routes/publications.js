@@ -950,6 +950,50 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   };
 }
 
+function hasMeaningfulPublicationInput(value) {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+
+  return normalizeText(value) !== "";
+}
+
+function mergePublicationMetadataDefaults(defaults = {}, input = {}) {
+  const merged = { ...defaults, ...input };
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!hasMeaningfulPublicationInput(input[key]) && hasMeaningfulPublicationInput(value)) {
+      merged[key] = value;
+    }
+  }
+
+  return merged;
+}
+
+async function applyDoiMetadataDefaults(dbOrClient, body = {}, currentUser = {}) {
+  const doi = normalizeDoi(body.doi || body.metadata?.doi);
+
+  if (!doi || !isValidDoi(doi)) {
+    return body;
+  }
+
+  try {
+    const { metadata } = await getVerifiedDoiMetadata(dbOrClient, doi);
+    return mergePublicationMetadataDefaults(metadataToPublicationPayload(metadata, currentUser), body);
+  } catch (error) {
+    console.warn("publication_metadata_prefill_failed", {
+      doi,
+      message: error.message,
+    });
+
+    return body;
+  }
+}
+
 async function createPublication(client, ownerId, values) {
   const isUnified = await hasUnifiedPublicationSchema(client);
 
@@ -1130,17 +1174,19 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 
 router.post("/", requireAuthenticatedUser, async (req, res) => {
   const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
-  const { errors, values } = normalizePublicationPayload(req.body, { user: currentUser });
-
-  if (errors.length) {
-    res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
-    return;
-  }
-
   const client = await db.connect();
 
   try {
     await client.query("begin");
+    const hydratedBody = await applyDoiMetadataDefaults(client, req.body, currentUser);
+    const { errors, values } = normalizePublicationPayload(hydratedBody, { user: currentUser });
+
+    if (errors.length) {
+      await client.query("rollback");
+      res.status(400).json({ error: "validation_failed", message: errors[0].message, errors });
+      return;
+    }
+
     const row = await createPublication(client, req.user.id, values);
     await client.query("commit");
     res.status(201).json({ data: mapPublication(row) });
@@ -1196,7 +1242,7 @@ router.post("/from-doi", requireAuthenticatedUser, async (req, res) => {
     const { metadata } = await getVerifiedDoiMetadata(client, doi);
     const prefill = metadataToPublicationPayload(metadata, currentUser);
     const { errors, values } = normalizePublicationPayload(
-      { ...prefill, ...(req.body?.publication || {}) },
+      mergePublicationMetadataDefaults(prefill, req.body?.publication || {}),
       { user: currentUser }
     );
 
