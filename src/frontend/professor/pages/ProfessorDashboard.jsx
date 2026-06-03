@@ -2213,8 +2213,8 @@ export default function ProfessorDashboard() {
       ) : null}
 
       {isEditProfileOpen ? (
-        <div className="prof-modal-overlay" role="dialog" aria-modal="true">
-          <div className="prof-modal">
+        <div className="prof-modal-overlay prof-profile-edit-overlay" role="dialog" aria-modal="true">
+          <div className="prof-modal prof-profile-edit-modal">
             <div className="prof-modal-header">
               <div>
                 <h3 className="prof-modal-title">{settingsText.editProfileTitle}</h3>

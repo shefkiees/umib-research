@@ -966,6 +966,30 @@ body {
   gap: 20px;
 }
 
+.prof-profile-edit-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(780px, 94vw);
+  max-height: min(88vh, 860px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.prof-profile-edit-modal .prof-modal-header {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #e8eef5;
+}
+
+.prof-profile-edit-modal .prof-modal-form {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px 0;
+  gap: 18px;
+  scrollbar-gutter: stable;
+}
+
 .prof-modal-note,
 .prof-modal-error,
 .prof-modal-success {
@@ -1090,6 +1114,54 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.prof-profile-edit-modal .prof-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 4px -24px 0;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e8eef5;
+  background: #ffffff;
+  box-shadow: 0 -10px 20px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 720px) {
+  .prof-profile-edit-overlay {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .prof-profile-edit-modal {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+  }
+
+  .prof-profile-edit-modal .prof-modal-header {
+    padding: 18px 18px 14px;
+  }
+
+  .prof-profile-edit-modal .prof-modal-form {
+    padding: 16px 18px 0;
+    gap: 16px;
+  }
+
+  .prof-profile-edit-modal .prof-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .prof-profile-edit-modal .prof-modal-actions {
+    margin-inline: -18px;
+    padding: 14px 18px 16px;
+    flex-direction: column-reverse;
+  }
+
+  .prof-profile-edit-modal .prof-modal-actions .prof-btn-secondary,
+  .prof-profile-edit-modal .prof-modal-actions .prof-btn-primary {
+    width: 100%;
+  }
 }
 
 .prof-btn-secondary,
