@@ -711,6 +711,7 @@ export default function ProfessorDashboard() {
   const pageTitleMap = {
     Statistika: t("navigation.statistics"),
     Publikime: t("navigation.publications"),
+    "Lista e Publikimeve": t("navigation.publicationList"),
     Konferenca: t("navigation.conferences"),
     Rimbursime: t("navigation.reimbursements"),
     "Historiku i Rimbursimeve": t("navigation.reimbursementHistory"),
@@ -751,7 +752,7 @@ export default function ProfessorDashboard() {
   }, [normalizedQuery, publications]);
 
   const publicationSearchResults = useMemo(() => {
-    if (activePage !== "Publikime" || !normalizedQuery) {
+    if (activePage !== "Lista e Publikimeve" || !normalizedQuery) {
       return [];
     }
 
@@ -796,6 +797,19 @@ export default function ProfessorDashboard() {
       indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
       quartile: draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "",
     };
+  };
+
+  const openPublicationEditForm = (publication) => {
+    startPublicationEdit(publication);
+    setFocusedPublicationId(publication.id);
+    setActivePage("Publikime");
+
+    window.setTimeout(() => {
+      document.getElementById("publication-edit-form")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
   };
 
   const statisticsChartData = useMemo(() => {
@@ -1608,7 +1622,7 @@ export default function ProfessorDashboard() {
         <button
           type="button"
           className="prof-btn-secondary publication-action-btn publication-action-btn--secondary"
-          onClick={() => startPublicationEdit(row)}
+          onClick={() => openPublicationEditForm(row)}
           aria-label={t("common.edit")}
         >
           <Pencil size={15} /> {t("common.edit")}
@@ -1617,10 +1631,7 @@ export default function ProfessorDashboard() {
           <button
             type="button"
             className="prof-btn-primary publication-action-btn publication-action-btn--primary"
-            onClick={() => {
-              startPublicationEdit(row);
-              setFocusedPublicationId(row.id);
-            }}
+            onClick={() => openPublicationEditForm(row)}
             disabled={publicationActionId === row.id}
             aria-label="Rishiko"
           >
@@ -1791,7 +1802,12 @@ export default function ProfessorDashboard() {
                 />
               </article>
             ) : null}
+          </section>
+        );
 
+      case "Lista e Publikimeve":
+        return (
+          <section className="publications-page-shell">
             {renderPublicationsSection()}
             {renderPublicationPagination()}
           </section>
