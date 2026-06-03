@@ -530,7 +530,7 @@ const PublicationForm = ({
               onChange={updateField("conferenceLocation")}
               placeholder="Berlin, Germany"
               required
-              readOnly={isDoiImported}
+              readOnly={isDoiImported && hasValue("conferenceLocation")}
             />
           </label>
         ) : null}

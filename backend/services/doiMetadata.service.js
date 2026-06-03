@@ -372,9 +372,14 @@ function shouldRefreshCachedMetadata(metadata = {}) {
   const comparableType = normalizeComparableText(type).replace(/\s+/g, "_");
   const hasCachedIssn = hasText(metadata.issn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISSN"));
   const hasCachedIsbn = hasText(metadata.isbn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISBN"));
+  const isConferenceType = ["proceedings_article", "conference_paper"].includes(comparableType);
 
   if (!hasCrossrefSnapshot) {
     if (["journal_article", "article_journal"].includes(comparableType) && !hasCachedIssn) {
+      return true;
+    }
+
+    if (isConferenceType && !normalizeConferenceLocation(metadata)) {
       return true;
     }
 
