@@ -1374,6 +1374,15 @@ body {
   height: 16px;
 }
 
+.prof-bank-detected-message {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  color: #047857;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .prof-bank-form-actions {
   display: flex;
   justify-content: flex-end;

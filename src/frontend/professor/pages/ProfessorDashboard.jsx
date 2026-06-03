@@ -356,6 +356,43 @@ const createEmptyBankAccountDraft = () => ({
   isDefault: false,
 });
 
+const PROFILE_KOSOVO_BANKS = [
+  // Verify these identifiers against official BQK/CBK bank code sources before expanding or changing them.
+  { code: "17", name: "Banka Kombëtare Tregtare Kosovë", swift: "NCBAXKPR" },
+  { code: "11", name: "ProCredit Bank Kosovo", swift: "MBKOXKPR" },
+  { code: "12", name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR" },
+  { code: "15", name: "TEB Bank Kosovo", swift: "TEBKXKPR" },
+  { code: "13", name: "NLB Banka", swift: "NLPRXKPR" },
+  { code: "16", name: "Banka për Biznes", swift: "BPBXXKPR" },
+  { code: "18", name: "Ziraat Bank Kosovo", swift: "TCZBXKPR" },
+  { code: "19", name: "İşbank Kosovo", swift: "ISBKXKPR" },
+  { code: "21", name: "PriBank", swift: "PHHAXKPR" },
+  { code: "14", name: "Banka Ekonomike", swift: "EKOMXKPR" },
+];
+
+const normalizeBankIdentifier = (value = "") =>
+  String(value || "").replace(/\s+/g, "").toUpperCase();
+
+const getKosovoIbanBankIdentifier = (value = "") => {
+  const account = normalizeBankIdentifier(value);
+
+  if (!/^XK\d{2}[A-Z0-9]{2,}$/.test(account)) {
+    return "";
+  }
+
+  return account.slice(4, 6);
+};
+
+const detectProfileKosovoBank = (value = "") => {
+  const bankIdentifier = getKosovoIbanBankIdentifier(value);
+
+  if (!bankIdentifier) {
+    return null;
+  }
+
+  return PROFILE_KOSOVO_BANKS.find((bank) => bank.code === bankIdentifier) || null;
+};
+
 const maskBankAccountNumber = (value = "") => {
   const normalized = String(value || "").replace(/\s+/g, "");
 
@@ -447,6 +484,10 @@ export default function ProfessorDashboard() {
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
   const settingsText = t("professor.settings");
+  const detectedProfileBank = useMemo(
+    () => detectProfileKosovoBank(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban),
+    [bankAccountDraft.bankAccountNumber, bankAccountDraft.iban]
+  );
 
   const translatedProfileMenuItems = useMemo(
     () =>
@@ -1102,7 +1143,21 @@ export default function ProfessorDashboard() {
     setBankAccountDraft((prev) => ({
       ...prev,
       [field]: field === "swiftCode" || field === "currency" ? String(value).toUpperCase() : value,
-      ...(field === "bankAccountNumber" ? { iban: value } : {}),
+      ...(field === "bankAccountNumber"
+        ? (() => {
+            const detectedBank = detectProfileKosovoBank(value);
+
+            return {
+              iban: value,
+              ...(detectedBank
+                ? {
+                    bankName: detectedBank.name,
+                    swiftCode: detectedBank.swift || prev.swiftCode,
+                  }
+                : {}),
+            };
+          })()
+        : {}),
     }));
   };
 
@@ -2721,6 +2776,9 @@ export default function ProfessorDashboard() {
                     <label className="prof-form-field">
                       <span>{settingsText.bankAccountNumber}</span>
                       <input value={bankAccountDraft.bankAccountNumber} onChange={handleBankAccountDraftChange("bankAccountNumber")} />
+                      {detectedProfileBank ? (
+                        <small className="prof-bank-detected-message">{settingsText.bankAutoDetected}</small>
+                      ) : null}
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankSwift}</span>
