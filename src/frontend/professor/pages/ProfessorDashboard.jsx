@@ -974,30 +974,30 @@ export default function ProfessorDashboard() {
         <div className="prof-education-entry-grid">
           <label className="prof-form-field">
             <span>{settingsText.educationInstitution}</span>
-            <input value={item.organization || ""} onChange={handleProfileEducationFieldChange(index, "organization")} placeholder={settingsText.noPublicData} />
+            <input value={item.organization || ""} onChange={handleProfileEducationFieldChange(index, "organization")} placeholder={settingsText.educationInstitutionPlaceholder} />
           </label>
           <label className="prof-form-field">
             <span>{settingsText.educationDepartment}</span>
-            <input value={item.department || ""} onChange={handleProfileEducationFieldChange(index, "department")} placeholder={settingsText.noPublicData} />
+            <input value={item.department || ""} onChange={handleProfileEducationFieldChange(index, "department")} placeholder={settingsText.educationDepartmentPlaceholder} />
           </label>
           <label className="prof-form-field">
             <span>{settingsText.educationProgram}</span>
-            <input value={item.roleTitle || ""} onChange={handleProfileEducationFieldChange(index, "roleTitle")} placeholder={settingsText.noPublicData} />
+            <input value={item.roleTitle || ""} onChange={handleProfileEducationFieldChange(index, "roleTitle")} placeholder={settingsText.educationProgramPlaceholder} />
           </label>
           <label className="prof-form-field">
             <span>{settingsText.educationStartDate}</span>
-            <input value={item.startDate || ""} onChange={handleProfileEducationFieldChange(index, "startDate")} placeholder={settingsText.noPublicData} />
+            <input value={item.startDate || ""} onChange={handleProfileEducationFieldChange(index, "startDate")} placeholder={settingsText.educationStartDatePlaceholder} />
           </label>
           <label className="prof-form-field">
             <span>{settingsText.educationEndDate}</span>
-            <input value={item.endDate || ""} onChange={handleProfileEducationFieldChange(index, "endDate")} placeholder={settingsText.noPublicData} />
+            <input value={item.endDate || ""} onChange={handleProfileEducationFieldChange(index, "endDate")} placeholder={settingsText.educationEndDatePlaceholder} />
           </label>
           <div className="prof-form-field prof-education-location-field">
             <span>{settingsText.educationLocation}</span>
             <div className="prof-education-location-grid">
-              <input value={item.city || ""} onChange={handleProfileEducationFieldChange(index, "city")} placeholder={settingsText.educationCity} />
-              <input value={item.region || ""} onChange={handleProfileEducationFieldChange(index, "region")} placeholder={settingsText.educationRegion} />
-              <input value={item.country || ""} onChange={handleProfileEducationFieldChange(index, "country")} placeholder={settingsText.educationCountry} />
+              <input value={item.city || ""} onChange={handleProfileEducationFieldChange(index, "city")} placeholder={settingsText.educationCityPlaceholder} />
+              <input value={item.region || ""} onChange={handleProfileEducationFieldChange(index, "region")} placeholder={settingsText.educationRegionPlaceholder} />
+              <input value={item.country || ""} onChange={handleProfileEducationFieldChange(index, "country")} placeholder={settingsText.educationCountryPlaceholder} />
             </div>
           </div>
         </div>
@@ -2325,23 +2325,23 @@ export default function ProfessorDashboard() {
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.orcidAffiliation}</span>
-                  <input value={profileDraft.currentAffiliation || ""} onChange={handleProfileFieldChange("currentAffiliation")} placeholder={settingsText.noPublicData} />
+                  <input value={profileDraft.currentAffiliation || ""} onChange={handleProfileFieldChange("currentAffiliation")} placeholder={settingsText.affiliationPlaceholder} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.faculty}</span>
-                  <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} />
+                  <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} placeholder={settingsText.facultyPlaceholder} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.department}</span>
-                  <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} />
+                  <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} placeholder={settingsText.departmentPlaceholder} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.academicTitle}</span>
-                  <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} />
+                  <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} placeholder={settingsText.academicTitlePlaceholder} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.scientificTitle}</span>
-                  <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} />
+                  <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} placeholder={settingsText.scientificTitlePlaceholder} />
                 </label>
               </div>
               <div className="prof-orcid-details">
