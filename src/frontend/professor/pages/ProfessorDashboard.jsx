@@ -12,6 +12,9 @@ import {
   Send,
   Settings,
   ShieldX,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
   Trash2,
   Wallet,
   X,
@@ -248,6 +251,28 @@ const formatPublicationAuthorSummary = (authors = []) => {
   return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 };
 
+const getPublicationPrimaryAuthorName = (authors = []) => {
+  const firstAuthor = (Array.isArray(authors) ? authors : []).find(Boolean);
+
+  if (!firstAuthor) {
+    return "";
+  }
+
+  return typeof firstAuthor === "string"
+    ? firstAuthor
+    : firstAuthor.fullName || firstAuthor.full_name || firstAuthor.name || "";
+};
+
+const getPublicationQuartileValue = (row = {}) =>
+  row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "";
+
+const getPublicationQuartileRank = (row = {}) => {
+  const value = String(getPublicationQuartileValue(row)).trim().toUpperCase();
+  const ranks = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+
+  return ranks[value] || 5;
+};
+
 const mapNotificationRow = (row = {}) => ({
   id: row.id,
   userId: row.user_id || row.userId || null,
@@ -370,6 +395,7 @@ export default function ProfessorDashboard() {
   const [manualPublicationDraft, setManualPublicationDraft] = useState(createEmptyPublicationDraft);
   const [publicationActionId, setPublicationActionId] = useState("");
   const [focusedPublicationId, setFocusedPublicationId] = useState("");
+  const [publicationSort, setPublicationSort] = useState({ key: "", direction: "asc" });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
@@ -751,18 +777,46 @@ export default function ProfessorDashboard() {
     return publications.filter((row) => getPublicationSearchText(row).includes(normalizedQuery));
   }, [normalizedQuery, publications]);
 
+  const sortedPublications = useMemo(() => {
+    if (!publicationSort.key) {
+      return filteredPublications;
+    }
+
+    const direction = publicationSort.direction === "desc" ? -1 : 1;
+
+    return [...filteredPublications].sort((first, second) => {
+      let result = 0;
+
+      if (publicationSort.key === "title") {
+        result = String(first.title || "").localeCompare(String(second.title || ""), "sq", { sensitivity: "base" });
+      } else if (publicationSort.key === "authors") {
+        result = getPublicationPrimaryAuthorName(first.authors).localeCompare(
+          getPublicationPrimaryAuthorName(second.authors),
+          "sq",
+          { sensitivity: "base" }
+        );
+      } else if (publicationSort.key === "year") {
+        result = (Number(first.year) || 0) - (Number(second.year) || 0);
+      } else if (publicationSort.key === "quartile") {
+        result = getPublicationQuartileRank(first) - getPublicationQuartileRank(second);
+      }
+
+      return result * direction;
+    });
+  }, [filteredPublications, publicationSort]);
+
   const publicationSearchResults = useMemo(() => {
     if (activePage !== "Lista e Publikimeve" || !normalizedQuery) {
       return [];
     }
 
-    return filteredPublications.slice(0, 6).map((row) => ({
+    return sortedPublications.slice(0, 6).map((row) => ({
       id: row.id,
       title: row.title,
       meta: [formatPublicationAuthorSummary(row.authors), row.year].filter(Boolean).join(" | "),
       publication: row,
     }));
-  }, [activePage, filteredPublications, normalizedQuery]);
+  }, [activePage, normalizedQuery, sortedPublications]);
 
   const openPublicationSearchResult = (item) => {
     const publication = item?.publication;
@@ -1529,13 +1583,47 @@ export default function ProfessorDashboard() {
   };
 
   const formatPublicationQuartile = (row = {}) => {
-    const quartile = row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "";
+    const quartile = getPublicationQuartileValue(row);
     const quartileClass = String(quartile || "none").toLowerCase().replace(/\s+/g, "-");
 
     return (
       <span className={`publication-quartile-badge ${quartileClass}`}>
         {quartile || t("common.noData")}
       </span>
+    );
+  };
+
+  const togglePublicationSort = (key) => {
+    setPublicationSort((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        key,
+        direction: key === "year" ? "desc" : "asc",
+      };
+    });
+  };
+
+  const renderPublicationSortHeader = (key, label) => {
+    const isActive = publicationSort.key === key;
+    const isAscending = publicationSort.direction === "asc";
+    const SortIcon = isActive ? (isAscending ? ChevronUp : ChevronDown) : ChevronsUpDown;
+
+    return (
+      <button
+        type="button"
+        className={`publication-sort-header ${isActive ? "active" : ""}`}
+        onClick={() => togglePublicationSort(key)}
+        aria-sort={isActive ? (isAscending ? "ascending" : "descending") : "none"}
+      >
+        <span>{label}</span>
+        <SortIcon size={13} aria-hidden="true" />
+      </button>
     );
   };
 
@@ -1672,13 +1760,13 @@ export default function ProfessorDashboard() {
         <div className="publication-table" role="table" aria-label={t("professor.dashboard.publicationRegistryTitle")}>
           <div className="publication-table-head" role="row">
             <span>{t("professor.dashboard.publicationNumberColumn")}</span>
-            <span>{t("professor.dashboard.publicationColumn")}</span>
-            <span>{t("professor.dashboard.authorsColumn")}</span>
-            <span>{t("professor.dashboard.yearColumn")}</span>
-            <span>{t("professor.dashboard.publicationQuartileColumn")}</span>
+            {renderPublicationSortHeader("title", t("professor.dashboard.publicationColumn"))}
+            {renderPublicationSortHeader("authors", t("professor.dashboard.authorsColumn"))}
+            {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
+            {renderPublicationSortHeader("quartile", t("professor.dashboard.publicationQuartileColumn"))}
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
-          {filteredPublications.map((row, index) => (
+          {sortedPublications.map((row, index) => (
             <div
               className={`publication-table-row ${focusedPublicationId === row.id ? "is-focused" : ""}`}
               id={`publication-row-${row.id}`}

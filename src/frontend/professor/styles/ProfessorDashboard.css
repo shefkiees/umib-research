@@ -1576,6 +1576,37 @@ body {
   text-transform: uppercase;
 }
 
+.publication-sort-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.publication-sort-header svg {
+  flex: 0 0 auto;
+  color: #8a9aae;
+  stroke-width: 2.4;
+}
+
+.publication-sort-header.active {
+  color: #153a63;
+}
+
+.publication-sort-header.active svg {
+  color: #153a63;
+}
+
 .publication-table-row {
   padding: 13px 14px;
   border: 1px solid #e6edf4;
