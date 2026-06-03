@@ -1186,6 +1186,7 @@ body {
   color: #64748b;
   font-size: 0.88rem;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .prof-bank-account-list {
@@ -1277,6 +1278,80 @@ body {
   gap: 12px;
   border-top: 1px solid #d8e2ee;
   padding-top: 14px;
+}
+
+.prof-bank-delete-overlay {
+  z-index: 240;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.prof-bank-delete-modal {
+  width: min(500px, 92vw);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.2);
+}
+
+.prof-bank-delete-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.prof-bank-delete-content {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.prof-bank-delete-summary {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.prof-bank-delete-summary p {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.prof-bank-delete-summary strong {
+  min-width: 0;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  text-align: right;
+  word-break: break-word;
+}
+
+.prof-bank-delete-warning {
+  margin: 0;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.prof-bank-delete-actions {
+  margin-top: 2px;
 }
 
 .prof-bank-account-grid {
@@ -1373,10 +1448,35 @@ body {
   .prof-profile-edit-modal .prof-modal-actions .prof-btn-primary {
     width: 100%;
   }
+
+  .prof-bank-delete-modal {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .prof-bank-delete-summary p {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .prof-bank-delete-summary strong {
+    text-align: left;
+  }
+
+  .prof-bank-delete-actions {
+    flex-direction: column-reverse;
+  }
+
+  .prof-bank-delete-actions .prof-btn-secondary,
+  .prof-bank-delete-actions .prof-btn-danger {
+    width: 100%;
+  }
 }
 
 .prof-btn-secondary,
-.prof-btn-primary {
+.prof-btn-primary,
+.prof-btn-danger {
   border-radius: 10px;
   height: 42px;
   padding: 0 18px;
@@ -1396,8 +1496,14 @@ body {
   color: #ffffff;
 }
 
+.prof-btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
 .prof-btn-secondary:disabled,
-.prof-btn-primary:disabled {
+.prof-btn-primary:disabled,
+.prof-btn-danger:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }

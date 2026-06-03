@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -432,6 +432,8 @@ export default function ProfessorDashboard() {
   const [editingBankAccountId, setEditingBankAccountId] = useState("");
   const [bankAccountActionId, setBankAccountActionId] = useState("");
   const [isBankAccountSaving, setIsBankAccountSaving] = useState(false);
+  const [bankAccountDeleteTarget, setBankAccountDeleteTarget] = useState(null);
+  const bankAccountDeleteCancelRef = useRef(null);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [passwordResetEmail, setPasswordResetEmail] = useState("");
   const [isPasswordResetSending, setIsPasswordResetSending] = useState(false);
@@ -1169,8 +1171,40 @@ export default function ProfessorDashboard() {
     }
   };
 
-  const handleBankAccountDelete = async (accountId) => {
-    if (!window.confirm(settingsText.bankAccountDeleteConfirm)) {
+  const closeBankAccountDeleteModal = useCallback(() => {
+    if (bankAccountActionId) {
+      return;
+    }
+
+    setBankAccountDeleteTarget(null);
+  }, [bankAccountActionId]);
+
+  useEffect(() => {
+    if (!bankAccountDeleteTarget) {
+      return undefined;
+    }
+
+    bankAccountDeleteCancelRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeBankAccountDeleteModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [bankAccountDeleteTarget, closeBankAccountDeleteModal]);
+
+  const requestBankAccountDelete = (account) => {
+    setBankAccountDeleteTarget(account);
+  };
+
+  const handleBankAccountDelete = async () => {
+    const accountId = bankAccountDeleteTarget?.id;
+
+    if (!accountId) {
       return;
     }
 
@@ -1197,6 +1231,7 @@ export default function ProfessorDashboard() {
         resetBankAccountDraft();
       }
 
+      setBankAccountDeleteTarget(null);
       await loadBankAccounts();
     } catch (error) {
       console.error("Bank account delete failed:", error);
@@ -2660,7 +2695,7 @@ export default function ProfessorDashboard() {
                           <button
                             type="button"
                             className="prof-bank-danger-btn"
-                            onClick={() => handleBankAccountDelete(account.id)}
+                            onClick={() => requestBankAccountDelete(account)}
                             disabled={bankAccountActionId === account.id}
                           >
                             {settingsText.bankDelete}
@@ -2735,6 +2770,66 @@ export default function ProfessorDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {bankAccountDeleteTarget ? (
+        <div
+          className="prof-modal-overlay prof-bank-delete-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bank-delete-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeBankAccountDeleteModal();
+            }
+          }}
+        >
+          <div className="prof-modal prof-bank-delete-modal">
+            <div className="prof-bank-delete-icon" aria-hidden="true">
+              <AlertTriangle size={22} />
+            </div>
+            <div className="prof-bank-delete-content">
+              <h3 className="prof-modal-title" id="bank-delete-title">{settingsText.bankDeleteTitle}</h3>
+              <p className="prof-modal-subtitle">{settingsText.bankDeleteMessage}</p>
+              <div className="prof-bank-delete-summary">
+                <p>
+                  <span>{settingsText.bankAccountLabel}</span>
+                  <strong>{bankAccountDeleteTarget.label || settingsText.bankAccountsTitle}</strong>
+                </p>
+                <p>
+                  <span>{settingsText.bankName}</span>
+                  <strong>{bankAccountDeleteTarget.bankName || "-"}</strong>
+                </p>
+                <p>
+                  <span>{settingsText.bankAccountNumber}</span>
+                  <strong>{maskBankAccountNumber(bankAccountDeleteTarget.iban || bankAccountDeleteTarget.bankAccountNumber) || "-"}</strong>
+                </p>
+              </div>
+              {bankAccountDeleteTarget.isDefault ? (
+                <p className="prof-bank-delete-warning">{settingsText.bankDeleteDefaultWarning}</p>
+              ) : null}
+              <div className="prof-modal-actions prof-bank-delete-actions">
+                <button
+                  type="button"
+                  className="prof-btn-secondary"
+                  onClick={closeBankAccountDeleteModal}
+                  disabled={Boolean(bankAccountActionId)}
+                  ref={bankAccountDeleteCancelRef}
+                >
+                  {settingsText.cancel}
+                </button>
+                <button
+                  type="button"
+                  className="prof-btn-danger"
+                  onClick={handleBankAccountDelete}
+                  disabled={Boolean(bankAccountActionId)}
+                >
+                  {bankAccountActionId === bankAccountDeleteTarget.id ? settingsText.saving : settingsText.bankDeleteConfirmAction}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
