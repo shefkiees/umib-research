@@ -86,12 +86,24 @@ function normalizePublicationAuthors(authors = []) {
   });
 }
 
+function supportsQuartile(publicationType) {
+  return publicationType === "journal_article";
+}
+
 export function publicationToDraft(publication = {}) {
+  const publicationType = publication.publicationType || publication.publication_type || "";
+  const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
+    source: item.source || "",
+    quartile: item.quartile || "",
+    impactFactor: item.impactFactor || item.impact_factor || "",
+    indexedUrl: item.indexedUrl || item.indexed_url || "",
+  })) : publication.quartile ? [{ source: "Scopus", quartile: publication.quartile, impactFactor: "", indexedUrl: "" }] : [];
+
   return {
     ...createEmptyPublicationDraft(),
     title: publication.title || "",
     abstract: publication.abstract || "",
-    publicationType: publication.publicationType || publication.publication_type || "",
+    publicationType,
     venue: publication.venue || publication.journal || "",
     conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
@@ -104,15 +116,10 @@ export function publicationToDraft(publication = {}) {
     pages: publication.pages || "",
     issn: publication.issn || "",
     isbn: publication.isbn || "",
-    quartile: publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile || "",
+    quartile: supportsQuartile(publicationType) ? publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile || "" : "",
     status: publication.status || "draft",
     authors: Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [],
-    indexing: Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
-      source: item.source || "",
-      quartile: item.quartile || "",
-      impactFactor: item.impactFactor || item.impact_factor || "",
-      indexedUrl: item.indexedUrl || item.indexed_url || "",
-    })) : publication.quartile ? [{ source: "Scopus", quartile: publication.quartile, impactFactor: "", indexedUrl: "" }] : [],
+    indexing: supportsQuartile(publicationType) ? indexing : [],
     evidenceLinks: (Array.isArray(publication.evidenceLinks) ? publication.evidenceLinks : publication.attachments || []).map((item) => ({
       url: item.url || item.fileUrl || item.file_url || "",
       label: item.label || item.fileType || item.file_type || "",
@@ -223,8 +230,10 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
 
 function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
-  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
-  const quartile = metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "";
+  const publicationType = normalizeDoiType(metadata.type);
+  const supportsMetadataQuartile = supportsQuartile(publicationType);
+  const indexing = supportsMetadataQuartile && Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const quartile = supportsMetadataQuartile ? metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "" : "";
   const matchedAuthorIndex = authors.findIndex((author) => {
     const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
     const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -237,7 +246,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   return {
     title: metadata.title || "",
     abstract: metadata.abstract || "",
-    publicationType: normalizeDoiType(metadata.type),
+    publicationType,
     venue: metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
@@ -296,6 +305,7 @@ const PublicationForm = ({
   const showIssnInput = !isDoiImported || hasValue("issn");
   const showIsbnInput = !isDoiImported || hasValue("isbn");
   const showAbstractField = !isDoiImported || hasValue("abstract");
+  const showQuartileField = supportsQuartile(value.publicationType);
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
@@ -303,9 +313,14 @@ const PublicationForm = ({
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+    const typeReset = field === "publicationType" && !supportsQuartile(nextValue)
+      ? { quartile: "", indexing: [] }
+      : {};
+
     onChange({
       ...value,
       [field]: nextValue,
+      ...typeReset,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
   };
@@ -548,16 +563,18 @@ const PublicationForm = ({
           <span>{t("professor.dashboard.publicationForm.pages")}</span>
           <input value={value.pages} onChange={updateField("pages")} readOnly={isDoiImported} />
         </label>
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.quartile")}</span>
-          <select value={value.quartile || primaryIndexing.quartile || ""} onChange={updateQuartile}>
-            {QUARTILE_OPTIONS.map((quartile) => (
-              <option key={quartile || "empty"} value={quartile}>
-                {quartile || t("professor.dashboard.publicationForm.selectQuartile")}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showQuartileField ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+            <select value={value.quartile || primaryIndexing.quartile || ""} onChange={updateQuartile}>
+              {QUARTILE_OPTIONS.map((quartile) => (
+                <option key={quartile || "empty"} value={quartile}>
+                  {quartile || t("professor.dashboard.publicationForm.selectQuartile")}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
             <span>ISSN / ISBN</span>

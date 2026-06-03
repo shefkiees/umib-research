@@ -11,6 +11,11 @@ function stripMarkup(value) {
     .trim();
 }
 
+function isJournalMetadataType(value) {
+  const normalized = String(value || "").toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "article_journal" || normalized === "journal_article";
+}
+
 const DoiMetadataCard = ({ metadata, actions = null }) => {
   const { t } = useLanguage();
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
@@ -18,6 +23,7 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
   const cleanAbstract = stripMarkup(metadata.abstract);
   const doiUrl = metadata.doi ? `https://doi.org/${metadata.doi}` : "";
   const publishedDate = metadata.published_date || metadata.year || "";
+  const showQuartile = isJournalMetadataType(metadata.type);
   const quartile = Array.isArray(metadata.indexing)
     ? metadata.indexing.find((item) => item?.quartile)?.quartile
     : "";
@@ -157,7 +163,7 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
         {renderField(t("professor.doi.publisher"), metadata.publisher)}
         {renderField(t("professor.doi.publishedDate"), publishedDate)}
         {renderField(t("professor.doi.publicationType"), metadata.type || "-")}
-        {renderField(t("professor.dashboard.publicationForm.quartile"), quartile)}
+        {showQuartile ? renderField(t("professor.dashboard.publicationForm.quartile"), quartile) : null}
         {renderLinkField(t("professor.doi.link"), metadata.source_url, metadata.source_url)}
       </div>
 

@@ -363,11 +363,6 @@ function shouldResolveQuartileForType(type) {
   return [
     "article_journal",
     "journal_article",
-    "proceedings_article",
-    "conference_paper",
-    "book_chapter",
-    "chapter",
-    "book",
   ].includes(normalized);
 }
 
@@ -1120,14 +1115,14 @@ async function fetchScimagoIndexingByIssn(issn, publicationYear) {
 }
 
 async function resolveScopusIndexing(metadata = {}) {
+  if (!shouldResolveQuartileForType(metadata.type)) {
+    return [];
+  }
+
   const cachedIndexing = getCachedIndexing(metadata);
 
   if (cachedIndexing.some((item) => item.quartile)) {
     return cachedIndexing;
-  }
-
-  if (!shouldResolveQuartileForType(metadata.type)) {
-    return [];
   }
 
   try {

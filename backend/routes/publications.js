@@ -125,6 +125,10 @@ function normalizePublicationType(value) {
   return typeMap[normalized] || normalized;
 }
 
+function supportsPublicationIndexing(publicationType) {
+  return publicationType === "journal_article";
+}
+
 function parsePagination(query = {}) {
   const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 25, 1), MAX_LIMIT);
@@ -319,13 +323,15 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const rawIndexing = Array.isArray(body.indexing) && body.indexing.length
-    ? body.indexing
-    : body.quartile
-      ? [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }]
-      : Array.isArray(body.indexing)
-        ? body.indexing
-        : [];
+  const rawIndexing = supportsPublicationIndexing(publicationType)
+    ? Array.isArray(body.indexing) && body.indexing.length
+      ? body.indexing
+      : body.quartile
+        ? [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }]
+        : Array.isArray(body.indexing)
+          ? body.indexing
+          : []
+    : [];
   const indexing = hasIndexingInput
     ? normalizeIndexing(rawIndexing)
     : undefined;
@@ -904,7 +910,8 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const raw = metadata.raw_json || {};
   const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
-  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const publicationType = normalizePublicationType(metadata.type);
+  const indexing = supportsPublicationIndexing(publicationType) && Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
   const matchedAuthorIndex = currentUserName
@@ -916,7 +923,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     doi: metadata.doi || "",
     title: metadata.title || "",
     abstract: metadata.abstract || "",
-    publicationType: metadata.type || "",
+    publicationType,
     venue: metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
