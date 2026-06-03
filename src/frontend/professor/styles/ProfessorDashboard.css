@@ -1553,27 +1553,45 @@ body {
 
 .publication-table {
   display: grid;
-  gap: 7px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #dfe8f2;
+  border-radius: 12px;
+  background: #ffffff;
 }
 
 .publication-table-head,
 .publication-table-row {
   display: grid;
   grid-template-columns: minmax(42px, 0.18fr) minmax(280px, 1.65fr) minmax(180px, 0.95fr) minmax(64px, 0.3fr) minmax(112px, 0.44fr) minmax(184px, 0.78fr);
-  gap: 12px;
-  align-items: center;
+  gap: 0;
+  align-items: stretch;
 }
 
 .publication-table-head {
-  padding: 8px 14px;
-  border: 1px solid #edf2f7;
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #526276;
-  font-size: 0.72rem;
+  border: 0;
+  border-bottom: 1px solid #dfe8f2;
+  border-radius: 0;
+  background: #f4f7fb;
+  color: #40536a;
+  font-size: 0.73rem;
   font-weight: 750;
-  letter-spacing: 0.045em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.publication-table-head > span,
+.publication-table-head > button,
+.publication-table-row > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid #edf2f7;
+}
+
+.publication-table-head > span:last-child,
+.publication-table-head > button:last-child,
+.publication-table-row > div:last-child {
+  border-right: 0;
 }
 
 .publication-sort-header {
@@ -1581,10 +1599,9 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 5px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   border: 0;
-  padding: 0;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1608,25 +1625,27 @@ body {
 }
 
 .publication-table-row {
-  padding: 13px 14px;
-  border: 1px solid #e6edf4;
-  border-radius: 10px;
+  border: 0;
+  border-bottom: 1px solid #e7eef6;
+  border-radius: 0;
   background: #ffffff;
-  min-height: 78px;
+  min-height: 82px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
+.publication-table-row:last-child {
+  border-bottom: 0;
+}
+
 .publication-table-row:hover {
-  border-color: #ced9e6;
   background: #fbfdff;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
-  transform: translateY(-1px);
+  box-shadow: inset 3px 0 0 #2e6aa6;
+  transform: none;
 }
 
 .publication-table-row.is-focused {
-  border-color: #93b7e8;
   background: #f4f8ff;
-  box-shadow: 0 10px 24px rgba(29, 77, 125, 0.1);
+  box-shadow: inset 3px 0 0 #1d4d7d;
 }
 
 .publication-number-cell {
@@ -1634,6 +1653,8 @@ body {
   font-size: 0.86rem;
   font-weight: 760;
   line-height: 1;
+  display: flex;
+  align-items: center;
 }
 
 .publication-title-cell h4 {
@@ -1643,9 +1664,9 @@ body {
   overflow: hidden;
   font-size: 0.92rem;
   font-weight: 760;
-  line-height: 1.34;
+  line-height: 1.38;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .publication-title-cell p,
@@ -1660,6 +1681,14 @@ body {
   min-width: 0;
   display: flex;
   align-items: center;
+}
+
+.publication-title-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
 }
 
 .publication-authors-list-inline {
@@ -1812,11 +1841,14 @@ body {
 
 .publication-actions-cell {
   min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .publication-row-actions {
   width: 100%;
   flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .publication-row-actions .publication-action-btn {
@@ -3716,10 +3748,37 @@ body {
     display: none;
   }
 
+  .publication-table {
+    gap: 8px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
   .publication-table-row {
     grid-template-columns: 1fr;
     gap: 9px;
     align-items: stretch;
+    overflow: hidden;
+    padding: 13px 14px;
+    border: 1px solid #e6edf4;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .publication-table-row:hover {
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
+    transform: none;
+  }
+
+  .publication-table-row.is-focused {
+    box-shadow: 0 10px 24px rgba(29, 77, 125, 0.1);
+  }
+
+  .publication-table-row > div {
+    padding: 0;
+    border-right: 0;
   }
 
   .publication-mobile-label {
