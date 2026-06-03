@@ -23,7 +23,6 @@ const REVIEW_STATUS_OPTIONS = [
 ];
 
 const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
-const DOI_INPUT_PATTERN = /^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?10\.\d{4,9}\/\S+$/i;
 
 const EMPTY_AUTHOR = {
   fullName: "",
@@ -131,10 +130,6 @@ function normalizeDoiType(value) {
   };
 
   return map[normalized] || "";
-}
-
-function looksLikeDoi(value) {
-  return DOI_INPUT_PATTERN.test(String(value || "").trim());
 }
 
 function normalizeName(value) {
@@ -366,12 +361,10 @@ const PublicationForm = ({
     });
   };
 
-  const lookupMetadata = async () => {
-    const lookupValue = doiLookupValue.trim();
-    const fallbackDoi = value.doi.trim();
-    const query = lookupValue || fallbackDoi;
+  const lookupDoi = async () => {
+    const doi = doiLookupValue.trim() || value.doi.trim();
 
-    if (!query) {
+    if (!doi) {
       setDoiError(t("professor.dashboard.publicationForm.doiRequired"));
       return;
     }
@@ -380,17 +373,11 @@ const PublicationForm = ({
     setDoiError("");
 
     try {
-      const isDoiQuery = looksLikeDoi(query);
-      const response = await fetch(isDoiQuery
-        ? apiUrl(`/doi/${encodeURIComponent(query)}`)
-        : apiUrl(`/doi/search/title?query=${encodeURIComponent(query)}`));
+      const response = await fetch(apiUrl(`/doi/${encodeURIComponent(doi)}`));
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.data) {
-        const fallbackMessage = isDoiQuery
-          ? t("professor.dashboard.publicationForm.doiLoadFailed")
-          : t("professor.dashboard.publicationForm.metadataNotFound");
-        throw new Error(result.message || fallbackMessage);
+        throw new Error(result.message || t("professor.dashboard.publicationForm.doiLoadFailed"));
       }
 
       onChange({
@@ -398,13 +385,10 @@ const PublicationForm = ({
         ...metadataToDraft(result.data, currentUserAuthor),
         status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
       });
-      setDoiLookupValue(result.data.doi || query);
+      setDoiLookupValue(result.data.doi || doi);
     } catch (error) {
-      const isDoiQuery = looksLikeDoi(query);
-      setDoiError(isDoiQuery
-        ? error.message || t("professor.dashboard.publicationForm.doiLookupFailed")
-        : t("professor.dashboard.publicationForm.metadataNotFound"));
-      onChange({ ...value, doi: isDoiQuery ? query : value.doi, metadataSource: "manual", metadataVerified: false });
+      setDoiError(error.message || t("professor.dashboard.publicationForm.doiLookupFailed"));
+      onChange({ ...value, doi, metadataSource: "manual", metadataVerified: false });
     } finally {
       setIsLookingUpDoi(false);
     }
@@ -434,14 +418,14 @@ const PublicationForm = ({
           <input
             value={doiLookupValue}
             onChange={(event) => setDoiLookupValue(event.target.value)}
-            placeholder={t("professor.dashboard.publicationForm.lookupPlaceholder")}
+            placeholder="10.xxxx/xxxxx"
             aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
             disabled={isLookingUpDoi || submitting}
           />
           <button
             type="button"
             className={`prof-btn-secondary publication-doi-action ${isLookingUpDoi ? "is-loading" : ""}`.trim()}
-            onClick={lookupMetadata}
+            onClick={lookupDoi}
             disabled={isLookingUpDoi || submitting}
           >
             {isLookingUpDoi ? <Loader2 size={16} className="publication-doi-action-spinner" /> : <Search size={16} />}
