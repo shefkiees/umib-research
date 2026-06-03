@@ -1698,8 +1698,8 @@ body {
 
 .publication-authors-list {
   display: grid;
-  gap: 14px;
-  max-width: 100%;
+  gap: 18px;
+  max-width: 820px;
 }
 
 .publication-author-field,
@@ -1711,15 +1711,8 @@ body {
 .publication-author-field > span,
 .publication-coauthors-header > span {
   color: #0f172a;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 800;
-}
-
-.publication-author-field small {
-  color: #718096;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.35;
 }
 
 .publication-author-field input,
@@ -1731,73 +1724,6 @@ body {
   background: #ffffff;
   color: #0f172a;
   font-size: 0.95rem;
-}
-
-.publication-author-card {
-  display: grid;
-  gap: 14px;
-  padding: 14px;
-  border: 1px solid #e5ebf3;
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.publication-author-card--primary {
-  background: #f8fbff;
-}
-
-.publication-author-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.publication-author-card-header > div {
-  display: grid;
-  gap: 3px;
-}
-
-.publication-author-card-header strong {
-  color: #102033;
-  font-size: 0.95rem;
-  font-weight: 800;
-}
-
-.publication-author-eyebrow {
-  color: #6b7a90;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.publication-author-grid {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.35fr) minmax(180px, 0.75fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.publication-corresponding-toggle {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 25px;
-  padding: 11px 12px;
-  border: 1px solid #dce5f0;
-  border-radius: 8px;
-  background: #fbfdff;
-  color: #25364a;
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-
-.publication-corresponding-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: #1d4d7d;
 }
 
 .publication-author-field input:focus,
@@ -1813,16 +1739,6 @@ body {
   padding-inline: 0;
   color: #0f172a;
   font-weight: 600;
-}
-
-.publication-authors-list--readonly .publication-author-card {
-  background: #ffffff;
-}
-
-.publication-authors-list--readonly .publication-corresponding-toggle {
-  border-color: transparent;
-  background: transparent;
-  padding-inline: 0;
 }
 
 .publication-coauthors-header {
@@ -4132,14 +4048,6 @@ body {
 
   .publication-doi-lookup button {
     width: auto;
-  }
-
-  .publication-author-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .publication-corresponding-toggle {
-    margin-top: 0;
   }
 
   .publication-table-head {

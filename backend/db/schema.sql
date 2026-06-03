@@ -223,7 +223,6 @@ create table if not exists publications (
   abstract text not null default '',
   publication_type text not null default '',
   venue text,
-  conference_location text not null default '',
   publisher text not null default '',
   publication_date date,
   publication_year integer,
@@ -245,7 +244,6 @@ create table if not exists publications (
 alter table publications drop constraint if exists publications_doi_fkey;
 alter table publications add column if not exists abstract text not null default '';
 alter table publications add column if not exists publication_type text not null default '';
-alter table publications add column if not exists conference_location text not null default '';
 alter table publications add column if not exists publisher text not null default '';
 alter table publications add column if not exists publication_date date;
 alter table publications add column if not exists source_url text not null default '';

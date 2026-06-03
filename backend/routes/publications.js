@@ -315,7 +315,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
       abstract: normalizeAbstractText(body.abstract),
       publicationType,
       venue: normalizeText(body.venue || body.journal),
-      conferenceLocation: normalizeText(body.conferenceLocation || body.conference_location),
       publisher: normalizeText(body.publisher),
       publicationDate,
       publicationYear,
@@ -387,8 +386,6 @@ function mapPublication(row) {
     publicationType,
     publication_type: publicationType,
     venue: row.venue || "",
-    conferenceLocation: row.conference_location || "",
-    conference_location: row.conference_location || "",
     publisher: row.publisher || "",
     publicationDate: row.publication_date || null,
     publication_date: row.publication_date || null,
@@ -483,7 +480,7 @@ function mapPublication(row) {
 
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue,
-  p.conference_location, p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
+  p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.isbn, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
@@ -572,7 +569,6 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and column_name in (
          'abstract',
          'publication_type',
-         'conference_location',
          'publisher',
          'publication_date',
          'source_url',
@@ -593,7 +589,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 14 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 13 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -695,7 +691,6 @@ async function ensurePublicationReviewSchema(client) {
 
   await client.query(`
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
-    alter table publications add column if not exists conference_location text not null default '';
     alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
     alter table publications add column if not exists metadata_review_comment text not null default '';
     alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
@@ -863,7 +858,6 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     abstract: metadata.abstract || "",
     publicationType: metadata.type || "",
     venue: metadata.container_title || "",
-    conferenceLocation: "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
@@ -936,10 +930,10 @@ async function createPublication(client, ownerId, values) {
 
   const { rows } = await client.query(
     `insert into publications
-     (owner_id, doi, title, abstract, publication_type, venue, conference_location, publisher, publication_date,
+     (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
       publication_year, source_url, volume, issue, pages, issn, isbn, status,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      returning id`,
     [
       ownerId,
@@ -948,7 +942,6 @@ async function createPublication(client, ownerId, values) {
       values.abstract,
       values.publicationType,
       values.venue || null,
-      values.conferenceLocation,
       values.publisher,
       values.publicationDate,
       values.publicationYear,
@@ -1010,7 +1003,6 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
         ? `(
             p.title ilike $${qParam}
             or p.venue ilike $${qParam}
-            or p.conference_location ilike $${qParam}
             or p.publisher ilike $${qParam}
             or p.doi ilike $${qParam}
             or p.abstract ilike $${qParam}
@@ -1205,22 +1197,21 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
            set doi = $3,
                title = $4,
                abstract = $5,
-              publication_type = $6,
-              venue = $7,
-              conference_location = $8,
-              publisher = $9,
-              publication_date = $10::date,
-               publication_year = $11,
-               source_url = $12,
-               volume = $13,
-               issue = $14,
-               pages = $15,
-               issn = $16,
-               isbn = $17,
-               status = $18,
-               metadata_source = $19,
-               metadata_verified = $20,
-               external_metadata_id = $21,
+               publication_type = $6,
+               venue = $7,
+               publisher = $8,
+               publication_date = $9::date,
+               publication_year = $10,
+               source_url = $11,
+               volume = $12,
+               issue = $13,
+               pages = $14,
+               issn = $15,
+               isbn = $16,
+               status = $17,
+               metadata_source = $18,
+               metadata_verified = $19,
+               external_metadata_id = $20,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -1233,7 +1224,6 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.abstract,
             values.publicationType,
             values.venue || null,
-            values.conferenceLocation,
             values.publisher,
             values.publicationDate,
             values.publicationYear,
