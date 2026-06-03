@@ -68,6 +68,19 @@ const pickOrcidTitle = (items = []) => {
   return pickFirstText(firstItem.roleTitle, firstItem.title, firstItem.position, firstItem.department);
 };
 
+const updateAffiliationOrganization = (items = [], value = "") => {
+  const rows = Array.isArray(items) ? items : [];
+  const organization = String(value || "").trim();
+
+  if (!rows.length) {
+    return organization ? [{ organization }] : [];
+  }
+
+  return rows.map((item, index) => (
+    index === 0 ? { ...item, organization } : item
+  ));
+};
+
 const normalizeProfile = (user = {}) => {
   const orcidEducations = Array.isArray(user.orcidEducations) ? user.orcidEducations : [];
   const orcidEmployments = Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [];
@@ -934,6 +947,18 @@ export default function ProfessorDashboard() {
     setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const handleProfileEducationChange = (index) => (event) => {
+    const organization = event.target.value;
+
+    setProfileDraft((prev) => ({
+      ...prev,
+      school: index === 0 ? organization : prev.school,
+      orcidEducations: (Array.isArray(prev.orcidEducations) ? prev.orcidEducations : []).map((item, itemIndex) => (
+        itemIndex === index ? { ...item, organization } : item
+      )),
+    }));
+  };
+
   const handleProfileSave = async (event) => {
     event.preventDefault();
     setIsProfileSaving(true);
@@ -953,6 +978,9 @@ export default function ProfessorDashboard() {
           office: profileDraft.office,
           academicTitle: profileDraft.academicTitle,
           scientificTitle: profileDraft.scientificTitle,
+          school: profileDraft.school,
+          currentAffiliation: profileDraft.currentAffiliation,
+          orcidEducations: profileDraft.orcidEducations,
         }),
       });
 
@@ -2236,27 +2264,27 @@ export default function ProfessorDashboard() {
               <div className="prof-form-grid">
                 <label className="prof-form-field">
                   <span>{settingsText.nameAndSurname}</span>
-                  <input value={profileDraft.name} readOnly />
+                  <input value={profileDraft.name} readOnly aria-readonly="true" />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.role}</span>
-                  <input value={profileDraft.role} readOnly />
+                  <input value={profileDraft.role} readOnly aria-readonly="true" />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.email}</span>
-                  <input type="email" value={profileDraft.email} readOnly />
+                  <input type="email" value={profileDraft.email} readOnly aria-readonly="true" />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.orcidId}</span>
-                  <input value={profileDraft.orcidId || settingsText.notConnected} readOnly />
+                  <input value={profileDraft.orcidId || settingsText.notConnected} readOnly aria-readonly="true" />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.orcidSchool}</span>
-                  <input value={profileDraft.school || settingsText.noPublicData} readOnly />
+                  <input value={profileDraft.school || ""} onChange={handleProfileFieldChange("school")} placeholder={settingsText.noPublicData} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.orcidAffiliation}</span>
-                  <input value={profileDraft.currentAffiliation || settingsText.noPublicData} readOnly />
+                  <input value={profileDraft.currentAffiliation || ""} onChange={handleProfileFieldChange("currentAffiliation")} placeholder={settingsText.noPublicData} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.faculty}</span>
@@ -2292,8 +2320,11 @@ export default function ProfessorDashboard() {
                   {profileDraft.orcidEducations.length ? (
                     <div>
                       <h4>{settingsText.orcidEducation}</h4>
-                      {profileDraft.orcidEducations.slice(0, 3).map((item) => (
-                        <p key={`education-${item.putCode || formatAffiliation(item)}`}>{formatAffiliation(item)}</p>
+                      {profileDraft.orcidEducations.slice(0, 3).map((item, index) => (
+                        <label className="prof-form-field prof-orcid-edit-field" key={`education-${item.putCode || index}`}>
+                          <span>{settingsText.educationInstitution}</span>
+                          <input value={item.organization || ""} onChange={handleProfileEducationChange(index)} placeholder={settingsText.noPublicData} />
+                        </label>
                       ))}
                     </div>
                   ) : null}

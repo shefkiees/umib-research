@@ -1059,6 +1059,8 @@ body {
 .prof-form-field input:read-only {
   color: #64748b;
   background: #eef2f7;
+  border-color: #cbd5e1;
+  box-shadow: inset 3px 0 0 #94a3b8;
   cursor: default;
 }
 
@@ -1108,6 +1110,14 @@ body {
 
 .prof-orcid-details p + p {
   margin-top: 6px;
+}
+
+.prof-orcid-edit-field {
+  margin-top: 8px;
+}
+
+.prof-orcid-edit-field + .prof-orcid-edit-field {
+  margin-top: 10px;
 }
 
 .prof-modal-actions {
