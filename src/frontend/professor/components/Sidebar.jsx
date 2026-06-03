@@ -2,6 +2,7 @@ import {
   BookOpen,
   Calendar,
   History,
+  List,
   Wallet,
   BarChart3,
 } from "lucide-react";
@@ -14,6 +15,7 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
     { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} /> },
+    { name: "Lista e Publikimeve", label: t("navigation.publicationList"), icon: <List size={18} /> },
     { name: "Konferenca", label: t("navigation.conferences"), icon: <Calendar size={18} /> },
     { name: "Rimbursime", label: t("navigation.reimbursements"), icon: <Wallet size={18} /> },
     { name: "Historiku i Rimbursimeve", label: t("navigation.reimbursementHistory"), icon: <History size={18} /> },
