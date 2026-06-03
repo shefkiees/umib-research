@@ -51,6 +51,51 @@ create index if not exists users_orcid_id_idx
   on users (orcid_id)
   where orcid_id is not null;
 
+create table if not exists public.user_bank_accounts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  label text not null default '',
+  bank_applicant_name text not null default '',
+  bank_name text not null default '',
+  bank_account_number text not null default '',
+  iban text not null default '',
+  swift_code text not null default '',
+  bank_country text not null default 'Kosove',
+  currency text not null default 'EUR',
+  is_default boolean not null default false,
+  archived_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_bank_accounts add column if not exists id uuid default gen_random_uuid();
+alter table public.user_bank_accounts add column if not exists user_id uuid references public.users(id) on delete cascade;
+alter table public.user_bank_accounts add column if not exists label text not null default '';
+alter table public.user_bank_accounts add column if not exists bank_applicant_name text not null default '';
+alter table public.user_bank_accounts add column if not exists bank_name text not null default '';
+alter table public.user_bank_accounts add column if not exists bank_account_number text not null default '';
+alter table public.user_bank_accounts add column if not exists iban text not null default '';
+alter table public.user_bank_accounts add column if not exists swift_code text not null default '';
+alter table public.user_bank_accounts add column if not exists bank_country text not null default 'Kosove';
+alter table public.user_bank_accounts add column if not exists currency text not null default 'EUR';
+alter table public.user_bank_accounts add column if not exists is_default boolean not null default false;
+alter table public.user_bank_accounts add column if not exists archived_at timestamptz;
+alter table public.user_bank_accounts add column if not exists created_at timestamptz not null default now();
+alter table public.user_bank_accounts add column if not exists updated_at timestamptz not null default now();
+
+create index if not exists user_bank_accounts_user_active_idx
+on public.user_bank_accounts (user_id, archived_at);
+
+create unique index if not exists user_bank_accounts_one_active_default_idx
+on public.user_bank_accounts (user_id)
+where is_default = true
+  and archived_at is null;
+
+drop trigger if exists user_bank_accounts_set_updated_at on public.user_bank_accounts;
+create trigger user_bank_accounts_set_updated_at
+before update on public.user_bank_accounts
+for each row execute function set_updated_at();
+
 create table if not exists access_reset_requests (
   id bigserial primary key,
   user_id uuid references users(id) on delete set null,
@@ -678,6 +723,7 @@ create index if not exists audit_logs_action_idx
 on audit_logs (action, created_at desc);
 
 alter table users enable row level security;
+alter table user_bank_accounts enable row level security;
 alter table faculties enable row level security;
 alter table departments enable row level security;
 alter table conferences enable row level security;
