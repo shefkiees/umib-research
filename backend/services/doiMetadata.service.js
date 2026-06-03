@@ -184,18 +184,74 @@ function normalizeAffiliations(value) {
     .join("; ");
 }
 
-function normalizeConferenceLocation(event = {}) {
+function normalizeLocationValue(value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const normalized = normalizeLocationValue(item);
+
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return "";
+  }
+
+  if (value && typeof value === "object") {
+    const namedValue = normalizeText(value.name || value.label || value.value);
+    const city = normalizeLocationValue(value.city);
+    const country = normalizeLocationValue(value.country);
+
+    if (namedValue) {
+      return namedValue;
+    }
+
+    if (city && country) {
+      return `${city}, ${country}`;
+    }
+
+    return normalizeLocationValue(value.location)
+      || normalizeLocationValue(value.place)
+      || city
+      || country;
+  }
+
+  return normalizeText(value);
+}
+
+function getLocationCandidates(source = {}) {
+  if (!source || typeof source !== "object") {
+    return [];
+  }
+
+  return [
+    source.location,
+    source.place,
+    source["venue-location"],
+    source.venueLocation,
+    source.venue_location,
+    source.city && source.country ? { city: source.city, country: source.country } : "",
+    source.city,
+    source.country,
+    source.venue?.location,
+    source.venue?.place,
+    source.venue?.city && source.venue?.country ? { city: source.venue.city, country: source.venue.country } : "",
+    source.venue?.city,
+    source.venue?.country,
+  ];
+}
+
+function normalizeConferenceLocation(data = {}) {
   const candidates = [
-    event?.location,
-    event?.place,
-    event?.venue,
-    event?.city && event?.country ? `${event.city}, ${event.country}` : "",
-    event?.city,
-    event?.country,
+    ...getLocationCandidates(data.event),
+    ...getLocationCandidates(data),
+    ...getLocationCandidates(data.raw_json),
+    ...getLocationCandidates(data.raw_json?._doi_org),
+    ...getLocationCandidates(data.raw_json?._crossref),
   ];
 
   for (const candidate of candidates) {
-    const value = normalizeText(candidate?.name || candidate);
+    const value = normalizeLocationValue(candidate);
 
     if (value) {
       return value;
@@ -288,6 +344,8 @@ function mergeMetadata(primary, fallback) {
     pages: preferText(primary.pages, fallback.pages),
     issn: preferText(primary.issn, fallback.issn),
     isbn: preferText(primary.isbn, fallback.isbn),
+    conferenceLocation: preferText(primary.conferenceLocation, fallback.conferenceLocation),
+    conference_location: preferText(primary.conference_location, fallback.conference_location),
     type: preferText(primary.type, fallback.type),
     abstract: preferText(primary.abstract, fallback.abstract),
     source_url: preferText(primary.source_url, fallback.source_url),
@@ -338,7 +396,7 @@ function mapMetadata(data, doi) {
   const containerTitle = Array.isArray(data["container-title"])
     ? data["container-title"][0] || ""
     : data["container-title"] || data.event?.name || "";
-  const conferenceLocation = normalizeConferenceLocation(data.event);
+  const conferenceLocation = normalizeConferenceLocation(data);
   const authors = Array.isArray(data.author)
     ? data.author
       .map((author, index) => {
@@ -410,7 +468,16 @@ export async function getCachedDoiMetadata(db, doi) {
     return null;
   }
 
-  const metadata = { issn: "", isbn: "", ...rows[0], abstract: normalizeAbstractText(rows[0].abstract) };
+  const metadata = {
+    issn: "",
+    isbn: "",
+    ...rows[0],
+    abstract: normalizeAbstractText(rows[0].abstract),
+  };
+  const conferenceLocation = normalizeConferenceLocation(metadata);
+
+  metadata.conferenceLocation = conferenceLocation;
+  metadata.conference_location = conferenceLocation;
 
   if (!hasIdentifierColumns) {
     return metadata;
