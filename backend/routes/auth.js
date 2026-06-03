@@ -257,7 +257,7 @@ function normalizeBankAccountPayload(body = {}) {
     bankAccountNumber,
     iban,
     swiftCode: normalizeText(body.swiftCode || body.swift_code).toUpperCase(),
-    bankCountry: normalizeText(body.bankCountry || body.bank_country) || "Kosove",
+    bankCountry: normalizeText(body.bankCountry || body.bank_country) || "Kosovë",
     currency: normalizeCurrency(body.currency),
     isDefault: Boolean(body.isDefault ?? body.is_default),
   };

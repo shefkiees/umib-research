@@ -351,7 +351,7 @@ const createEmptyBankAccountDraft = () => ({
   bankAccountNumber: "",
   iban: "",
   swiftCode: "",
-  bankCountry: "Kosove",
+  bankCountry: "Kosovë",
   currency: "EUR",
   isDefault: false,
 });
@@ -431,6 +431,7 @@ export default function ProfessorDashboard() {
   const [bankAccountDraft, setBankAccountDraft] = useState(createEmptyBankAccountDraft);
   const [editingBankAccountId, setEditingBankAccountId] = useState("");
   const [bankAccountActionId, setBankAccountActionId] = useState("");
+  const [isBankAccountSaving, setIsBankAccountSaving] = useState(false);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [passwordResetEmail, setPasswordResetEmail] = useState("");
   const [isPasswordResetSending, setIsPasswordResetSending] = useState(false);
@@ -1081,6 +1082,7 @@ export default function ProfessorDashboard() {
     setBankAccountDraft((prev) => ({
       ...prev,
       [field]: field === "swiftCode" || field === "currency" ? String(value).toUpperCase() : value,
+      ...(field === "bankAccountNumber" ? { iban: value } : {}),
     }));
   };
 
@@ -1091,10 +1093,10 @@ export default function ProfessorDashboard() {
       label: account.label || "",
       bankApplicantName: account.bankApplicantName || "",
       bankName: account.bankName || "",
-      bankAccountNumber: account.bankAccountNumber || "",
-      iban: account.iban || "",
+      bankAccountNumber: account.bankAccountNumber || account.iban || "",
+      iban: account.iban || account.bankAccountNumber || "",
       swiftCode: account.swiftCode || "",
-      bankCountry: account.bankCountry || "Kosove",
+      bankCountry: account.bankCountry === "Kosove" ? "Kosovë" : account.bankCountry || "Kosovë",
       currency: account.currency || "EUR",
       isDefault: Boolean(account.isDefault),
     });
@@ -1103,7 +1105,16 @@ export default function ProfessorDashboard() {
   const handleBankAccountSave = async () => {
     const accountId = editingBankAccountId;
     setBankAccountActionId(accountId || "new");
+    setIsBankAccountSaving(true);
     setBankAccountsError("");
+    const accountIdentifier = String(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban || "").trim();
+    const bankAccountPayload = {
+      ...bankAccountDraft,
+      bankApplicantName: profileDraft.name || profile.name || "",
+      bankAccountNumber: accountIdentifier,
+      iban: accountIdentifier,
+      bankCountry: bankAccountDraft.bankCountry || "Kosovë",
+    };
 
     try {
       const response = await fetch(
@@ -1114,7 +1125,7 @@ export default function ProfessorDashboard() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(bankAccountDraft),
+          body: JSON.stringify(bankAccountPayload),
         }
       );
       const data = await response.json().catch(() => ({}));
@@ -1135,6 +1146,7 @@ export default function ProfessorDashboard() {
       console.error("Bank account save failed:", error);
       setBankAccountsError(error.message || settingsText.bankAccountSaveError);
     } finally {
+      setIsBankAccountSaving(false);
       setBankAccountActionId("");
     }
   };
@@ -2592,8 +2604,9 @@ export default function ProfessorDashboard() {
                     <p>{settingsText.bankAccountsDescription}</p>
                   </div>
                 </div>
-                {bankAccountsError ? <p className="prof-modal-error" role="alert">{bankAccountsError}</p> : null}
-                {isBankAccountsLoading ? (
+                {bankAccountsError ? (
+                  <p className="prof-modal-error" role="alert">{bankAccountsError}</p>
+                ) : isBankAccountsLoading ? (
                   <p className="prof-bank-empty">{t("common.loading")}</p>
                 ) : bankAccounts.length ? (
                   <div className="prof-bank-account-list">
@@ -2604,7 +2617,7 @@ export default function ProfessorDashboard() {
                             <strong>{account.label || account.bankName || settingsText.bankAccountsTitle}</strong>
                             {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
                           </div>
-                          <p>{[account.bankApplicantName, account.bankName].filter(Boolean).join(" | ")}</p>
+                          <p>{account.bankName}</p>
                           <p>{[maskBankAccountNumber(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
                         </div>
                         <div className="prof-bank-account-card-actions">
@@ -2649,20 +2662,12 @@ export default function ProfessorDashboard() {
                       <input value={bankAccountDraft.label} onChange={handleBankAccountDraftChange("label")} placeholder={settingsText.bankAccountLabelPlaceholder} />
                     </label>
                     <label className="prof-form-field">
-                      <span>{settingsText.bankApplicantName}</span>
-                      <input value={bankAccountDraft.bankApplicantName} onChange={handleBankAccountDraftChange("bankApplicantName")} />
-                    </label>
-                    <label className="prof-form-field">
                       <span>{settingsText.bankName}</span>
                       <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankAccountNumber}</span>
                       <input value={bankAccountDraft.bankAccountNumber} onChange={handleBankAccountDraftChange("bankAccountNumber")} />
-                    </label>
-                    <label className="prof-form-field">
-                      <span>{settingsText.bankIban}</span>
-                      <input value={bankAccountDraft.iban} onChange={handleBankAccountDraftChange("iban")} />
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankSwift}</span>
@@ -2692,7 +2697,7 @@ export default function ProfessorDashboard() {
                       </button>
                     ) : null}
                     <button type="button" className="prof-btn-primary" onClick={handleBankAccountSave} disabled={Boolean(bankAccountActionId)}>
-                      {bankAccountActionId === "new" || bankAccountActionId === editingBankAccountId ? settingsText.saving : settingsText.bankSave}
+                      {isBankAccountSaving ? settingsText.saving : editingBankAccountId ? settingsText.bankUpdate : settingsText.bankSave}
                     </button>
                   </div>
                 </div>
