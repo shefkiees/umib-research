@@ -1671,20 +1671,23 @@ export default function ProfessorDashboard() {
       ) : filteredPublications.length ? (
         <div className="publication-table" role="table" aria-label={t("professor.dashboard.publicationRegistryTitle")}>
           <div className="publication-table-head" role="row">
+            <span>{t("professor.dashboard.publicationNumberColumn")}</span>
             <span>{t("professor.dashboard.publicationColumn")}</span>
             <span>{t("professor.dashboard.authorsColumn")}</span>
             <span>{t("professor.dashboard.yearColumn")}</span>
-            <span>{t("professor.dashboard.publicationForm.quartile")}</span>
-            <span>Statusi</span>
-            <span>Veprimet</span>
+            <span>{t("professor.dashboard.publicationQuartileColumn")}</span>
+            <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
-          {filteredPublications.map((row) => (
+          {filteredPublications.map((row, index) => (
             <div
               className={`publication-table-row ${focusedPublicationId === row.id ? "is-focused" : ""}`}
               id={`publication-row-${row.id}`}
               role="row"
               key={row.id}
             >
+              <div className="publication-number-cell" aria-label={t("professor.dashboard.publicationNumberColumn")}>
+                {index + 1}
+              </div>
               <div className="publication-title-cell">
                 <h4>{renderPublicationTitle(row)}</h4>
                 {renderRevisionNotice(row)}
@@ -1698,15 +1701,11 @@ export default function ProfessorDashboard() {
                 {row.year || t("professor.dashboard.noYear")}
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.publicationForm.quartile")}</span>
+                <span className="publication-mobile-label">{t("professor.dashboard.publicationQuartileColumn")}</span>
                 {formatPublicationQuartile(row)}
               </div>
-              <div className="publication-meta-cell">
-                <span className="publication-mobile-label">Statusi</span>
-                {renderStatus(row.status)}
-              </div>
               <div className="publication-meta-cell publication-actions-cell">
-                <span className="publication-mobile-label">Veprimet</span>
+                <span className="publication-mobile-label">{t("professor.dashboard.actionsColumn")}</span>
                 {renderPublicationActions(row)}
               </div>
             </div>
