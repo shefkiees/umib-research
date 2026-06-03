@@ -353,7 +353,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
       abstract: normalizeAbstractText(body.abstract),
       publicationType,
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
-      conferenceLocation: normalizeText(body.conferenceLocation || body.conference_location),
+      conferenceLocation: normalizeText(body.conferenceLocation ?? body.conference_location),
       publisher: normalizeText(body.publisher),
       publicationDate,
       publicationYear,

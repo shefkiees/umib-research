@@ -871,6 +871,22 @@ export default function ProfessorDashboard() {
 
   const buildPublicationPayload = (draft = {}) => {
     const payload = { ...draft };
+    const authors = Array.isArray(draft.authors) ? draft.authors : [];
+    const hasCorrespondingAuthor = authors.some((author) => Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author));
+    const normalizedAuthors = authors.map((author, index) => {
+      const isCorrespondingAuthor = Boolean(
+        author?.isCorrespondingAuthor
+        ?? author?.is_corresponding_author
+        ?? (!hasCorrespondingAuthor && index === 0)
+      );
+
+      return {
+        ...author,
+        isCorrespondingAuthor,
+        is_corresponding_author: isCorrespondingAuthor,
+      };
+    });
+
     delete payload.attachments;
     delete payload.evidenceLinks;
     delete payload.evidence_links;
@@ -879,8 +895,10 @@ export default function ProfessorDashboard() {
     return {
       ...payload,
       publishedIn: draft.venue || draft.publishedIn || "",
+      conferenceLocation: draft.conferenceLocation || draft.conference_location || "",
+      conference_location: draft.conferenceLocation || draft.conference_location || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
-      authors: Array.isArray(draft.authors) ? draft.authors : [],
+      authors: normalizedAuthors,
       indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
       quartile: draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "",
     };
