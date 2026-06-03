@@ -23,6 +23,11 @@ const REVIEW_STATUS_OPTIONS = [
 ];
 
 const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
+const MANUAL_PUBLICATION_REQUIRED_FIELDS = {
+  journal_article: ["title", "publicationType", "venue", "issn", "publishedAt", "authors", "evidence"],
+  conference_paper: ["title", "publicationType", "venue", "conferenceLocation", "publishedAt", "authors", "evidence"],
+  book: ["title", "publicationType", "venue", "isbn", "publisher", "publishedAt", "authors", "evidence"],
+};
 
 const EMPTY_AUTHOR = {
   fullName: "",
@@ -186,6 +191,14 @@ function parsePublishedValue(input) {
   return { publicationDate: value, publicationYear: "" };
 }
 
+function hasText(value) {
+  return String(value || "").trim() !== "";
+}
+
+function hasEvidenceLink(evidenceLinks = []) {
+  return (Array.isArray(evidenceLinks) ? evidenceLinks : []).some((item) => hasText(item?.url || item?.fileUrl || item?.file_url));
+}
+
 function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthorIndex = 0) {
   const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
   const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -276,6 +289,33 @@ const PublicationForm = ({
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
   const primaryIndexing = Array.isArray(value.indexing) && value.indexing.length ? value.indexing[0] : {};
+  const hasDoi = hasText(value.doi || doiLookupValue);
+  const manualMode = !hasDoi;
+  const evidenceLinks = Array.isArray(value.evidenceLinks) ? value.evidenceLinks : [];
+  const primaryEvidenceLink = evidenceLinks[0] || { url: "", label: "" };
+  const venuePlaceholder = value.publicationType === "conference_paper"
+    ? "IEEE International Conference on Computer Vision"
+    : value.publicationType === "book"
+      ? "Lecture Notes in Computer Science"
+      : "Journal of Artificial Intelligence Research";
+  const publishedInLabelKey = value.publicationType === "conference_paper"
+    ? "publishedInConference"
+    : value.publicationType === "book"
+      ? "publishedInBook"
+      : "publishedInJournal";
+  const publishedInLabel = t(`professor.dashboard.publicationForm.${publishedInLabelKey}`);
+
+  const updateDoiLookupValue = (event) => {
+    const doi = event.target.value;
+    setDoiLookupValue(doi);
+    setDoiError("");
+    onChange({
+      ...value,
+      doi,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+      metadataVerified: value.metadataSource === "doi" ? false : value.metadataVerified,
+    });
+  };
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -284,6 +324,24 @@ const PublicationForm = ({
       [field]: nextValue,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+  };
+
+  const updateEvidenceLink = (field) => (event) => {
+    const nextEvidenceLink = {
+      ...primaryEvidenceLink,
+      [field]: event.target.value,
+    };
+    const nextEvidenceLinks = [
+      nextEvidenceLink,
+      ...evidenceLinks.slice(1),
+    ].filter((item, index) => index === 0 || hasText(item.url || item.fileUrl || item.file_url || item.label || item.fileType || item.file_type));
+
+    onChange({
+      ...value,
+      evidenceLinks: nextEvidenceLinks,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    setFormError("");
   };
 
   const updatePublishedField = (event) => {
@@ -414,9 +472,29 @@ const PublicationForm = ({
   const submit = (event) => {
     event.preventDefault();
     const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
+    const missingManualFields = [];
 
     if (!validAuthors.length) {
       setFormError(t("professor.dashboard.publicationForm.authorRequired"));
+      return;
+    }
+
+    if (manualMode) {
+      const requiredFields = MANUAL_PUBLICATION_REQUIRED_FIELDS[value.publicationType] || ["title", "publicationType", "venue", "publishedAt", "authors", "evidence"];
+
+      if (requiredFields.includes("title") && !hasText(value.title)) missingManualFields.push(t("professor.dashboard.publicationForm.title"));
+      if (requiredFields.includes("publicationType") && !hasText(value.publicationType)) missingManualFields.push(t("professor.dashboard.publicationForm.publicationType"));
+      if (requiredFields.includes("venue") && !hasText(value.venue)) missingManualFields.push(publishedInLabel);
+      if (requiredFields.includes("conferenceLocation") && !hasText(value.conferenceLocation)) missingManualFields.push(t("professor.dashboard.publicationForm.conferenceLocation"));
+      if (requiredFields.includes("publishedAt") && !hasText(publishedValue)) missingManualFields.push(t("professor.dashboard.publicationForm.publishedAt"));
+      if (requiredFields.includes("issn") && !hasText(value.issn)) missingManualFields.push("ISSN");
+      if (requiredFields.includes("isbn") && !hasText(value.isbn)) missingManualFields.push("ISBN");
+      if (requiredFields.includes("publisher") && !hasText(value.publisher)) missingManualFields.push(t("professor.dashboard.publicationForm.publisher"));
+      if (requiredFields.includes("evidence") && !hasEvidenceLink(value.evidenceLinks)) missingManualFields.push(t("professor.dashboard.publicationForm.evidenceLink"));
+    }
+
+    if (missingManualFields.length) {
+      setFormError(t("professor.dashboard.publicationForm.manualRequiredFields", { fields: missingManualFields.join(", ") }));
       return;
     }
 
@@ -427,19 +505,17 @@ const PublicationForm = ({
   const authors = value.authors || [];
   const primaryAuthor = authors[0] || EMPTY_AUTHOR;
   const coauthors = authors.slice(1);
-  const venuePlaceholder = value.publicationType === "conference_paper"
-    ? "IEEE International Conference on Computer Vision"
-    : value.publicationType === "book"
-      ? "Lecture Notes in Computer Science"
-      : "Journal of Artificial Intelligence Research";
-
   return (
     <form className="publication-form" onSubmit={submit}>
       <div className="publication-form-toolbar">
+        <div className="publication-doi-guidance">
+          <strong>{t("professor.dashboard.publicationForm.doiOptionalLabel")}</strong>
+          {!hasText(doiLookupValue) ? <span>{t("professor.dashboard.publicationForm.manualWithoutDoiHint")}</span> : null}
+        </div>
         <div className="publication-doi-lookup">
           <input
             value={doiLookupValue}
-            onChange={(event) => setDoiLookupValue(event.target.value)}
+            onChange={updateDoiLookupValue}
             placeholder="10.xxxx/xxxxx"
             aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
             disabled={isLookingUpDoi || submitting}
@@ -448,7 +524,7 @@ const PublicationForm = ({
             type="button"
             className={`prof-btn-secondary publication-doi-action ${isLookingUpDoi ? "is-loading" : ""}`.trim()}
             onClick={lookupDoi}
-            disabled={isLookingUpDoi || submitting}
+            disabled={!hasText(doiLookupValue) || isLookingUpDoi || submitting}
           >
             {isLookingUpDoi ? <Loader2 size={16} className="publication-doi-action-spinner" /> : <Search size={16} />}
             {isLookingUpDoi ? t("common.loading") : t("professor.dashboard.publicationForm.getMetadata")}
@@ -470,7 +546,7 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field reimbursement-wide">
-          <span>{t("professor.dashboard.publicationForm.publishedIn")}</span>
+          <span>{publishedInLabel}</span>
           <input
             value={value.venue}
             onChange={updateField("venue")}
@@ -498,6 +574,14 @@ const PublicationForm = ({
             onChange={updatePublishedField}
             placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
             readOnly={isDoiImported}
+          />
+        </label>
+        <label className="prof-form-field reimbursement-wide">
+          <span>{t("professor.dashboard.publicationForm.evidenceLink")}</span>
+          <input
+            value={primaryEvidenceLink.url || ""}
+            onChange={updateEvidenceLink("url")}
+            placeholder={t("professor.dashboard.publicationForm.evidenceLinkPlaceholder")}
           />
         </label>
         {showVolumeField ? (

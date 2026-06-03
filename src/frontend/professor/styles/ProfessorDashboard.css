@@ -1508,9 +1508,9 @@ body {
 }
 
 .publication-form-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
 }
 
 .publication-form-section-header {
@@ -1561,6 +1561,23 @@ body {
   min-height: 44px;
   padding-inline: 16px;
   white-space: nowrap;
+}
+
+.publication-doi-guidance {
+  display: grid;
+  gap: 3px;
+}
+
+.publication-doi-guidance strong {
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.publication-doi-guidance span {
+  color: #65758a;
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .publication-doi-lookup .publication-doi-action {
