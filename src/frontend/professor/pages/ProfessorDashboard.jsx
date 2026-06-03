@@ -872,6 +872,7 @@ export default function ProfessorDashboard() {
   const buildPublicationPayload = (draft = {}) => {
     const payload = { ...draft };
     delete payload.attachments;
+    delete payload.evidenceLinks;
     delete payload.evidence_links;
     delete payload.identifiers;
 
