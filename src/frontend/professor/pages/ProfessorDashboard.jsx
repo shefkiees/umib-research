@@ -1761,7 +1761,7 @@ export default function ProfessorDashboard() {
           <div className="publication-table-head" role="row">
             <span>{t("professor.dashboard.publicationNumberColumn")}</span>
             {renderPublicationSortHeader("title", t("professor.dashboard.publicationColumn"))}
-            {renderPublicationSortHeader("authors", t("professor.dashboard.authorsColumn"))}
+            <span>{t("professor.dashboard.authorsColumn")}</span>
             {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
             {renderPublicationSortHeader("quartile", t("professor.dashboard.publicationQuartileColumn"))}
             <span>{t("professor.dashboard.actionsColumn")}</span>
