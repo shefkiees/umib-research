@@ -1833,10 +1833,13 @@ body {
 
 .publication-actions-cell,
 .publication-row-actions {
-  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
+}
+
+.publication-actions-cell {
+  display: flex;
 }
 
 .publication-actions-cell {
@@ -1846,9 +1849,14 @@ body {
 }
 
 .publication-row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(74px, 1fr));
   width: 100%;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  max-width: 166px;
+  margin-left: auto;
+  justify-content: stretch;
+  align-items: center;
+  gap: 6px;
 }
 
 .publication-row-actions .publication-action-btn {
@@ -1864,8 +1872,23 @@ body {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  flex: 0 0 auto;
+  width: 100%;
   transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.publication-row-actions .publication-action-btn--secondary {
+  order: 1;
+}
+
+.publication-row-actions .publication-action-btn--danger {
+  order: 2;
+}
+
+.publication-row-actions .publication-action-btn--primary {
+  order: 3;
+  grid-column: 1 / -1;
+  width: min(100%, 88px);
+  justify-self: center;
 }
 
 .publication-row-actions .publication-action-btn--secondary {
@@ -3803,7 +3826,10 @@ body {
 
   .publication-row-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(84px, max-content));
+    grid-template-columns: repeat(2, minmax(84px, 1fr));
+    width: min(100%, 190px);
+    max-width: 100%;
+    margin-left: 0;
     gap: 6px;
   }
 }
