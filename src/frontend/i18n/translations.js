@@ -61,7 +61,7 @@ const professorSettings = {
     editProfileSubtitle: "Përditësoni të dhënat bazë të profilit.",
     closeModal: "Mbyll",
     profileNote:
-      "Emri, email-i dhe ORCID iD merren automatikisht nga llogaria ORCID. Të dhënat e tjera të profilit mund të jenë importuar nga ORCID, por mund të përditësohen manualisht nga profesori.",
+      "Profili mund të plotësohet dhe përditësohet manualisht. ORCID përdoret vetëm për importimin opsional të të dhënave akademike. Email-i dhe roli lidhen me llogarinë e sistemit dhe nuk mund të ndryshohen këtu.",
     nameAndSurname: "Emri dhe mbiemri",
     role: "Roli",
     email: "Email",

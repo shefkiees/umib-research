@@ -1024,7 +1024,6 @@ export default function ProfessorDashboard() {
           office: profileDraft.office,
           academicTitle: profileDraft.academicTitle,
           scientificTitle: profileDraft.scientificTitle,
-          school: profileDraft.school,
           currentAffiliation: profileDraft.currentAffiliation,
           education: Array.isArray(profileDraft.education) ? profileDraft.education : [],
         }),
@@ -2323,10 +2322,6 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.orcidId}</span>
                   <input value={profileDraft.orcidId || settingsText.notConnected} readOnly aria-readonly="true" />
-                </label>
-                <label className="prof-form-field">
-                  <span>{settingsText.orcidSchool}</span>
-                  <input value={profileDraft.school || ""} onChange={handleProfileFieldChange("school")} placeholder={settingsText.noPublicData} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.orcidAffiliation}</span>
