@@ -33,6 +33,17 @@ const EMPTY_AUTHOR = {
   isCorrespondingAuthor: false,
 };
 
+function normalizeAffiliation(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : item?.name || item?.affiliation || ""))
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  return typeof value === "string" ? value : value?.name || value?.affiliation || "";
+}
+
 export const createEmptyPublicationDraft = () => ({
   title: "",
   abstract: "",
@@ -70,7 +81,7 @@ function normalizePublicationAuthors(authors = []) {
       givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
       familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
       orcid: normalizedAuthor.orcid || "",
-      affiliation: normalizedAuthor.affiliation || "",
+      affiliation: normalizeAffiliation(normalizedAuthor.affiliation || normalizedAuthor.affiliations),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
@@ -197,7 +208,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
     orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
-    affiliation: normalizedAuthor.affiliation || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
+    affiliation: normalizeAffiliation(normalizedAuthor.affiliation || normalizedAuthor.affiliations) || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: Boolean(normalizedAuthor.isCorrespondingAuthor ?? normalizedAuthor.is_corresponding_author),
@@ -320,26 +331,11 @@ const PublicationForm = ({
     setFormError("");
   };
 
-  const setPrimaryAuthorField = (field, nextValue) => {
+  const setPrimaryAuthorName = (fullName) => {
     const authors = value.authors || [];
     const nextAuthors = authors.length
-      ? authors.map((author, index) => (index === 0 ? { ...author, [field]: nextValue } : author))
-      : [{ ...EMPTY_AUTHOR, [field]: nextValue }];
-
-    onChange({
-      ...value,
-      authors: nextAuthors,
-      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
-    });
-    setFormError("");
-  };
-
-  const setCorrespondingAuthor = (index, checked) => {
-    const authors = value.authors?.length ? value.authors : [{ ...EMPTY_AUTHOR }];
-    const nextAuthors = authors.map((author, authorIndex) => ({
-      ...author,
-      isCorrespondingAuthor: checked ? authorIndex === index : false,
-    }));
+      ? authors.map((author, index) => (index === 0 ? { ...author, fullName } : author))
+      : [{ ...EMPTY_AUTHOR, fullName }];
 
     onChange({
       ...value,
@@ -414,12 +410,7 @@ const PublicationForm = ({
 
   const submit = (event) => {
     event.preventDefault();
-    const filledAuthors = (value.authors || []).filter((author) =>
-      String(author.fullName || "").trim()
-      || String(author.affiliation || "").trim()
-      || author.isCorrespondingAuthor
-    );
-    const validAuthors = filledAuthors.filter((author) => String(author.fullName || "").trim());
+    const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
 
     if (!String(value.venue || "").trim()) {
       setFormError(t("professor.dashboard.publicationForm.publishedInRequired"));
@@ -433,16 +424,6 @@ const PublicationForm = ({
 
     if (!validAuthors.length) {
       setFormError(t("professor.dashboard.publicationForm.authorRequired"));
-      return;
-    }
-
-    if (filledAuthors.some((author) => !String(author.fullName || "").trim())) {
-      setFormError(t("professor.dashboard.publicationForm.authorRequired"));
-      return;
-    }
-
-    if (validAuthors.some((author) => !String(author.affiliation || "").trim())) {
-      setFormError(t("professor.dashboard.publicationForm.institutionRequired"));
       return;
     }
 
@@ -604,29 +585,10 @@ const PublicationForm = ({
             <span>{t("professor.dashboard.publicationForm.author")}</span>
             <input
               value={primaryAuthor.fullName}
-              onChange={(event) => setPrimaryAuthorField("fullName", event.target.value)}
+              onChange={(event) => setPrimaryAuthorName(event.target.value)}
               placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
               required
               readOnly={isDoiImported}
-            />
-          </label>
-          <label className="publication-author-field">
-            <span>{t("professor.dashboard.publicationForm.institution")}</span>
-            <input
-              value={primaryAuthor.affiliation || ""}
-              onChange={(event) => setPrimaryAuthorField("affiliation", event.target.value)}
-              placeholder={t("professor.dashboard.publicationForm.institutionPlaceholder")}
-              required
-              readOnly={isDoiImported}
-            />
-          </label>
-          <label className="publication-author-field">
-            <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-            <input
-              type="checkbox"
-              checked={Boolean(primaryAuthor.isCorrespondingAuthor)}
-              onChange={(event) => setCorrespondingAuthor(0, event.target.checked)}
-              disabled={isDoiImported}
             />
           </label>
 
@@ -654,21 +616,6 @@ const PublicationForm = ({
                         placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
                         readOnly={isDoiImported}
                       />
-                      <input
-                        value={author.affiliation || ""}
-                        onChange={(event) => setAuthorField(authorIndex, "affiliation", event.target.value)}
-                        placeholder={t("professor.dashboard.publicationForm.institutionPlaceholder")}
-                        readOnly={isDoiImported}
-                      />
-                      <label className="publication-author-field">
-                        <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(author.isCorrespondingAuthor)}
-                          onChange={(event) => setCorrespondingAuthor(authorIndex, event.target.checked)}
-                          disabled={isDoiImported}
-                        />
-                      </label>
                       {!isDoiImported ? (
                         <button
                           type="button"
