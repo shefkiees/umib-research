@@ -3,6 +3,7 @@ import db from "../config/db.js";
 import {
   DoiLookupError,
   getVerifiedDoiMetadata,
+  getVerifiedTitleMetadata,
   isValidDoi,
   normalizeDoi,
 } from "../services/doiMetadata.service.js";
@@ -51,6 +52,37 @@ function checkRateLimit(req) {
 function sendDoiError(res, status, error, message) {
   res.status(status).json({ error, message });
 }
+
+router.get("/search/title", async (req, res) => {
+  const rateLimit = checkRateLimit(req);
+
+  if (rateLimit.limited) {
+    const retryAfterSeconds = Math.max(Math.ceil(rateLimit.retryAfterMs / 1000), 1);
+    res.set("Retry-After", String(retryAfterSeconds));
+    sendDoiError(res, 429, "rate_limited", "Keni bere shume kerkesa per metadata. Provoni perseri me vone.");
+    return;
+  }
+
+  const title = String(req.query.query || req.query.q || "").trim();
+
+  if (!title) {
+    sendDoiError(res, 400, "title_required", "Titulli i publikimit eshte obligativ.");
+    return;
+  }
+
+  try {
+    const { source, metadata } = await getVerifiedTitleMetadata(db, title);
+    res.json({ source, data: metadata });
+  } catch (error) {
+    if (error instanceof DoiLookupError) {
+      sendDoiError(res, error.status, error.code, error.message);
+      return;
+    }
+
+    console.error("GET /api/doi/search/title failed:", error);
+    sendDoiError(res, 500, "title_lookup_failed", "Metadata per kete titull nuk mund te merret tani.");
+  }
+});
 
 router.get("/:doi", async (req, res) => {
   const rateLimit = checkRateLimit(req);

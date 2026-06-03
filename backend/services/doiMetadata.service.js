@@ -416,6 +416,32 @@ export async function getCachedDoiMetadata(db, doi) {
   return metadata;
 }
 
+async function getCachedTitleMetadata(db, title) {
+  const normalizedTitle = normalizeComparableText(title);
+
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const hasIdentifierColumns = await hasPublicationMetadataIdentifierColumns(db);
+  const identifierColumns = hasIdentifierColumns ? ", issn, isbn" : "";
+  const { rows } = await db.query(
+    `select doi, title, authors, container_title, publisher, published_date, year,
+            volume, issue, pages${identifierColumns}, type, abstract, source_url, raw_json, created_at, updated_at
+     from publication_metadata
+     where title ilike $1
+     order by updated_at desc
+     limit 5`,
+    [`%${normalizeText(title)}%`]
+  );
+
+  const exactMatch = rows.find((row) => normalizeComparableText(row.title) === normalizedTitle);
+  const fallbackMatch = rows.find((row) => normalizeComparableText(row.title).includes(normalizedTitle) || normalizedTitle.includes(normalizeComparableText(row.title)));
+  const metadata = exactMatch || fallbackMatch || null;
+
+  return metadata ? { issn: "", isbn: "", ...metadata, abstract: normalizeAbstractText(metadata.abstract) } : null;
+}
+
 export async function upsertDoiMetadata(dbOrClient, metadata) {
   const hasIdentifierColumns = await hasPublicationMetadataIdentifierColumns(dbOrClient);
 
@@ -565,6 +591,45 @@ async function fetchFromCrossref(doi) {
   }
 
   return mapMetadata(data.message, doi);
+}
+
+async function fetchFromCrossrefTitle(title) {
+  const normalizedTitle = normalizeText(title);
+
+  if (!normalizedTitle) {
+    throw new DoiLookupError("title_required", "Titulli i publikimit eshte obligativ.", 400);
+  }
+
+  const url = new URL("https://api.crossref.org/works");
+  url.searchParams.set("query.title", normalizedTitle);
+  url.searchParams.set("rows", "5");
+
+  const response = await fetchJson(url.toString(), {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!response.ok) {
+    throw new DoiLookupError("external_lookup_failed", "Crossref nuk u pergjigj me sukses.", 502);
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data.message?.items) ? data.message.items : [];
+  const normalizedQuery = normalizeComparableText(normalizedTitle);
+  const bestItem = items.find((item) => normalizeComparableText(Array.isArray(item.title) ? item.title[0] : item.title) === normalizedQuery)
+    || items.find((item) => {
+      const itemTitle = normalizeComparableText(Array.isArray(item.title) ? item.title[0] : item.title);
+      return itemTitle.includes(normalizedQuery) || normalizedQuery.includes(itemTitle);
+    })
+    || items[0];
+
+  if (!bestItem) {
+    throw new DoiLookupError("title_not_found", "Nuk u gjeten te dhena automatike.", 404);
+  }
+
+  return mapMetadata(bestItem, normalizeDoi(bestItem.DOI));
 }
 
 function getScopusApiKey() {
@@ -1134,5 +1199,21 @@ export async function getVerifiedDoiMetadata(dbOrClient, doi) {
 
   const metadata = await fetchDoiMetadata(doi);
   await upsertDoiMetadata(dbOrClient, metadata);
+  return { source: "api", metadata };
+}
+
+export async function getVerifiedTitleMetadata(dbOrClient, title) {
+  const cached = await getCachedTitleMetadata(dbOrClient, title);
+
+  if (cached && !shouldRefreshCachedMetadata(cached)) {
+    return { source: "cache", metadata: await enrichMetadataIndexing(cached) };
+  }
+
+  const metadata = await enrichMetadataIndexing(await fetchFromCrossrefTitle(title));
+
+  if (metadata.doi) {
+    await upsertDoiMetadata(dbOrClient, metadata);
+  }
+
   return { source: "api", metadata };
 }
