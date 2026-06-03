@@ -205,6 +205,19 @@ function mapUserRowToProfile(row) {
   };
 }
 
+function updateFirstAffiliationOrganization(items = [], organization = "") {
+  const rows = Array.isArray(items) ? items : [];
+  const nextOrganization = String(organization || "").trim();
+
+  if (!rows.length) {
+    return nextOrganization ? [{ organization: nextOrganization }] : [];
+  }
+
+  return rows.map((item, index) => (
+    index === 0 ? { ...(item || {}), organization: nextOrganization } : item
+  ));
+}
+
 router.get("/me", async (req, res) => {
   try {
     if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -241,7 +254,7 @@ router.put("/me", async (req, res) => {
     }
 
     const currentResult = await db.query(
-      `SELECT id, orcid_id
+      `SELECT id, orcid_id, orcid_educations, orcid_employments
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -261,6 +274,13 @@ router.put("/me", async (req, res) => {
     const nextOffice = String(req.body?.office || "").trim();
     const nextAcademicTitle = String(req.body?.academicTitle || req.body?.academic_title || "").trim();
     const nextScientificTitle = String(req.body?.scientificTitle || req.body?.scientific_title || "").trim();
+    const nextSchool = String(req.body?.school || "").trim();
+    const nextCurrentAffiliation = String(req.body?.currentAffiliation || req.body?.current_affiliation || "").trim();
+    const nextOrcidEducations = Array.isArray(req.body?.orcidEducations || req.body?.orcid_educations)
+      ? (req.body.orcidEducations || req.body.orcid_educations)
+      : currentUser.orcid_educations;
+    const normalizedEducations = updateFirstAffiliationOrganization(nextOrcidEducations, nextSchool);
+    const normalizedEmployments = updateFirstAffiliationOrganization(currentUser.orcid_employments, nextCurrentAffiliation);
 
     const result = await db.query(
       `UPDATE users
@@ -273,6 +293,8 @@ router.put("/me", async (req, res) => {
            office = $5,
            academic_title = $6,
            scientific_title = $7,
+           orcid_educations = $8::jsonb,
+           orcid_employments = $9::jsonb,
            updated_at = NOW()
        WHERE id = $1
        RETURNING id, google_id, orcid_id, email, full_name, role, status, academic_title, scientific_title, faculty, department, office,
@@ -285,6 +307,8 @@ router.put("/me", async (req, res) => {
         nextOffice || null,
         nextAcademicTitle || null,
         nextScientificTitle || null,
+        JSON.stringify(normalizedEducations),
+        JSON.stringify(normalizedEmployments),
       ]
     );
 
