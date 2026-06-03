@@ -399,6 +399,13 @@ const maskBankAccountNumber = (value = "") => {
   return normalized ? `**** ${normalized.slice(-4)}` : "";
 };
 
+const buildBankAccountLabel = ({ bankName = "", bankAccountNumber = "", iban = "" } = {}) => {
+  const displayName = String(bankName || "").trim() || "Llogari bankare";
+  const maskedIdentifier = maskBankAccountNumber(iban || bankAccountNumber);
+
+  return [displayName, maskedIdentifier].filter(Boolean).join(" - ");
+};
+
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
 const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
@@ -1185,6 +1192,11 @@ export default function ProfessorDashboard() {
     const accountIdentifier = String(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban || "").trim();
     const bankAccountPayload = {
       ...bankAccountDraft,
+      label: buildBankAccountLabel({
+        bankName: bankAccountDraft.bankName,
+        bankAccountNumber: accountIdentifier,
+        iban: accountIdentifier,
+      }),
       bankApplicantName: profileDraft.name || profile.name || "",
       bankAccountNumber: accountIdentifier,
       iban: accountIdentifier,
@@ -2722,10 +2734,9 @@ export default function ProfessorDashboard() {
                       <article className="prof-bank-account-card" key={account.id}>
                         <div className="prof-bank-account-main">
                           <div className="prof-bank-account-title-row">
-                            <strong>{account.label || account.bankName || settingsText.bankAccountsTitle}</strong>
+                            <strong>{account.bankName || settingsText.bankAccountsTitle}</strong>
                             {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
                           </div>
-                          <p>{account.bankName}</p>
                           <p>{[maskBankAccountNumber(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
                         </div>
                         <div className="prof-bank-account-card-actions">
@@ -2765,10 +2776,6 @@ export default function ProfessorDashboard() {
                 <div className="prof-bank-account-form">
                   <h5>{editingBankAccountId ? settingsText.bankAccountEditTitle : settingsText.bankAccountAddTitle}</h5>
                   <div className="prof-bank-account-grid">
-                    <label className="prof-form-field">
-                      <span>{settingsText.bankAccountLabel}</span>
-                      <input value={bankAccountDraft.label} onChange={handleBankAccountDraftChange("label")} placeholder={settingsText.bankAccountLabelPlaceholder} />
-                    </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankName}</span>
                       <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
@@ -2852,10 +2859,6 @@ export default function ProfessorDashboard() {
               <h3 className="prof-modal-title" id="bank-delete-title">{settingsText.bankDeleteTitle}</h3>
               <p className="prof-modal-subtitle">{settingsText.bankDeleteMessage}</p>
               <div className="prof-bank-delete-summary">
-                <p>
-                  <span>{settingsText.bankAccountLabel}</span>
-                  <strong>{bankAccountDeleteTarget.label || settingsText.bankAccountsTitle}</strong>
-                </p>
                 <p>
                   <span>{settingsText.bankName}</span>
                   <strong>{bankAccountDeleteTarget.bankName || "-"}</strong>
