@@ -479,7 +479,7 @@ export const translations = {
           volume: "Vellimi",
           issue: "Numri i artikullit",
           pages: "Faqet",
-          quartile: "Quartile",
+          quartile: "Kuartili",
           selectQuartile: "Zgjidh quartile",
           abstract: "Abstrakti",
           showLess: "Shfaq me pak",
