@@ -19,6 +19,21 @@ const DASHBOARD_BY_ROLE = {
 };
 const configuredClientUrl = getAbsoluteUrlEnvValue(process.env.CLIENT_URL);
 const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+
+function normalizeText(value) {
+  return String(value ?? "").trim();
+}
+
+function normalizeIban(value) {
+  return normalizeText(value).replace(/\s+/g, "").toUpperCase();
+}
+
+function normalizeCurrency(value) {
+  const currency = normalizeText(value).toUpperCase();
+  return CURRENCY_PATTERN.test(currency) ? currency : "EUR";
+}
 
 function getRequestOrigin(req) {
   const forwardedProto = req.get("x-forwarded-proto");
@@ -214,6 +229,109 @@ function mapUserRowToProfile(row) {
   };
 }
 
+function mapBankAccountRow(row = {}) {
+  return {
+    id: row.id,
+    label: row.label || "",
+    bankApplicantName: row.bank_applicant_name || "",
+    bankName: row.bank_name || "",
+    bankAccountNumber: row.bank_account_number || "",
+    iban: row.iban || "",
+    swiftCode: row.swift_code || "",
+    bankCountry: row.bank_country || "",
+    currency: row.currency || "EUR",
+    isDefault: Boolean(row.is_default),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+function normalizeBankAccountPayload(body = {}) {
+  const iban = normalizeIban(body.iban || body.bankAccountNumber || body.bank_account_number);
+  const bankAccountNumber = normalizeIban(body.bankAccountNumber || body.bank_account_number || body.iban);
+
+  return {
+    label: normalizeText(body.label),
+    bankApplicantName: normalizeText(body.bankApplicantName || body.bank_applicant_name),
+    bankName: normalizeText(body.bankName || body.bank_name),
+    bankAccountNumber,
+    iban,
+    swiftCode: normalizeText(body.swiftCode || body.swift_code).toUpperCase(),
+    bankCountry: normalizeText(body.bankCountry || body.bank_country) || "Kosove",
+    currency: normalizeCurrency(body.currency),
+    isDefault: Boolean(body.isDefault ?? body.is_default),
+  };
+}
+
+function validateBankAccountPayload(payload = {}) {
+  const errors = [];
+
+  if (!payload.label) {
+    errors.push({ field: "label", message: "Emertimi i llogarise bankare eshte obligativ." });
+  }
+
+  if (!payload.bankApplicantName) {
+    errors.push({ field: "bankApplicantName", message: "Emri i aplikantit ne banke eshte obligativ." });
+  }
+
+  if (!payload.bankName) {
+    errors.push({ field: "bankName", message: "Emri i bankes eshte obligativ." });
+  }
+
+  if (!payload.bankAccountNumber && !payload.iban) {
+    errors.push({ field: "bankAccountNumber", message: "Numri i llogarise bankare ose IBAN eshte obligativ." });
+  }
+
+  if (!payload.swiftCode || !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(payload.swiftCode)) {
+    errors.push({ field: "swiftCode", message: "SWIFT/BIC kodi duhet te kete 8 ose 11 karaktere valide." });
+  }
+
+  return errors;
+}
+
+async function clearDefaultBankAccount(client, userId) {
+  await client.query(
+    `update user_bank_accounts
+     set is_default = false,
+         updated_at = now()
+     where user_id = $1
+       and is_default = true
+       and archived_at is null`,
+    [userId]
+  );
+}
+
+async function ensureDefaultBankAccount(client, userId) {
+  const currentDefault = await client.query(
+    `select id
+     from user_bank_accounts
+     where user_id = $1
+       and is_default = true
+       and archived_at is null
+     limit 1`,
+    [userId]
+  );
+
+  if (currentDefault.rowCount > 0) {
+    return;
+  }
+
+  await client.query(
+    `update user_bank_accounts
+     set is_default = true,
+         updated_at = now()
+     where id = (
+       select id
+       from user_bank_accounts
+       where user_id = $1
+         and archived_at is null
+       order by updated_at desc nulls last, created_at desc
+       limit 1
+     )`,
+    [userId]
+  );
+}
+
 router.get("/me", async (req, res) => {
   try {
     if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -319,6 +437,272 @@ router.put("/me", async (req, res) => {
   } catch (error) {
     console.error("PUT /api/auth/me failed:", error);
     res.status(500).json({ user: null });
+  }
+});
+
+router.get("/me/bank-accounts", async (req, res) => {
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ bankAccounts: [] });
+      return;
+    }
+
+    const result = await db.query(
+      `select id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+              swift_code, bank_country, currency, is_default, created_at, updated_at
+       from user_bank_accounts
+       where user_id = $1
+         and archived_at is null
+       order by is_default desc, updated_at desc nulls last, created_at desc`,
+      [req.user.id]
+    );
+
+    res.json({ bankAccounts: result.rows.map(mapBankAccountRow) });
+  } catch (error) {
+    console.error("GET /api/auth/me/bank-accounts failed:", error);
+    res.status(500).json({ bankAccounts: [], error: "bank_accounts_load_failed" });
+  }
+});
+
+router.post("/me/bank-accounts", async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ bankAccount: null });
+      return;
+    }
+
+    const payload = normalizeBankAccountPayload(req.body);
+    const errors = validateBankAccountPayload(payload);
+
+    if (errors.length) {
+      res.status(400).json({ error: "invalid_bank_account", errors });
+      return;
+    }
+
+    await client.query("begin");
+
+    if (payload.isDefault) {
+      await clearDefaultBankAccount(client, req.user.id);
+    }
+
+    const result = await client.query(
+      `insert into user_bank_accounts
+       (user_id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+        swift_code, bank_country, currency, is_default)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       returning id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+                 swift_code, bank_country, currency, is_default, created_at, updated_at`,
+      [
+        req.user.id,
+        payload.label,
+        payload.bankApplicantName,
+        payload.bankName,
+        payload.bankAccountNumber,
+        payload.iban,
+        payload.swiftCode,
+        payload.bankCountry,
+        payload.currency,
+        payload.isDefault,
+      ]
+    );
+
+    if (!payload.isDefault) {
+      await ensureDefaultBankAccount(client, req.user.id);
+    }
+
+    await client.query("commit");
+
+    res.status(201).json({ bankAccount: mapBankAccountRow(result.rows[0]) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("POST /api/auth/me/bank-accounts failed:", error);
+    res.status(500).json({ error: "bank_account_create_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/me/bank-accounts/:id", async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ bankAccount: null });
+      return;
+    }
+
+    const bankAccountId = normalizeText(req.params.id);
+
+    if (!UUID_PATTERN.test(bankAccountId)) {
+      res.status(400).json({ error: "invalid_bank_account_id" });
+      return;
+    }
+
+    const payload = normalizeBankAccountPayload(req.body);
+    const errors = validateBankAccountPayload(payload);
+
+    if (errors.length) {
+      res.status(400).json({ error: "invalid_bank_account", errors });
+      return;
+    }
+
+    await client.query("begin");
+
+    if (payload.isDefault) {
+      await clearDefaultBankAccount(client, req.user.id);
+    }
+
+    const result = await client.query(
+      `update user_bank_accounts
+       set label = $3,
+           bank_applicant_name = $4,
+           bank_name = $5,
+           bank_account_number = $6,
+           iban = $7,
+           swift_code = $8,
+           bank_country = $9,
+           currency = $10,
+           is_default = $11,
+           updated_at = now()
+       where id = $1
+         and user_id = $2
+         and archived_at is null
+       returning id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+                 swift_code, bank_country, currency, is_default, created_at, updated_at`,
+      [
+        bankAccountId,
+        req.user.id,
+        payload.label,
+        payload.bankApplicantName,
+        payload.bankName,
+        payload.bankAccountNumber,
+        payload.iban,
+        payload.swiftCode,
+        payload.bankCountry,
+        payload.currency,
+        payload.isDefault,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query("rollback");
+      res.status(404).json({ error: "bank_account_not_found" });
+      return;
+    }
+
+    if (!payload.isDefault) {
+      await ensureDefaultBankAccount(client, req.user.id);
+    }
+
+    await client.query("commit");
+
+    res.json({ bankAccount: mapBankAccountRow(result.rows[0]) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PUT /api/auth/me/bank-accounts/:id failed:", error);
+    res.status(500).json({ error: "bank_account_update_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/me/bank-accounts/:id", async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ deleted: false });
+      return;
+    }
+
+    const bankAccountId = normalizeText(req.params.id);
+
+    if (!UUID_PATTERN.test(bankAccountId)) {
+      res.status(400).json({ error: "invalid_bank_account_id" });
+      return;
+    }
+
+    await client.query("begin");
+
+    const result = await client.query(
+      `update user_bank_accounts
+       set archived_at = now(),
+           is_default = false,
+           updated_at = now()
+       where id = $1
+         and user_id = $2
+         and archived_at is null
+       returning id`,
+      [bankAccountId, req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query("rollback");
+      res.status(404).json({ error: "bank_account_not_found" });
+      return;
+    }
+
+    await ensureDefaultBankAccount(client, req.user.id);
+    await client.query("commit");
+
+    res.json({ deleted: true });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("DELETE /api/auth/me/bank-accounts/:id failed:", error);
+    res.status(500).json({ error: "bank_account_delete_failed" });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/me/bank-accounts/:id/default", async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    if (!req.isAuthenticated?.() || !req.user?.id) {
+      res.status(401).json({ bankAccount: null });
+      return;
+    }
+
+    const bankAccountId = normalizeText(req.params.id);
+
+    if (!UUID_PATTERN.test(bankAccountId)) {
+      res.status(400).json({ error: "invalid_bank_account_id" });
+      return;
+    }
+
+    await client.query("begin");
+    await clearDefaultBankAccount(client, req.user.id);
+
+    const result = await client.query(
+      `update user_bank_accounts
+       set is_default = true,
+           updated_at = now()
+       where id = $1
+         and user_id = $2
+         and archived_at is null
+       returning id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+                 swift_code, bank_country, currency, is_default, created_at, updated_at`,
+      [bankAccountId, req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query("rollback");
+      res.status(404).json({ error: "bank_account_not_found" });
+      return;
+    }
+
+    await client.query("commit");
+
+    res.json({ bankAccount: mapBankAccountRow(result.rows[0]) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/auth/me/bank-accounts/:id/default failed:", error);
+    res.status(500).json({ error: "bank_account_default_failed" });
+  } finally {
+    client.release();
   }
 });
 
