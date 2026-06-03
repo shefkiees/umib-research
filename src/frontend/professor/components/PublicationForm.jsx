@@ -36,12 +36,12 @@ const EMPTY_AUTHOR = {
 function normalizeAffiliation(value) {
   if (Array.isArray(value)) {
     return value
-      .map((item) => (typeof item === "string" ? item : item?.name || item?.affiliation || ""))
+      .map((item) => (typeof item === "string" ? item : item?.name || item?.affiliation || item?.institution || item?.organization || ""))
       .filter(Boolean)
       .join("; ");
   }
 
-  return typeof value === "string" ? value : value?.name || value?.affiliation || "";
+  return typeof value === "string" ? value : value?.name || value?.affiliation || value?.institution || value?.organization || "";
 }
 
 export const createEmptyPublicationDraft = () => ({
@@ -73,7 +73,15 @@ export const createEmptyPublicationDraft = () => ({
 function normalizePublicationAuthors(authors = []) {
   const normalizedAuthors = authors.map((author) => (typeof author === "string" ? { fullName: author } : author || {}));
   const mainAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isMainAuthor ?? author.is_main_author));
-  const correspondingAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author));
+  const correspondingAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(
+    author.isCorrespondingAuthor
+    ?? author.is_corresponding_author
+    ?? author.correspondingAuthor
+    ?? author.corresponding_author
+    ?? author.isCorresponding
+    ?? author.is_corresponding
+    ?? author.corresponding
+  ));
 
   return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
@@ -81,7 +89,12 @@ function normalizePublicationAuthors(authors = []) {
       givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
       familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
       orcid: normalizedAuthor.orcid || "",
-      affiliation: normalizeAffiliation(normalizedAuthor.affiliation || normalizedAuthor.affiliations),
+      affiliation: normalizeAffiliation(
+        normalizedAuthor.affiliation
+        || normalizedAuthor.affiliations
+        || normalizedAuthor.institution
+        || normalizedAuthor.organization
+      ),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
@@ -208,10 +221,23 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
     orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
-    affiliation: normalizeAffiliation(normalizedAuthor.affiliation || normalizedAuthor.affiliations) || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
+    affiliation: normalizeAffiliation(
+      normalizedAuthor.affiliation
+      || normalizedAuthor.affiliations
+      || normalizedAuthor.institution
+      || normalizedAuthor.organization
+    ) || (matchesCurrentUser ? currentUserAuthor.affiliation : "") || "",
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
-    isCorrespondingAuthor: Boolean(normalizedAuthor.isCorrespondingAuthor ?? normalizedAuthor.is_corresponding_author),
+    isCorrespondingAuthor: Boolean(
+      normalizedAuthor.isCorrespondingAuthor
+      ?? normalizedAuthor.is_corresponding_author
+      ?? normalizedAuthor.correspondingAuthor
+      ?? normalizedAuthor.corresponding_author
+      ?? normalizedAuthor.isCorresponding
+      ?? normalizedAuthor.is_corresponding
+      ?? normalizedAuthor.corresponding
+    ),
   };
 }
 

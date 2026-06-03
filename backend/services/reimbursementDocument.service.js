@@ -176,7 +176,7 @@ function getPublicationSections() {
     {
       title: "Detajet e publikimit",
       fields: [
-        createField("Perkatesia e autorit (affiliation)", "affiliation"),
+        createField("Perkatesia e autorit", "affiliation"),
         createField("Titulli i punimit", "publicationTitle"),
         createField("DOI", "doi"),
         createField("Tipi i publikimit", "publicationType"),
@@ -231,7 +231,7 @@ function getConferenceSections() {
         createField("Ftesa dhe programi", "invitationProgram"),
         createField("Abstrakti dhe titulli i punimit", "abstractTitle"),
         createField("Konfirmimi i pranimit te punimit", "acceptanceConfirmation"),
-        createField("Autoret e punimit (affiliation)", "authorsAffiliation"),
+        createField("Perkatesia e autoreve te punimit", "authorsAffiliation"),
         createField("Foles me kumtese/poster", "speakerWithPaperPoster"),
         createField("Kryesues/panelist", "chairPanelist"),
         createField("Ngjarje artistike/sportive", "artisticSportEvent"),

@@ -87,7 +87,7 @@ const CONFERENCE_UI_LABELS = {
   abstractTitle: "Abstrakti",
   coParticipant: "Bashkautorët",
   acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
-  authorsAffiliation: "Autorët dhe përkatësia institucionale (Affiliation)",
+  authorsAffiliation: "Autoret dhe perkatesia institucionale",
   speakerWithPaperPoster: "Folës me kumtesë/poster",
   chairPanelist: "Kryesues/panelist",
   artisticSportEvent: "Ngjarje artistike/sportive",
@@ -413,7 +413,7 @@ function getPublicationDisplaySections(form) {
   ].filter(Boolean);
   const authorFields = [
     createDisplayField(publicationType === "book" ? "Autori" : "Autori kryesor", form.mainAuthor),
-    createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
+    createDisplayField("Perkatesia e autorit", form.affiliation),
   ].filter(Boolean);
 
   if (publicationType === "conference_paper") {
@@ -518,7 +518,7 @@ function getPublicationMetadataDisplaySection(form) {
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
-        createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
+        createDisplayField("Perkatesia e autorit", form.affiliation),
         doiField,
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
         createDisplayField("Quartile", form.scopusQuartile),
@@ -541,7 +541,7 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
-      createDisplayField("Përkatësia e autorit (Affiliation)", form.affiliation),
+      createDisplayField("Perkatesia e autorit", form.affiliation),
       doiField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
       createDisplayField("Impact Factor", form.impactFactor),
@@ -2454,7 +2454,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
       <>
         {metadataSection.fields.length ? renderPublicationDisplaySection(metadataSection, "reimbursement-conference-publication-summary") : null}
         <section className="reimbursement-publication-display-card reimbursement-conference-publication-summary reimbursement-publication-affiliation-group reimbursement-wide">
-          <h5>Autorët dhe përkatësia institucionale (Affiliation)</h5>
+          <h5>Autoret dhe perkatesia institucionale</h5>
           <div className={`reimbursement-affiliation-card reimbursement-readonly-display ${affiliationText ? "" : "empty"}`} aria-readonly="true">
             {affiliationText || "Përkatësia institucionale nuk është e disponueshme për këtë publikim."}
           </div>

@@ -69,6 +69,17 @@ function normalizeBoolean(value) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
 
+function normalizeAuthorAffiliation(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeText(item?.name || item?.affiliation || item?.institution || item))
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  return normalizeText(value?.name || value?.affiliation || value?.institution || value);
+}
+
 function normalizeOptionalDate(value) {
   const text = normalizeText(value);
 
@@ -142,9 +153,22 @@ function normalizeAuthors(value) {
         givenName,
         familyName,
         orcid: normalizeText(author.orcid),
-        affiliation: normalizeText(author.affiliation),
+        affiliation: normalizeAuthorAffiliation(
+          author.affiliation
+          || author.affiliations
+          || author.institution
+          || author.organization
+        ),
         isMainAuthor: index === 0,
-        isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+        isCorrespondingAuthor: normalizeBoolean(
+          author.is_corresponding_author
+          ?? author.corresponding_author
+          ?? author.isCorrespondingAuthor
+          ?? author.correspondingAuthor
+          ?? author.is_corresponding
+          ?? author.isCorresponding
+          ?? author.corresponding
+        ),
         authorOrder: index + 1,
       };
     })
@@ -769,7 +793,7 @@ function getMetadataReviewIssueLabels(checklist = {}) {
     titleMatches: "Titulli perputhet me dokumentin",
     venueOk: "Journal / Konferenca OK",
     authorsOk: "Autoret OK",
-    uibmOk: "UIBM affiliation OK",
+    uibmOk: "Perkatesia institucionale UIBM OK",
     documentsOk: "Dokumentet OK",
   };
 
@@ -841,9 +865,22 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
     givenName: normalizeText(author?.givenName || author?.given_name),
     familyName: normalizeText(author?.familyName || author?.family_name),
     orcid: normalizeText(author?.orcid) || (index === mainAuthorIndex ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : ""),
-    affiliation: normalizeText(author?.affiliation),
+    affiliation: normalizeAuthorAffiliation(
+      author?.affiliation
+      || author?.affiliations
+      || author?.institution
+      || author?.organization
+    ),
     isMainAuthor: index === mainAuthorIndex,
-    isCorrespondingAuthor: Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author),
+    isCorrespondingAuthor: Boolean(
+      author?.isCorrespondingAuthor
+      ?? author?.is_corresponding_author
+      ?? author?.corresponding_author
+      ?? author?.correspondingAuthor
+      ?? author?.is_corresponding
+      ?? author?.isCorresponding
+      ?? author?.corresponding
+    ),
     authorOrder: index + 1,
   };
 }

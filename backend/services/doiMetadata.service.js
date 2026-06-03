@@ -176,12 +176,10 @@ function normalizeOrcid(value) {
 }
 
 function normalizeAffiliations(value) {
-  if (!Array.isArray(value)) {
-    return "";
-  }
+  const values = Array.isArray(value) ? value : [value];
 
-  return value
-    .map((item) => normalizeText(item?.name || item))
+  return values
+    .map((item) => normalizeText(item?.name || item?.affiliation || item?.institution || item))
     .filter(Boolean)
     .join("; ");
 }

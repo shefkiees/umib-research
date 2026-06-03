@@ -902,7 +902,7 @@ export default function CommitteeDashboard() {
                 <th>Publikimi</th>
                 <th>DOI</th>
                 <th>Burimi</th>
-                <th>Autoret / Affiliation</th>
+                <th>Autoret / perkatesia institucionale</th>
                 <th>Metadata</th>
                 <th>Review</th>
                 <th>Veprimet</th>
@@ -1086,7 +1086,7 @@ export default function CommitteeDashboard() {
                   <div><dt>Burimi</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>
                   <div><dt>Metadata</dt><dd>{getMetadataStatus(selectedMetadataPublication)}</dd></div>
                   <div><dt>Autoret</dt><dd>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ") || "-"}</dd></div>
-                  <div><dt>UIBM affiliation</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
+                  <div><dt>Perkatesia institucionale UIBM</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
                 </dl>
               </section>
 
