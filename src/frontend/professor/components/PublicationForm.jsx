@@ -231,6 +231,8 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     return currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
   });
   const mainAuthorIndex = matchedAuthorIndex >= 0 ? matchedAuthorIndex : 0;
+  const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, mainAuthorIndex));
+  const hasCorrespondingAuthor = draftAuthors.some((author) => author.isCorrespondingAuthor);
 
   return {
     title: metadata.title || "",
@@ -251,7 +253,12 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     quartile,
-    authors: authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, mainAuthorIndex)),
+    authors: hasCorrespondingAuthor
+      ? draftAuthors
+      : draftAuthors.map((author, index) => ({
+        ...author,
+        isCorrespondingAuthor: index === mainAuthorIndex,
+      })),
     indexing: indexing.length ? indexing.map((item) => ({
       source: item.source || "",
       quartile: item.quartile || "",

@@ -184,6 +184,27 @@ function normalizeAffiliations(value) {
     .join("; ");
 }
 
+function normalizeConferenceLocation(event = {}) {
+  const candidates = [
+    event?.location,
+    event?.place,
+    event?.venue,
+    event?.city && event?.country ? `${event.city}, ${event.country}` : "",
+    event?.city,
+    event?.country,
+  ];
+
+  for (const candidate of candidates) {
+    const value = normalizeText(candidate?.name || candidate);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function getDateParts(value) {
   const parts = value?.["date-parts"]?.[0];
 
@@ -317,6 +338,7 @@ function mapMetadata(data, doi) {
   const containerTitle = Array.isArray(data["container-title"])
     ? data["container-title"][0] || ""
     : data["container-title"] || data.event?.name || "";
+  const conferenceLocation = normalizeConferenceLocation(data.event);
   const authors = Array.isArray(data.author)
     ? data.author
       .map((author, index) => {
@@ -329,7 +351,7 @@ function mapMetadata(data, doi) {
           orcid: normalizeOrcid(author.ORCID || author.orcid),
           affiliation: normalizeAffiliations(author.affiliation),
           isMainAuthor: index === 0,
-          isCorrespondingAuthor: false,
+          isCorrespondingAuthor: index === 0,
           position: index + 1,
         };
       })
@@ -342,6 +364,8 @@ function mapMetadata(data, doi) {
     title: normalizeText(title),
     authors,
     container_title: normalizeText(containerTitle),
+    conferenceLocation,
+    conference_location: conferenceLocation,
     publisher: normalizeText(data.publisher),
     published_date: formatDateParts(dateParts),
     year: normalizeYear(dateParts[0]) || extractYearFromDoi(doi),

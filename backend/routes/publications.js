@@ -918,7 +918,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     abstract: metadata.abstract || "",
     publicationType: metadata.type || "",
     venue: metadata.container_title || "",
-    conferenceLocation: "",
+    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
