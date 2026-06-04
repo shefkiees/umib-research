@@ -982,12 +982,10 @@ export default function ProfessorDashboard() {
     const authorAffiliation = draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
     const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || draft.indexing?.find?.((item) => item?.source)?.source || "";
     const indexingCategory = draft.indexingCategory || draft.indexing_category || draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
-    const hasCorrespondingAuthor = authors.some((author) => Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author));
     const normalizedAuthors = authors.map((author, index) => {
       const isCorrespondingAuthor = Boolean(
         author?.isCorrespondingAuthor
         ?? author?.is_corresponding_author
-        ?? (!hasCorrespondingAuthor && index === 0)
       );
 
       return {

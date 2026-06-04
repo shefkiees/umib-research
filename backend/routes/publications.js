@@ -206,13 +206,6 @@ function normalizeAuthors(value) {
     })
     .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
 
-  if (authors.length && !authors.some((author) => author.isCorrespondingAuthor)) {
-    return authors.map((author, index) => ({
-      ...author,
-      isCorrespondingAuthor: index === 0,
-    }));
-  }
-
   return authors;
 }
 
@@ -253,8 +246,49 @@ function deriveIndexingPlatform(indexing = [], fallback = "") {
 function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
   return normalizeIndexingCategory(fallback)
     || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingCategory(item?.quartile)).find(Boolean) : "")
-    || (publicationType === "book" ? "Book/Chapter" : "")
     || "";
+}
+
+function createFieldSource(value, sourceWhenPresent = "manual") {
+  const normalizedValue = Array.isArray(value)
+    ? value.filter(Boolean)
+    : normalizeText(value);
+
+  return {
+    value: normalizedValue,
+    source: Array.isArray(normalizedValue) ? normalizedValue.length ? sourceWhenPresent : "empty" : normalizedValue ? sourceWhenPresent : "empty",
+  };
+}
+
+function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
+  const baseSource = metadataSource === "doi" ? "api" : metadataSource === "mixed" ? "manual" : "manual";
+  const indexingSource = metadataSource === "doi" ? "lookup" : "manual";
+  const indexing = Array.isArray(values.indexing) ? values.indexing : [];
+  const firstIndexing = indexing.find((item) => item?.source || item?.quartile || item?.impactFactor || item?.impact_factor) || {};
+
+  return {
+    doi: createFieldSource(values.doi, baseSource),
+    title: createFieldSource(values.title, baseSource),
+    authors: createFieldSource((Array.isArray(values.authors) ? values.authors : []).map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean), baseSource),
+    authorAffiliation: createFieldSource(values.authorAffiliation || values.author_affiliation || values.affiliation, baseSource),
+    publicationType: createFieldSource(values.publicationType || values.publication_type, baseSource),
+    venue: createFieldSource(values.venue || values.publishedIn || values.published_in || values.journal, baseSource),
+    publisher: createFieldSource(values.publisher, baseSource),
+    publicationDate: createFieldSource(values.publicationDate || values.publication_date, baseSource),
+    publicationYear: createFieldSource(values.publicationYear || values.publication_year || values.year, baseSource),
+    sourceUrl: createFieldSource(values.sourceUrl || values.source_url, baseSource),
+    volume: createFieldSource(values.volume, baseSource),
+    issue: createFieldSource(values.issue, baseSource),
+    pages: createFieldSource(values.pages, baseSource),
+    issn: createFieldSource(values.issn, baseSource),
+    isbn: createFieldSource(values.isbn, baseSource),
+    abstract: createFieldSource(values.abstract, baseSource),
+    conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
+    indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || firstIndexing.source, indexingSource),
+    indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || firstIndexing.quartile || values.quartile, indexingSource),
+    quartile: createFieldSource(values.quartile || firstIndexing.quartile, indexingSource),
+    impactFactor: createFieldSource(firstIndexing.impactFactor || firstIndexing.impact_factor, indexingSource),
+  };
 }
 
 function normalizeIndexingInput(value, publicationType) {
@@ -430,10 +464,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
   }
 
-  if (!authorAffiliation) {
-    errors.push({ field: "authorAffiliation", message: "Perkatesia e autorit / Affiliation eshte obligative." });
-  }
-
   if (!indexingPlatform) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme eshte obligativ." });
   } else if (!VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
@@ -446,8 +476,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit nuk eshte valid." });
   }
 
-  if (correspondingAuthorCount > 1) {
-    errors.push({ field: "authors", message: "Vetem nje autor mund te shenohet si autor korrespondent." });
+  if (correspondingAuthorCount !== 1) {
+    errors.push({ field: "authors", message: "Zgjidh sakte nje autor korrespondent." });
   }
 
   const authorsWithAffiliation = authors.map((author, index) => index === 0 && !author.affiliation
@@ -496,6 +526,14 @@ function normalizePublicationPayload(body = {}, options = {}) {
       metadataSource,
       metadataVerified,
       externalMetadataId,
+      fieldSources: buildPublicationFieldSources({
+        ...body,
+        authorAffiliation,
+        indexingPlatform,
+        indexingCategory,
+        indexing: normalizedIndexing,
+        authors: authorsWithAffiliation,
+      }, metadataSource),
     },
   };
 }
@@ -541,6 +579,29 @@ function mapPublication(row) {
   const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
+  const fieldSources = buildPublicationFieldSources({
+    doi: row.doi || "",
+    title: row.title || "",
+    abstract: normalizeAbstractText(row.abstract),
+    publicationType,
+    venue: row.venue || "",
+    conferenceLocation: row.conference_location || "",
+    publisher: row.publisher || "",
+    publicationDate: row.publication_date || null,
+    publicationYear: row.publication_year || row.year || "",
+    sourceUrl: row.source_url || "",
+    volume: row.volume || "",
+    issue: row.issue || "",
+    pages: row.pages || "",
+    issn: row.issn || "",
+    isbn: row.isbn || "",
+    authorAffiliation,
+    indexingPlatform,
+    indexingCategory,
+    indexing,
+    authors,
+    quartile: getPrimaryQuartile(indexing),
+  }, row.metadata_source || "manual");
 
   return {
     id: row.id,
@@ -596,8 +657,8 @@ function mapPublication(row) {
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
       is_main_author: index === 0,
-      isCorrespondingAuthor: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-      is_corresponding_author: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      is_corresponding_author: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
     })),
     indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
@@ -639,6 +700,8 @@ function mapPublication(row) {
     metadata_verified: Boolean(row.metadata_verified),
     externalMetadataId: row.external_metadata_id || "",
     external_metadata_id: row.external_metadata_id || "",
+    fieldSources,
+    field_sources: fieldSources,
     metadataReviewStatus: row.metadata_review_status || "unchecked",
     metadata_review_status: row.metadata_review_status || "unchecked",
     metadataReviewChecklist: row.metadata_review_checklist || {},
@@ -1016,7 +1079,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       orcid: "",
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
-      isCorrespondingAuthor: index === mainAuthorIndex,
+      isCorrespondingAuthor: false,
       authorOrder: index + 1,
     };
   }
@@ -1041,7 +1104,6 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       ?? author?.is_corresponding
       ?? author?.isCorresponding
       ?? author?.corresponding
-      ?? (index === mainAuthorIndex)
     ),
     authorOrder: index + 1,
   };

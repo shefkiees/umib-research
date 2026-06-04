@@ -191,6 +191,53 @@ function normalizeAffiliations(value) {
     .join("; ");
 }
 
+function createFieldSource(value, sourceWhenPresent = "api") {
+  const normalizedValue = Array.isArray(value)
+    ? value.filter(Boolean)
+    : normalizeText(value);
+
+  return {
+    value: normalizedValue,
+    source: Array.isArray(normalizedValue) ? normalizedValue.length ? sourceWhenPresent : "empty" : normalizedValue ? sourceWhenPresent : "empty",
+  };
+}
+
+function getFirstAuthorAffiliation(authors = []) {
+  return (Array.isArray(authors) ? authors : [])
+    .map((author) => normalizeAffiliations(author?.affiliation || author?.affiliations || author?.institution || author?.organization))
+    .find(Boolean) || "";
+}
+
+function buildMetadataFieldSources(metadata = {}) {
+  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const firstIndexing = indexing.find((item) => item?.source || item?.quartile || item?.impactFactor || item?.impact_factor) || {};
+  const firstImpactFactor = firstIndexing.impactFactor || firstIndexing.impact_factor || "";
+
+  return {
+    doi: createFieldSource(metadata.doi),
+    title: createFieldSource(metadata.title),
+    authors: createFieldSource(Array.isArray(metadata.authors) ? metadata.authors.map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean) : []),
+    authorAffiliation: createFieldSource(getFirstAuthorAffiliation(metadata.authors)),
+    publicationType: createFieldSource(metadata.type),
+    venue: createFieldSource(metadata.container_title),
+    publisher: createFieldSource(metadata.publisher),
+    publicationDate: createFieldSource(metadata.published_date),
+    publicationYear: createFieldSource(metadata.year),
+    sourceUrl: createFieldSource(metadata.source_url),
+    volume: createFieldSource(metadata.volume),
+    issue: createFieldSource(metadata.issue),
+    pages: createFieldSource(metadata.pages),
+    issn: createFieldSource(metadata.issn || getRawIdentifierValue(metadata.raw_json, "ISSN")),
+    isbn: createFieldSource(metadata.isbn || getRawIdentifierValue(metadata.raw_json, "ISBN")),
+    abstract: createFieldSource(metadata.abstract),
+    conferenceLocation: createFieldSource(metadata.conferenceLocation || metadata.conference_location),
+    indexingPlatform: createFieldSource(firstIndexing.source, "lookup"),
+    indexingCategory: createFieldSource(firstIndexing.quartile || metadata.quartile, "lookup"),
+    quartile: createFieldSource(metadata.quartile || firstIndexing.quartile, "lookup"),
+    impactFactor: createFieldSource(firstImpactFactor, "lookup"),
+  };
+}
+
 function normalizeLocationValue(value) {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -416,7 +463,7 @@ function mapMetadata(data, doi) {
           orcid: normalizeOrcid(author.ORCID || author.orcid),
           affiliation: normalizeAffiliations(author.affiliation),
           isMainAuthor: index === 0,
-          isCorrespondingAuthor: index === 0,
+          isCorrespondingAuthor: false,
           position: index + 1,
         };
       })
@@ -1175,8 +1222,7 @@ async function resolveScopusIndexing(metadata = {}) {
 async function enrichMetadataIndexing(metadata = {}) {
   const indexing = await resolveScopusIndexing(metadata);
   const quartile = indexing.find((item) => normalizeQuartile(item?.quartile))?.quartile || "";
-
-  return {
+  const enrichedMetadata = {
     ...metadata,
     raw_json: {
       ...(metadata.raw_json || {}),
@@ -1184,6 +1230,12 @@ async function enrichMetadataIndexing(metadata = {}) {
     },
     quartile,
     indexing,
+  };
+
+  return {
+    ...enrichedMetadata,
+    fieldSources: buildMetadataFieldSources(enrichedMetadata),
+    field_sources: buildMetadataFieldSources(enrichedMetadata),
   };
 }
 
