@@ -233,7 +233,14 @@ function normalizeIndexing(value) {
 
 function deriveAuthorAffiliation(authors = [], fallback = "") {
   return normalizeText(fallback)
-    || (Array.isArray(authors) ? authors.map((author) => normalizeText(author?.affiliation)).find(Boolean) : "")
+    || (Array.isArray(authors) ? authors.map((author) => normalizeAuthorAffiliation(
+      author?.affiliation
+      || author?.affiliations
+      || author?.institution
+      || author?.organization
+      || author?.currentAffiliation
+      || author?.current_affiliation
+    )).find(Boolean) : "")
     || "";
 }
 
@@ -577,7 +584,14 @@ function mapPublication(row) {
       familyName: author.family_name || author.familyName || "",
       family_name: author.family_name || author.familyName || "",
       orcid: author.orcid || "",
-      affiliation: author.affiliation || "",
+      affiliation: normalizeAuthorAffiliation(
+        author.affiliation
+        || author.affiliations
+        || author.institution
+        || author.organization
+        || author.currentAffiliation
+        || author.current_affiliation
+      ) || (index === 0 ? authorAffiliation : ""),
       authorOrder: author.author_order || author.authorOrder || index + 1,
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,

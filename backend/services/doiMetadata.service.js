@@ -179,7 +179,14 @@ function normalizeAffiliations(value) {
   const values = Array.isArray(value) ? value : [value];
 
   return values
-    .map((item) => normalizeText(item?.name || item?.affiliation || item?.institution || item))
+    .map((item) => normalizeText(
+      item?.name
+      || item?.affiliation
+      || item?.institution
+      || item?.organization
+      || item?.value
+      || item
+    ))
     .filter(Boolean)
     .join("; ");
 }

@@ -115,6 +115,7 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "publicationType",
   "venue",
   "journal",
+  "publishedIn",
   "publisher",
   "publicationDate",
   "publicationYear",
@@ -138,7 +139,7 @@ const PUBLICATION_LABELS = {
   publicationTitle: "Titulli i punimit",
   mainAuthor: "Autori kryesor",
   publicationType: "Lloji i publikimit",
-  venue: "Revista / Konferenca",
+  venue: "Publikuar ne",
   publisher: "Botuesi",
   coauthors: "Bashkautorët",
   affiliation: "Përkatësia e autorit",
@@ -147,7 +148,7 @@ const PUBLICATION_LABELS = {
   pages: "Faqet",
   indexingPlatform: "Indeksimi në platformë",
   impactFactor: "Faktori i ndikimit (IF)",
-  scopusQuartile: "Kuartili Scopus",
+  scopusQuartile: "Kuartili",
 };
 
 const PUBLICATION_TYPE_LABELS = {
@@ -227,6 +228,7 @@ const DEFAULT_FORM_VALUES = {
   publicationType: "",
   venue: "",
   journal: "",
+  publishedIn: "",
   publisher: "",
   abstract: "",
   publicationYear: "",
@@ -423,7 +425,7 @@ function getPublicationDisplaySections(form) {
       {
         title: "Informacion bibliografik",
         fields: [
-          createDisplayField("Emri i konferencës / Proceedings / Venue", form.venue || form.journal),
+          createDisplayField("Publikuar ne", form.venue || form.journal),
           createDisplayField("Botuesi", form.publisher),
           createDisplayField("ISBN", form.isbn),
           createDisplayField("ISSN", form.issn),
@@ -435,7 +437,7 @@ function getPublicationDisplaySections(form) {
         title: "Indeksimi",
         fields: [
           createDisplayField("Platforma e indeksimit", form.indexingPlatform),
-          createDisplayField("Quartile", form.scopusQuartile),
+          createDisplayField("Kuartili", form.scopusQuartile),
         ].filter(Boolean),
       },
     ].filter((section) => section.fields.length);
@@ -463,7 +465,7 @@ function getPublicationDisplaySections(form) {
     {
       title: "Informacion bibliografik",
       fields: [
-        createDisplayField("Revista", form.venue || form.journal),
+        createDisplayField("Publikuar ne", form.venue || form.journal),
         createDisplayField("Botuesi", form.publisher),
         createDisplayField("ISSN", form.issn),
         createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
@@ -477,7 +479,7 @@ function getPublicationDisplaySections(form) {
       fields: [
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
         createDisplayField("Impact Factor", form.impactFactor),
-        createDisplayField("Quartile", form.scopusQuartile),
+        createDisplayField("Kuartili", form.scopusQuartile),
       ].filter(Boolean),
     },
   ].filter((section) => section.fields.length);
@@ -491,7 +493,7 @@ function getPublicationMetadataDisplaySection(form) {
   const commonStart = [
     createDisplayField("Titulli i publikimit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
-    createDisplayField("Burimi i publikimit", form.venue || form.journal),
+    createDisplayField("Publikuar ne", form.venue || form.journal),
     createDisplayField("Shtëpia botuese", form.publisher),
     createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
     createDisplayField("Faqet", form.pages),
@@ -521,7 +523,7 @@ function getPublicationMetadataDisplaySection(form) {
         createDisplayField("Perkatesia e autorit", form.affiliation),
         doiField,
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
-        createDisplayField("Quartile", form.scopusQuartile),
+        createDisplayField("Kuartili", form.scopusQuartile),
       ].filter(Boolean),
     };
   }
@@ -531,7 +533,7 @@ function getPublicationMetadataDisplaySection(form) {
     fields: [
       createDisplayField("Titulli i publikimit", form.publicationTitle),
       createDisplayField("Lloji i publikimit", typeLabel),
-      createDisplayField("Burimi i publikimit", form.venue || form.journal),
+      createDisplayField("Publikuar ne", form.venue || form.journal),
       createDisplayField("Shtëpia botuese", form.publisher),
       createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
       createDisplayField("Vëllimi", form.volume),
@@ -545,7 +547,7 @@ function getPublicationMetadataDisplaySection(form) {
       doiField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
       createDisplayField("Impact Factor", form.impactFactor),
-      createDisplayField("Quartile", form.scopusQuartile),
+      createDisplayField("Kuartili", form.scopusQuartile),
     ].filter(Boolean),
   };
 }
@@ -628,7 +630,26 @@ function authorName(author = {}) {
 }
 
 function authorAffiliation(author = {}) {
-  return String((author || {}).affiliation || "").trim();
+  const safeAuthor = author || {};
+  const rawValue = safeAuthor.affiliation
+    || safeAuthor.affiliations
+    || safeAuthor.institution
+    || safeAuthor.organization
+    || safeAuthor.currentAffiliation
+    || safeAuthor.current_affiliation
+    || "";
+  const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+
+  return values
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return String(item || "").trim();
+      }
+
+      return String(item.name || item.affiliation || item.institution || item.organization || item.value || "").trim();
+    })
+    .filter(Boolean)
+    .join("; ");
 }
 
 function getPublicationAuthorFields(publication, options = {}) {
@@ -642,7 +663,11 @@ function getPublicationAuthorFields(publication, options = {}) {
     .filter((author) => authorName(author) && authorName(author) !== mainName)
     .map(authorName)
     .join(coauthorSeparator);
-  const affiliation = authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author)));
+  const affiliation = publication?.authorAffiliation
+    || publication?.author_affiliation
+    || publication?.affiliation
+    || authorAffiliation(mainAuthor)
+    || authorAffiliation(authors.find((author) => authorAffiliation(author)));
 
   return {
     mainAuthor: mainName,
@@ -706,7 +731,7 @@ function applyPublicationToForm(prev, publication) {
 
   const authors = getPublicationAuthorFields(publication);
   const indexing = getPublicationIndexingFields(publication);
-  const venue = publication.venue || publication.journal || "";
+  const venue = publication.venue || publication.publishedIn || publication.published_in || publication.journal || "";
 
   return {
     ...prev,
@@ -716,6 +741,7 @@ function applyPublicationToForm(prev, publication) {
     publicationType: publication.publicationType || publication.publication_type || "",
     venue,
     journal: venue,
+    publishedIn: venue,
     conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
     abstract: publication.abstract || "",
@@ -779,8 +805,15 @@ function hasValue(value) {
 
 function buildSubmitFormData(formData) {
   const nextFormData = { ...formData };
+  const publishedIn = String(nextFormData.venue || nextFormData.publishedIn || nextFormData.published_in || nextFormData.journal || "").trim();
   delete nextFormData[RETIRED_REASON_FIELD];
   delete nextFormData.documentChecklist;
+
+  if (publishedIn) {
+    nextFormData.venue = publishedIn;
+    nextFormData.journal = publishedIn;
+    nextFormData.publishedIn = publishedIn;
+  }
 
   if (nextFormData.banking && typeof nextFormData.banking === "object" && !Array.isArray(nextFormData.banking)) {
     const nextBanking = { ...nextFormData.banking };
@@ -2455,7 +2488,7 @@ export default function ReimbursementManager({
 
     const authorFields = getPublicationAuthorFields(selectedPublication, { coauthorSeparator: "; " });
     const indexing = getPublicationIndexingFields(selectedPublication);
-    const venue = selectedPublication.venue || selectedPublication.journal || "";
+    const venue = selectedPublication.venue || selectedPublication.publishedIn || selectedPublication.published_in || selectedPublication.journal || "";
     const publicationType = selectedPublication.publicationType || selectedPublication.publication_type || "";
     const coauthors = splitCoauthors(form.coParticipant || authorFields.coauthors);
     const doi = cleanDisplayValue(selectedPublication.doi);
@@ -2464,7 +2497,7 @@ export default function ReimbursementManager({
       fields: [
         createDisplayField("Titulli i publikimit", selectedPublication.title),
         createDisplayField("Lloji i publikimit", getPublicationTypeLabel(publicationType)),
-        createDisplayField("Burimi i publikimit", venue),
+        createDisplayField("Publikuar ne", venue),
         createDisplayField("Shtëpia botuese", selectedPublication.publisher),
         createDisplayField("Data e publikimit", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year),
         createDisplayField("Vëllimi", selectedPublication.volume),
@@ -2475,7 +2508,7 @@ export default function ReimbursementManager({
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
         createDisplayField("Platforma e indeksimit", indexing.indexingPlatform),
-        createDisplayField("Quartile", indexing.scopusQuartile),
+        createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
     };
     const affiliationText = cleanDisplayValue(form.authorsAffiliation);

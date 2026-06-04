@@ -96,6 +96,7 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "publicationType",
   "venue",
   "journal",
+  "publishedIn",
   "publisher",
   "publicationDate",
   "publicationYear",
@@ -441,6 +442,7 @@ function parseOptionalInteger(value) {
 function mapPublicationRow(row) {
   const authors = safeJsonArray(row.authors);
   const indexing = safeJsonArray(row.indexing);
+  const venue = row.venue || row.container_title || "";
 
   return {
     id: row.id,
@@ -449,7 +451,10 @@ function mapPublicationRow(row) {
     abstract: row.abstract || "",
     publicationType: row.publication_type || row.publicationType || "",
     publication_type: row.publication_type || row.publicationType || "",
-    venue: row.venue || row.container_title || "",
+    venue,
+    journal: venue,
+    publishedIn: venue,
+    published_in: venue,
     conferenceLocation: row.conference_location || row.conferenceLocation || "",
     conference_location: row.conference_location || row.conferenceLocation || "",
     publisher: row.publisher || "",
@@ -571,7 +576,7 @@ function publicationToReadOnlyRequestData(publication) {
     .join(", ");
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
   const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
-  const venue = normalizeText(publication.venue || publication.journal);
+  const venue = normalizeText(publication.venue || publication.publishedIn || publication.published_in || publication.journal);
   const evidenceLinks = Array.isArray(publication.evidenceLinks || publication.evidence_links)
     ? (publication.evidenceLinks || publication.evidence_links)
     : [];
@@ -584,6 +589,7 @@ function publicationToReadOnlyRequestData(publication) {
     publicationType: normalizeText(publication.publicationType || publication.publication_type),
     venue,
     journal: venue,
+    publishedIn: venue,
     conferenceLocation: normalizeText(publication.conferenceLocation || publication.conference_location),
     publisher: normalizeText(publication.publisher),
     publicationDate: formatDate(publication.publicationDate || publication.publication_date),

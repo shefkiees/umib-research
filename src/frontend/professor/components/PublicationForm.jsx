@@ -82,12 +82,34 @@ function normalizePublicationAuthors(authors = []) {
       givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
       familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
       orcid: normalizedAuthor.orcid || "",
-      affiliation: normalizedAuthor.affiliation || "",
+      affiliation: normalizeAuthorAffiliation(normalizedAuthor),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : index === 0,
     };
   });
+}
+
+function normalizeAuthorAffiliation(author = {}) {
+  const rawValue = author.affiliation
+    || author.affiliations
+    || author.institution
+    || author.organization
+    || author.currentAffiliation
+    || author.current_affiliation
+    || "";
+  const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+
+  return values
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return String(item || "").trim();
+      }
+
+      return String(item.name || item.affiliation || item.institution || item.organization || item.value || "").trim();
+    })
+    .filter(Boolean)
+    .join("; ");
 }
 
 function supportsQuartile(publicationType) {
@@ -122,6 +144,7 @@ function normalizeIndexingCategory(value) {
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
+  const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: item.source || "",
     quartile: item.quartile || "",
@@ -146,12 +169,16 @@ export function publicationToDraft(publication = {}) {
     pages: publication.pages || "",
     issn: publication.issn || "",
     isbn: publication.isbn || "",
-    authorAffiliation: publication.authorAffiliation || publication.author_affiliation || publication.affiliation || publication.authors?.find?.((author) => author?.affiliation)?.affiliation || "",
+    authorAffiliation: publication.authorAffiliation
+      || publication.author_affiliation
+      || publication.affiliation
+      || normalizedAuthors.find((author) => author.affiliation)?.affiliation
+      || "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || indexing.find((item) => item?.source)?.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile),
     quartile: supportsQuartile(publicationType) ? publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile || "" : "",
     status: publication.status || "draft",
-    authors: Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [],
+    authors: normalizedAuthors,
     indexing: supportsQuartile(publicationType) ? indexing : [],
     evidenceLinks: (Array.isArray(publication.evidenceLinks) ? publication.evidenceLinks : publication.attachments || []).map((item) => ({
       url: item.url || item.fileUrl || item.file_url || "",
@@ -245,7 +272,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
     orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
-    affiliation: normalizedAuthor.affiliation || "",
+    affiliation: normalizeAuthorAffiliation(normalizedAuthor),
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: Boolean(
