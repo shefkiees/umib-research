@@ -97,10 +97,31 @@ function formatIssn(value) {
 
 function getMetadataIssns(metadata = {}) {
   const raw = metadata.raw_json || {};
+  const crossref = raw._crossref || {};
+  const openAlexSource = raw._openalex?.primary_location?.source || raw._openalex?.host_venue || {};
+  const issnTypeValues = [
+    raw["issn-type"],
+    raw["ISSN-type"],
+    crossref["issn-type"],
+    crossref["ISSN-type"],
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((item) => item?.value || item?.issn || item)
+    .filter(Boolean);
   const values = [
     metadata.issn,
+    metadata.eissn,
+    metadata.eIssn,
     raw.ISSN,
     raw.issn,
+    raw.eISSN,
+    raw.eissn,
+    raw.EISSN,
+    crossref.ISSN,
+    crossref.issn,
+    openAlexSource.issn,
+    openAlexSource.issn_l,
+    ...issnTypeValues,
   ].flatMap((value) => (Array.isArray(value) ? value : [value]));
 
   return values.map(normalizeIssn).filter(Boolean);
@@ -160,6 +181,8 @@ function createIndexingResult({
   citeScore = "",
   impactFactor = "",
   indexedUrl = "",
+  year = null,
+  primaryCategory = false,
 } = {}) {
   const normalizedSourceKey = normalizeIndexingSourceKey(sourceKey || source || platform);
   const normalizedPlatform = normalizeIndexingPlatform(platform || source, normalizedSourceKey);
@@ -187,6 +210,17 @@ function createIndexingResult({
     impact_factor: normalizeText(impactFactor),
     indexedUrl: normalizeText(indexedUrl),
     indexed_url: normalizeText(indexedUrl),
+    year: normalizeYear(year),
+    primaryCategory: Boolean(primaryCategory),
+    primary_category: Boolean(primaryCategory),
+    quartileVerified: false,
+    quartile_verified: false,
+    quartileSource: "manual",
+    quartile_source: "manual",
+    quartileVerificationStatus: normalizedQuartile ? "manual_required" : "empty",
+    quartile_verification_status: normalizedQuartile ? "manual_required" : "empty",
+    quartileSelectionReason: normalizedQuartile ? "not_selected" : "no_quartile",
+    quartile_selection_reason: normalizedQuartile ? "not_selected" : "no_quartile",
     indexingVerified: true,
     indexing_verified: true,
     indexingSource: normalizedSourceKey,
@@ -211,6 +245,18 @@ function getCachedIndexing(metadata = {}) {
           citeScore: normalizeMetricValue(item?.citeScore || item?.cite_score || item?.citescore),
           cite_score: normalizeMetricValue(item?.citeScore || item?.cite_score || item?.citescore),
           indexedUrl: normalizeText(item?.indexedUrl || item?.indexed_url),
+          indexed_url: normalizeText(item?.indexedUrl || item?.indexed_url),
+          year: normalizeYear(item?.year),
+          primaryCategory: Boolean(item?.primaryCategory ?? item?.primary_category),
+          primary_category: Boolean(item?.primaryCategory ?? item?.primary_category),
+          quartileVerified: Boolean(item?.quartileVerified ?? item?.quartile_verified),
+          quartile_verified: Boolean(item?.quartileVerified ?? item?.quartile_verified),
+          quartileSource: normalizeIndexingSourceKey(item?.quartileSource || item?.quartile_source),
+          quartile_source: normalizeIndexingSourceKey(item?.quartileSource || item?.quartile_source),
+          quartileVerificationStatus: normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status || (item?.quartile ? "manual_required" : "empty")),
+          quartile_verification_status: normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status || (item?.quartile ? "manual_required" : "empty")),
+          quartileSelectionReason: normalizeText(item?.quartileSelectionReason || item?.quartile_selection_reason),
+          quartile_selection_reason: normalizeText(item?.quartileSelectionReason || item?.quartile_selection_reason),
           indexingVerified: Boolean(item?.indexingVerified ?? item?.indexing_verified),
           indexing_verified: Boolean(item?.indexingVerified ?? item?.indexing_verified),
           indexingSource: normalizeIndexingSourceKey(item?.indexingSource || item?.indexing_source || item?.sourceKey || item?.source_key || item?.source),
@@ -220,10 +266,185 @@ function getCachedIndexing(metadata = {}) {
     : [];
 }
 
-function quartileRank(value) {
-  const quartile = normalizeQuartile(value);
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
+}
 
-  return quartile ? Number(quartile.slice(1)) : Number.POSITIVE_INFINITY;
+function normalizeCategory(value) {
+  const text = normalizeText(value);
+
+  if (!text || normalizeQuartile(text) || normalizeYear(text) || normalizeMetricValue(text) === text) {
+    return "";
+  }
+
+  return text;
+}
+
+function uniqueIndexingItems(items = []) {
+  const seen = new Set();
+  const uniqueItems = [];
+
+  for (const item of items) {
+    const key = [
+      item.sourceKey || item.source_key || item.source,
+      item.category || "",
+      item.quartile || "",
+      item.year || "",
+      item.indexedUrl || item.indexed_url || "",
+    ].join("|").toLowerCase();
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueItems.push(item);
+    }
+  }
+
+  return uniqueItems;
+}
+
+function splitCategoryKeys(category = "") {
+  return normalizeText(category)
+    .split(/[;,|]/)
+    .map(normalizeComparableText)
+    .filter(Boolean);
+}
+
+function markQuartileSelection(item, selected, status, reason) {
+  return {
+    ...item,
+    quartileVerified: Boolean(selected),
+    quartile_verified: Boolean(selected),
+    quartileSource: selected ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
+    quartile_source: selected ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
+    quartileVerificationStatus: selected ? "verified" : status,
+    quartile_verification_status: selected ? "verified" : status,
+    quartileSelectionReason: selected ? reason : reason || status,
+    quartile_selection_reason: selected ? reason : reason || status,
+  };
+}
+
+function sameIndexingCandidate(first = {}, second = {}) {
+  return normalizeIndexingSourceKey(first.sourceKey || first.source_key || first.source) === normalizeIndexingSourceKey(second.sourceKey || second.source_key || second.source)
+    && normalizeComparableText(first.category) === normalizeComparableText(second.category)
+    && normalizeQuartile(first.quartile) === normalizeQuartile(second.quartile)
+    && (first.year || "") === (second.year || "");
+}
+
+function selectQuartileCandidate(items = [], publicationYear) {
+  const rowsWithQuartile = items.filter((item) => normalizeQuartile(item.quartile));
+  const targetYear = normalizeYear(publicationYear);
+
+  if (!rowsWithQuartile.length) {
+    return { selected: null, status: "manual_required", reason: "no_verified_quartile_rows" };
+  }
+
+  if (!targetYear) {
+    return { selected: null, status: "manual_required", reason: "publication_year_missing" };
+  }
+
+  const yearCandidates = targetYear
+    ? rowsWithQuartile.filter((item) => normalizeYear(item.year) === targetYear)
+    : rowsWithQuartile;
+
+  if (targetYear && !yearCandidates.length) {
+    return { selected: null, status: "manual_required", reason: "no_quartile_for_publication_year" };
+  }
+
+  const candidates = yearCandidates;
+  const categoryKeys = uniqueValues(candidates.flatMap((item) => splitCategoryKeys(item.category)));
+
+  if (!categoryKeys.length) {
+    return { selected: null, status: "manual_required", reason: "category_missing" };
+  }
+
+  if (categoryKeys.length > 1) {
+    const primaryCandidates = candidates.filter((item) => Boolean(item.primaryCategory || item.primary_category));
+
+    if (primaryCandidates.length === 1) {
+      return { selected: primaryCandidates[0], status: "verified", reason: "primary_category_from_provider" };
+    }
+
+    return { selected: null, status: "manual_required", reason: "multiple_categories_without_primary" };
+  }
+
+  const quartiles = uniqueValues(candidates.map((item) => normalizeQuartile(item.quartile)));
+
+  if (quartiles.length > 1) {
+    return { selected: null, status: "manual_required", reason: "conflicting_quartiles_for_category" };
+  }
+
+  return { selected: candidates[0], status: "verified", reason: targetYear ? "single_category_year_match" : "single_category_no_publication_year" };
+}
+
+function createIndexingBundle({ provider, platform, source, sourceKey, rows = [], publicationYear, indexedUrl = "" } = {}) {
+  const items = uniqueIndexingItems(rows
+    .map((row) => createIndexingResult({
+      platform,
+      source: row.source || source,
+      sourceKey: row.sourceKey || sourceKey,
+      category: row.category || row.subject,
+      quartile: row.quartile,
+      sjr: row.sjr,
+      citeScore: row.citeScore || row.cite_score,
+      impactFactor: row.impactFactor || row.impact_factor,
+      indexedUrl: row.indexedUrl || indexedUrl,
+      year: row.year,
+      primaryCategory: Boolean(row.primaryCategory || row.primary_category),
+    }))
+    .filter(Boolean));
+  const selection = selectQuartileCandidate(items, publicationYear);
+  const markedItems = items.map((item) => markQuartileSelection(
+    item,
+    selection.selected && sameIndexingCandidate(item, selection.selected),
+    selection.status,
+    selection.reason
+  ));
+
+  return {
+    provider,
+    status: selection.status,
+    reason: selection.reason,
+    selected: selection.selected
+      ? markedItems.find((item) => sameIndexingCandidate(item, selection.selected)) || null
+      : null,
+    items: markedItems,
+  };
+}
+
+function summarizeIndexingItems(items = []) {
+  return {
+    categoriesFound: uniqueValues(items.map((item) => item.category).filter(Boolean)),
+    quartilesFound: uniqueValues(items.map((item) => item.quartile).filter(Boolean)),
+  };
+}
+
+function logQuartileLookup(context, provider, bundle, reason = "") {
+  const items = bundle?.items || [];
+  const selected = bundle?.selected || null;
+  const summary = summarizeIndexingItems(items);
+
+  console.info("quartile_lookup_debug", {
+    doi: context.doi || "",
+    journalTitle: context.journalTitle || "",
+    issn: context.issns || [],
+    provider,
+    year: context.year || null,
+    categoriesFound: summary.categoriesFound,
+    quartilesFound: summary.quartilesFound,
+    selectedCategory: selected?.category || "",
+    selectedQuartile: selected?.quartile || "",
+    reason: reason || bundle?.reason || "not_selected",
+  });
+}
+
+function createQuartileLookupContext(metadata = {}) {
+  return {
+    doi: metadata.doi || "",
+    journalTitle: metadata.container_title || "",
+    issns: getMetadataIssns(metadata),
+    year: normalizeYear(metadata.year),
+  };
 }
 
 function decodeHtmlEntities(value) {
@@ -310,6 +531,9 @@ function buildMetadataFieldSources(metadata = {}) {
   const indexingFieldSource = metadata.indexingVerified || metadata.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified
     ? "lookup"
     : "manual";
+  const quartileFieldSource = metadata.quartileVerified || metadata.quartile_verified || firstIndexing.quartileVerified || firstIndexing.quartile_verified
+    ? "lookup"
+    : "manual";
 
   return {
     doi: createFieldSource(metadata.doi),
@@ -330,8 +554,8 @@ function buildMetadataFieldSources(metadata = {}) {
     abstract: createFieldSource(metadata.abstract),
     conferenceLocation: createFieldSource(metadata.conferenceLocation || metadata.conference_location),
     indexingPlatform: createFieldSource(firstIndexing.source, indexingFieldSource),
-    indexingCategory: createFieldSource(firstIndexing.category || metadata.indexingCategory || metadata.indexing_category, indexingFieldSource),
-    quartile: createFieldSource(metadata.quartile || firstIndexing.quartile, indexingFieldSource),
+    indexingCategory: createFieldSource(metadata.indexingCategory || metadata.indexing_category || (quartileFieldSource === "lookup" ? firstIndexing.category : ""), quartileFieldSource),
+    quartile: createFieldSource(metadata.quartile || (quartileFieldSource === "lookup" ? firstIndexing.quartile : ""), quartileFieldSource),
     sjr: createFieldSource(firstSjr, indexingFieldSource),
     citeScore: createFieldSource(firstCiteScore, indexingFieldSource),
     impactFactor: createFieldSource(firstImpactFactor, indexingFieldSource),
@@ -931,40 +1155,6 @@ function walkValues(value, visitor) {
   });
 }
 
-function getBestQuartileFromScopusResponse(data) {
-  let quartile = "";
-  let highestPercentile = null;
-
-  walkValues(data, (key, value) => {
-    const normalizedKey = normalizeComparableText(key);
-
-    if (!quartile && normalizedKey.includes("quartile")) {
-      quartile = normalizeQuartile(value);
-    }
-
-    if (normalizedKey.includes("percentile")) {
-      const percentile = Number(String(value).replace(",", "."));
-
-      if (Number.isFinite(percentile)) {
-        highestPercentile = highestPercentile === null ? percentile : Math.max(highestPercentile, percentile);
-      }
-    }
-  });
-
-  if (quartile) {
-    return quartile;
-  }
-
-  if (highestPercentile === null) {
-    return "";
-  }
-
-  if (highestPercentile >= 75) return "Q1";
-  if (highestPercentile >= 50) return "Q2";
-  if (highestPercentile >= 25) return "Q3";
-  return "Q4";
-}
-
 function getScopusIssnsFromResponse(data) {
   const values = [];
 
@@ -1025,28 +1215,175 @@ function getFirstMatchingValue(data, predicate) {
   return result;
 }
 
-function getBestCategoryFromScopusResponse(data) {
-  return getFirstMatchingValue(data, (key, value) => {
-    const text = normalizeText(value);
-
-    return text
-      && !normalizeQuartile(text)
-      && (
-        key.includes("subject area")
-        || key.includes("subjectarea")
-        || key === "subject"
-        || key.includes("category")
-      );
-  });
-}
-
 function getBestCiteScoreFromResponse(data) {
   return getFirstMatchingValue(data, (key, value) =>
     key.includes("citescore") && normalizeMetricValue(value)
   );
 }
 
-async function fetchScopusIndexingByTitle(title) {
+function getObjectQuartile(object = {}) {
+  for (const [key, value] of Object.entries(object)) {
+    if (value && typeof value === "object") {
+      continue;
+    }
+
+    if (normalizeComparableText(key).includes("quartile")) {
+      const quartile = normalizeQuartile(value);
+
+      if (quartile) {
+        return quartile;
+      }
+    }
+  }
+
+  return "";
+}
+
+function getCategoryFromValue(value) {
+  if (Array.isArray(value)) {
+    return uniqueValues(value.map(getCategoryFromValue)).join("; ");
+  }
+
+  if (value && typeof value === "object") {
+    return normalizeCategory(
+      value.$
+      || value._
+      || value.name
+      || value.display_name
+      || value.displayName
+      || value.subject
+      || value.category
+      || value["@name"]
+      || value["@abbrev"]
+    );
+  }
+
+  return normalizeCategory(value);
+}
+
+function getObjectCategories(object = {}) {
+  const categories = [];
+
+  for (const [key, value] of Object.entries(object)) {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (
+      normalizedKey.includes("subject area")
+      || normalizedKey.includes("subjectarea")
+      || normalizedKey === "subject"
+      || normalizedKey.includes("category")
+    ) {
+      categories.push(...toArray(value).map(getCategoryFromValue));
+    }
+  }
+
+  return uniqueValues(categories);
+}
+
+function getObjectYear(object = {}) {
+  return normalizeYear(
+    object["@year"]
+    || object.year
+    || object.citeScoreYear
+    || object.citescoreYear
+    || object.coverYear
+  );
+}
+
+function hasPrimaryCategoryFlag(object = {}) {
+  if (!object || typeof object !== "object") {
+    return false;
+  }
+
+  return Object.entries(object).some(([key, value]) => {
+    const normalizedKey = normalizeComparableText(key);
+    const normalizedValue = normalizeComparableText(value);
+
+    return normalizedKey.includes("primary")
+      && ["true", "1", "yes", "primary"].includes(normalizedValue);
+  });
+}
+
+function walkObjects(value, visitor, context = {}) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => walkObjects(item, visitor, context));
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const year = getObjectYear(value) || context.year || null;
+  const nextContext = { ...context, year };
+  visitor(value, nextContext);
+
+  Object.values(value).forEach((entryValue) => walkObjects(entryValue, visitor, nextContext));
+}
+
+function getScopusQuartileRows(data) {
+  const rows = [];
+
+  walkObjects(data, (object, context) => {
+    const directQuartile = getObjectQuartile(object);
+    const directCategories = getObjectCategories(object);
+    const citeScore = getBestCiteScoreFromResponse(object);
+    const primaryCategory = hasPrimaryCategoryFlag(object);
+
+    if (directQuartile && directCategories.length) {
+      directCategories.forEach((category) => {
+        rows.push({
+          source: "Scopus CiteScore",
+          category,
+          quartile: directQuartile,
+          citeScore,
+          year: context.year,
+          primaryCategory,
+        });
+      });
+    }
+
+    const rankItems = [
+      ...toArray(object.citeScoreSubjectRank),
+      ...toArray(object.citescoreSubjectRank),
+      ...toArray(object.subjectRank),
+    ];
+    const areaItems = [
+      ...toArray(object.citeScoreSubjectArea),
+      ...toArray(object.citescoreSubjectArea),
+      ...toArray(object.subjectArea),
+      ...toArray(object.subject_area),
+    ];
+
+    rankItems.forEach((rankItem, index) => {
+      const quartile = getObjectQuartile(rankItem);
+
+      if (!quartile) {
+        return;
+      }
+
+      const categories = uniqueValues([
+        ...getObjectCategories(rankItem),
+        getCategoryFromValue(areaItems[index]),
+      ]);
+
+      categories.forEach((category) => {
+        rows.push({
+          source: "Scopus CiteScore",
+          category,
+          quartile,
+          citeScore,
+          year: context.year,
+          primaryCategory: primaryCategory || hasPrimaryCategoryFlag(rankItem) || hasPrimaryCategoryFlag(areaItems[index] || {}),
+        });
+      });
+    });
+  });
+
+  return rows;
+}
+
+async function fetchScopusIndexingByTitle(title, publicationYear) {
   const apiKey = getScopusApiKey();
   const normalizedTitle = normalizeText(title);
 
@@ -1071,22 +1408,24 @@ async function fetchScopusIndexingByTitle(title) {
     return null;
   }
 
-  const quartile = getBestQuartileFromScopusResponse(data);
-  const category = getBestCategoryFromScopusResponse(data);
   const citeScore = getBestCiteScoreFromResponse(data);
+  const rows = getScopusQuartileRows(data).map((row) => ({
+    ...row,
+    citeScore: row.citeScore || citeScore,
+  }));
 
-  return createIndexingResult({
+  return createIndexingBundle({
+    provider: "scopus_title",
     platform: "Scopus",
     source: "Scopus CiteScore",
     sourceKey: "scopus",
-    category,
-    quartile,
-    citeScore,
+    rows,
+    publicationYear,
     indexedUrl: url.toString(),
   });
 }
 
-async function fetchScopusIndexingByIssn(issn) {
+async function fetchScopusIndexingByIssn(issn, publicationYear) {
   const apiKey = getScopusApiKey();
   const normalizedIssn = normalizeIssn(issn);
 
@@ -1107,17 +1446,19 @@ async function fetchScopusIndexingByIssn(issn) {
     return null;
   }
 
-  const quartile = getBestQuartileFromScopusResponse(data);
-  const category = getBestCategoryFromScopusResponse(data);
   const citeScore = getBestCiteScoreFromResponse(data);
+  const rows = getScopusQuartileRows(data).map((row) => ({
+    ...row,
+    citeScore: row.citeScore || citeScore,
+  }));
 
-  return createIndexingResult({
+  return createIndexingBundle({
+    provider: "scopus_issn",
     platform: "Scopus",
     source: "Scopus CiteScore",
     sourceKey: "scopus",
-    category,
-    quartile,
-    citeScore,
+    rows,
+    publicationYear,
     indexedUrl: `${SCOPUS_SERIAL_TITLE_API_URL}/${encodeURIComponent(normalizedIssn)}?view=CITESCORE`,
   });
 }
@@ -1147,18 +1488,20 @@ async function fetchScopusIndexingByDoi(metadata = {}) {
     return null;
   }
 
-  const quartile = getBestQuartileFromScopusResponse(data);
-  const category = getBestCategoryFromScopusResponse(data);
   const citeScore = getBestCiteScoreFromResponse(data);
+  const rows = getScopusQuartileRows(data).map((row) => ({
+    ...row,
+    citeScore: row.citeScore || citeScore,
+  }));
 
-  if (quartile || category || citeScore) {
-    return createIndexingResult({
+  if (rows.length) {
+    return createIndexingBundle({
+      provider: "scopus_doi",
       platform: "Scopus",
       source: "Scopus CiteScore",
       sourceKey: "scopus",
-      category,
-      quartile,
-      citeScore,
+      rows,
+      publicationYear: metadata.year,
       indexedUrl: url.toString(),
     });
   }
@@ -1166,9 +1509,9 @@ async function fetchScopusIndexingByDoi(metadata = {}) {
   const issns = uniqueValues([...getMetadataIssns(metadata), ...getScopusIssnsFromResponse(data)]);
 
   for (const issn of issns) {
-    const indexing = await fetchScopusIndexingByIssn(issn);
+    const indexing = await fetchScopusIndexingByIssn(issn, metadata.year);
 
-    if (indexing?.quartile) {
+    if (indexing?.selected?.quartile) {
       return indexing;
     }
   }
@@ -1179,9 +1522,9 @@ async function fetchScopusIndexingByDoi(metadata = {}) {
   ]);
 
   for (const title of titles) {
-    const indexing = await fetchScopusIndexingByTitle(title);
+    const indexing = await fetchScopusIndexingByTitle(title, metadata.year);
 
-    if (indexing?.quartile) {
+    if (indexing?.selected?.quartile) {
       return indexing;
     }
   }
@@ -1226,44 +1569,6 @@ function parseJournalRankQuartiles(html) {
   return rows;
 }
 
-function pickBestJournalRankQuartile(rows, publicationYear) {
-  if (!rows.length) {
-    return null;
-  }
-
-  const validRows = rows.filter((row) => row.quartile);
-  const targetYear = normalizeYear(publicationYear);
-  const yearRows = targetYear ? validRows.filter((row) => row.year === targetYear) : [];
-  const latestYear = Math.max(...validRows.map((row) => row.year || 0));
-  const candidates = yearRows.length
-    ? yearRows
-    : validRows.filter((row) => row.year === latestYear);
-
-  return (candidates.length ? candidates : validRows)
-    .sort((a, b) => quartileRank(a.quartile) - quartileRank(b.quartile))[0] || null;
-}
-
-function pickBestQuartile(rows, publicationYear) {
-  if (!rows.length) {
-    return null;
-  }
-
-  const validRows = rows.filter((row) => normalizeQuartile(row.quartile));
-  if (!validRows.length) {
-    return null;
-  }
-
-  const targetYear = normalizeYear(publicationYear);
-  const yearRows = targetYear ? validRows.filter((row) => row.year === targetYear) : [];
-  const latestYear = Math.max(...validRows.map((row) => row.year || 0));
-  const candidates = yearRows.length
-    ? yearRows
-    : validRows.filter((row) => row.year === latestYear);
-
-  return (candidates.length ? candidates : validRows)
-    .sort((a, b) => quartileRank(a.quartile) - quartileRank(b.quartile))[0] || null;
-}
-
 async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
   const normalizedIssn = normalizeIssn(issn);
 
@@ -1300,22 +1605,17 @@ async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
     return null;
   }
 
-  const best = pickBestJournalRankQuartile(
-    parseJournalRankQuartiles(await quartilesResponse.text()),
-    publicationYear
-  );
+  const rows = parseJournalRankQuartiles(await quartilesResponse.text());
 
-  return best?.quartile
-    ? createIndexingResult({
-        platform: "Scopus",
-        source: best.year ? `${best.source} ${best.year}` : best.source,
-        sourceKey: "scopus",
-        category: best.category || best.subject,
-        quartile: best.quartile,
-        citeScore: best.citeScore,
-        indexedUrl: quartilesUrl,
-      })
-    : null;
+  return createIndexingBundle({
+    provider: "journalrank",
+    platform: "Scopus",
+    source: "Journal Rank CiteScore",
+    sourceKey: "scopus",
+    rows,
+    publicationYear,
+    indexedUrl: quartilesUrl,
+  });
 }
 
 function parseScimagoSearchResult(html) {
@@ -1350,6 +1650,21 @@ function extractScimagoCategory(html) {
   return uniqueValues([...categoryLinks, ...areaLinks]).slice(0, 3).join("; ");
 }
 
+function extractScimagoCategoryFromCells(cells = []) {
+  return cells
+    .map((cell) => normalizeCategory(cell))
+    .find((cell) =>
+      cell
+      && !/^SJR$/i.test(cell)
+      && !/^H\s*index$/i.test(cell)
+      && !/^Year$/i.test(cell)
+      && !/^Quartile$/i.test(cell)
+      && !normalizeQuartile(cell)
+      && !normalizeYear(cell)
+      && !/^\d+(?:[.,]\d+)?$/.test(cell)
+    ) || "";
+}
+
 function parseScimagoQuartiles(html) {
   const rows = [];
   const rowPattern = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
@@ -1364,21 +1679,15 @@ function parseScimagoQuartiles(html) {
 
     if (quartile) {
       const sjr = normalizeMetricValue(cells[1]);
+      const category = extractScimagoCategoryFromCells(cells);
 
       rows.push({
         source: "SCImago SJR",
+        category,
         quartile,
         year,
         sjr,
       });
-    }
-  }
-
-  if (!rows.length) {
-    const quartile = normalizeQuartile(html);
-
-    if (quartile) {
-      rows.push({ source: "SCImago SJR", quartile, year: null });
     }
   }
 
@@ -1406,16 +1715,7 @@ async function fetchScimagoIndexingByIssn(issn, publicationYear) {
   const searchResult = parseScimagoSearchResult(await searchResponse.text());
 
   if (!searchResult?.indexedUrl) {
-    return searchResult?.quartile
-      ? createIndexingResult({
-          platform: "SCImago",
-          source: "SCImago SJR",
-          sourceKey: "scimago",
-          quartile: searchResult.quartile,
-          sjr: searchResult.sjr,
-          indexedUrl: "",
-        })
-      : null;
+    return null;
   }
 
   const detailsResponse = await fetchJson(searchResult.indexedUrl, {
@@ -1426,33 +1726,26 @@ async function fetchScimagoIndexingByIssn(issn, publicationYear) {
   });
 
   if (!detailsResponse.ok) {
-    return searchResult.quartile
-      ? createIndexingResult({
-          platform: "SCImago",
-          source: "SCImago SJR",
-          sourceKey: "scimago",
-          quartile: searchResult.quartile,
-          sjr: searchResult.sjr,
-          indexedUrl: searchResult.indexedUrl,
-        })
-      : null;
+    return null;
   }
 
   const detailsHtml = await detailsResponse.text();
-  const best = pickBestQuartile(parseScimagoQuartiles(detailsHtml), publicationYear);
-  const quartile = best?.quartile || searchResult.quartile;
+  const fallbackCategory = extractScimagoCategory(detailsHtml);
+  const rows = parseScimagoQuartiles(detailsHtml).map((row) => ({
+    ...row,
+    category: row.category || fallbackCategory,
+    sjr: row.sjr || searchResult.sjr,
+  }));
 
-  return quartile
-    ? createIndexingResult({
-        platform: "SCImago",
-        source: best?.year ? `${best.source} ${best.year}` : "SCImago SJR",
-        sourceKey: "scimago",
-        category: extractScimagoCategory(detailsHtml),
-        quartile,
-        sjr: best?.sjr || searchResult.sjr,
-        indexedUrl: searchResult.indexedUrl,
-      })
-    : null;
+  return createIndexingBundle({
+    provider: "scimago",
+    platform: "SCImago",
+    source: "SCImago SJR",
+    sourceKey: "scimago",
+    rows,
+    publicationYear,
+    indexedUrl: searchResult.indexedUrl,
+  });
 }
 
 function sourceTitleMatches(inputTitle, sourceTitle) {
@@ -1625,19 +1918,89 @@ async function fetchCrossrefJournalTitleByIssn(issn) {
   return normalizeText(data?.message?.title);
 }
 
-async function resolveIndexingMetadata(metadata = {}) {
-  const cachedIndexing = getCachedIndexing(metadata);
+function mergeIndexingBundles(bundles = [], helperItems = []) {
+  const items = uniqueIndexingItems([
+    ...bundles.flatMap((bundle) => bundle?.items || []),
+    ...helperItems,
+  ]);
+  const selectedCandidates = bundles
+    .map((bundle) => bundle?.selected)
+    .filter((item) => item?.quartileVerified && item?.quartile);
 
-  if (cachedIndexing.some((item) => item.indexingVerified)) {
-    return cachedIndexing;
+  if (!selectedCandidates.length) {
+    return {
+      indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "no_unambiguous_verified_quartile")),
+      selected: null,
+      status: items.some((item) => item.quartile) ? "manual_required" : "empty",
+      reason: items.some((item) => item.quartile) ? "no_unambiguous_verified_quartile" : "no_ranking_quartile_found",
+    };
   }
 
-  try {
-    const indexing = await fetchScopusIndexingByDoi(metadata);
+  const quartiles = uniqueValues(selectedCandidates.map((item) => item.quartile));
+  const categories = uniqueValues(selectedCandidates.flatMap((item) => splitCategoryKeys(item.category)));
 
-    if (indexing?.indexingVerified) {
-      return [indexing];
+  if (quartiles.length > 1 || categories.length > 1) {
+    return {
+      indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "conflicting_provider_results")),
+      selected: null,
+      status: "manual_required",
+      reason: "conflicting_provider_results",
+    };
+  }
+
+  const providerPriority = ["scopus", "scimago"];
+  const selected = selectedCandidates
+    .sort((first, second) =>
+      providerPriority.indexOf(normalizeIndexingSourceKey(first.sourceKey || first.source_key || first.source))
+      - providerPriority.indexOf(normalizeIndexingSourceKey(second.sourceKey || second.source_key || second.source))
+    )[0];
+
+  return {
+    indexing: items.map((item) => markQuartileSelection(
+      item,
+      sameIndexingCandidate(item, selected),
+      "verified",
+      "provider_results_agree"
+    )),
+    selected,
+    status: "verified",
+    reason: "provider_results_agree",
+  };
+}
+
+async function resolveIndexingMetadata(metadata = {}) {
+  const cachedIndexing = getCachedIndexing(metadata);
+  const cachedSelected = cachedIndexing.find((item) => item.quartileVerified || item.quartile_verified);
+
+  if (cachedSelected) {
+    return {
+      indexing: cachedIndexing,
+      selected: cachedSelected,
+      status: "verified",
+      reason: "cached_verified_quartile",
+    };
+  }
+  const context = createQuartileLookupContext(metadata);
+  const bundles = [];
+  const helperItems = [];
+  const titles = uniqueValues([
+    metadata.container_title,
+    metadata.raw_json?._openalex?.primary_location?.source?.display_name,
+    metadata.raw_json?._openalex?.host_venue?.display_name,
+  ]);
+
+  const addBundle = (provider, bundle, reason = "") => {
+    if (!bundle) {
+      logQuartileLookup(context, provider, { items: [], selected: null, reason: reason || "no_result" }, reason || "no_result");
+      return;
     }
+
+    bundles.push(bundle);
+    logQuartileLookup(context, provider, bundle, reason || bundle.reason);
+  };
+
+  try {
+    addBundle("scopus_doi", await fetchScopusIndexingByDoi(metadata));
   } catch (error) {
     console.warn("quartile_lookup_failed", {
       doi: metadata.doi,
@@ -1646,25 +2009,22 @@ async function resolveIndexingMetadata(metadata = {}) {
     });
   }
 
-  const titles = uniqueValues([metadata.container_title]);
-
-  for (const issn of getMetadataIssns(metadata)) {
-    try {
-      const indexing = await fetchScopusIndexingByIssn(issn)
-        || await fetchJournalRankIndexingByIssn(issn, metadata.year)
-        || await fetchScimagoIndexingByIssn(issn, metadata.year)
-        || await fetchOpenAlexIndexingByIssn(issn)
-        || await fetchDoajIndexingByIssn(issn);
-
-      if (indexing?.indexingVerified) {
-        return [indexing];
+  for (const issn of context.issns) {
+    for (const [provider, fetcher] of [
+      ["scopus_issn", () => fetchScopusIndexingByIssn(issn, metadata.year)],
+      ["journalrank", () => fetchJournalRankIndexingByIssn(issn, metadata.year)],
+      ["scimago", () => fetchScimagoIndexingByIssn(issn, metadata.year)],
+    ]) {
+      try {
+        addBundle(provider, await fetcher(), issn);
+      } catch (error) {
+        console.warn("quartile_lookup_failed", {
+          doi: metadata.doi,
+          issn,
+          source: provider,
+          message: error.message,
+        });
       }
-    } catch (error) {
-      console.warn("quartile_lookup_failed", {
-        doi: metadata.doi,
-        issn,
-        message: error.message,
-      });
     }
 
     try {
@@ -1684,13 +2044,7 @@ async function resolveIndexingMetadata(metadata = {}) {
 
   for (const title of uniqueValues(titles)) {
     try {
-      const indexing = await fetchScopusIndexingByTitle(title)
-        || await fetchOpenAlexIndexingByTitle(title)
-        || await fetchDoajIndexingByTitle(title);
-
-      if (indexing?.indexingVerified) {
-        return [indexing];
-      }
+      addBundle("scopus_title", await fetchScopusIndexingByTitle(title, metadata.year), title);
     } catch (error) {
       console.warn("indexing_title_lookup_failed", {
         doi: metadata.doi,
@@ -1698,30 +2052,100 @@ async function resolveIndexingMetadata(metadata = {}) {
         message: error.message,
       });
     }
+
+    for (const [provider, fetcher] of [
+      ["openalex_helper", () => fetchOpenAlexIndexingByTitle(title)],
+      ["doaj_helper", () => fetchDoajIndexingByTitle(title)],
+    ]) {
+      try {
+        const helper = await fetcher();
+
+        if (helper) {
+          const helperItem = markQuartileSelection(helper, false, "manual_required", `${provider}_is_not_final_quartile_source`);
+          helperItems.push(helperItem);
+          logQuartileLookup(context, provider, { items: [helperItem], selected: null, reason: `${provider}_is_not_final_quartile_source` });
+        }
+      } catch (error) {
+        console.warn("indexing_helper_lookup_failed", {
+          doi: metadata.doi,
+          title,
+          source: provider,
+          message: error.message,
+        });
+      }
+    }
   }
 
-  return [];
+  for (const issn of context.issns) {
+    for (const [provider, fetcher] of [
+      ["openalex_helper", () => fetchOpenAlexIndexingByIssn(issn)],
+      ["doaj_helper", () => fetchDoajIndexingByIssn(issn)],
+    ]) {
+      try {
+        const helper = await fetcher();
+
+        if (helper) {
+          const helperItem = markQuartileSelection(helper, false, "manual_required", `${provider}_is_not_final_quartile_source`);
+          helperItems.push(helperItem);
+          logQuartileLookup(context, provider, { items: [helperItem], selected: null, reason: `${provider}_is_not_final_quartile_source` });
+        }
+      } catch (error) {
+        console.warn("indexing_helper_lookup_failed", {
+          doi: metadata.doi,
+          issn,
+          source: provider,
+          message: error.message,
+        });
+      }
+    }
+  }
+
+  const result = mergeIndexingBundles(bundles, helperItems);
+  logQuartileLookup(context, "final_selection", { items: result.indexing, selected: result.selected, reason: result.reason }, result.reason);
+
+  return result;
 }
 
 async function enrichMetadataIndexing(metadata = {}) {
-  const indexing = await resolveIndexingMetadata(metadata);
-  const quartile = indexing.find((item) => normalizeQuartile(item?.quartile))?.quartile || "";
-  const firstIndexing = indexing.find((item) => item?.indexingVerified || item?.source || item?.quartile || item?.category || item?.sjr || item?.citeScore) || {};
+  const indexingResolution = await resolveIndexingMetadata(metadata);
+  const indexing = indexingResolution.indexing || [];
+  const selectedQuartile = indexingResolution.selected || null;
+  const quartileVerified = Boolean(selectedQuartile?.quartileVerified || selectedQuartile?.quartile_verified);
+  const quartile = quartileVerified ? normalizeQuartile(selectedQuartile.quartile) : "";
+  const firstIndexing = selectedQuartile || indexing.find((item) => item?.indexingVerified || item?.source || item?.quartile || item?.category || item?.sjr || item?.citeScore) || {};
   const indexingVerified = Boolean(firstIndexing.indexingVerified || firstIndexing.indexing_verified);
   const indexingSource = indexingVerified
     ? normalizeIndexingSourceKey(firstIndexing.indexingSource || firstIndexing.indexing_source || firstIndexing.sourceKey || firstIndexing.source_key || firstIndexing.source)
+    : "manual";
+  const quartileSource = quartileVerified
+    ? normalizeIndexingSourceKey(selectedQuartile.quartileSource || selectedQuartile.quartile_source || selectedQuartile.sourceKey || selectedQuartile.source_key || selectedQuartile.source)
     : "manual";
   const enrichedMetadata = {
     ...metadata,
     raw_json: {
       ...(metadata.raw_json || {}),
       _indexing: indexing,
+      _quartile_lookup: {
+        status: indexingResolution.status,
+        reason: indexingResolution.reason,
+        selectedCategory: selectedQuartile?.category || "",
+        selectedQuartile: quartile,
+        selectedSource: quartileSource,
+      },
     },
     quartile,
+    quartileVerified,
+    quartile_verified: quartileVerified,
+    quartileSource,
+    quartile_source: quartileSource,
+    quartileVerificationStatus: quartileVerified ? "verified" : (indexingResolution.status || "manual_required"),
+    quartile_verification_status: quartileVerified ? "verified" : (indexingResolution.status || "manual_required"),
+    quartileSelectionReason: indexingResolution.reason || "",
+    quartile_selection_reason: indexingResolution.reason || "",
     indexingPlatform: indexingVerified ? firstIndexing.source || firstIndexing.platform || "" : "",
     indexing_platform: indexingVerified ? firstIndexing.source || firstIndexing.platform || "" : "",
-    indexingCategory: indexingVerified ? firstIndexing.category || "" : "",
-    indexing_category: indexingVerified ? firstIndexing.category || "" : "",
+    indexingCategory: quartileVerified ? firstIndexing.category || "" : "",
+    indexing_category: quartileVerified ? firstIndexing.category || "" : "",
     indexingVerified,
     indexing_verified: indexingVerified,
     indexingSource,

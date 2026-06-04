@@ -247,6 +247,14 @@ function normalizeIndexing(value) {
       sjr: normalizeText(item.sjr),
       citeScore: normalizeText(item.cite_score || item.citeScore || item.citescore),
       indexedUrl: normalizeUrl(item.indexed_url || item.indexedUrl),
+      quartileVerified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
+      quartile_verified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
+      quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source),
+      quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source),
+      quartileVerificationStatus: normalizeText(item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual" : "empty")),
+      quartile_verification_status: normalizeText(item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual" : "empty")),
+      quartileSelectionReason: normalizeText(item.quartileSelectionReason || item.quartile_selection_reason),
+      quartile_selection_reason: normalizeText(item.quartileSelectionReason || item.quartile_selection_reason),
     }))
     .filter((item) => item.source || item.category || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
 }
@@ -284,7 +292,15 @@ function deriveIndexingPlatform(indexing = [], fallback = "") {
 
 function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
   return normalizeIndexingCategory(fallback)
-    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingCategory(item?.category)).find(Boolean) : "")
+    || (Array.isArray(indexing) ? indexing
+      .filter((item) => {
+        const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status);
+        return normalizeBoolean(item?.quartileVerified ?? item?.quartile_verified)
+          || status === "manual"
+          || !status;
+      })
+      .map((item) => normalizeIndexingCategory(item?.category))
+      .find(Boolean) : "")
     || "";
 }
 
@@ -304,6 +320,9 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
   const indexing = Array.isArray(values.indexing) ? values.indexing : [];
   const firstIndexing = indexing.find((item) => item?.source || item?.category || item?.quartile || item?.impactFactor || item?.impact_factor || item?.sjr || item?.citeScore || item?.cite_score) || {};
   const indexingSource = values.indexingVerified || values.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified
+    ? "lookup"
+    : "manual";
+  const quartileSource = values.quartileVerified || values.quartile_verified || firstIndexing.quartileVerified || firstIndexing.quartile_verified
     ? "lookup"
     : "manual";
 
@@ -328,7 +347,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
     indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || firstIndexing.source, indexingSource),
     indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || firstIndexing.category, indexingSource),
-    quartile: createFieldSource(values.quartile || firstIndexing.quartile, indexingSource),
+    quartile: createFieldSource(values.quartile || firstIndexing.quartile, quartileSource),
     sjr: createFieldSource(values.sjr || firstIndexing.sjr, indexingSource),
     citeScore: createFieldSource(values.citeScore || values.cite_score || firstIndexing.citeScore || firstIndexing.cite_score, indexingSource),
     impactFactor: createFieldSource(firstIndexing.impactFactor || firstIndexing.impact_factor, indexingSource),
@@ -352,6 +371,12 @@ function normalizeIndexingInput(value, publicationType) {
 
 function getPrimaryQuartile(indexing = []) {
   const primary = (Array.isArray(indexing) ? indexing : [])
+    .filter((item) => {
+      const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status);
+      return normalizeBoolean(item?.quartileVerified ?? item?.quartile_verified)
+        || status === "manual"
+        || (!status && normalizeText(item?.quartile));
+    })
     .map((item) => normalizeText(item?.quartile))
     .find(Boolean);
 
@@ -483,6 +508,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
             sourceKey: body.indexingSource || body.indexing_source,
             category: body.indexingCategory || body.indexing_category,
             quartile: body.quartile,
+            quartileVerified: body.quartileVerified ?? body.quartile_verified,
+            quartileSource: body.quartileSource || body.quartile_source,
+            quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"),
             sjr: body.sjr,
             citeScore: body.citeScore || body.cite_score || body.citescore,
           }]
@@ -494,6 +522,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
           source: body.indexingPlatform || body.indexing_platform,
           category: body.indexingCategory || body.indexing_category,
           quartile: body.quartile,
+          quartileVerified: body.quartileVerified ?? body.quartile_verified,
+          quartileSource: body.quartileSource || body.quartile_source,
+          quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"),
         }]
       : [];
   const indexing = hasIndexingInput
@@ -553,9 +584,17 @@ function normalizePublicationPayload(body = {}, options = {}) {
             source_key: item.source_key || item.sourceKey || indexingSource,
             category: item.category || indexingCategory,
             quartile: item.quartile || normalizeQuartile(body.quartile),
+            quartileVerified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
+            quartile_verified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
+            quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
+            quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
+            quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile || body.quartile ? "manual" : "empty"),
+            quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile || body.quartile ? "manual" : "empty"),
+            quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
+            quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
           }
         : item)
-      : [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
+      : [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
     : undefined;
 
   return {
@@ -644,6 +683,14 @@ function mapPublication(row) {
     source_key: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
     category: item.category || "",
     quartile: normalizeQuartile(item.quartile),
+    quartileVerified: normalizeBoolean(item.quartile_verified ?? item.quartileVerified),
+    quartile_verified: normalizeBoolean(item.quartile_verified ?? item.quartileVerified),
+    quartileSource: normalizeIndexingSource(item.quartile_source || item.quartileSource || item.source_key || item.sourceKey || item.source),
+    quartile_source: normalizeIndexingSource(item.quartile_source || item.quartileSource || item.source_key || item.sourceKey || item.source),
+    quartileVerificationStatus: item.quartile_verification_status || item.quartileVerificationStatus || (item.quartile ? "manual" : "empty"),
+    quartile_verification_status: item.quartile_verification_status || item.quartileVerificationStatus || (item.quartile ? "manual" : "empty"),
+    quartileSelectionReason: item.quartile_selection_reason || item.quartileSelectionReason || "",
+    quartile_selection_reason: item.quartile_selection_reason || item.quartileSelectionReason || "",
     impactFactor: item.impact_factor || item.impactFactor || "",
     impact_factor: item.impact_factor || item.impactFactor || "",
     sjr: item.sjr || "",
@@ -843,6 +890,10 @@ const PUBLICATION_SELECT_SQL = `
       'source_key', pi.source_key,
       'category', pi.category,
       'quartile', pi.quartile,
+      'quartile_verified', pi.quartile_verified,
+      'quartile_source', pi.quartile_source,
+      'quartile_verification_status', pi.quartile_verification_status,
+      'quartile_selection_reason', pi.quartile_selection_reason,
       'impact_factor', pi.impact_factor,
       'sjr', pi.sjr,
       'cite_score', pi.cite_score,
@@ -973,14 +1024,18 @@ async function replacePublicationChildren(client, publicationId, values) {
   for (const item of values.indexing || []) {
     await client.query(
       `insert into publication_indexing
-       (publication_id, source, source_key, category, quartile, impact_factor, sjr, cite_score, indexed_url)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (publication_id, source, source_key, category, quartile, quartile_verified, quartile_source, quartile_verification_status, quartile_selection_reason, impact_factor, sjr, cite_score, indexed_url)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [
         publicationId,
         item.source,
         item.sourceKey || item.source_key || values.indexingSource,
         item.category,
         item.quartile,
+        Boolean(item.quartileVerified ?? item.quartile_verified),
+        item.quartileSource || item.quartile_source || "manual",
+        item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual" : "empty"),
+        item.quartileSelectionReason || item.quartile_selection_reason || "",
         item.impactFactor,
         item.sjr,
         item.citeScore || item.cite_score,
@@ -1066,6 +1121,10 @@ async function ensurePublicationReviewSchema(client) {
     alter table if exists publication_indexing add column if not exists category text not null default '';
     alter table if exists publication_indexing add column if not exists sjr text not null default '';
     alter table if exists publication_indexing add column if not exists cite_score text not null default '';
+    alter table if exists publication_indexing add column if not exists quartile_verified boolean not null default false;
+    alter table if exists publication_indexing add column if not exists quartile_source text not null default 'manual';
+    alter table if exists publication_indexing add column if not exists quartile_verification_status text not null default 'empty';
+    alter table if exists publication_indexing add column if not exists quartile_selection_reason text not null default '';
     alter table publications drop constraint if exists publications_indexing_source_check;
     alter table publications add constraint publications_indexing_source_check
       check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'manual'));
@@ -1262,7 +1321,10 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
     indexingVerified: Boolean(metadata.indexingVerified ?? metadata.indexing_verified),
     indexingSource: normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source),
-    quartile: metadata.quartile || getPrimaryQuartile(indexing),
+    quartile: metadata.quartile || "",
+    quartileVerified: Boolean(metadata.quartileVerified ?? metadata.quartile_verified),
+    quartileSource: normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source),
+    quartileVerificationStatus: metadata.quartileVerificationStatus || metadata.quartile_verification_status || "manual_required",
     status: "draft",
     authors: metadataAuthors.map((author, index) =>
       metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)

@@ -55,6 +55,9 @@ export const createEmptyPublicationDraft = () => ({
   indexingPlatform: "",
   indexingCategory: "",
   quartile: "",
+  quartileVerified: false,
+  quartileSource: "manual",
+  quartileVerificationStatus: "empty",
   sjr: "",
   citeScore: "",
   indexingVerified: false,
@@ -187,6 +190,17 @@ function normalizeIndexingSource(value) {
   return ["scopus", "scimago", "doaj", "openalex", "manual"].includes(text) ? text : "manual";
 }
 
+function isDisplayableQuartile(item = {}) {
+  const status = String(item.quartileVerificationStatus || item.quartile_verification_status || "").toLowerCase();
+
+  return Boolean(normalizeQuartile(item.quartile))
+    && (
+      Boolean(item.quartileVerified ?? item.quartile_verified)
+      || status === "manual"
+      || !status
+    );
+}
+
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
@@ -196,12 +210,21 @@ export function publicationToDraft(publication = {}) {
     sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
     category: item.category || "",
     quartile: normalizeQuartile(item.quartile),
+    quartileVerified: Boolean(item.quartileVerified ?? item.quartile_verified),
+    quartile_verified: Boolean(item.quartileVerified ?? item.quartile_verified),
+    quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source),
+    quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source),
+    quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual" : "empty"),
+    quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual" : "empty"),
+    quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
+    quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
     impactFactor: item.impactFactor || item.impact_factor || "",
     sjr: item.sjr || "",
     citeScore: item.citeScore || item.cite_score || item.citescore || "",
     indexedUrl: item.indexedUrl || item.indexed_url || "",
   })) : publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
   const primaryIndexing = indexing[0] || {};
+  const displayablePrimaryQuartile = isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "";
 
   return {
     ...createEmptyPublicationDraft(),
@@ -231,7 +254,10 @@ export function publicationToDraft(publication = {}) {
       || "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
-    quartile: normalizeQuartile(publication.quartile || primaryIndexing.quartile),
+    quartile: normalizeQuartile(publication.quartile || displayablePrimaryQuartile),
+    quartileVerified: Boolean(publication.quartileVerified ?? publication.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified),
+    quartileSource: normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
+    quartileVerificationStatus: publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty"),
     sjr: publication.sjr || primaryIndexing.sjr || "",
     citeScore: publication.citeScore || publication.cite_score || primaryIndexing.citeScore || primaryIndexing.cite_score || "",
     indexingVerified: Boolean(publication.indexingVerified ?? publication.indexing_verified),
@@ -351,9 +377,15 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const publicationType = normalizeDoiType(metadata.type);
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
-  const quartile = normalizeQuartile(metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "");
+  const selectedQuartileIndexing = indexing.find((item) => item?.quartileVerified || item?.quartile_verified);
+  const quartileVerified = Boolean(metadata.quartileVerified ?? metadata.quartile_verified ?? selectedQuartileIndexing?.quartileVerified ?? selectedQuartileIndexing?.quartile_verified);
+  const quartile = quartileVerified ? normalizeQuartile(metadata.quartile || selectedQuartileIndexing?.quartile || "") : "";
+  const quartileSource = quartileVerified
+    ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
+    : "manual";
+  const quartileVerificationStatus = metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "manual_required";
   const indexingPlatform = normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source);
-  const indexingCategory = normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || indexing.find((item) => item?.category)?.category || "");
+  const indexingCategory = quartileVerified ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
   const indexingVerified = Boolean(metadata.indexingVerified ?? metadata.indexing_verified);
   const indexingSource = normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source);
   const sjr = metadata.sjr || indexing.find((item) => item?.sjr)?.sjr || "";
@@ -389,6 +421,9 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     indexingPlatform,
     indexingCategory,
     quartile,
+    quartileVerified,
+    quartileSource,
+    quartileVerificationStatus,
     sjr,
     citeScore,
     indexingVerified,
@@ -400,12 +435,20 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
       sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source || (index === 0 ? indexingSource : "")),
       category: item.category || (index === 0 ? indexingCategory : ""),
       quartile: normalizeQuartile(item.quartile || (index === 0 ? quartile : "")),
+      quartileVerified: Boolean(item.quartileVerified ?? item.quartile_verified),
+      quartile_verified: Boolean(item.quartileVerified ?? item.quartile_verified),
+      quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source || (index === 0 ? quartileSource : "")),
+      quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source || (index === 0 ? quartileSource : "")),
+      quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual_required" : "empty"),
+      quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual_required" : "empty"),
+      quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
+      quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
       impactFactor: item.impactFactor || item.impact_factor || "",
       sjr: item.sjr || (index === 0 ? sjr : ""),
       citeScore: item.citeScore || item.cite_score || item.citescore || (index === 0 ? citeScore : ""),
       indexedUrl: item.indexedUrl || item.indexed_url || "",
     })) : indexingPlatform || indexingCategory || quartile || sjr || citeScore
-      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, impactFactor: "", sjr, citeScore, indexedUrl: "" }]
+      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, impactFactor: "", sjr, citeScore, indexedUrl: "" }]
       : [],
     metadataSource: "doi",
     metadataVerified: true,
@@ -446,6 +489,16 @@ const PublicationForm = ({
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
+  const isQuartileVerified = Boolean(value.quartileVerified ?? value.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified);
+  const quartileSource = normalizeIndexingSource(value.quartileSource || value.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source);
+  const quartileVerificationStatus = value.quartileVerificationStatus || value.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || "";
+  const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
+  const showQuartileManualBadge = !isQuartileVerified
+    && ["manual_required", "conflict"].includes(String(quartileVerificationStatus || "").toLowerCase());
+  const quartileBadgeLabel = isQuartileVerified
+    ? t(`professor.dashboard.publicationForm.quartileSource.${quartileSource}`)
+    : t("professor.dashboard.publicationForm.quartileSource.manualRequired");
+  const showQuartileBadge = isQuartileVerified || showQuartileManualBadge;
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -530,9 +583,12 @@ const PublicationForm = ({
     const [firstIndexing = {}, ...restIndexing] = indexing;
     const nextPlatform = field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "";
     const nextCategory = field === "indexingCategory" ? nextValue : value.indexingCategory || primaryIndexing.category || "";
-    const nextQuartile = field === "quartile" ? normalizeQuartile(nextValue) : normalizeQuartile(value.quartile || primaryIndexing.quartile || "");
+    const nextQuartile = field === "quartile" ? normalizeQuartile(nextValue) : normalizeQuartile(displayableQuartile || "");
     const nextSjr = field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "";
     const nextCiteScore = field === "citeScore" ? nextValue : value.citeScore || primaryIndexing.citeScore || primaryIndexing.cite_score || "";
+    const nextQuartileStatus = field === "quartile" && nextQuartile
+      ? "manual"
+      : primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
     const nextFirstIndexing = {
       ...firstIndexing,
       source: nextPlatform,
@@ -540,6 +596,14 @@ const PublicationForm = ({
       sourceKey: "manual",
       category: nextCategory,
       quartile: nextQuartile,
+      quartileVerified: false,
+      quartile_verified: false,
+      quartileSource: "manual",
+      quartile_source: "manual",
+      quartileVerificationStatus: nextQuartileStatus,
+      quartile_verification_status: nextQuartileStatus,
+      quartileSelectionReason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
+      quartile_selection_reason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
       sjr: nextSjr,
       citeScore: nextCiteScore,
     };
@@ -551,6 +615,9 @@ const PublicationForm = ({
       ...value,
       [field]: nextValue,
       quartile: nextQuartile,
+      quartileVerified: false,
+      quartileSource: "manual",
+      quartileVerificationStatus: nextQuartileStatus,
       sjr: nextSjr,
       citeScore: nextCiteScore,
       indexing: nextIndexing,
@@ -729,9 +796,16 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+          <span className="publication-quartile-label">
+            <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+            {showQuartileBadge ? (
+              <span className={`publication-quartile-verification-badge ${isQuartileVerified ? "verified" : "manual"}`}>
+                {quartileBadgeLabel}
+              </span>
+            ) : null}
+          </span>
           <select
-            value={value.quartile || primaryIndexing.quartile || ""}
+            value={displayableQuartile}
             onChange={updateIndexingField("quartile")}
             disabled={isFieldLocked("quartile")}
           >

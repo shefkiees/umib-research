@@ -163,6 +163,20 @@ const formatDate = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const isDisplayableQuartileIndexing = (item = {}) => {
+  const status = String(item.quartileVerificationStatus || item.quartile_verification_status || "").toLowerCase();
+
+  return Boolean(item.quartile)
+    && (
+      Boolean(item.quartileVerified ?? item.quartile_verified)
+      || status === "manual"
+      || !status
+    );
+};
+
+const getDisplayableQuartile = (row = {}) =>
+  row.quartile || (Array.isArray(row.indexing) ? row.indexing.find(isDisplayableQuartileIndexing)?.quartile : "") || "";
+
 const mapPublicationRow = (row = {}) => ({
   id: row.id || row.doi || row.title,
   doi: row.doi || "",
@@ -187,13 +201,16 @@ const mapPublicationRow = (row = {}) => ({
   isbn: row.isbn || "",
   correspondingAuthor: row.correspondingAuthor || row.corresponding_author || "",
   corresponding_author: row.correspondingAuthor || row.corresponding_author || "",
-  quartile: row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "",
+  quartile: getDisplayableQuartile(row),
   indexingPlatform: row.indexingPlatform || row.indexing_platform || row.indexing?.find?.((item) => item?.source)?.source || "",
   indexingCategory: row.indexingCategory || row.indexing_category || row.indexing?.find?.((item) => item?.category)?.category || "",
   indexingVerified: Boolean(row.indexingVerified ?? row.indexing_verified),
   indexingSource: row.indexingSource || row.indexing_source || "manual",
   sjr: row.sjr || row.indexing?.find?.((item) => item?.sjr)?.sjr || "",
   citeScore: row.citeScore || row.cite_score || row.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || row.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "",
+  quartileVerified: Boolean(row.quartileVerified ?? row.quartile_verified ?? row.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartileVerified ?? row.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartile_verified),
+  quartileSource: row.quartileSource || row.quartile_source || row.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartileSource || row.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartile_source || "manual",
+  quartileVerificationStatus: row.quartileVerificationStatus || row.quartile_verification_status || row.indexing?.find?.((item) => item?.quartileVerificationStatus || item?.quartile_verification_status)?.quartileVerificationStatus || row.indexing?.find?.((item) => item?.quartileVerificationStatus || item?.quartile_verification_status)?.quartile_verification_status || "empty",
   authors: Array.isArray(row.authors) ? row.authors : [],
   indexing: Array.isArray(row.indexing) ? row.indexing : [],
   attachments: Array.isArray(row.attachments) ? row.attachments : [],
@@ -1011,6 +1028,9 @@ export default function ProfessorDashboard() {
     const quartile = draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
     const sjr = draft.sjr || draft.indexing?.find?.((item) => item?.sjr)?.sjr || "";
     const citeScore = draft.citeScore || draft.cite_score || draft.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || draft.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "";
+    const quartileVerified = Boolean(draft.quartileVerified ?? draft.quartile_verified);
+    const quartileSource = quartileVerified ? draft.quartileSource || draft.quartile_source || draft.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartileSource || draft.indexing?.find?.((item) => item?.quartileVerified || item?.quartile_verified)?.quartile_source || "manual" : "manual";
+    const quartileVerificationStatus = draft.quartileVerificationStatus || draft.quartile_verification_status || (quartile ? "manual" : "empty");
     const indexingVerified = Boolean(draft.indexingVerified ?? draft.indexing_verified);
     const indexingSource = indexingVerified ? draft.indexingSource || draft.indexing_source || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.sourceKey || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.source_key || "manual" : "manual";
     const correspondingAuthor = draft.correspondingAuthor || draft.corresponding_author || getCorrespondingAuthorFromAuthors(authors);
@@ -1036,10 +1056,10 @@ export default function ProfessorDashboard() {
     });
     const indexing = Array.isArray(draft.indexing) && draft.indexing.length
       ? draft.indexing.map((item, index) => index === 0
-        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore }
+        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, quartileVerified: Boolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: Boolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource: item.quartileSource || item.quartile_source || quartileSource, quartile_source: item.quartileSource || item.quartile_source || quartileSource, quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore }
         : item)
       : indexingPlatform || indexingCategory || quartile || sjr || citeScore
-        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, sjr, citeScore }]
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore }]
         : [];
 
     delete payload.attachments;
@@ -1068,6 +1088,12 @@ export default function ProfessorDashboard() {
       indexing_source: indexingSource,
       indexing,
       quartile,
+      quartileVerified,
+      quartile_verified: quartileVerified,
+      quartileSource,
+      quartile_source: quartileSource,
+      quartileVerificationStatus,
+      quartile_verification_status: quartileVerificationStatus,
       sjr,
       citeScore,
       cite_score: citeScore,

@@ -1812,6 +1812,36 @@ body {
   letter-spacing: 0.01em;
 }
 
+.publication-form .prof-form-field > .publication-quartile-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.publication-quartile-verification-badge {
+  flex: 0 0 auto;
+  max-width: 180px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publication-quartile-verification-badge.verified {
+  background: #eef6ff;
+  color: #1d4d7d;
+}
+
+.publication-quartile-verification-badge.manual {
+  background: #fff7e8;
+  color: #92400e;
+}
+
 .publication-form .prof-form-field input,
 .publication-form .prof-form-field select {
   height: 48px;
