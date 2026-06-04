@@ -16,6 +16,8 @@ const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
 const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
+const VALID_INDEXING_PLATFORMS = new Set(["Scopus", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"]);
+const VALID_INDEXING_CATEGORIES = new Set(["Q1", "Q2", "Q3", "Q4", "SCIE", "SSCI", "AHCI", "Book/Chapter", "Other"]);
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -129,6 +131,32 @@ function supportsPublicationIndexing(publicationType) {
   return publicationType === "journal_article";
 }
 
+function normalizeIndexingPlatform(value) {
+  const text = normalizeText(value);
+  const comparable = text.toLowerCase();
+
+  if (!text) return "";
+  if (comparable.includes("scopus") || comparable.includes("citescore") || comparable.includes("scimago")) return "Scopus";
+  if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
+  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (comparable === "other") return "Other";
+
+  return text;
+}
+
+function normalizeIndexingCategory(value) {
+  const text = normalizeText(value);
+  const comparable = text.toLowerCase().replace(/\s+/g, "");
+
+  if (!text) return "";
+  if (/^q[1-4]$/i.test(text)) return text.toUpperCase();
+  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (["book/chapter", "bookchapter", "book", "chapter"].includes(comparable)) return "Book/Chapter";
+  if (comparable === "other") return "Other";
+
+  return text;
+}
+
 function parsePagination(query = {}) {
   const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 25, 1), MAX_LIMIT);
@@ -203,6 +231,39 @@ function normalizeIndexing(value) {
     .filter((item) => item.source || item.quartile || item.impactFactor || item.indexedUrl);
 }
 
+function deriveAuthorAffiliation(authors = [], fallback = "") {
+  return normalizeText(fallback)
+    || (Array.isArray(authors) ? authors.map((author) => normalizeText(author?.affiliation)).find(Boolean) : "")
+    || "";
+}
+
+function deriveIndexingPlatform(indexing = [], fallback = "") {
+  return normalizeIndexingPlatform(fallback)
+    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingPlatform(item?.source)).find(Boolean) : "")
+    || "";
+}
+
+function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
+  return normalizeIndexingCategory(fallback)
+    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingCategory(item?.quartile)).find(Boolean) : "")
+    || (publicationType === "book" ? "Book/Chapter" : "")
+    || "";
+}
+
+function normalizeIndexingInput(value, publicationType) {
+  const indexing = normalizeIndexing(value);
+  const platform = deriveIndexingPlatform(indexing);
+  const category = deriveIndexingCategory(indexing, publicationType);
+
+  return indexing.map((item, index) => index === 0
+    ? {
+        ...item,
+        source: item.source || platform,
+        quartile: item.quartile || category,
+      }
+    : item);
+}
+
 function getPrimaryQuartile(indexing = []) {
   const primary = (Array.isArray(indexing) ? indexing : [])
     .map((item) => normalizeText(item?.quartile))
@@ -255,7 +316,11 @@ function normalizeEvidenceLinks(value, errors) {
 function normalizePublicationPayload(body = {}, options = {}) {
   const hasIndexingInput =
     Object.prototype.hasOwnProperty.call(body, "indexing")
-    || Object.prototype.hasOwnProperty.call(body, "quartile");
+    || Object.prototype.hasOwnProperty.call(body, "quartile")
+    || Object.prototype.hasOwnProperty.call(body, "indexingPlatform")
+    || Object.prototype.hasOwnProperty.call(body, "indexing_platform")
+    || Object.prototype.hasOwnProperty.call(body, "indexingCategory")
+    || Object.prototype.hasOwnProperty.call(body, "indexing_category");
   const hasEvidenceLinksInput =
     Object.prototype.hasOwnProperty.call(body, "evidenceLinks")
     || Object.prototype.hasOwnProperty.call(body, "evidence_links")
@@ -326,15 +391,26 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const rawIndexing = supportsPublicationIndexing(publicationType)
     ? Array.isArray(body.indexing) && body.indexing.length
       ? body.indexing
-      : body.quartile
-        ? [{ source: body.indexingSource || body.indexing_source || "Scopus", quartile: body.quartile }]
+      : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
+        ? [{
+            source: body.indexingPlatform || body.indexing_platform || body.indexingSource || body.indexing_source || "Scopus",
+            quartile: body.indexingCategory || body.indexing_category || body.quartile,
+          }]
         : Array.isArray(body.indexing)
           ? body.indexing
           : []
-    : [];
+    : (body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
+      ? [{
+          source: body.indexingPlatform || body.indexing_platform,
+          quartile: body.indexingCategory || body.indexing_category,
+        }]
+      : [];
   const indexing = hasIndexingInput
-    ? normalizeIndexing(rawIndexing)
+    ? normalizeIndexingInput(rawIndexing, publicationType)
     : undefined;
+  const authorAffiliation = deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
+  const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
+  const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category || body.quartile);
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
     : undefined;
@@ -347,9 +423,40 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
   }
 
+  if (!authorAffiliation) {
+    errors.push({ field: "authorAffiliation", message: "Perkatesia e autorit / Affiliation eshte obligative." });
+  }
+
+  if (!indexingPlatform) {
+    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme eshte obligativ." });
+  } else if (!VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
+    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme nuk eshte valid." });
+  }
+
+  if (!indexingCategory) {
+    errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte obligative." });
+  } else if (!VALID_INDEXING_CATEGORIES.has(indexingCategory)) {
+    errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit nuk eshte valid." });
+  }
+
   if (correspondingAuthorCount > 1) {
     errors.push({ field: "authors", message: "Vetem nje autor mund te shenohet si autor korrespondent." });
   }
+
+  const authorsWithAffiliation = authors.map((author, index) => index === 0 && !author.affiliation
+    ? { ...author, affiliation: authorAffiliation }
+    : author);
+  const normalizedIndexing = indexing !== undefined
+    ? indexing.length
+      ? indexing.map((item, index) => index === 0
+        ? {
+            ...item,
+            source: item.source || indexingPlatform,
+            quartile: item.quartile || indexingCategory,
+          }
+        : item)
+      : [{ source: indexingPlatform, quartile: indexingCategory, impactFactor: "", indexedUrl: "" }]
+    : undefined;
 
   return {
     errors,
@@ -369,9 +476,12 @@ function normalizePublicationPayload(body = {}, options = {}) {
       pages: normalizeText(body.pages),
       issn: normalizeText(body.issn),
       isbn: normalizeText(body.isbn),
+      authorAffiliation,
+      indexingPlatform,
+      indexingCategory,
       status,
-      authors,
-      indexing,
+      authors: authorsWithAffiliation,
+      indexing: normalizedIndexing,
       evidenceLinks,
       attachments: evidenceLinks,
       hasIndexingInput,
@@ -421,6 +531,9 @@ function mapPublication(row) {
     indexedUrl: item.indexed_url || item.indexedUrl || "",
     indexed_url: item.indexed_url || item.indexedUrl || "",
   }));
+  const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
+  const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
+  const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
 
   return {
     id: row.id,
@@ -448,6 +561,13 @@ function mapPublication(row) {
     pages: row.pages || "",
     issn: row.issn || "",
     isbn: row.isbn || "",
+    authorAffiliation,
+    author_affiliation: authorAffiliation,
+    affiliation: authorAffiliation,
+    indexingPlatform,
+    indexing_platform: indexingPlatform,
+    indexingCategory,
+    indexing_category: indexingCategory,
     quartile: getPrimaryQuartile(indexing),
     authors: authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
@@ -530,7 +650,8 @@ function mapPublication(row) {
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
-  p.issue, p.pages, p.issn, p.isbn, p.metadata_source, p.metadata_verified,
+  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform, p.indexing_category,
+  p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
@@ -627,6 +748,9 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'pages',
          'issn',
          'isbn',
+         'author_affiliation',
+         'indexing_platform',
+         'indexing_category',
          'metadata_source',
          'metadata_verified',
          'external_metadata_id'
@@ -639,7 +763,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 14 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 17 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -742,6 +866,9 @@ async function ensurePublicationReviewSchema(client) {
   await client.query(`
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
     alter table publications add column if not exists conference_location text not null default '';
+    alter table publications add column if not exists author_affiliation text not null default '';
+    alter table publications add column if not exists indexing_platform text not null default '';
+    alter table publications add column if not exists indexing_category text not null default '';
     alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
     alter table publications add column if not exists metadata_review_comment text not null default '';
     alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
@@ -937,6 +1064,9 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     pages: metadata.pages || "",
     issn,
     isbn,
+    authorAffiliation: deriveAuthorAffiliation(metadataAuthors),
+    indexingPlatform: deriveIndexingPlatform(indexing),
+    indexingCategory: deriveIndexingCategory(indexing, publicationType),
     status: "draft",
     authors: metadataAuthors.map((author, index) =>
       metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)
@@ -1044,8 +1174,8 @@ async function createPublication(client, ownerId, values) {
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
       conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
-      metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      author_affiliation, indexing_platform, indexing_category, metadata_source, metadata_verified, external_metadata_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
      returning id`,
     [
       ownerId,
@@ -1065,6 +1195,9 @@ async function createPublication(client, ownerId, values) {
       values.issn,
       values.isbn,
       values.status,
+      values.authorAffiliation,
+      values.indexingPlatform,
+      values.indexingCategory,
       values.metadataSource,
       values.metadataVerified,
       values.externalMetadataId,
@@ -1326,9 +1459,12 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                issn = $16,
                isbn = $17,
                status = $18,
-               metadata_source = $19,
-               metadata_verified = $20,
-               external_metadata_id = $21,
+               author_affiliation = $19,
+               indexing_platform = $20,
+               indexing_category = $21,
+               metadata_source = $22,
+               metadata_verified = $23,
+               external_metadata_id = $24,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -1352,6 +1488,9 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.issn,
             values.isbn,
             values.status,
+            values.authorAffiliation,
+            values.indexingPlatform,
+            values.indexingCategory,
             values.metadataSource,
             values.metadataVerified,
             values.externalMetadataId,

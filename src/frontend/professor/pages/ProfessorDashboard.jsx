@@ -977,6 +977,9 @@ export default function ProfessorDashboard() {
   const buildPublicationPayload = (draft = {}) => {
     const payload = { ...draft };
     const authors = Array.isArray(draft.authors) ? draft.authors : [];
+    const authorAffiliation = draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
+    const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || draft.indexing?.find?.((item) => item?.source)?.source || "";
+    const indexingCategory = draft.indexingCategory || draft.indexing_category || draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
     const hasCorrespondingAuthor = authors.some((author) => Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author));
     const normalizedAuthors = authors.map((author, index) => {
       const isCorrespondingAuthor = Boolean(
@@ -987,10 +990,18 @@ export default function ProfessorDashboard() {
 
       return {
         ...author,
+        affiliation: index === 0 && !author.affiliation ? authorAffiliation : author.affiliation,
         isCorrespondingAuthor,
         is_corresponding_author: isCorrespondingAuthor,
       };
     });
+    const indexing = Array.isArray(draft.indexing) && draft.indexing.length
+      ? draft.indexing.map((item, index) => index === 0
+        ? { ...item, source: item.source || indexingPlatform, quartile: item.quartile || indexingCategory }
+        : item)
+      : indexingPlatform || indexingCategory
+        ? [{ source: indexingPlatform, quartile: indexingCategory }]
+        : [];
 
     delete payload.attachments;
     delete payload.evidenceLinks;
@@ -1004,8 +1015,14 @@ export default function ProfessorDashboard() {
       conference_location: draft.conferenceLocation || draft.conference_location || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: normalizedAuthors,
-      indexing: Array.isArray(draft.indexing) ? draft.indexing : [],
-      quartile: draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "",
+      authorAffiliation,
+      author_affiliation: authorAffiliation,
+      indexingPlatform,
+      indexing_platform: indexingPlatform,
+      indexingCategory,
+      indexing_category: indexingCategory,
+      indexing,
+      quartile: indexingCategory,
     };
   };
 

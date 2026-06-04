@@ -299,6 +299,9 @@ alter table publications add column if not exists issue text not null default ''
 alter table publications add column if not exists pages text not null default '';
 alter table publications add column if not exists issn text not null default '';
 alter table publications add column if not exists isbn text not null default '';
+alter table publications add column if not exists author_affiliation text not null default '';
+alter table publications add column if not exists indexing_platform text not null default '';
+alter table publications add column if not exists indexing_category text not null default '';
 alter table publications add column if not exists metadata_source text not null default 'manual';
 alter table publications add column if not exists metadata_verified boolean not null default false;
 alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
