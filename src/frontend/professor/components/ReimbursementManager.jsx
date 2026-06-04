@@ -1001,6 +1001,32 @@ function getBankByName(name) {
   return KOSOVO_BANKS.find((bank) => bank.name === name) || null;
 }
 
+function normalizeBankNameForMatch(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getBankBySavedName(name) {
+  const exactMatch = getBankByName(name);
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const normalizedName = normalizeBankNameForMatch(name);
+  return normalizedName
+    ? KOSOVO_BANKS.find((bank) => normalizeBankNameForMatch(bank.name) === normalizedName) || null
+    : null;
+}
+
+function getBankLogoBankForAccount(account = {}) {
+  return getBankBySavedName(account.bankName)
+    || detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
+}
+
 function isValidSwift(value) {
   return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(value ?? "").trim().toUpperCase());
 }
@@ -2985,6 +3011,7 @@ export default function ReimbursementManager({
 
   const renderBankAccountSelection = () => {
     const summary = selectedBankAccountSummary;
+    const summaryBank = summary ? getBankLogoBankForAccount(summary) : null;
 
     if (isLoadingBankAccounts) {
       return (
@@ -3028,7 +3055,11 @@ export default function ReimbursementManager({
             <span>{summary.isLegacy ? "Llogaria bankare e ruajtur ne kerkese" : "Detajet e llogarise"}</span>
             <div className="reimbursement-detected-bank" aria-live="polite">
               <span className="reimbursement-bank-logo">
-                <Landmark size={18} />
+                {summaryBank?.logoSrc ? (
+                  <img src={summaryBank.logoSrc} alt={`${summaryBank.name} logo`} />
+                ) : (
+                  <Landmark size={18} />
+                )}
               </span>
               <span>
                 <strong>{summary.bankName || "-"}</strong>
