@@ -115,7 +115,6 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "publicationType",
   "venue",
   "journal",
-  "publishedIn",
   "publisher",
   "publicationDate",
   "publicationYear",
@@ -139,7 +138,7 @@ const PUBLICATION_LABELS = {
   publicationTitle: "Titulli i punimit",
   mainAuthor: "Autori kryesor",
   publicationType: "Lloji i publikimit",
-  venue: "Publikuar ne",
+  venue: "Revista / Konferenca",
   publisher: "Botuesi",
   coauthors: "Bashkautorët",
   affiliation: "Përkatësia e autorit",
@@ -228,7 +227,6 @@ const DEFAULT_FORM_VALUES = {
   publicationType: "",
   venue: "",
   journal: "",
-  publishedIn: "",
   publisher: "",
   abstract: "",
   publicationYear: "",
@@ -630,64 +628,21 @@ function authorName(author = {}) {
 }
 
 function authorAffiliation(author = {}) {
-  const safeAuthor = author || {};
-  const rawValue = safeAuthor.affiliation
-    || safeAuthor.affiliations
-    || safeAuthor.institution
-    || safeAuthor.organization
-    || safeAuthor.currentAffiliation
-    || safeAuthor.current_affiliation
-    || "";
-  const values = Array.isArray(rawValue) ? rawValue : [rawValue];
-
-  return values
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return String(item || "").trim();
-      }
-
-      return String(item.name || item.affiliation || item.institution || item.organization || item.value || "").trim();
-    })
-    .filter(Boolean)
-    .join("; ");
-}
-
-function normalizeBoolean(value) {
-  return value === true || value === "true" || value === 1 || value === "1";
-}
-
-function isMainAuthor(author = {}) {
-  return normalizeBoolean(author?.isMainAuthor ?? author?.is_main_author);
-}
-
-function isCorrespondingAuthor(author = {}) {
-  return normalizeBoolean(
-    author?.isCorrespondingAuthor
-    ?? author?.is_corresponding_author
-    ?? author?.correspondingAuthor
-    ?? author?.corresponding_author
-    ?? author?.isCorresponding
-    ?? author?.is_corresponding
-    ?? author?.corresponding
-  );
+  return String((author || {}).affiliation || "").trim();
 }
 
 function getPublicationAuthorFields(publication, options = {}) {
   const authors = Array.isArray(publication?.authors) ? publication.authors : [];
   const coauthorSeparator = options.coauthorSeparator || "; ";
-  const mainAuthor = authors.find((author) => isMainAuthor(author)) || authors[0] || null;
-  const correspondingAuthor = authors.find((author) => isCorrespondingAuthor(author)) || mainAuthor;
+  const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
+  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
   const mainName = authorName(mainAuthor);
   const correspondingName = authorName(correspondingAuthor);
   const coauthors = authors
     .filter((author) => authorName(author) && authorName(author) !== mainName)
     .map(authorName)
     .join(coauthorSeparator);
-  const affiliation = publication?.authorAffiliation
-    || publication?.author_affiliation
-    || publication?.affiliation
-    || authorAffiliation(mainAuthor)
-    || authorAffiliation(authors.find((author) => authorAffiliation(author)));
+  const affiliation = authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author)));
 
   return {
     mainAuthor: mainName,
@@ -751,13 +706,7 @@ function applyPublicationToForm(prev, publication) {
 
   const authors = getPublicationAuthorFields(publication);
   const indexing = getPublicationIndexingFields(publication);
-  const venue = publication.venue
-    || publication.publishedIn
-    || publication.published_in
-    || publication.journal
-    || publication.containerTitle
-    || publication.container_title
-    || "";
+  const venue = publication.venue || publication.journal || "";
 
   return {
     ...prev,
@@ -767,7 +716,6 @@ function applyPublicationToForm(prev, publication) {
     publicationType: publication.publicationType || publication.publication_type || "",
     venue,
     journal: venue,
-    publishedIn: venue,
     conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
     abstract: publication.abstract || "",
@@ -831,15 +779,8 @@ function hasValue(value) {
 
 function buildSubmitFormData(formData) {
   const nextFormData = { ...formData };
-  const publishedIn = String(nextFormData.venue || nextFormData.publishedIn || nextFormData.published_in || nextFormData.journal || "").trim();
   delete nextFormData[RETIRED_REASON_FIELD];
   delete nextFormData.documentChecklist;
-
-  if (publishedIn) {
-    nextFormData.venue = publishedIn;
-    nextFormData.journal = publishedIn;
-    nextFormData.publishedIn = publishedIn;
-  }
 
   if (nextFormData.banking && typeof nextFormData.banking === "object" && !Array.isArray(nextFormData.banking)) {
     const nextBanking = { ...nextFormData.banking };

@@ -233,14 +233,7 @@ function normalizeIndexing(value) {
 
 function deriveAuthorAffiliation(authors = [], fallback = "") {
   return normalizeText(fallback)
-    || (Array.isArray(authors) ? authors.map((author) => normalizeAuthorAffiliation(
-      author?.affiliation
-      || author?.affiliations
-      || author?.institution
-      || author?.organization
-      || author?.currentAffiliation
-      || author?.current_affiliation
-    )).find(Boolean) : "")
+    || (Array.isArray(authors) ? authors.map((author) => normalizeText(author?.affiliation)).find(Boolean) : "")
     || "";
 }
 
@@ -541,7 +534,6 @@ function mapPublication(row) {
   const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
-  const venue = row.venue || "";
 
   return {
     id: row.id,
@@ -551,10 +543,9 @@ function mapPublication(row) {
     abstract: normalizeAbstractText(row.abstract),
     publicationType,
     publication_type: publicationType,
-    venue,
-    journal: venue,
-    publishedIn: venue,
-    published_in: venue,
+    venue: row.venue || "",
+    publishedIn: row.venue || "",
+    published_in: row.venue || "",
     conferenceLocation: row.conference_location || "",
     conference_location: row.conference_location || "",
     publisher: row.publisher || "",
@@ -586,20 +577,13 @@ function mapPublication(row) {
       familyName: author.family_name || author.familyName || "",
       family_name: author.family_name || author.familyName || "",
       orcid: author.orcid || "",
-      affiliation: normalizeAuthorAffiliation(
-        author.affiliation
-        || author.affiliations
-        || author.institution
-        || author.organization
-        || author.currentAffiliation
-        || author.current_affiliation
-      ) || (index === 0 ? authorAffiliation : ""),
+      affiliation: author.affiliation || "",
       authorOrder: author.author_order || author.authorOrder || index + 1,
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
       is_main_author: index === 0,
-      isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-      is_corresponding_author: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      isCorrespondingAuthor: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      is_corresponding_author: Boolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
     })),
     indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
@@ -1035,7 +1019,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       || author?.organization
     ),
     isMainAuthor: index === mainAuthorIndex,
-    isCorrespondingAuthor: normalizeBoolean(
+    isCorrespondingAuthor: Boolean(
       author?.isCorrespondingAuthor
       ?? author?.is_corresponding_author
       ?? author?.corresponding_author
