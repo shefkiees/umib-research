@@ -39,6 +39,16 @@ const STATUS_LABELS = {
 };
 
 const EMPTY_VALUE = "-";
+const APPLICANT_AUTO_FIELD_FALLBACKS = {
+  applicantName: "name",
+  applicantEmail: "email",
+  applicantFaculty: "faculty",
+  applicantDepartment: "department",
+  applicantOffice: "office",
+  applicantOrcidId: "orcidId",
+  academicTitle: "academicTitle",
+  scientificTitle: "scientificTitle",
+};
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -85,7 +95,14 @@ function valueOf(data, field) {
     return STATUS_LABELS[data.status] || data.status || "";
   }
 
-  return normalizeText(data.requestData?.[field] ?? data[field]);
+  const directValue = normalizeText(data.requestData?.[field] ?? data[field]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  const autoFallbackField = APPLICANT_AUTO_FIELD_FALLBACKS[field];
+  return autoFallbackField ? normalizeText(data.requestData?.auto?.[autoFallbackField]) : "";
 }
 
 function arrayText(items, formatter) {

@@ -396,6 +396,73 @@ function buildEditableAutoFields(user, formData) {
   };
 }
 
+const APPLICANT_PROFILE_FORM_FIELDS = [
+  "applicantName",
+  "applicantEmail",
+  "applicantFaculty",
+  "applicantDepartment",
+  "applicantOffice",
+  "applicantOrcidId",
+  "academicTitle",
+  "scientificTitle",
+];
+
+function usesServerApplicantSnapshot(requestType) {
+  return requestType === "publication" || requestType === "conference";
+}
+
+function stripApplicantProfileFields(formData) {
+  const next = { ...(formData || {}) };
+  APPLICANT_PROFILE_FORM_FIELDS.forEach((field) => {
+    delete next[field];
+  });
+  return next;
+}
+
+function buildApplicantSnapshot(user, fallbackData = {}) {
+  const profile = getCurrentUserProfile(user);
+
+  return {
+    applicantName: normalizeText(profile.name) || normalizeText(fallbackData.applicantName),
+    applicantEmail: normalizeText(profile.email) || normalizeText(fallbackData.applicantEmail),
+    applicantFaculty: normalizeText(profile.faculty) || normalizeText(fallbackData.applicantFaculty),
+    applicantDepartment: normalizeText(profile.department) || normalizeText(fallbackData.applicantDepartment),
+    applicantOffice: normalizeText(profile.office) || normalizeText(fallbackData.applicantOffice),
+    applicantOrcidId: normalizeText(profile.orcidId) || normalizeText(fallbackData.applicantOrcidId),
+    academicTitle: normalizeText(profile.academicTitle) || normalizeText(fallbackData.academicTitle),
+    scientificTitle: normalizeText(profile.scientificTitle) || normalizeText(fallbackData.scientificTitle),
+  };
+}
+
+function applyApplicantSnapshot(requestType, formData, user, fallbackData = {}) {
+  if (!usesServerApplicantSnapshot(requestType)) {
+    return formData || {};
+  }
+
+  return {
+    ...stripApplicantProfileFields(formData),
+    ...buildApplicantSnapshot(user, fallbackData),
+  };
+}
+
+function getApplicantSnapshotValidationError(requestType, formData) {
+  if (!usesServerApplicantSnapshot(requestType)) {
+    return null;
+  }
+
+  const missingRequiredProfileFields = ["applicantName", "applicantEmail", "applicantFaculty"]
+    .filter((field) => !hasMeaningfulValue(formData?.[field]));
+
+  if (!missingRequiredProfileFields.length) {
+    return null;
+  }
+
+  return {
+    field: "profile",
+    message: "Ju lutem plotesoni emrin, email-in dhe njesine akademike ne profil para aplikimit.",
+  };
+}
+
 async function loadCurrentUser(userId) {
   const result = await db.query(
     `select id, google_id, orcid_id, email, full_name, role, faculty, department, office,
@@ -1599,23 +1666,26 @@ router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const formData = sanitizeRequestData(req.body?.formData);
-  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft: false });
-
-  if (validationErrors.length) {
-    res.status(400).json({
-      error: "validation_failed",
-      message: validationErrors[0].message,
-      errors: validationErrors,
-    });
-    return;
-  }
-
   try {
     const user = await loadCurrentUser(req.user.id);
 
     if (!user) {
       res.status(404).json({ error: "user_not_found" });
+      return;
+    }
+
+    const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+    const profileValidationError = getApplicantSnapshotValidationError(requestType, formData);
+    const validationErrors = profileValidationError
+      ? [profileValidationError]
+      : validateReimbursementPayload(requestType, formData, { asDraft: false });
+
+    if (validationErrors.length) {
+      res.status(400).json({
+        error: "validation_failed",
+        message: validationErrors[0].message,
+        errors: validationErrors,
+      });
       return;
     }
 
@@ -1664,8 +1734,19 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
   const action = normalizeText(req.body?.action || req.body?.status || "submit");
   const asDraft = action === "draft";
   const requiresAttachmentBeforeSubmit = !asDraft;
-  const formData = sanitizeRequestData(req.body?.formData);
-  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft });
+
+  const user = await loadCurrentUser(req.user.id);
+
+  if (!user) {
+    res.status(404).json({ error: "user_not_found" });
+    return;
+  }
+
+  const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+  const profileValidationError = asDraft ? null : getApplicantSnapshotValidationError(requestType, formData);
+  const validationErrors = profileValidationError
+    ? [profileValidationError]
+    : validateReimbursementPayload(requestType, formData, { asDraft });
 
   if (validationErrors.length) {
     res.status(400).json({
@@ -1673,13 +1754,6 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
       message: validationErrors[0].message,
       errors: validationErrors,
     });
-    return;
-  }
-
-  const user = await loadCurrentUser(req.user.id);
-
-  if (!user) {
-    res.status(404).json({ error: "user_not_found" });
     return;
   }
 
@@ -1760,19 +1834,8 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const formData = sanitizeRequestData(req.body?.formData);
   const action = normalizeText(req.body?.action || "draft");
   const isSubmit = action === "submit";
-  const validationErrors = validateReimbursementPayload(requestType, formData, { asDraft: !isSubmit });
-
-  if (validationErrors.length) {
-    res.status(400).json({
-      error: "validation_failed",
-      message: validationErrors[0].message,
-      errors: validationErrors,
-    });
-    return;
-  }
 
   const user = await loadCurrentUser(req.user.id);
 
@@ -1787,7 +1850,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     await client.query("begin");
 
     const currentResult = await client.query(
-      `select id, owner_id, status
+      `select id, owner_id, status, request_data
        from reimbursements
        where id = $1
        for update`,
@@ -1807,6 +1870,22 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       res.status(409).json({
         error: "not_editable",
         message: "Kerkesa mund te editohet vetem kur eshte draft ose e kthyer per korrigjim.",
+      });
+      return;
+    }
+
+    const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user, current.request_data || {});
+    const profileValidationError = isSubmit ? getApplicantSnapshotValidationError(requestType, formData) : null;
+    const validationErrors = profileValidationError
+      ? [profileValidationError]
+      : validateReimbursementPayload(requestType, formData, { asDraft: !isSubmit });
+
+    if (validationErrors.length) {
+      await client.query("rollback");
+      res.status(400).json({
+        error: "validation_failed",
+        message: validationErrors[0].message,
+        errors: validationErrors,
       });
       return;
     }
@@ -1922,7 +2001,19 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const validationErrors = validateReimbursementPayload(current.request_type, current.request_data || {}, { asDraft: false });
+    const user = await loadCurrentUser(req.user.id);
+
+    if (!user) {
+      await client.query("rollback");
+      res.status(404).json({ error: "user_not_found" });
+      return;
+    }
+
+    const requestData = applyApplicantSnapshot(current.request_type, current.request_data || {}, user, current.request_data || {});
+    const profileValidationError = getApplicantSnapshotValidationError(current.request_type, requestData);
+    const validationErrors = profileValidationError
+      ? [profileValidationError]
+      : validateReimbursementPayload(current.request_type, requestData, { asDraft: false });
 
     if (validationErrors.length) {
       await client.query("rollback");
@@ -1948,13 +2039,14 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
     const updateResult = await client.query(
       `update reimbursements
        set status = 'submitted',
+           request_data = $2::jsonb,
            submitted_at = coalesce(submitted_at, now()),
            updated_at = now()
        where id = $1
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
                  publication_id, conference_id,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
-      [current.id]
+      [current.id, JSON.stringify(requestData)]
     );
 
     const withDocuments = await createGeneratedDocuments(client, updateResult.rows[0]);
