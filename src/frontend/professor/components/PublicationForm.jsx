@@ -446,11 +446,6 @@ const PublicationForm = ({
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
-  const indexingVerified = Boolean(value.indexingVerified ?? value.indexing_verified);
-  const indexingSource = normalizeIndexingSource(value.indexingSource || value.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source);
-  const indexingSourceLabel = indexingVerified
-    ? t(`professor.dashboard.publicationForm.indexingSource.${indexingSource}`)
-    : t("professor.dashboard.publicationForm.indexingSource.manual");
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -719,12 +714,7 @@ const PublicationForm = ({
           <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} />
         </label>
         <label className="prof-form-field">
-          <span className="publication-indexing-label">
-            <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
-            <span className={`publication-indexing-source-badge ${indexingVerified ? indexingSource : "manual"}`}>
-              {indexingSourceLabel}
-            </span>
-          </span>
+          <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
           <select
             value={value.indexingPlatform || primaryIndexing.source || ""}
             onChange={updateIndexingField("indexingPlatform")}
