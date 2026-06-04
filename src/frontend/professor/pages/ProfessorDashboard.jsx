@@ -2113,7 +2113,7 @@ export default function ProfessorDashboard() {
     return (
       <div className="publication-revision-notice">
         <span className="publication-revision-icon" aria-hidden="true">
-          <AlertTriangle size={15} />
+          <AlertTriangle size={13} />
         </span>
         <div>
           <strong>Publikimi kerkon korrigjim</strong>
@@ -2178,7 +2178,7 @@ export default function ProfessorDashboard() {
         {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
           <button
             type="button"
-            className="prof-btn-primary publication-action-btn publication-action-btn--primary"
+            className="prof-btn-primary publication-action-btn publication-action-btn--review"
             onClick={() => openPublicationEditForm(row)}
             disabled={publicationActionId === row.id}
             aria-label="Rishiko"
@@ -2260,7 +2260,7 @@ export default function ProfessorDashboard() {
           ))}
         </div>
       ) : (
-        <div className="prof-stats-empty">{t("professor.dashboard.noData")}</div>
+        <div className="prof-stats-empty publication-list-empty">{t("professor.dashboard.noData")}</div>
       )}
     </article>
   );
