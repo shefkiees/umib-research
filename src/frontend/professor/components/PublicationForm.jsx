@@ -23,7 +23,6 @@ const REVIEW_STATUS_OPTIONS = [
 ];
 
 const INDEXING_PLATFORM_OPTIONS = ["", "Scopus", "SCImago", "OpenAlex", "DOAJ", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"];
-const INDEXING_CATEGORY_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "SCIE", "SSCI", "AHCI", "Book/Chapter", "Other"];
 const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
 
 const EMPTY_AUTHOR = {
@@ -575,11 +574,6 @@ const PublicationForm = ({
       return;
     }
 
-    if (!String(value.indexingCategory || primaryIndexing.quartile || "").trim()) {
-      setFormError(t("professor.dashboard.publicationForm.indexingCategoryRequired"));
-      return;
-    }
-
     if (value.publicationType === "conference_paper" && !String(value.conferenceLocation || "").trim()) {
       setFormError(t("professor.dashboard.publicationForm.conferenceLocationRequired"));
       return;
@@ -630,12 +624,6 @@ const PublicationForm = ({
       </div>
 
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
-      {isDoiImported ? (
-        <p className="publication-form-message">
-          Disa fusha nuk gjenden gjithmonë në metadata të DOI-së. Plotësoni manualisht fushat që mbeten bosh.
-        </p>
-      ) : null}
-
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
           <span>{t("professor.dashboard.publicationForm.title")}</span>
@@ -713,24 +701,6 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.indexingCategory")}</span>
-          <input
-            value={value.indexingCategory || primaryIndexing.category || ""}
-            onChange={updateIndexingField("indexingCategory")}
-            list="publication-indexing-category-options"
-            placeholder={t("professor.dashboard.publicationForm.indexingCategoryPlaceholder")}
-            required
-            readOnly={isFieldLocked("indexingCategory")}
-          />
-          <datalist id="publication-indexing-category-options">
-            {INDEXING_CATEGORY_OPTIONS.map((option) => (
-              <option key={option || "empty-category"} value={option}>
-                {option || t("professor.dashboard.publicationForm.selectIndexingCategory")}
-              </option>
-            ))}
-          </datalist>
-        </label>
-        <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.quartile")}</span>
           <select
             value={value.quartile || primaryIndexing.quartile || ""}
@@ -743,15 +713,6 @@ const PublicationForm = ({
               </option>
             ))}
           </select>
-        </label>
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.sjr")}</span>
-          <input
-            value={value.sjr || primaryIndexing.sjr || ""}
-            onChange={updateIndexingField("sjr")}
-            placeholder="0.000"
-            readOnly={isFieldLocked("sjr")}
-          />
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.citeScore")}</span>

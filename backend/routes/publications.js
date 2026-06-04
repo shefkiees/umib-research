@@ -502,9 +502,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme nuk eshte valid." });
   }
 
-  if (!indexingCategory) {
-    errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte obligative." });
-  } else if (indexingCategory.length > 200) {
+  if (indexingCategory.length > 200) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte shume e gjate." });
   }
 
