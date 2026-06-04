@@ -1206,7 +1206,28 @@ body {
 }
 
 .prof-bank-account-main {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.prof-bank-account-logo {
+  width: 46px;
+  height: 30px;
+  padding: 4px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.prof-bank-account-logo img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .prof-bank-account-title-row {

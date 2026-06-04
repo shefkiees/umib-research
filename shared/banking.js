@@ -1,14 +1,14 @@
 export const KOSOVO_BANKS = [
-  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["1701", "17"] },
-  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["1101", "11"] },
-  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["1503", "1212", "1201", "12"] },
-  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["1501", "15"] },
-  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["1301", "13"] },
-  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["1601", "16"] },
-  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["1801", "18"] },
-  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["1901", "19"] },
-  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["2101", "21"] },
-  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"] },
+  { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["1701", "17"], logoSrc: "/bank-logos/bkt.svg" },
+  { name: "ProCredit Bank Kosovo", swift: "MBKOXKPR", ibanCodes: ["1101", "11"], logoSrc: "/bank-logos/procredit.png" },
+  { name: "Raiffeisen Bank Kosovo", swift: "RBKOXKPR", ibanCodes: ["1503", "1212", "1201", "12"], logoSrc: "/bank-logos/raiffeisen.svg" },
+  { name: "TEB Bank Kosovo", swift: "TEBKXKPR", ibanCodes: ["1501", "15"], logoSrc: "/bank-logos/teb.svg" },
+  { name: "NLB Banka", swift: "NLPRXKPR", ibanCodes: ["1301", "13"], logoSrc: "/bank-logos/nlb.png" },
+  { name: "Banka per Biznes", swift: "BPBXXKPR", ibanCodes: ["1601", "16"], logoSrc: "/bank-logos/bpb.svg" },
+  { name: "Ziraat Bank Kosovo", swift: "TCZBXKPR", ibanCodes: ["1801", "18"], logoSrc: "/bank-logos/ziraat.svg" },
+  { name: "Isbank Kosovo", swift: "ISBKXKPR", ibanCodes: ["1901", "19"], logoSrc: "/bank-logos/isbank.svg" },
+  { name: "PriBank", swift: "PHHAXKPR", ibanCodes: ["2101", "21"], logoSrc: "/bank-logos/pribank.svg" },
+  { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"], logoSrc: "/bank-logos/economic.jpg" },
 ];
 
 export function normalizeBankAccountIdentifier(value) {

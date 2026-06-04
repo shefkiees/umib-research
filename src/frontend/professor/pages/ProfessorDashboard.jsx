@@ -2726,45 +2726,54 @@ export default function ProfessorDashboard() {
                   <p className="prof-bank-empty">{t("common.loading")}</p>
                 ) : bankAccounts.length ? (
                   <div className="prof-bank-account-list">
-                    {bankAccounts.map((account) => (
-                      <article className="prof-bank-account-card" key={account.id}>
-                        <div className="prof-bank-account-main">
-                          <div className="prof-bank-account-title-row">
-                            <strong>{account.bankName || settingsText.bankAccountsTitle}</strong>
-                            {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
+                    {bankAccounts.map((account) => {
+                      const cardBank = detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
+
+                      return (
+                        <article className="prof-bank-account-card" key={account.id}>
+                          {cardBank?.logoSrc ? (
+                            <span className="prof-bank-account-logo">
+                              <img src={cardBank.logoSrc} alt={`${cardBank.name} logo`} />
+                            </span>
+                          ) : null}
+                          <div className="prof-bank-account-main">
+                            <div className="prof-bank-account-title-row">
+                              <strong>{account.bankName || settingsText.bankAccountsTitle}</strong>
+                              {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
+                            </div>
+                            <p>{[maskBankAccount(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
                           </div>
-                          <p>{[maskBankAccount(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
-                        </div>
-                        <div className="prof-bank-account-card-actions">
-                          {!account.isDefault ? (
+                          <div className="prof-bank-account-card-actions">
+                            {!account.isDefault ? (
+                              <button
+                                type="button"
+                                className="prof-bank-text-btn"
+                                onClick={() => handleBankAccountSetDefault(account.id)}
+                                disabled={bankAccountActionId === account.id}
+                              >
+                                {settingsText.bankSetDefault}
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="prof-bank-text-btn"
-                              onClick={() => handleBankAccountSetDefault(account.id)}
+                              onClick={() => startBankAccountEdit(account)}
                               disabled={bankAccountActionId === account.id}
                             >
-                              {settingsText.bankSetDefault}
+                              {settingsText.bankEdit}
                             </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="prof-bank-text-btn"
-                            onClick={() => startBankAccountEdit(account)}
-                            disabled={bankAccountActionId === account.id}
-                          >
-                            {settingsText.bankEdit}
-                          </button>
-                          <button
-                            type="button"
-                            className="prof-bank-danger-btn"
-                            onClick={() => requestBankAccountDelete(account)}
-                            disabled={bankAccountActionId === account.id}
-                          >
-                            {settingsText.bankDelete}
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                            <button
+                              type="button"
+                              className="prof-bank-danger-btn"
+                              onClick={() => requestBankAccountDelete(account)}
+                              disabled={bankAccountActionId === account.id}
+                            >
+                              {settingsText.bankDelete}
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="prof-bank-empty">{settingsText.bankAccountsEmpty}</p>
