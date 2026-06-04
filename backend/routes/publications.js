@@ -192,15 +192,6 @@ function normalizeAuthors(value) {
           || author.organization
         ),
         isMainAuthor: index === 0,
-        isCorrespondingAuthor: normalizeBoolean(
-          author.is_corresponding_author
-          ?? author.corresponding_author
-          ?? author.isCorrespondingAuthor
-          ?? author.correspondingAuthor
-          ?? author.is_corresponding
-          ?? author.isCorresponding
-          ?? author.corresponding
-        ),
         authorOrder: index + 1,
       };
     })
@@ -458,7 +449,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const metadataVerified = normalizeBoolean(body.metadataVerified ?? body.metadata_verified) || metadataSource === "doi";
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
-  const correspondingAuthorCount = authors.filter((author) => author.isCorrespondingAuthor).length;
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
@@ -474,10 +464,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte obligative." });
   } else if (!VALID_INDEXING_CATEGORIES.has(indexingCategory)) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit nuk eshte valid." });
-  }
-
-  if (correspondingAuthorCount !== 1) {
-    errors.push({ field: "authors", message: "Zgjidh sakte nje autor korrespondent." });
   }
 
   const authorsWithAffiliation = authors.map((author, index) => index === 0 && !author.affiliation
@@ -657,8 +643,6 @@ function mapPublication(row) {
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
       is_main_author: index === 0,
-      isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-      is_corresponding_author: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
     })),
     indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
@@ -741,7 +725,6 @@ const PUBLICATION_SELECT_SQL = `
       'orcid', pa.orcid,
       'affiliation', pa.affiliation,
       'is_main_author', pa.is_main_author,
-      'is_corresponding_author', pa.is_corresponding_author,
       'author_order', coalesce(pa.author_order, pa.position)
     ) order by coalesce(pa.author_order, pa.position), pa.created_at)
     from publication_authors pa
@@ -856,8 +839,8 @@ async function replacePublicationChildren(client, publicationId, values) {
     const authorOrder = index + 1;
     await client.query(
       `insert into publication_authors
-       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, is_corresponding_author, position, author_order)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, position, author_order)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         publicationId,
         author.fullName,
@@ -866,7 +849,6 @@ async function replacePublicationChildren(client, publicationId, values) {
         author.orcid,
         author.affiliation,
         authorOrder === 1,
-        author.isCorrespondingAuthor,
         authorOrder,
         authorOrder,
       ]
@@ -1079,7 +1061,6 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       orcid: "",
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
-      isCorrespondingAuthor: false,
       authorOrder: index + 1,
     };
   }
@@ -1096,15 +1077,6 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       || author?.organization
     ),
     isMainAuthor: index === mainAuthorIndex,
-    isCorrespondingAuthor: Boolean(
-      author?.isCorrespondingAuthor
-      ?? author?.is_corresponding_author
-      ?? author?.corresponding_author
-      ?? author?.correspondingAuthor
-      ?? author?.is_corresponding
-      ?? author?.isCorresponding
-      ?? author?.corresponding
-    ),
     authorOrder: index + 1,
   };
 }

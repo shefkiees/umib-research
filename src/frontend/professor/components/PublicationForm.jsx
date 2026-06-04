@@ -31,7 +31,6 @@ const EMPTY_AUTHOR = {
   familyName: "",
   orcid: "",
   affiliation: "",
-  isCorrespondingAuthor: false,
 };
 
 export const createEmptyPublicationDraft = () => ({
@@ -67,15 +66,6 @@ export const createEmptyPublicationDraft = () => ({
 function normalizePublicationAuthors(authors = []) {
   const normalizedAuthors = authors.map((author) => (typeof author === "string" ? { fullName: author } : author || {}));
   const mainAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isMainAuthor ?? author.is_main_author));
-  const correspondingAuthorIndex = normalizedAuthors.findIndex((author) => normalizeBoolean(
-    author.isCorrespondingAuthor
-    ?? author.is_corresponding_author
-    ?? author.correspondingAuthor
-    ?? author.corresponding_author
-    ?? author.isCorresponding
-    ?? author.is_corresponding
-    ?? author.corresponding
-  ));
 
   return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
@@ -86,7 +76,6 @@ function normalizePublicationAuthors(authors = []) {
       affiliation: normalizeAuthorAffiliation(normalizedAuthor),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
-      isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
     };
   });
 }
@@ -111,10 +100,6 @@ function normalizeAuthorAffiliation(author = {}) {
     })
     .filter(Boolean)
     .join("; ");
-}
-
-function normalizeBoolean(value) {
-  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 function normalizeFieldSources(value = {}) {
@@ -287,15 +272,6 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     affiliation: normalizeAuthorAffiliation(normalizedAuthor),
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
-    isCorrespondingAuthor: normalizeBoolean(
-      normalizedAuthor.isCorrespondingAuthor
-      ?? normalizedAuthor.is_corresponding_author
-      ?? normalizedAuthor.correspondingAuthor
-      ?? normalizedAuthor.corresponding_author
-      ?? normalizedAuthor.isCorresponding
-      ?? normalizedAuthor.is_corresponding
-      ?? normalizedAuthor.corresponding
-    ),
   };
 }
 
@@ -452,21 +428,6 @@ const PublicationForm = ({
     setFormError("");
   };
 
-  const setCorrespondingAuthor = (index, checked) => {
-    const authors = value.authors || [];
-    const nextAuthors = authors.map((author, authorIndex) => ({
-      ...author,
-      isCorrespondingAuthor: checked ? authorIndex === index : authorIndex === index ? false : Boolean(author.isCorrespondingAuthor),
-    }));
-
-    onChange({
-      ...value,
-      authors: nextAuthors,
-      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
-    });
-    setFormError("");
-  };
-
   const removeAuthor = (index) => {
     const nextAuthors = (value.authors || []).filter((_, authorIndex) => authorIndex !== index);
 
@@ -559,11 +520,6 @@ const PublicationForm = ({
 
     if (!validAuthors.length) {
       setFormError(t("professor.dashboard.publicationForm.authorRequired"));
-      return;
-    }
-
-    if (validAuthors.filter((author) => Boolean(author.isCorrespondingAuthor)).length !== 1) {
-      setFormError(t("professor.dashboard.publicationForm.correspondingAuthorRequired"));
       return;
     }
 
@@ -756,15 +712,6 @@ const PublicationForm = ({
               readOnly={isFieldLocked("authors")}
             />
           </label>
-          <label className="publication-corresponding-field">
-            <input
-              type="checkbox"
-              checked={Boolean(primaryAuthor.isCorrespondingAuthor)}
-              onChange={(event) => setCorrespondingAuthor(0, event.target.checked)}
-            />
-            <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-          </label>
-
           <div className="publication-coauthors-block">
             <div className="publication-coauthors-header">
               <span>{t("professor.dashboard.publicationForm.coauthors")}</span>
@@ -789,14 +736,6 @@ const PublicationForm = ({
                         placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
                         readOnly={isFieldLocked("authors")}
                       />
-                      <label className="publication-corresponding-field">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(author.isCorrespondingAuthor)}
-                          onChange={(event) => setCorrespondingAuthor(authorIndex, event.target.checked)}
-                        />
-                        <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-                      </label>
                       {!isFieldLocked("authors") ? (
                         <button
                           type="button"

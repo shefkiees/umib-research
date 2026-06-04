@@ -983,16 +983,15 @@ export default function ProfessorDashboard() {
     const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || draft.indexing?.find?.((item) => item?.source)?.source || "";
     const indexingCategory = draft.indexingCategory || draft.indexing_category || draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
     const normalizedAuthors = authors.map((author, index) => {
-      const isCorrespondingAuthor = Boolean(
-        author?.isCorrespondingAuthor
-        ?? author?.is_corresponding_author
-      );
+      const authorPayload = { ...(author || {}) };
+      delete authorPayload.isCorrespondingAuthor;
+      delete authorPayload.is_corresponding_author;
+      delete authorPayload.correspondingAuthor;
+      delete authorPayload.corresponding_author;
 
       return {
-        ...author,
-        affiliation: index === 0 && !author.affiliation ? authorAffiliation : author.affiliation,
-        isCorrespondingAuthor,
-        is_corresponding_author: isCorrespondingAuthor,
+        ...authorPayload,
+        affiliation: index === 0 && !authorPayload.affiliation ? authorAffiliation : authorPayload.affiliation,
       };
     });
     const indexing = Array.isArray(draft.indexing) && draft.indexing.length

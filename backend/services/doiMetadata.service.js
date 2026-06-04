@@ -463,7 +463,6 @@ function mapMetadata(data, doi) {
           orcid: normalizeOrcid(author.ORCID || author.orcid),
           affiliation: normalizeAffiliations(author.affiliation),
           isMainAuthor: index === 0,
-          isCorrespondingAuthor: false,
           position: index + 1,
         };
       })
