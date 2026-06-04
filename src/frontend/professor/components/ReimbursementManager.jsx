@@ -1193,7 +1193,15 @@ function ReimbursementHistoryList({
   );
 }
 
-export default function ReimbursementManager({ profile, searchQuery = "", fallbackRows = [], view = "create", onNavigate }) {
+export default function ReimbursementManager({
+  profile,
+  searchQuery = "",
+  fallbackRows = [],
+  view = "create",
+  reimbursementTypeTarget = null,
+  onTypeChange,
+  onNavigate,
+}) {
   const { t, tx } = useLanguage();
   const r = t("professor.reimbursements");
   const [selectedType, setSelectedType] = useState("publication");
@@ -1608,7 +1616,7 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     }));
   };
 
-  const handleTypeSelect = (typeId) => {
+  const applyTypeSelection = (typeId) => {
     setSelectedType(typeId);
     setForm((prev) => ({
       ...prev,
@@ -1617,7 +1625,30 @@ export default function ReimbursementManager({ profile, searchQuery = "", fallba
     setFieldErrors({});
     setError("");
     setSuccess(null);
+    onTypeChange?.(typeId);
   };
+
+  const handleTypeSelect = (typeId) => {
+    applyTypeSelection(typeId);
+  };
+
+  useEffect(() => {
+    const targetType = typeof reimbursementTypeTarget === "string"
+      ? reimbursementTypeTarget
+      : reimbursementTypeTarget?.type;
+
+    if (
+      view !== "create" ||
+      editingRequest ||
+      !targetType ||
+      selectedType === targetType ||
+      !REQUEST_TYPES.some((type) => type.id === targetType)
+    ) {
+      return;
+    }
+
+    applyTypeSelection(targetType);
+  }, [editingRequest, reimbursementTypeTarget, selectedType, view]);
 
   const handlePublicationSelect = (event) => {
     const publicationId = event.target.value;

@@ -13,13 +13,13 @@ import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 import { useLanguage } from "../../i18n/LanguageContext";
 
-export default function Sidebar({ activePage, onNavigate, setActivePage, onLogout }) {
+export default function Sidebar({ activePage, activeReimbursementType = "", onNavigate, setActivePage, onLogout }) {
   const { t } = useLanguage();
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const reimbursementSubmenu = [
-    { name: "Publikime Shkencore", target: "Rimbursime" },
-    { name: "Konferenca dhe Simpoziume", target: "Rimbursime" },
+    { name: "Publikime Shkencore", target: "Rimbursime", reimbursementType: "publication" },
+    { name: "Konferenca dhe Simpoziume", target: "Rimbursime", reimbursementType: "conference" },
   ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
@@ -57,7 +57,10 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
   const handleReimbursementSubmenuClick = (submenuItem) => {
     setIsReimbursementMenuOpen(true);
     setActiveReimbursementSubmenu(submenuItem.name);
-    handleNavigate(submenuItem.target);
+    handleNavigate({
+      page: submenuItem.target,
+      reimbursementType: submenuItem.reimbursementType,
+    });
   };
 
   return (
@@ -99,7 +102,9 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
                       key={submenuItem.name}
                       type="button"
                       className={`prof-sidebar-sublink ${
-                        activeReimbursementSubmenu === submenuItem.name ? "active" : ""
+                        activeReimbursementType
+                          ? activeReimbursementType === submenuItem.reimbursementType ? "active" : ""
+                          : activeReimbursementSubmenu === submenuItem.name ? "active" : ""
                       }`}
                       onClick={() => handleReimbursementSubmenuClick(submenuItem)}
                     >

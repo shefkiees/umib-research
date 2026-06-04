@@ -498,6 +498,8 @@ export default function ProfessorDashboard() {
 
 
   const [activePage, setActivePage] = useState("Statistika");
+  const [reimbursementTypeTarget, setReimbursementTypeTarget] = useState({ type: "", requestId: 0 });
+  const [activeReimbursementType, setActiveReimbursementType] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [periodRange, setPeriodRange] = useState("6m");
   const [profile, setProfile] = useState(professorProfile);
@@ -1065,6 +1067,27 @@ export default function ProfessorDashboard() {
     [filteredStatisticsChartData]
   );
 
+  const handleDashboardNavigate = (destination) => {
+    if (destination && typeof destination === "object") {
+      const reimbursementType = destination.reimbursementType || "";
+
+      setReimbursementTypeTarget((prev) => ({
+        type: reimbursementType,
+        requestId: prev.requestId + 1,
+      }));
+      setActiveReimbursementType(reimbursementType);
+      setActivePage(destination.page || "Statistika");
+      return;
+    }
+
+    if (destination !== "Rimbursime") {
+      setReimbursementTypeTarget((prev) => ({ type: "", requestId: prev.requestId + 1 }));
+      setActiveReimbursementType("");
+    }
+
+    setActivePage(destination);
+  };
+
   const handleMenuAction = (action) => {
     const normalizedAction = String(action || "").trim().toLowerCase();
 
@@ -1086,21 +1109,21 @@ export default function ProfessorDashboard() {
     }
 
     if (normalizedAction === "settings") {
-      setActivePage("Settings");
+      handleDashboardNavigate("Settings");
       return;
     }
 
     if (normalizedAction === "integrime") {
-      setActivePage("Integrime");
+      handleDashboardNavigate("Integrime");
       return;
     }
 
     if (normalizedAction === "njoftime" || normalizedAction === "notifications") {
-      setActivePage("Njoftime");
+      handleDashboardNavigate("Njoftime");
       return;
     }
 
-    setActivePage(action);
+    handleDashboardNavigate(action);
   };
 
   const handleProfileFieldChange = (field) => (event) => {
@@ -2399,7 +2422,9 @@ export default function ProfessorDashboard() {
             profile={profile}
             searchQuery={searchQuery}
             view="create"
-            onNavigate={setActivePage}
+            reimbursementTypeTarget={reimbursementTypeTarget}
+            onTypeChange={setActiveReimbursementType}
+            onNavigate={handleDashboardNavigate}
           />
         );
 
@@ -2409,7 +2434,7 @@ export default function ProfessorDashboard() {
             profile={profile}
             searchQuery={searchQuery}
             view="history"
-            onNavigate={setActivePage}
+            onNavigate={handleDashboardNavigate}
           />
         );
 
@@ -2649,7 +2674,8 @@ export default function ProfessorDashboard() {
     <div className="prof-layout">
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
+        activeReimbursementType={activeReimbursementType}
+        onNavigate={handleDashboardNavigate}
         onLogout={handleLogout}
       />
 
