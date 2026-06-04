@@ -460,6 +460,12 @@ function hasText(value) {
   return normalizeText(value) !== "";
 }
 
+function normalizeMetadataBoolean(value) {
+  const text = normalizeComparableText(value);
+
+  return value === true || value === 1 || ["true", "1", "yes", "y"].includes(text);
+}
+
 export function normalizeAbstractText(value) {
   return normalizeText(value)
     .replace(/<[^>]+>/g, " ")
@@ -783,6 +789,13 @@ function mapMetadata(data, doi) {
           orcid: normalizeOrcid(author.ORCID || author.orcid),
           affiliation: normalizeAffiliations(author.affiliation),
           isMainAuthor: index === 0,
+          isCorrespondingAuthor: normalizeMetadataBoolean(
+            author.corresponding
+            ?? author.isCorrespondingAuthor
+            ?? author.is_corresponding_author
+            ?? author["corresponding-author"]
+            ?? author["is-corresponding-author"]
+          ),
           position: index + 1,
         };
       })
@@ -1061,6 +1074,7 @@ function mapOpenAlexWork(data = {}, doi) {
         orcid: normalizeOrcid(author.orcid),
         affiliation: normalizeAffiliations(authorship.institutions?.map((institution) => institution.display_name)),
         isMainAuthor: index === 0,
+        isCorrespondingAuthor: normalizeMetadataBoolean(authorship.is_corresponding || authorship.corresponding),
         position: index + 1,
       };
     })

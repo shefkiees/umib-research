@@ -272,18 +272,6 @@ function deriveAuthorAffiliation(authors = [], fallback = "") {
     || "";
 }
 
-function authorDisplayName(author = {}) {
-  return normalizeText(author.fullName || author.full_name || author.name);
-}
-
-function deriveCorrespondingAuthor(authors = [], fallback = "") {
-  return normalizeText(fallback)
-    || (Array.isArray(authors)
-      ? authorDisplayName(authors.find((author) => normalizeBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)))
-      : "")
-    || "";
-}
-
 function deriveIndexingPlatform(indexing = [], fallback = "") {
   return normalizeIndexingPlatform(fallback)
     || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingPlatform(item?.source || item?.platform || item?.sourceKey || item?.source_key)).find(Boolean) : "")
@@ -331,7 +319,6 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     title: createFieldSource(values.title, baseSource),
     authors: createFieldSource((Array.isArray(values.authors) ? values.authors : []).map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean), baseSource),
     authorAffiliation: createFieldSource(values.authorAffiliation || values.author_affiliation || values.affiliation, baseSource),
-    correspondingAuthor: createFieldSource(values.correspondingAuthor || values.corresponding_author, "manual"),
     publicationType: createFieldSource(values.publicationType || values.publication_type, baseSource),
     venue: createFieldSource(values.venue || values.publishedIn || values.published_in || values.journal, baseSource),
     publisher: createFieldSource(values.publisher, baseSource),
@@ -531,7 +518,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
     ? normalizeIndexingInput(rawIndexing, publicationType)
     : undefined;
   const authorAffiliation = deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
-  const correspondingAuthor = deriveCorrespondingAuthor(authors, body.correspondingAuthor || body.corresponding_author);
   const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
   const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category);
   const evidenceLinks = hasEvidenceLinksInput
@@ -560,17 +546,14 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte shume e gjate." });
   }
 
-  const correspondingAuthorKey = normalizeComparableName(correspondingAuthor);
   const authorsWithAffiliation = authors.map((author, index) => {
     const authorWithAffiliation = index === 0 && !author.affiliation
       ? { ...author, affiliation: authorAffiliation }
       : author;
-    const authorKey = normalizeComparableName(authorDisplayName(authorWithAffiliation));
 
     return {
       ...authorWithAffiliation,
-      isCorrespondingAuthor: Boolean(authorWithAffiliation.isCorrespondingAuthor)
-        || Boolean(correspondingAuthorKey && authorKey === correspondingAuthorKey),
+      isCorrespondingAuthor: Boolean(authorWithAffiliation.isCorrespondingAuthor),
     };
   });
   const normalizedIndexing = indexing !== undefined
@@ -616,7 +599,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
       issn: normalizeText(body.issn),
       isbn: normalizeText(body.isbn),
       authorAffiliation,
-      correspondingAuthor,
       indexingPlatform,
       indexingCategory,
       indexingVerified,
@@ -634,7 +616,6 @@ function normalizePublicationPayload(body = {}, options = {}) {
       fieldSources: buildPublicationFieldSources({
         ...body,
         authorAffiliation,
-        correspondingAuthor,
         indexingPlatform,
         indexingCategory,
         indexingVerified,
@@ -701,7 +682,6 @@ function mapPublication(row) {
     indexed_url: item.indexed_url || item.indexedUrl || "",
   }));
   const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
-  const correspondingAuthor = row.corresponding_author || deriveCorrespondingAuthor(authors);
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
   const indexingVerified = Boolean(row.indexing_verified);
@@ -723,7 +703,6 @@ function mapPublication(row) {
     issn: row.issn || "",
     isbn: row.isbn || "",
     authorAffiliation,
-    correspondingAuthor,
     indexingPlatform,
     indexingCategory,
     indexingVerified,
@@ -762,8 +741,6 @@ function mapPublication(row) {
     authorAffiliation,
     author_affiliation: authorAffiliation,
     affiliation: authorAffiliation,
-    correspondingAuthor,
-    corresponding_author: correspondingAuthor,
     indexingPlatform,
     indexing_platform: indexingPlatform,
     indexingCategory,
@@ -863,7 +840,7 @@ function mapPublication(row) {
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
-  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.corresponding_author, p.indexing_platform, p.indexing_category,
+  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform, p.indexing_category,
   p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
@@ -971,7 +948,6 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'issn',
          'isbn',
          'author_affiliation',
-         'corresponding_author',
          'indexing_platform',
          'indexing_category',
          'indexing_verified',
@@ -988,7 +964,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 20 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 19 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1106,7 +1082,6 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
     alter table publications add column if not exists conference_location text not null default '';
     alter table publications add column if not exists author_affiliation text not null default '';
-    alter table publications add column if not exists corresponding_author text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
     alter table publications add column if not exists indexing_category text not null default '';
     alter table publications add column if not exists indexing_verified boolean not null default false;
@@ -1432,9 +1407,9 @@ async function createPublication(client, ownerId, values) {
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
       conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
-      author_affiliation, corresponding_author, indexing_platform, indexing_category, indexing_verified, indexing_source,
+      author_affiliation, indexing_platform, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
      returning id`,
     [
       ownerId,
@@ -1455,7 +1430,6 @@ async function createPublication(client, ownerId, values) {
       values.isbn,
       values.status,
       values.authorAffiliation,
-      values.correspondingAuthor,
       values.indexingPlatform,
       values.indexingCategory,
       values.indexingVerified,
@@ -1728,14 +1702,13 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                isbn = $17,
                status = $18,
                author_affiliation = $19,
-               corresponding_author = $20,
-               indexing_platform = $21,
-               indexing_category = $22,
-               indexing_verified = $23,
-               indexing_source = $24,
-               metadata_source = $25,
-               metadata_verified = $26,
-               external_metadata_id = $27,
+               indexing_platform = $20,
+               indexing_category = $21,
+               indexing_verified = $22,
+               indexing_source = $23,
+               metadata_source = $24,
+               metadata_verified = $25,
+               external_metadata_id = $26,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -1760,7 +1733,6 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.isbn,
             values.status,
             values.authorAffiliation,
-            values.correspondingAuthor,
             values.indexingPlatform,
             values.indexingCategory,
             values.indexingVerified,

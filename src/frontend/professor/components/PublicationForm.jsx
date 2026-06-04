@@ -51,7 +51,6 @@ export const createEmptyPublicationDraft = () => ({
   issn: "",
   isbn: "",
   authorAffiliation: "",
-  correspondingAuthor: "",
   indexingPlatform: "",
   indexingCategory: "",
   quartile: "",
@@ -123,14 +122,6 @@ function normalizeAuthorAffiliation(author = {}) {
 
 function normalizeBoolean(value) {
   return value === true || value === "true" || value === 1 || value === "1";
-}
-
-function getCorrespondingAuthorName(authors = []) {
-  const correspondingAuthor = (Array.isArray(authors) ? authors : []).find((author) =>
-    normalizeBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
-  );
-
-  return correspondingAuthor?.fullName || correspondingAuthor?.full_name || correspondingAuthor?.name || "";
 }
 
 function normalizeFieldSources(value = {}) {
@@ -247,10 +238,6 @@ export function publicationToDraft(publication = {}) {
       || publication.author_affiliation
       || publication.affiliation
       || normalizedAuthors.find((author) => author.affiliation)?.affiliation
-      || "",
-    correspondingAuthor: publication.correspondingAuthor
-      || publication.corresponding_author
-      || getCorrespondingAuthorName(normalizedAuthors)
       || "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
@@ -417,7 +404,6 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
-    correspondingAuthor: getCorrespondingAuthorName(draftAuthors),
     indexingPlatform,
     indexingCategory,
     quartile,
@@ -477,7 +463,7 @@ const PublicationForm = ({
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showVolumeField = !isDoiImported || hasValue("volume");
-  const showIssueField = !isDoiImported || hasValue("issue");
+  const showIssueField = true;
   const showIdentifierField = !isDoiImported || hasValue("issn") || hasValue("isbn");
   const showIssnInput = !isDoiImported || hasValue("issn");
   const showIsbnInput = !isDoiImported || hasValue("isbn");
@@ -523,9 +509,13 @@ const PublicationForm = ({
   };
 
   const setAuthorField = (index, field, nextValue) => {
-    const nextAuthors = (value.authors || []).map((author, authorIndex) => {
-      return authorIndex === index ? { ...author, [field]: nextValue } : author;
-    });
+    const nextAuthors = [...(value.authors || [])];
+
+    while (nextAuthors.length <= index) {
+      nextAuthors.push({ ...EMPTY_AUTHOR });
+    }
+
+    nextAuthors[index] = { ...nextAuthors[index], [field]: nextValue };
 
     onChange({
       ...value,
@@ -540,30 +530,9 @@ const PublicationForm = ({
 
     onChange({
       ...value,
-      authors: [
-        ...authors,
-        { ...EMPTY_AUTHOR },
-      ],
-    });
-    setFormError("");
-  };
-
-  const setPrimaryAuthorName = (fullName) => {
-    const authors = value.authors || [];
-    const nextAuthors = authors.length
-      ? authors.map((author, index) => (index === 0 ? {
-        ...author,
-        fullName,
-      } : author))
-      : [{
-        ...EMPTY_AUTHOR,
-        fullName,
-      }];
-
-    onChange({
-      ...value,
-      authors: nextAuthors,
-      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+      authors: authors.length
+        ? [...authors, { ...EMPTY_AUTHOR }]
+        : [{ ...EMPTY_AUTHOR }, { ...EMPTY_AUTHOR }],
     });
     setFormError("");
   };
@@ -575,6 +544,25 @@ const PublicationForm = ({
       ...value,
       authors: nextAuthors,
     });
+  };
+
+  const setCorrespondingAuthor = (index, checked) => {
+    const nextAuthors = [...(value.authors || [])];
+
+    while (nextAuthors.length <= index) {
+      nextAuthors.push({ ...EMPTY_AUTHOR });
+    }
+
+    onChange({
+      ...value,
+      authors: nextAuthors.map((author, authorIndex) => ({
+        ...author,
+        isCorrespondingAuthor: checked ? authorIndex === index : false,
+        is_corresponding_author: checked ? authorIndex === index : false,
+      })),
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    setFormError("");
   };
 
   const updateIndexingField = (field) => (event) => {
@@ -689,8 +677,7 @@ const PublicationForm = ({
   };
 
   const authors = value.authors || [];
-  const primaryAuthor = authors[0] || EMPTY_AUTHOR;
-  const coauthors = authors.slice(1);
+  const authorRows = authors.length ? authors : [{ ...EMPTY_AUTHOR }];
   const venuePlaceholderKey = value.publicationType === "conference_paper"
     ? "professor.dashboard.publicationForm.publishedInPlaceholderConference"
     : value.publicationType === "book"
@@ -874,69 +861,78 @@ const PublicationForm = ({
             <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-list ${isFieldLocked("authors") ? "publication-authors-list--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
-          <label className="publication-author-field">
-            <span>{t("professor.dashboard.publicationForm.author")}</span>
-            <input
-              value={primaryAuthor.fullName}
-              onChange={(event) => setPrimaryAuthorName(event.target.value)}
-              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-              required
-              readOnly={isFieldLocked("authors")}
-            />
-          </label>
-          <label className="publication-author-field">
-            <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-            <input
-              value={value.correspondingAuthor || ""}
-              onChange={updateField("correspondingAuthor")}
-              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-              readOnly={isFieldLocked("correspondingAuthor")}
-            />
-          </label>
-          <div className="publication-coauthors-block">
-            <div className="publication-coauthors-header">
-              <span>{t("professor.dashboard.publicationForm.coauthors")}</span>
-              {!isFieldLocked("authors") ? (
-                <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
-                  <Plus size={14} aria-hidden="true" />
-                  {t("professor.dashboard.publicationForm.addCoauthor")}
-                </button>
-              ) : null}
-            </div>
-
-            {coauthors.length ? (
-              <div className="publication-coauthors-list">
-                {coauthors.map((author, index) => {
-                  const authorIndex = index + 1;
-
-                  return (
-                    <div className="publication-coauthor-row" key={`coauthor-${authorIndex}`}>
+        <div className={`publication-authors-table-wrap ${isFieldLocked("authors") ? "publication-authors-table-wrap--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
+          <table className="publication-authors-table">
+            <thead>
+              <tr>
+                <th>{t("professor.dashboard.publicationForm.author")}</th>
+                <th>{t("professor.dashboard.publicationForm.affiliation")}</th>
+                <th>ORCID</th>
+                <th>{t("professor.dashboard.publicationForm.correspondingAuthor")}</th>
+                <th aria-label={t("professor.dashboard.publicationForm.remove")}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {authorRows.map((author, index) => (
+                <tr key={`publication-author-${index}`}>
+                  <td>
+                    <input
+                      value={author.fullName || ""}
+                      onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
+                      placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+                      required={index === 0}
+                      readOnly={isFieldLocked("authors")}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={author.affiliation || ""}
+                      onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+                      placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+                      readOnly={isFieldLocked("authors")}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      value={author.orcid || ""}
+                      onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
+                      placeholder="0000-0000-0000-0000"
+                      readOnly={isFieldLocked("authors")}
+                    />
+                  </td>
+                  <td className="publication-author-corresponding-cell">
+                    <label>
                       <input
-                        value={author.fullName}
-                        onChange={(event) => setAuthorField(authorIndex, "fullName", event.target.value)}
-                        placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-                        readOnly={isFieldLocked("authors")}
+                        type="checkbox"
+                        aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
+                        checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
+                        onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
                       />
-                      {!isFieldLocked("authors") ? (
-                        <button
-                          type="button"
-                          className="publication-remove-button"
-                          onClick={() => removeAuthor(authorIndex)}
-                          aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index: index + 1 })}
-                        >
-                          <Trash2 size={14} aria-hidden="true" />
-                          <span>{t("professor.dashboard.publicationForm.remove")}</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="publication-empty-coauthors">{t("professor.dashboard.publicationForm.noCoauthors")}</p>
-            )}
-          </div>
+                    </label>
+                  </td>
+                  <td className="publication-author-actions-cell">
+                    {index > 0 && !isFieldLocked("authors") ? (
+                      <button
+                        type="button"
+                        className="publication-remove-button"
+                        onClick={() => removeAuthor(index)}
+                        aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                        <span>{t("professor.dashboard.publicationForm.remove")}</span>
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!isFieldLocked("authors") ? (
+            <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
+              <Plus size={14} aria-hidden="true" />
+              {t("professor.dashboard.publicationForm.addCoauthor")}
+            </button>
+          ) : null}
         </div>
         {formError ? <p className="publication-form-message error" role="alert">{formError}</p> : null}
       </div>

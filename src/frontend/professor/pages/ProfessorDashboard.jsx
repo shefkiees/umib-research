@@ -199,8 +199,6 @@ const mapPublicationRow = (row = {}) => ({
   pages: row.pages || "",
   issn: row.issn || "",
   isbn: row.isbn || "",
-  correspondingAuthor: row.correspondingAuthor || row.corresponding_author || "",
-  corresponding_author: row.correspondingAuthor || row.corresponding_author || "",
   quartile: getDisplayableQuartile(row),
   indexingPlatform: row.indexingPlatform || row.indexing_platform || row.indexing?.find?.((item) => item?.source)?.source || "",
   indexingCategory: row.indexingCategory || row.indexing_category || row.indexing?.find?.((item) => item?.category)?.category || "",
@@ -230,16 +228,6 @@ const mapPublicationRow = (row = {}) => ({
   resubmittedAt: row.resubmittedAt || row.resubmitted_at || null,
   createdAt: row.createdAt || row.created_at || null,
 });
-
-const normalizeAuthorNameKey = (value = "") => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
-
-const getCorrespondingAuthorFromAuthors = (authors = []) => {
-  const correspondingAuthor = (Array.isArray(authors) ? authors : []).find((author) =>
-    Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
-  );
-
-  return correspondingAuthor?.fullName || correspondingAuthor?.full_name || correspondingAuthor?.name || "";
-};
 
 const getPublicationAuthorSearchText = (authors = []) =>
   (Array.isArray(authors) ? authors : [])
@@ -284,8 +272,6 @@ const getPublicationSearchText = (row = {}) => [
   row.indexingSource,
   row.sjr,
   row.citeScore,
-  row.correspondingAuthor,
-  row.corresponding_author,
   getPublicationAuthorSearchText(row.authors),
 ].filter(Boolean).join(" ").toLowerCase();
 
@@ -1033,14 +1019,9 @@ export default function ProfessorDashboard() {
     const quartileVerificationStatus = draft.quartileVerificationStatus || draft.quartile_verification_status || (quartile ? "manual" : "empty");
     const indexingVerified = Boolean(draft.indexingVerified ?? draft.indexing_verified);
     const indexingSource = indexingVerified ? draft.indexingSource || draft.indexing_source || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.sourceKey || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.source_key || "manual" : "manual";
-    const correspondingAuthor = draft.correspondingAuthor || draft.corresponding_author || getCorrespondingAuthorFromAuthors(authors);
-    const correspondingAuthorKey = normalizeAuthorNameKey(correspondingAuthor);
     const normalizedAuthors = authors.map((author, index) => {
       const authorPayload = { ...(author || {}) };
-      const authorName = authorPayload.fullName || authorPayload.full_name || authorPayload.name || "";
-      const isCorrespondingAuthor = correspondingAuthorKey
-        ? normalizeAuthorNameKey(authorName) === correspondingAuthorKey
-        : Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author);
+      const isCorrespondingAuthor = Boolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author);
 
       delete authorPayload.isCorrespondingAuthor;
       delete authorPayload.is_corresponding_author;
@@ -1066,6 +1047,8 @@ export default function ProfessorDashboard() {
     delete payload.evidenceLinks;
     delete payload.evidence_links;
     delete payload.identifiers;
+    delete payload.correspondingAuthor;
+    delete payload.corresponding_author;
 
     return {
       ...payload,
@@ -1076,8 +1059,6 @@ export default function ProfessorDashboard() {
       authors: normalizedAuthors,
       authorAffiliation,
       author_affiliation: authorAffiliation,
-      correspondingAuthor,
-      corresponding_author: correspondingAuthor,
       indexingPlatform,
       indexing_platform: indexingPlatform,
       indexingCategory,
