@@ -530,11 +530,14 @@ const PublicationForm = ({
   const authors = value.authors || [];
   const primaryAuthor = authors[0] || EMPTY_AUTHOR;
   const coauthors = authors.slice(1);
-  const venuePlaceholder = value.publicationType === "conference_paper"
-    ? "IEEE International Conference on Computer Vision"
+  const venuePlaceholderKey = value.publicationType === "conference_paper"
+    ? "professor.dashboard.publicationForm.publishedInPlaceholderConference"
     : value.publicationType === "book"
-      ? "Lecture Notes in Computer Science"
-      : "Journal of Artificial Intelligence Research";
+      ? "professor.dashboard.publicationForm.publishedInPlaceholderBook"
+      : value.publicationType === "journal_article"
+        ? "professor.dashboard.publicationForm.publishedInPlaceholderJournal"
+        : "professor.dashboard.publicationForm.publishedInPlaceholderDefault";
+  const venuePlaceholder = t(venuePlaceholderKey);
 
   return (
     <form className="publication-form" onSubmit={submit}>
