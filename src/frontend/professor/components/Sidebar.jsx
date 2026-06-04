@@ -12,6 +12,10 @@ import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function Sidebar({ activePage, onNavigate, setActivePage, onLogout }) {
   const { t } = useLanguage();
+  const reimbursementSubmenu = [
+    { name: "Publikime Shkencore", target: "Rimbursime" },
+    { name: "Konferenca dhe Simpoziume", target: "Rimbursime" },
+  ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
     { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} /> },
@@ -46,16 +50,32 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
           <span className="prof-sidebar-label">{t("navigation.modules")}</span>
 
           {menuMain.map((item) => (
-            <button
-              key={item.name}
-              className={`prof-sidebar-link ${
-                activePage === item.name ? "active" : ""
-              }`}
-              onClick={() => handleNavigate(item.name)}
-            >
-              <span className="prof-sidebar-icon">{item.icon}</span>
-              <span className="prof-sidebar-text">{item.label}</span>
-            </button>
+            <div className="prof-sidebar-item" key={item.name}>
+              <button
+                className={`prof-sidebar-link ${
+                  activePage === item.name ? "active" : ""
+                }`}
+                onClick={() => handleNavigate(item.name)}
+              >
+                <span className="prof-sidebar-icon">{item.icon}</span>
+                <span className="prof-sidebar-text">{item.label}</span>
+              </button>
+
+              {item.name === "Rimbursime" ? (
+                <div className="prof-sidebar-submenu" aria-label="Nenkategorite e rimbursimeve">
+                  {reimbursementSubmenu.map((submenuItem) => (
+                    <button
+                      key={submenuItem.name}
+                      type="button"
+                      className="prof-sidebar-sublink"
+                      onClick={() => handleNavigate(submenuItem.target)}
+                    >
+                      {submenuItem.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
