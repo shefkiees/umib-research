@@ -407,6 +407,30 @@ const APPLICANT_PROFILE_FORM_FIELDS = [
   "scientificTitle",
 ];
 
+const BANK_PROFILE_FORM_FIELDS = [
+  "bankAccountId",
+  "bankAccountLabel",
+  "bankApplicantName",
+  "bankName",
+  "bankNameOther",
+  "bankAccountNumber",
+  "iban",
+  "swiftCode",
+  "bankCountry",
+  "currency",
+  "banking",
+  "detectedBankCode",
+  "bankDetectedAutomatically",
+  "bankSelectionSource",
+];
+
+const BANK_PROFILE_REQUIRED_FIELDS = [
+  "bankApplicantName",
+  "bankName",
+  "bankAccountNumber",
+  "swiftCode",
+];
+
 function usesServerApplicantSnapshot(requestType) {
   return requestType === "publication" || requestType === "conference";
 }
@@ -417,6 +441,137 @@ function stripApplicantProfileFields(formData) {
     delete next[field];
   });
   return next;
+}
+
+function usesServerBankSnapshot(requestType) {
+  return requestType === "publication" || requestType === "conference";
+}
+
+function stripBankProfileFields(formData) {
+  const next = { ...(formData || {}) };
+  const selectedBankAccountId = normalizeText(next.selectedBankAccountId || next.bankAccountId);
+
+  BANK_PROFILE_FORM_FIELDS.forEach((field) => {
+    delete next[field];
+  });
+
+  if (selectedBankAccountId) {
+    next.selectedBankAccountId = selectedBankAccountId;
+  }
+
+  return next;
+}
+
+function mapBankAccountSnapshot(row = {}) {
+  const accountId = normalizeText(row.id);
+
+  return {
+    selectedBankAccountId: accountId,
+    bankAccountId: accountId,
+    bankAccountLabel: normalizeText(row.label),
+    bankApplicantName: normalizeText(row.bank_applicant_name),
+    bankName: normalizeText(row.bank_name),
+    bankAccountNumber: normalizeIban(row.bank_account_number || row.iban),
+    iban: normalizeIban(row.iban || row.bank_account_number),
+    swiftCode: normalizeText(row.swift_code).toUpperCase(),
+    bankCountry: normalizeText(row.bank_country) || "Kosove",
+    currency: normalizeCurrency(row.currency),
+    bankSelectionSource: "profile",
+  };
+}
+
+function getLegacyBankingSnapshot(fallbackData = {}) {
+  const banking = fallbackData.banking && typeof fallbackData.banking === "object" && !Array.isArray(fallbackData.banking)
+    ? fallbackData.banking
+    : {};
+  const snapshot = {
+    selectedBankAccountId: normalizeText(fallbackData.selectedBankAccountId || fallbackData.bankAccountId),
+    bankAccountId: normalizeText(fallbackData.bankAccountId || fallbackData.selectedBankAccountId),
+    bankAccountLabel: normalizeText(fallbackData.bankAccountLabel),
+    bankApplicantName: normalizeText(fallbackData.bankApplicantName || banking.applicantName),
+    bankName: normalizeText(fallbackData.bankName || banking.bankName),
+    bankAccountNumber: normalizeIban(fallbackData.bankAccountNumber || fallbackData.iban || banking.iban),
+    iban: normalizeIban(fallbackData.iban || fallbackData.bankAccountNumber || banking.iban),
+    swiftCode: normalizeText(fallbackData.swiftCode || banking.swift).toUpperCase(),
+    bankCountry: normalizeText(fallbackData.bankCountry || banking.country) || "Kosove",
+    currency: normalizeCurrency(fallbackData.currency || banking.currency),
+    bankSelectionSource: normalizeText(fallbackData.bankSelectionSource) || "legacy",
+  };
+
+  return BANK_PROFILE_REQUIRED_FIELDS.every((field) => hasMeaningfulValue(snapshot[field])) ? snapshot : null;
+}
+
+async function selectProfileBankAccount(dbOrClient, userId, bankAccountId) {
+  const requestedId = normalizeText(bankAccountId);
+  const selectedId = parseOptionalUuid(bankAccountId);
+
+  if (requestedId && !selectedId) {
+    return null;
+  }
+
+  const whereClause = selectedId
+    ? "and id = $2"
+    : "and is_default = true";
+  const params = selectedId ? [userId, selectedId] : [userId];
+  const result = await dbOrClient.query(
+    `select id, label, bank_applicant_name, bank_name, bank_account_number, iban,
+            swift_code, bank_country, currency, is_default
+     from user_bank_accounts
+     where user_id = $1
+       and archived_at is null
+       ${whereClause}
+     order by is_default desc, updated_at desc nulls last, created_at desc
+     limit 1`,
+    params
+  );
+
+  return result.rows[0] || null;
+}
+
+async function applyBankAccountSnapshot(dbOrClient, requestType, formData, userId, fallbackData = {}) {
+  if (!usesServerBankSnapshot(requestType)) {
+    return formData || {};
+  }
+
+  const strippedFormData = stripBankProfileFields(formData);
+  const selectedBankAccountId = normalizeText(strippedFormData.selectedBankAccountId);
+  const selectedBankAccount = selectedBankAccountId
+    ? await selectProfileBankAccount(dbOrClient, userId, selectedBankAccountId)
+    : null;
+  const defaultBankAccount = selectedBankAccount || (!selectedBankAccountId
+    ? await selectProfileBankAccount(dbOrClient, userId, "")
+    : null);
+  const legacySnapshot = getLegacyBankingSnapshot(fallbackData);
+  const bankSnapshot = defaultBankAccount
+    ? mapBankAccountSnapshot(defaultBankAccount)
+    : legacySnapshot;
+
+  if (!bankSnapshot) {
+    return strippedFormData;
+  }
+
+  return {
+    ...strippedFormData,
+    ...bankSnapshot,
+  };
+}
+
+function getBankAccountSnapshotValidationError(requestType, formData) {
+  if (!usesServerBankSnapshot(requestType)) {
+    return null;
+  }
+
+  const missingRequiredBankFields = BANK_PROFILE_REQUIRED_FIELDS
+    .filter((field) => !hasMeaningfulValue(formData?.[field]));
+
+  if (!missingRequiredBankFields.length) {
+    return null;
+  }
+
+  return {
+    field: "selectedBankAccountId",
+    message: "Ju lutem shtoni një llogari bankare në profil para aplikimit.",
+  };
 }
 
 function buildApplicantSnapshot(user, fallbackData = {}) {
@@ -1674,10 +1829,13 @@ router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+    let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+    formData = await applyBankAccountSnapshot(db, requestType, formData, req.user.id);
     const profileValidationError = getApplicantSnapshotValidationError(requestType, formData);
-    const validationErrors = profileValidationError
-      ? [profileValidationError]
+    const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
+    const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
+    const validationErrors = snapshotValidationErrors.length
+      ? snapshotValidationErrors
       : validateReimbursementPayload(requestType, formData, { asDraft: false });
 
     if (validationErrors.length) {
@@ -1742,10 +1900,13 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     return;
   }
 
-  const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+  let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
+  formData = await applyBankAccountSnapshot(db, requestType, formData, req.user.id);
   const profileValidationError = asDraft ? null : getApplicantSnapshotValidationError(requestType, formData);
-  const validationErrors = profileValidationError
-    ? [profileValidationError]
+  const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
+  const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
+  const validationErrors = snapshotValidationErrors.length
+    ? snapshotValidationErrors
     : validateReimbursementPayload(requestType, formData, { asDraft });
 
   if (validationErrors.length) {
@@ -1874,10 +2035,13 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user, current.request_data || {});
+    let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user, current.request_data || {});
+    formData = await applyBankAccountSnapshot(client, requestType, formData, req.user.id, current.request_data || {});
     const profileValidationError = isSubmit ? getApplicantSnapshotValidationError(requestType, formData) : null;
-    const validationErrors = profileValidationError
-      ? [profileValidationError]
+    const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
+    const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
+    const validationErrors = snapshotValidationErrors.length
+      ? snapshotValidationErrors
       : validateReimbursementPayload(requestType, formData, { asDraft: !isSubmit });
 
     if (validationErrors.length) {
@@ -2009,10 +2173,13 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const requestData = applyApplicantSnapshot(current.request_type, current.request_data || {}, user, current.request_data || {});
+    let requestData = applyApplicantSnapshot(current.request_type, current.request_data || {}, user, current.request_data || {});
+    requestData = await applyBankAccountSnapshot(client, current.request_type, requestData, req.user.id, current.request_data || {});
     const profileValidationError = getApplicantSnapshotValidationError(current.request_type, requestData);
-    const validationErrors = profileValidationError
-      ? [profileValidationError]
+    const bankValidationError = getBankAccountSnapshotValidationError(current.request_type, requestData);
+    const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
+    const validationErrors = snapshotValidationErrors.length
+      ? snapshotValidationErrors
       : validateReimbursementPayload(current.request_type, requestData, { asDraft: false });
 
     if (validationErrors.length) {
