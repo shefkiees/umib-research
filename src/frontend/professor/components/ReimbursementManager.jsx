@@ -201,6 +201,18 @@ const CONFERENCE_PAPER_FIELDS = new Set([
   "authorsAffiliation",
 ]);
 
+const SERVER_APPLICANT_SNAPSHOT_TYPES = new Set(["publication", "conference"]);
+const APPLICANT_PROFILE_FORM_FIELDS = [
+  "applicantName",
+  "applicantEmail",
+  "applicantFaculty",
+  "applicantDepartment",
+  "applicantOffice",
+  "applicantOrcidId",
+  "academicTitle",
+  "scientificTitle",
+];
+
 const DEFAULT_FORM_VALUES = {
   applicantName: "",
   applicantEmail: "",
@@ -803,11 +815,17 @@ function hasValue(value) {
   return String(value ?? "").trim() !== "";
 }
 
-function buildSubmitFormData(formData) {
+function buildSubmitFormData(formData, requestType) {
   const nextFormData = { ...formData };
   const publishedIn = String(nextFormData.venue || nextFormData.publishedIn || nextFormData.published_in || nextFormData.journal || "").trim();
   delete nextFormData[RETIRED_REASON_FIELD];
   delete nextFormData.documentChecklist;
+
+  if (SERVER_APPLICANT_SNAPSHOT_TYPES.has(requestType)) {
+    APPLICANT_PROFILE_FORM_FIELDS.forEach((field) => {
+      delete nextFormData[field];
+    });
+  }
 
   if (publishedIn) {
     nextFormData.venue = publishedIn;
@@ -1284,7 +1302,9 @@ export default function ReimbursementManager({
         : "publicationTitle";
 
     return {
-      basic: hasValue(form.applicantName) && hasValue(form.applicantEmail) && hasValue(form.applicantFaculty),
+      basic: SERVER_APPLICANT_SNAPSHOT_TYPES.has(selectedType)
+        ? true
+        : hasValue(form.applicantName) && hasValue(form.applicantEmail) && hasValue(form.applicantFaculty),
       academic: hasValue(form[academicMainField]),
       financial:
         Number(String(form.amount || "").replace(",", ".")) > 0
@@ -1729,6 +1749,10 @@ export default function ReimbursementManager({
     }
 
     getRequiredFields(selectedType).forEach(([field, message]) => {
+      if (SERVER_APPLICANT_SNAPSHOT_TYPES.has(selectedType) && APPLICANT_PROFILE_FORM_FIELDS.includes(field)) {
+        return;
+      }
+
       if (!hasValue(form[field])) {
         nextErrors[field] = message;
       }
@@ -1851,7 +1875,7 @@ export default function ReimbursementManager({
         },
         body: JSON.stringify({
           requestType: selectedType,
-          formData: buildSubmitFormData(form),
+          formData: buildSubmitFormData(form, selectedType),
           action: saveAction,
         }),
       });
@@ -1988,7 +2012,7 @@ export default function ReimbursementManager({
         },
         body: JSON.stringify({
           requestType: selectedType,
-          formData: form,
+          formData: buildSubmitFormData(form, selectedType),
         }),
       });
 
@@ -2974,16 +2998,18 @@ export default function ReimbursementManager({
         </div>
 
         <form className="reimbursement-form" onSubmit={handleSubmit}>
-          <section className="reimbursement-section">
-            {isLoadingContext ? (
-              <div className="reimbursement-loading">
-                <Loader2 size={18} className="reimbursement-spin" />
-                {r.loadingContext}
-              </div>
-            ) : (
-              renderApplicantFields()
-            )}
-          </section>
+          {selectedType === "project" ? (
+            <section className="reimbursement-section">
+              {isLoadingContext ? (
+                <div className="reimbursement-loading">
+                  <Loader2 size={18} className="reimbursement-spin" />
+                  {r.loadingContext}
+                </div>
+              ) : (
+                renderApplicantFields()
+              )}
+            </section>
+          ) : null}
 
           <section className="reimbursement-section">
             <div className="reimbursement-section-head">
