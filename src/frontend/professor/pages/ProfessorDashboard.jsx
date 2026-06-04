@@ -186,6 +186,12 @@ const mapPublicationRow = (row = {}) => ({
   issn: row.issn || "",
   isbn: row.isbn || "",
   quartile: row.quartile || row.indexing?.find?.((item) => item?.quartile)?.quartile || "",
+  indexingPlatform: row.indexingPlatform || row.indexing_platform || row.indexing?.find?.((item) => item?.source)?.source || "",
+  indexingCategory: row.indexingCategory || row.indexing_category || row.indexing?.find?.((item) => item?.category)?.category || "",
+  indexingVerified: Boolean(row.indexingVerified ?? row.indexing_verified),
+  indexingSource: row.indexingSource || row.indexing_source || "manual",
+  sjr: row.sjr || row.indexing?.find?.((item) => item?.sjr)?.sjr || "",
+  citeScore: row.citeScore || row.cite_score || row.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || row.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "",
   authors: Array.isArray(row.authors) ? row.authors : [],
   indexing: Array.isArray(row.indexing) ? row.indexing : [],
   attachments: Array.isArray(row.attachments) ? row.attachments : [],
@@ -196,6 +202,7 @@ const mapPublicationRow = (row = {}) => ({
   metadataSource: row.metadataSource || row.metadata_source || "manual",
   metadataVerified: Boolean(row.metadataVerified ?? row.metadata_verified),
   externalMetadataId: row.externalMetadataId || row.external_metadata_id || "",
+  fieldSources: row.fieldSources || row.field_sources || {},
   metadataReviewStatus: row.metadataReviewStatus || row.metadata_review_status || "unchecked",
   metadataReviewChecklist: row.metadataReviewChecklist || row.metadata_review_checklist || {},
   metadataReviewComment: row.metadataReviewComment || row.metadata_review_comment || "",
@@ -243,6 +250,11 @@ const getPublicationSearchText = (row = {}) => [
   row.issn,
   row.isbn,
   row.quartile,
+  row.indexingPlatform,
+  row.indexingCategory,
+  row.indexingSource,
+  row.sjr,
+  row.citeScore,
   getPublicationAuthorSearchText(row.authors),
 ].filter(Boolean).join(" ").toLowerCase();
 
@@ -981,7 +993,12 @@ export default function ProfessorDashboard() {
     const authors = Array.isArray(draft.authors) ? draft.authors : [];
     const authorAffiliation = draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
     const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || draft.indexing?.find?.((item) => item?.source)?.source || "";
-    const indexingCategory = draft.indexingCategory || draft.indexing_category || draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
+    const indexingCategory = draft.indexingCategory || draft.indexing_category || draft.indexing?.find?.((item) => item?.category)?.category || "";
+    const quartile = draft.quartile || draft.indexing?.find?.((item) => item?.quartile)?.quartile || "";
+    const sjr = draft.sjr || draft.indexing?.find?.((item) => item?.sjr)?.sjr || "";
+    const citeScore = draft.citeScore || draft.cite_score || draft.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || draft.indexing?.find?.((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "";
+    const indexingVerified = Boolean(draft.indexingVerified ?? draft.indexing_verified);
+    const indexingSource = indexingVerified ? draft.indexingSource || draft.indexing_source || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.sourceKey || draft.indexing?.find?.((item) => item?.sourceKey || item?.source_key)?.source_key || "manual" : "manual";
     const normalizedAuthors = authors.map((author, index) => {
       const authorPayload = { ...(author || {}) };
       delete authorPayload.isCorrespondingAuthor;
@@ -996,10 +1013,10 @@ export default function ProfessorDashboard() {
     });
     const indexing = Array.isArray(draft.indexing) && draft.indexing.length
       ? draft.indexing.map((item, index) => index === 0
-        ? { ...item, source: item.source || indexingPlatform, quartile: item.quartile || indexingCategory }
+        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore }
         : item)
-      : indexingPlatform || indexingCategory
-        ? [{ source: indexingPlatform, quartile: indexingCategory }]
+      : indexingPlatform || indexingCategory || quartile || sjr || citeScore
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, sjr, citeScore }]
         : [];
 
     delete payload.attachments;
@@ -1020,8 +1037,15 @@ export default function ProfessorDashboard() {
       indexing_platform: indexingPlatform,
       indexingCategory,
       indexing_category: indexingCategory,
+      indexingVerified,
+      indexing_verified: indexingVerified,
+      indexingSource,
+      indexing_source: indexingSource,
       indexing,
-      quartile: indexingCategory,
+      quartile,
+      sjr,
+      citeScore,
+      cite_score: citeScore,
     };
   };
 

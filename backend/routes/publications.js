@@ -16,8 +16,8 @@ const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
 const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
 const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
 const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
-const VALID_INDEXING_PLATFORMS = new Set(["Scopus", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"]);
-const VALID_INDEXING_CATEGORIES = new Set(["Q1", "Q2", "Q3", "Q4", "SCIE", "SSCI", "AHCI", "Book/Chapter", "Other"]);
+const VALID_INDEXING_PLATFORMS = new Set(["Scopus", "SCImago", "OpenAlex", "DOAJ", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"]);
+const VALID_INDEXING_SOURCES = new Set(["scopus", "scimago", "doaj", "openalex", "manual"]);
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -128,7 +128,7 @@ function normalizePublicationType(value) {
 }
 
 function supportsPublicationIndexing(publicationType) {
-  return publicationType === "journal_article";
+  return true;
 }
 
 function normalizeIndexingPlatform(value) {
@@ -136,7 +136,10 @@ function normalizeIndexingPlatform(value) {
   const comparable = text.toLowerCase();
 
   if (!text) return "";
-  if (comparable.includes("scopus") || comparable.includes("citescore") || comparable.includes("scimago")) return "Scopus";
+  if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
+  if (comparable.includes("openalex")) return "OpenAlex";
+  if (comparable.includes("doaj")) return "DOAJ";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
   if (comparable === "other") return "Other";
@@ -155,6 +158,24 @@ function normalizeIndexingCategory(value) {
   if (comparable === "other") return "Other";
 
   return text;
+}
+
+function normalizeQuartile(value) {
+  const match = normalizeText(value).toUpperCase().match(/\bQ[1-4]\b/);
+
+  return match?.[0] || "";
+}
+
+function normalizeIndexingSource(value) {
+  const text = normalizeText(value).toLowerCase();
+
+  if (!text) return "manual";
+  if (text.includes("scopus") || text.includes("citescore")) return "scopus";
+  if (text.includes("scimago") || text.includes("sjr")) return "scimago";
+  if (text.includes("doaj")) return "doaj";
+  if (text.includes("openalex")) return "openalex";
+
+  return VALID_INDEXING_SOURCES.has(text) ? text : "manual";
 }
 
 function parsePagination(query = {}) {
@@ -207,12 +228,18 @@ function normalizeIndexing(value) {
 
   return value
     .map((item) => ({
-      source: normalizeText(item.source),
-      quartile: normalizeText(item.quartile),
+      source: normalizeIndexingPlatform(item.source || item.platform),
+      platform: normalizeIndexingPlatform(item.platform || item.source),
+      sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
+      source_key: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
+      category: normalizeText(item.category),
+      quartile: normalizeQuartile(item.quartile),
       impactFactor: normalizeText(item.impact_factor || item.impactFactor),
+      sjr: normalizeText(item.sjr),
+      citeScore: normalizeText(item.cite_score || item.citeScore || item.citescore),
       indexedUrl: normalizeUrl(item.indexed_url || item.indexedUrl),
     }))
-    .filter((item) => item.source || item.quartile || item.impactFactor || item.indexedUrl);
+    .filter((item) => item.source || item.category || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
 }
 
 function deriveAuthorAffiliation(authors = [], fallback = "") {
@@ -230,13 +257,13 @@ function deriveAuthorAffiliation(authors = [], fallback = "") {
 
 function deriveIndexingPlatform(indexing = [], fallback = "") {
   return normalizeIndexingPlatform(fallback)
-    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingPlatform(item?.source)).find(Boolean) : "")
+    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingPlatform(item?.source || item?.platform || item?.sourceKey || item?.source_key)).find(Boolean) : "")
     || "";
 }
 
 function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
   return normalizeIndexingCategory(fallback)
-    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingCategory(item?.quartile)).find(Boolean) : "")
+    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingCategory(item?.category)).find(Boolean) : "")
     || "";
 }
 
@@ -253,9 +280,11 @@ function createFieldSource(value, sourceWhenPresent = "manual") {
 
 function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
   const baseSource = metadataSource === "doi" ? "api" : metadataSource === "mixed" ? "manual" : "manual";
-  const indexingSource = metadataSource === "doi" ? "lookup" : "manual";
   const indexing = Array.isArray(values.indexing) ? values.indexing : [];
-  const firstIndexing = indexing.find((item) => item?.source || item?.quartile || item?.impactFactor || item?.impact_factor) || {};
+  const firstIndexing = indexing.find((item) => item?.source || item?.category || item?.quartile || item?.impactFactor || item?.impact_factor || item?.sjr || item?.citeScore || item?.cite_score) || {};
+  const indexingSource = values.indexingVerified || values.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified
+    ? "lookup"
+    : "manual";
 
   return {
     doi: createFieldSource(values.doi, baseSource),
@@ -276,8 +305,10 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     abstract: createFieldSource(values.abstract, baseSource),
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
     indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || firstIndexing.source, indexingSource),
-    indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || firstIndexing.quartile || values.quartile, indexingSource),
+    indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || firstIndexing.category, indexingSource),
     quartile: createFieldSource(values.quartile || firstIndexing.quartile, indexingSource),
+    sjr: createFieldSource(values.sjr || firstIndexing.sjr, indexingSource),
+    citeScore: createFieldSource(values.citeScore || values.cite_score || firstIndexing.citeScore || firstIndexing.cite_score, indexingSource),
     impactFactor: createFieldSource(firstIndexing.impactFactor || firstIndexing.impact_factor, indexingSource),
   };
 }
@@ -291,7 +322,8 @@ function normalizeIndexingInput(value, publicationType) {
     ? {
         ...item,
         source: item.source || platform,
-        quartile: item.quartile || category,
+        platform: item.platform || item.source || platform,
+        category: item.category || category,
       }
     : item);
 }
@@ -425,8 +457,12 @@ function normalizePublicationPayload(body = {}, options = {}) {
       ? body.indexing
       : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
         ? [{
-            source: body.indexingPlatform || body.indexing_platform || body.indexingSource || body.indexing_source || "Scopus",
-            quartile: body.indexingCategory || body.indexing_category || body.quartile,
+            source: body.indexingPlatform || body.indexing_platform || body.indexingSource || body.indexing_source,
+            sourceKey: body.indexingSource || body.indexing_source,
+            category: body.indexingCategory || body.indexing_category,
+            quartile: body.quartile,
+            sjr: body.sjr,
+            citeScore: body.citeScore || body.cite_score || body.citescore,
           }]
         : Array.isArray(body.indexing)
           ? body.indexing
@@ -434,7 +470,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
     : (body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
       ? [{
           source: body.indexingPlatform || body.indexing_platform,
-          quartile: body.indexingCategory || body.indexing_category,
+          category: body.indexingCategory || body.indexing_category,
+          quartile: body.quartile,
         }]
       : [];
   const indexing = hasIndexingInput
@@ -442,13 +479,18 @@ function normalizePublicationPayload(body = {}, options = {}) {
     : undefined;
   const authorAffiliation = deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
   const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
-  const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category || body.quartile);
+  const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category);
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
     : undefined;
   const metadataVerified = normalizeBoolean(body.metadataVerified ?? body.metadata_verified) || metadataSource === "doi";
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
+  const requestedIndexingSource = normalizeIndexingSource(body.indexingSource || body.indexing_source || indexing?.[0]?.sourceKey || indexing?.[0]?.source_key || indexing?.[0]?.source);
+  const indexingVerified = normalizeBoolean(body.indexingVerified ?? body.indexing_verified)
+    && requestedIndexingSource !== "manual"
+    && Boolean(indexingPlatform || indexing?.some((item) => item.source || item.category || item.quartile || item.sjr || item.citeScore));
+  const indexingSource = indexingVerified ? requestedIndexingSource : "manual";
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
@@ -462,8 +504,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
 
   if (!indexingCategory) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte obligative." });
-  } else if (!VALID_INDEXING_CATEGORIES.has(indexingCategory)) {
-    errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit nuk eshte valid." });
+  } else if (indexingCategory.length > 200) {
+    errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte shume e gjate." });
   }
 
   const authorsWithAffiliation = authors.map((author, index) => index === 0 && !author.affiliation
@@ -475,10 +517,14 @@ function normalizePublicationPayload(body = {}, options = {}) {
         ? {
             ...item,
             source: item.source || indexingPlatform,
-            quartile: item.quartile || indexingCategory,
+            platform: item.platform || item.source || indexingPlatform,
+            sourceKey: item.sourceKey || item.source_key || indexingSource,
+            source_key: item.source_key || item.sourceKey || indexingSource,
+            category: item.category || indexingCategory,
+            quartile: item.quartile || normalizeQuartile(body.quartile),
           }
         : item)
-      : [{ source: indexingPlatform, quartile: indexingCategory, impactFactor: "", indexedUrl: "" }]
+      : [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
     : undefined;
 
   return {
@@ -502,6 +548,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
       authorAffiliation,
       indexingPlatform,
       indexingCategory,
+      indexingVerified,
+      indexingSource,
       status,
       authors: authorsWithAffiliation,
       indexing: normalizedIndexing,
@@ -517,6 +565,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
         authorAffiliation,
         indexingPlatform,
         indexingCategory,
+        indexingVerified,
+        indexingSource,
         indexing: normalizedIndexing,
         authors: authorsWithAffiliation,
       }, metadataSource),
@@ -555,16 +605,26 @@ function mapPublication(row) {
   const authors = getPublicationAuthors(row);
   const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
   const indexing = getArrayField(row, "indexing").map((item) => ({
-    source: item.source || "",
-    quartile: item.quartile || "",
+    source: normalizeIndexingPlatform(item.source || item.platform),
+    platform: normalizeIndexingPlatform(item.platform || item.source),
+    sourceKey: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
+    source_key: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
+    category: item.category || "",
+    quartile: normalizeQuartile(item.quartile),
     impactFactor: item.impact_factor || item.impactFactor || "",
     impact_factor: item.impact_factor || item.impactFactor || "",
+    sjr: item.sjr || "",
+    citeScore: item.cite_score || item.citeScore || item.citescore || "",
+    cite_score: item.cite_score || item.citeScore || item.citescore || "",
+    citescore: item.cite_score || item.citeScore || item.citescore || "",
     indexedUrl: item.indexed_url || item.indexedUrl || "",
     indexed_url: item.indexed_url || item.indexedUrl || "",
   }));
   const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
+  const indexingVerified = Boolean(row.indexing_verified);
+  const indexingSource = normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source);
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
@@ -584,6 +644,8 @@ function mapPublication(row) {
     authorAffiliation,
     indexingPlatform,
     indexingCategory,
+    indexingVerified,
+    indexingSource,
     indexing,
     authors,
     quartile: getPrimaryQuartile(indexing),
@@ -622,6 +684,10 @@ function mapPublication(row) {
     indexing_platform: indexingPlatform,
     indexingCategory,
     indexing_category: indexingCategory,
+    indexingVerified,
+    indexing_verified: indexingVerified,
+    indexingSource,
+    indexing_source: indexingSource,
     quartile: getPrimaryQuartile(indexing),
     authors: authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
@@ -712,7 +778,7 @@ const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform, p.indexing_category,
-  p.metadata_source, p.metadata_verified,
+  p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
@@ -733,8 +799,13 @@ const PUBLICATION_SELECT_SQL = `
   coalesce((
     select jsonb_agg(jsonb_build_object(
       'source', pi.source,
+      'platform', pi.source,
+      'source_key', pi.source_key,
+      'category', pi.category,
       'quartile', pi.quartile,
       'impact_factor', pi.impact_factor,
+      'sjr', pi.sjr,
+      'cite_score', pi.cite_score,
       'indexed_url', pi.indexed_url
     ) order by pi.created_at)
     from publication_indexing pi
@@ -811,6 +882,8 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'author_affiliation',
          'indexing_platform',
          'indexing_category',
+         'indexing_verified',
+         'indexing_source',
          'metadata_source',
          'metadata_verified',
          'external_metadata_id'
@@ -823,7 +896,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 17 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 19 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -858,9 +931,19 @@ async function replacePublicationChildren(client, publicationId, values) {
   for (const item of values.indexing || []) {
     await client.query(
       `insert into publication_indexing
-       (publication_id, source, quartile, impact_factor, indexed_url)
-       values ($1, $2, $3, $4, $5)`,
-      [publicationId, item.source, item.quartile, item.impactFactor, item.indexedUrl]
+       (publication_id, source, source_key, category, quartile, impact_factor, sjr, cite_score, indexed_url)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        publicationId,
+        item.source,
+        item.sourceKey || item.source_key || values.indexingSource,
+        item.category,
+        item.quartile,
+        item.impactFactor,
+        item.sjr,
+        item.citeScore || item.cite_score,
+        item.indexedUrl,
+      ]
     );
   }
 
@@ -928,12 +1011,21 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
     alter table publications add column if not exists indexing_category text not null default '';
+    alter table publications add column if not exists indexing_verified boolean not null default false;
+    alter table publications add column if not exists indexing_source text not null default 'manual';
     alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
     alter table publications add column if not exists metadata_review_comment text not null default '';
     alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
     alter table publications add column if not exists revision_requested_at timestamptz;
     alter table publications add column if not exists resubmitted_at timestamptz;
     alter table if exists publication_authors add column if not exists is_corresponding_author boolean not null default false;
+    alter table if exists publication_indexing add column if not exists source_key text not null default 'manual';
+    alter table if exists publication_indexing add column if not exists category text not null default '';
+    alter table if exists publication_indexing add column if not exists sjr text not null default '';
+    alter table if exists publication_indexing add column if not exists cite_score text not null default '';
+    alter table publications drop constraint if exists publications_indexing_source_check;
+    alter table publications add constraint publications_indexing_source_check
+      check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'manual'));
     alter table publications drop constraint if exists publications_status_check;
     alter table publications add constraint publications_status_check
       check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'needs_correction'));
@@ -1086,7 +1178,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
   const publicationType = normalizePublicationType(metadata.type);
-  const indexing = supportsPublicationIndexing(publicationType) && Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
   const matchedAuthorIndex = currentUserName
@@ -1115,6 +1207,9 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     authorAffiliation: deriveAuthorAffiliation(metadataAuthors),
     indexingPlatform: deriveIndexingPlatform(indexing),
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
+    indexingVerified: Boolean(metadata.indexingVerified ?? metadata.indexing_verified),
+    indexingSource: normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source),
+    quartile: metadata.quartile || getPrimaryQuartile(indexing),
     status: "draft",
     authors: metadataAuthors.map((author, index) =>
       metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)
@@ -1222,8 +1317,9 @@ async function createPublication(client, ownerId, values) {
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
       conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
-      author_affiliation, indexing_platform, indexing_category, metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+      author_affiliation, indexing_platform, indexing_category, indexing_verified, indexing_source,
+      metadata_source, metadata_verified, external_metadata_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
      returning id`,
     [
       ownerId,
@@ -1246,6 +1342,8 @@ async function createPublication(client, ownerId, values) {
       values.authorAffiliation,
       values.indexingPlatform,
       values.indexingCategory,
+      values.indexingVerified,
+      values.indexingSource,
       values.metadataSource,
       values.metadataVerified,
       values.externalMetadataId,
@@ -1307,7 +1405,13 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
             or exists (
               select 1 from publication_indexing pi
               where pi.publication_id = p.id
-                and (pi.source ilike $${qParam} or pi.quartile ilike $${qParam})
+                and (
+                  pi.source ilike $${qParam}
+                  or pi.category ilike $${qParam}
+                  or pi.quartile ilike $${qParam}
+                  or pi.sjr ilike $${qParam}
+                  or pi.cite_score ilike $${qParam}
+                )
             )
           )`
         : `(p.title ilike $${qParam} or p.venue ilike $${qParam} or p.doi ilike $${qParam} or m.publisher ilike $${qParam} or m.container_title ilike $${qParam})`);
@@ -1510,9 +1614,11 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                author_affiliation = $19,
                indexing_platform = $20,
                indexing_category = $21,
-               metadata_source = $22,
-               metadata_verified = $23,
-               external_metadata_id = $24,
+               indexing_verified = $22,
+               indexing_source = $23,
+               metadata_source = $24,
+               metadata_verified = $25,
+               external_metadata_id = $26,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -1539,6 +1645,8 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.authorAffiliation,
             values.indexingPlatform,
             values.indexingCategory,
+            values.indexingVerified,
+            values.indexingSource,
             values.metadataSource,
             values.metadataVerified,
             values.externalMetadataId,

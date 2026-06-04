@@ -22,8 +22,9 @@ const REVIEW_STATUS_OPTIONS = [
   { value: "rejected", label: "Refuzuar" },
 ];
 
-const INDEXING_PLATFORM_OPTIONS = ["", "Scopus", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"];
+const INDEXING_PLATFORM_OPTIONS = ["", "Scopus", "SCImago", "OpenAlex", "DOAJ", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"];
 const INDEXING_CATEGORY_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "SCIE", "SSCI", "AHCI", "Book/Chapter", "Other"];
+const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
 
 const EMPTY_AUTHOR = {
   fullName: "",
@@ -53,6 +54,10 @@ export const createEmptyPublicationDraft = () => ({
   indexingPlatform: "",
   indexingCategory: "",
   quartile: "",
+  sjr: "",
+  citeScore: "",
+  indexingVerified: false,
+  indexingSource: "manual",
   status: "draft",
   authors: [],
   indexing: [],
@@ -109,7 +114,7 @@ function normalizeFieldSources(value = {}) {
 }
 
 function supportsQuartile(publicationType) {
-  return publicationType === "journal_article";
+  return true;
 }
 
 function normalizeIndexingPlatform(value) {
@@ -117,7 +122,10 @@ function normalizeIndexingPlatform(value) {
   const comparable = text.toLowerCase();
 
   if (!text) return "";
-  if (comparable.includes("scopus") || comparable.includes("citescore") || comparable.includes("scimago")) return "Scopus";
+  if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
+  if (comparable.includes("openalex")) return "OpenAlex";
+  if (comparable.includes("doaj")) return "DOAJ";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
   if (comparable === "other") return "Other";
@@ -135,18 +143,42 @@ function normalizeIndexingCategory(value) {
   if (["book/chapter", "bookchapter", "book", "chapter"].includes(comparable)) return "Book/Chapter";
   if (comparable === "other") return "Other";
 
-  return INDEXING_CATEGORY_OPTIONS.includes(text) ? text : "";
+  return text;
+}
+
+function normalizeQuartile(value) {
+  const match = String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/);
+
+  return match?.[0] || "";
+}
+
+function normalizeIndexingSource(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (!text) return "manual";
+  if (text.includes("scopus") || text.includes("citescore")) return "scopus";
+  if (text.includes("scimago") || text.includes("sjr")) return "scimago";
+  if (text.includes("doaj")) return "doaj";
+  if (text.includes("openalex")) return "openalex";
+
+  return ["scopus", "scimago", "doaj", "openalex", "manual"].includes(text) ? text : "manual";
 }
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
-    source: item.source || "",
-    quartile: item.quartile || "",
+    source: normalizeIndexingPlatform(item.source || item.platform),
+    platform: normalizeIndexingPlatform(item.platform || item.source),
+    sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
+    category: item.category || "",
+    quartile: normalizeQuartile(item.quartile),
     impactFactor: item.impactFactor || item.impact_factor || "",
+    sjr: item.sjr || "",
+    citeScore: item.citeScore || item.cite_score || item.citescore || "",
     indexedUrl: item.indexedUrl || item.indexed_url || "",
-  })) : publication.quartile ? [{ source: "Scopus", quartile: publication.quartile, impactFactor: "", indexedUrl: "" }] : [];
+  })) : publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
+  const primaryIndexing = indexing[0] || {};
 
   return {
     ...createEmptyPublicationDraft(),
@@ -170,12 +202,16 @@ export function publicationToDraft(publication = {}) {
       || publication.affiliation
       || normalizedAuthors.find((author) => author.affiliation)?.affiliation
       || "",
-    indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || indexing.find((item) => item?.source)?.source),
-    indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile),
-    quartile: supportsQuartile(publicationType) ? publication.quartile || publication.indexing?.find?.((item) => item?.quartile)?.quartile || "" : "",
+    indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
+    indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
+    quartile: normalizeQuartile(publication.quartile || primaryIndexing.quartile),
+    sjr: publication.sjr || primaryIndexing.sjr || "",
+    citeScore: publication.citeScore || publication.cite_score || primaryIndexing.citeScore || primaryIndexing.cite_score || "",
+    indexingVerified: Boolean(publication.indexingVerified ?? publication.indexing_verified),
+    indexingSource: normalizeIndexingSource(publication.indexingSource || publication.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
     status: publication.status || "draft",
     authors: normalizedAuthors,
-    indexing: supportsQuartile(publicationType) ? indexing : [],
+    indexing,
     evidenceLinks: (Array.isArray(publication.evidenceLinks) ? publication.evidenceLinks : publication.attachments || []).map((item) => ({
       url: item.url || item.fileUrl || item.file_url || "",
       label: item.label || item.fileType || item.file_type || "",
@@ -278,11 +314,14 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
 function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const publicationType = normalizeDoiType(metadata.type);
-  const supportsMetadataQuartile = supportsQuartile(publicationType);
-  const indexing = supportsMetadataQuartile && Array.isArray(metadata.indexing) ? metadata.indexing : [];
-  const quartile = supportsMetadataQuartile ? metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "" : "";
+  const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const quartile = normalizeQuartile(metadata.quartile || indexing.find((item) => item?.quartile)?.quartile || "");
   const indexingPlatform = normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source);
-  const indexingCategory = normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || quartile);
+  const indexingCategory = normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || indexing.find((item) => item?.category)?.category || "");
+  const indexingVerified = Boolean(metadata.indexingVerified ?? metadata.indexing_verified);
+  const indexingSource = normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source);
+  const sjr = metadata.sjr || indexing.find((item) => item?.sjr)?.sjr || "";
+  const citeScore = metadata.citeScore || metadata.cite_score || indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "";
   const matchedAuthorIndex = authors.findIndex((author) => {
     const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
     const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -313,13 +352,24 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     indexingPlatform,
     indexingCategory,
     quartile,
+    sjr,
+    citeScore,
+    indexingVerified,
+    indexingSource: indexingVerified ? indexingSource : "manual",
     authors: draftAuthors,
     indexing: indexing.length ? indexing.map((item, index) => ({
       source: item.source || (index === 0 ? indexingPlatform : ""),
-      quartile: item.quartile || (index === 0 ? indexingCategory : ""),
+      platform: item.platform || item.source || (index === 0 ? indexingPlatform : ""),
+      sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source || (index === 0 ? indexingSource : "")),
+      category: item.category || (index === 0 ? indexingCategory : ""),
+      quartile: normalizeQuartile(item.quartile || (index === 0 ? quartile : "")),
       impactFactor: item.impactFactor || item.impact_factor || "",
+      sjr: item.sjr || (index === 0 ? sjr : ""),
+      citeScore: item.citeScore || item.cite_score || item.citescore || (index === 0 ? citeScore : ""),
       indexedUrl: item.indexedUrl || item.indexed_url || "",
-    })) : indexingPlatform || indexingCategory ? [{ source: indexingPlatform, quartile: indexingCategory, impactFactor: "", indexedUrl: "" }] : [],
+    })) : indexingPlatform || indexingCategory || quartile || sjr || citeScore
+      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, impactFactor: "", sjr, citeScore, indexedUrl: "" }]
+      : [],
     metadataSource: "doi",
     metadataVerified: true,
     externalMetadataId: metadata.doi || "",
@@ -359,6 +409,11 @@ const PublicationForm = ({
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
+  const indexingVerified = Boolean(value.indexingVerified ?? value.indexing_verified);
+  const indexingSource = normalizeIndexingSource(value.indexingSource || value.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source);
+  const indexingSourceLabel = indexingVerified
+    ? t(`professor.dashboard.publicationForm.indexingSource.${indexingSource}`)
+    : t("professor.dashboard.publicationForm.indexingSource.manual");
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -442,21 +497,33 @@ const PublicationForm = ({
     const indexing = Array.isArray(value.indexing) ? value.indexing : [];
     const [firstIndexing = {}, ...restIndexing] = indexing;
     const nextPlatform = field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "";
-    const nextCategory = field === "indexingCategory" ? nextValue : value.indexingCategory || value.quartile || primaryIndexing.quartile || "";
+    const nextCategory = field === "indexingCategory" ? nextValue : value.indexingCategory || primaryIndexing.category || "";
+    const nextQuartile = field === "quartile" ? normalizeQuartile(nextValue) : normalizeQuartile(value.quartile || primaryIndexing.quartile || "");
+    const nextSjr = field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "";
+    const nextCiteScore = field === "citeScore" ? nextValue : value.citeScore || primaryIndexing.citeScore || primaryIndexing.cite_score || "";
     const nextFirstIndexing = {
       ...firstIndexing,
       source: nextPlatform,
-      quartile: nextCategory,
+      platform: nextPlatform,
+      sourceKey: "manual",
+      category: nextCategory,
+      quartile: nextQuartile,
+      sjr: nextSjr,
+      citeScore: nextCiteScore,
     };
-    const nextIndexing = nextFirstIndexing.source || nextFirstIndexing.quartile || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
+    const nextIndexing = nextFirstIndexing.source || nextFirstIndexing.category || nextFirstIndexing.quartile || nextFirstIndexing.sjr || nextFirstIndexing.citeScore || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
       ? [nextFirstIndexing, ...restIndexing]
       : restIndexing;
 
     onChange({
       ...value,
       [field]: nextValue,
-      quartile: field === "indexingCategory" && /^Q[1-4]$/.test(nextValue) ? nextValue : value.quartile,
+      quartile: nextQuartile,
+      sjr: nextSjr,
+      citeScore: nextCiteScore,
       indexing: nextIndexing,
+      indexingVerified: false,
+      indexingSource: "manual",
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
   };
@@ -626,7 +693,12 @@ const PublicationForm = ({
           <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} />
         </label>
         <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
+          <span className="publication-indexing-label">
+            <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
+            <span className={`publication-indexing-source-badge ${indexingVerified ? indexingSource : "manual"}`}>
+              {indexingSourceLabel}
+            </span>
+          </span>
           <select
             value={value.indexingPlatform || primaryIndexing.source || ""}
             onChange={updateIndexingField("indexingPlatform")}
@@ -642,18 +714,53 @@ const PublicationForm = ({
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.indexingCategory")}</span>
-          <select
-            value={value.indexingCategory || primaryIndexing.quartile || ""}
+          <input
+            value={value.indexingCategory || primaryIndexing.category || ""}
             onChange={updateIndexingField("indexingCategory")}
+            list="publication-indexing-category-options"
+            placeholder={t("professor.dashboard.publicationForm.indexingCategoryPlaceholder")}
             required
-            disabled={isFieldLocked("indexingCategory") || isFieldLocked("quartile")}
-          >
+            readOnly={isFieldLocked("indexingCategory")}
+          />
+          <datalist id="publication-indexing-category-options">
             {INDEXING_CATEGORY_OPTIONS.map((option) => (
               <option key={option || "empty-category"} value={option}>
                 {option || t("professor.dashboard.publicationForm.selectIndexingCategory")}
               </option>
             ))}
-            </select>
+          </datalist>
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+          <select
+            value={value.quartile || primaryIndexing.quartile || ""}
+            onChange={updateIndexingField("quartile")}
+            disabled={isFieldLocked("quartile")}
+          >
+            {QUARTILE_OPTIONS.map((option) => (
+              <option key={option || "empty-quartile"} value={option}>
+                {option || t("professor.dashboard.publicationForm.selectQuartile")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.sjr")}</span>
+          <input
+            value={value.sjr || primaryIndexing.sjr || ""}
+            onChange={updateIndexingField("sjr")}
+            placeholder="0.000"
+            readOnly={isFieldLocked("sjr")}
+          />
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.citeScore")}</span>
+          <input
+            value={value.citeScore || primaryIndexing.citeScore || primaryIndexing.cite_score || ""}
+            onChange={updateIndexingField("citeScore")}
+            placeholder="0.0"
+            readOnly={isFieldLocked("citeScore")}
+          />
         </label>
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">

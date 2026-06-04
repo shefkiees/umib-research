@@ -1812,6 +1812,33 @@ body {
   letter-spacing: 0.01em;
 }
 
+.publication-form .prof-form-field > .publication-indexing-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.publication-indexing-source-badge {
+  flex: 0 0 auto;
+  max-width: 160px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #1d4d7d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publication-indexing-source-badge.manual {
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .publication-form .prof-form-field input,
 .publication-form .prof-form-field select {
   height: 48px;

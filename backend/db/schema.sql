@@ -302,6 +302,8 @@ alter table publications add column if not exists isbn text not null default '';
 alter table publications add column if not exists author_affiliation text not null default '';
 alter table publications add column if not exists indexing_platform text not null default '';
 alter table publications add column if not exists indexing_category text not null default '';
+alter table publications add column if not exists indexing_verified boolean not null default false;
+alter table publications add column if not exists indexing_source text not null default 'manual';
 alter table publications add column if not exists metadata_source text not null default 'manual';
 alter table publications add column if not exists metadata_verified boolean not null default false;
 alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
@@ -317,6 +319,9 @@ check (status in ('draft', 'submitted', 'in_review', 'approved', 'rejected', 'ne
 alter table publications drop constraint if exists publications_metadata_review_status_check;
 alter table publications add constraint publications_metadata_review_status_check
 check (metadata_review_status in ('unchecked', 'in_review', 'ok', 'correction'));
+alter table publications drop constraint if exists publications_indexing_source_check;
+alter table publications add constraint publications_indexing_source_check
+check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'manual'));
 
 update publications p
 set
@@ -432,12 +437,21 @@ create table if not exists publication_indexing (
   id uuid primary key default gen_random_uuid(),
   publication_id uuid not null references publications(id) on delete cascade,
   source text not null default '',
+  source_key text not null default 'manual',
+  category text not null default '',
   quartile text not null default '',
   impact_factor text not null default '',
+  sjr text not null default '',
+  cite_score text not null default '',
   indexed_url text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table publication_indexing add column if not exists source_key text not null default 'manual';
+alter table publication_indexing add column if not exists category text not null default '';
+alter table publication_indexing add column if not exists sjr text not null default '';
+alter table publication_indexing add column if not exists cite_score text not null default '';
 
 create index if not exists publication_indexing_publication_idx
 on publication_indexing (publication_id);
