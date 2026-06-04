@@ -2260,7 +2260,7 @@ export default function ProfessorDashboard() {
           ))}
         </div>
       ) : (
-        <div className="prof-stats-empty publication-list-empty">{t("professor.dashboard.noData")}</div>
+        <div className="prof-stats-empty publication-list-empty" aria-label={t("professor.dashboard.noData")}>—</div>
       )}
     </article>
   );
