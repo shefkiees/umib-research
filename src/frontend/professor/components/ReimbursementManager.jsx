@@ -2975,19 +2975,6 @@ export default function ReimbursementManager({
 
         <form className="reimbursement-form" onSubmit={handleSubmit}>
           <section className="reimbursement-section">
-            <div className="reimbursement-type-grid">
-              {REQUEST_TYPES.map((type) => (
-                <button
-                  key={type.id}
-                  type="button"
-                  className={`reimbursement-type-card ${selectedType === type.id ? "active" : ""}`}
-                  onClick={() => handleTypeSelect(type.id)}
-                >
-                  <strong>{tx(type.label)}</strong>
-                </button>
-              ))}
-            </div>
-
             {isLoadingContext ? (
               <div className="reimbursement-loading">
                 <Loader2 size={18} className="reimbursement-spin" />

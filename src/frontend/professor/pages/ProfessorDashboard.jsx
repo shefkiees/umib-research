@@ -1080,7 +1080,10 @@ export default function ProfessorDashboard() {
       return;
     }
 
-    if (destination !== "Rimbursime") {
+    if (destination === "Rimbursime") {
+      setReimbursementTypeTarget((prev) => ({ type: "publication", requestId: prev.requestId + 1 }));
+      setActiveReimbursementType("");
+    } else {
       setReimbursementTypeTarget((prev) => ({ type: "", requestId: prev.requestId + 1 }));
       setActiveReimbursementType("");
     }
