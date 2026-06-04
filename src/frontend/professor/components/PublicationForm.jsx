@@ -31,6 +31,7 @@ const EMPTY_AUTHOR = {
   familyName: "",
   orcid: "",
   affiliation: "",
+  isCorrespondingAuthor: false,
 };
 
 export const createEmptyPublicationDraft = () => ({
@@ -50,6 +51,7 @@ export const createEmptyPublicationDraft = () => ({
   issn: "",
   isbn: "",
   authorAffiliation: "",
+  correspondingAuthor: "",
   indexingPlatform: "",
   indexingCategory: "",
   quartile: "",
@@ -70,6 +72,15 @@ export const createEmptyPublicationDraft = () => ({
 function normalizePublicationAuthors(authors = []) {
   const normalizedAuthors = authors.map((author) => (typeof author === "string" ? { fullName: author } : author || {}));
   const mainAuthorIndex = normalizedAuthors.findIndex((author) => Boolean(author.isMainAuthor ?? author.is_main_author));
+  const correspondingAuthorIndex = normalizedAuthors.findIndex((author) => normalizeBoolean(
+    author.isCorrespondingAuthor
+    ?? author.is_corresponding_author
+    ?? author.correspondingAuthor
+    ?? author.corresponding_author
+    ?? author.isCorresponding
+    ?? author.is_corresponding
+    ?? author.corresponding
+  ));
 
   return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
@@ -80,6 +91,7 @@ function normalizePublicationAuthors(authors = []) {
       affiliation: normalizeAuthorAffiliation(normalizedAuthor),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
+      isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
     };
   });
 }
@@ -104,6 +116,18 @@ function normalizeAuthorAffiliation(author = {}) {
     })
     .filter(Boolean)
     .join("; ");
+}
+
+function normalizeBoolean(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function getCorrespondingAuthorName(authors = []) {
+  const correspondingAuthor = (Array.isArray(authors) ? authors : []).find((author) =>
+    normalizeBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
+  );
+
+  return correspondingAuthor?.fullName || correspondingAuthor?.full_name || correspondingAuthor?.name || "";
 }
 
 function normalizeFieldSources(value = {}) {
@@ -200,6 +224,10 @@ export function publicationToDraft(publication = {}) {
       || publication.author_affiliation
       || publication.affiliation
       || normalizedAuthors.find((author) => author.affiliation)?.affiliation
+      || "",
+    correspondingAuthor: publication.correspondingAuthor
+      || publication.corresponding_author
+      || getCorrespondingAuthorName(normalizedAuthors)
       || "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
@@ -307,6 +335,15 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     affiliation: normalizeAuthorAffiliation(normalizedAuthor),
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
+    isCorrespondingAuthor: normalizeBoolean(
+      normalizedAuthor.isCorrespondingAuthor
+      ?? normalizedAuthor.is_corresponding_author
+      ?? normalizedAuthor.correspondingAuthor
+      ?? normalizedAuthor.corresponding_author
+      ?? normalizedAuthor.isCorresponding
+      ?? normalizedAuthor.is_corresponding
+      ?? normalizedAuthor.corresponding
+    ),
   };
 }
 
@@ -348,6 +385,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issn: metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
+    correspondingAuthor: getCorrespondingAuthorName(draftAuthors),
     indexingPlatform,
     indexingCategory,
     quartile,
@@ -781,6 +819,15 @@ const PublicationForm = ({
               placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
               required
               readOnly={isFieldLocked("authors")}
+            />
+          </label>
+          <label className="publication-author-field">
+            <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
+            <input
+              value={value.correspondingAuthor || ""}
+              onChange={updateField("correspondingAuthor")}
+              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+              readOnly={isFieldLocked("correspondingAuthor")}
             />
           </label>
           <div className="publication-coauthors-block">
