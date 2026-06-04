@@ -96,6 +96,7 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "publicationType",
   "venue",
   "journal",
+  "publishedIn",
   "publisher",
   "publicationDate",
   "publicationYear",
@@ -441,6 +442,7 @@ function parseOptionalInteger(value) {
 function mapPublicationRow(row) {
   const authors = safeJsonArray(row.authors);
   const indexing = safeJsonArray(row.indexing);
+  const venue = row.venue || row.container_title || "";
 
   return {
     id: row.id,
@@ -449,7 +451,10 @@ function mapPublicationRow(row) {
     abstract: row.abstract || "",
     publicationType: row.publication_type || row.publicationType || "",
     publication_type: row.publication_type || row.publicationType || "",
-    venue: row.venue || row.container_title || "",
+    venue,
+    journal: venue,
+    publishedIn: venue,
+    published_in: venue,
     conferenceLocation: row.conference_location || row.conferenceLocation || "",
     conference_location: row.conference_location || row.conferenceLocation || "",
     publisher: row.publisher || "",
@@ -465,6 +470,8 @@ function mapPublicationRow(row) {
     pages: row.pages || "",
     issn: row.issn || "",
     isbn: row.isbn || "",
+    authorAffiliation: row.author_affiliation || "",
+    author_affiliation: row.author_affiliation || "",
     authors,
     indexing,
     identifiers: safeJsonArray(row.identifiers),
@@ -496,7 +503,9 @@ async function hasPublicationContextColumns(dbOrClient) {
          'issue',
          'pages',
          'issn',
-         'isbn'
+         'isbn',
+         'author_affiliation',
+         'external_metadata_id'
        )`
   );
   const tableResult = await dbOrClient.query(
@@ -507,7 +516,7 @@ async function hasPublicationContextColumns(dbOrClient) {
   );
 
   publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 11
+    Number(rows[0]?.count || 0) === 13
     && Number(tableResult.rows[0]?.count || 0) === 4;
   return publicationContextSchemaCache;
 }
@@ -544,8 +553,48 @@ function authorDisplayName(author = {}) {
   );
 }
 
+function normalizeBoolean(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function isMainAuthor(author = {}) {
+  return normalizeBoolean(author?.isMainAuthor ?? author?.is_main_author);
+}
+
+function isCorrespondingAuthor(author = {}) {
+  return normalizeBoolean(
+    author?.isCorrespondingAuthor
+    ?? author?.is_corresponding_author
+    ?? author?.correspondingAuthor
+    ?? author?.corresponding_author
+    ?? author?.isCorresponding
+    ?? author?.is_corresponding
+    ?? author?.corresponding
+  );
+}
+
 function authorAffiliation(author = {}) {
-  return normalizeText((author || {}).affiliation);
+  const safeAuthor = author || {};
+  const rawValue = safeAuthor.affiliation
+    || safeAuthor.affiliations
+    || safeAuthor.institution
+    || safeAuthor.organization
+    || safeAuthor.currentAffiliation
+    || safeAuthor.current_affiliation
+    || "";
+  const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+
+  return values
+    .map((item) => normalizeText(
+      item?.name
+      || item?.affiliation
+      || item?.institution
+      || item?.organization
+      || item?.value
+      || item
+    ))
+    .filter(Boolean)
+    .join("; ");
 }
 
 function publicationToReadOnlyRequestData(publication) {
@@ -554,8 +603,8 @@ function publicationToReadOnlyRequestData(publication) {
   }
 
   const authors = Array.isArray(publication.authors) ? publication.authors : [];
-  const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
-  const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
+  const mainAuthor = authors.find((author) => isMainAuthor(author)) || authors[0] || null;
+  const correspondingAuthor = authors.find((author) => isCorrespondingAuthor(author)) || mainAuthor;
   const mainAuthorName = authorDisplayName(mainAuthor);
   const coauthors = authors
     .filter((author) => {
@@ -571,7 +620,7 @@ function publicationToReadOnlyRequestData(publication) {
     .join(", ");
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
   const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
-  const venue = normalizeText(publication.venue || publication.journal);
+  const venue = normalizeText(publication.venue || publication.publishedIn || publication.published_in || publication.journal || publication.containerTitle || publication.container_title);
   const evidenceLinks = Array.isArray(publication.evidenceLinks || publication.evidence_links)
     ? (publication.evidenceLinks || publication.evidence_links)
     : [];
@@ -584,6 +633,7 @@ function publicationToReadOnlyRequestData(publication) {
     publicationType: normalizeText(publication.publicationType || publication.publication_type),
     venue,
     journal: venue,
+    publishedIn: venue,
     conferenceLocation: normalizeText(publication.conferenceLocation || publication.conference_location),
     publisher: normalizeText(publication.publisher),
     publicationDate: formatDate(publication.publicationDate || publication.publication_date),
@@ -598,7 +648,9 @@ function publicationToReadOnlyRequestData(publication) {
     mainAuthor: mainAuthorName,
     correspondingAuthor: authorDisplayName(correspondingAuthor),
     coauthors,
-    affiliation: authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author))),
+    affiliation: normalizeText(publication.authorAffiliation || publication.author_affiliation || publication.affiliation)
+      || authorAffiliation(mainAuthor)
+      || authorAffiliation(authors.find((author) => authorAffiliation(author))),
     indexingPlatform,
     impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
     scopusQuartile: normalizeText(firstQuartile?.quartile),
@@ -634,6 +686,19 @@ function mergePublicationReadOnlyData(requestData, publication) {
   };
 }
 
+function syncPublicationVenueFields(requestData = {}) {
+  const publishedIn = normalizeText(requestData.venue || requestData.publishedIn || requestData.published_in || requestData.journal);
+
+  return publishedIn
+    ? {
+        ...requestData,
+        venue: publishedIn,
+        journal: publishedIn,
+        publishedIn,
+      }
+    : requestData;
+}
+
 async function selectPublicationForReimbursement(dbOrClient, ownerId, publicationId) {
   if (!publicationId) {
     return null;
@@ -642,7 +707,8 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
   const hasPublicationColumns = await hasPublicationContextColumns(dbOrClient);
   const result = hasPublicationColumns
     ? await dbOrClient.query(
-        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
+        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, m.container_title,
+                p.author_affiliation, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
                 coalesce(
@@ -714,6 +780,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                   '[]'::json
                 ) as evidence_links
          from publications p
+         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
          where p.id = $1
            and ($2::uuid is null or p.owner_id = $2)
          limit 1`,
@@ -1074,7 +1141,7 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     requestTypeLabel: REQUEST_TYPES[requestType],
   };
   const documentRequestData = requestType === "publication"
-    ? mergePublicationReadOnlyData(requestData, linkedRecords.publication)
+    ? syncPublicationVenueFields(mergePublicationReadOnlyData(requestData, linkedRecords.publication))
     : requestData;
   const title = buildRequestTitle(requestType, documentRequestData);
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
@@ -1410,7 +1477,8 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
 
     const hasPublicationColumns = await hasPublicationContextColumns(db);
     const publicationsQuery = hasPublicationColumns
-      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
+      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, m.container_title,
+                p.author_affiliation, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
                 coalesce(
@@ -1482,6 +1550,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                   '[]'::json
                 ) as evidence_links
          from publications p
+         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`
@@ -1501,6 +1570,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                         'familyName', pa.family_name,
                         'affiliation', pa.affiliation,
                         'isMainAuthor', pa.is_main_author,
+                        'isCorrespondingAuthor', pa.is_corresponding_author,
                         'authorOrder', pa.author_order,
                         'position', pa.position
                       )
