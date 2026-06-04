@@ -212,6 +212,23 @@ const APPLICANT_PROFILE_FORM_FIELDS = [
   "academicTitle",
   "scientificTitle",
 ];
+const SERVER_BANK_SNAPSHOT_TYPES = new Set(["publication", "conference"]);
+const BANK_PROFILE_FORM_FIELDS = [
+  "bankAccountId",
+  "bankAccountLabel",
+  "bankApplicantName",
+  "bankName",
+  "bankNameOther",
+  "detectedBankCode",
+  "bankDetectedAutomatically",
+  "bankSelectionSource",
+  "bankAccountNumber",
+  "iban",
+  "swiftCode",
+  "bankCountry",
+  "currency",
+  "banking",
+];
 
 const DEFAULT_FORM_VALUES = {
   applicantName: "",
@@ -231,6 +248,9 @@ const DEFAULT_FORM_VALUES = {
   detectedBankCode: "",
   bankDetectedAutomatically: false,
   bankSelectionSource: "",
+  selectedBankAccountId: "",
+  bankAccountId: "",
+  bankAccountLabel: "",
   bankAccountNumber: "",
   swiftCode: "",
   bankCountry: "Kosove",
@@ -827,6 +847,14 @@ function buildSubmitFormData(formData, requestType) {
     });
   }
 
+  if (SERVER_BANK_SNAPSHOT_TYPES.has(requestType)) {
+    const selectedBankAccountId = String(nextFormData.selectedBankAccountId || nextFormData.bankAccountId || "").trim();
+    BANK_PROFILE_FORM_FIELDS.forEach((field) => {
+      delete nextFormData[field];
+    });
+    nextFormData.selectedBankAccountId = selectedBankAccountId;
+  }
+
   if (publishedIn) {
     nextFormData.venue = publishedIn;
     nextFormData.journal = publishedIn;
@@ -840,6 +868,11 @@ function buildSubmitFormData(formData, requestType) {
   }
 
   return nextFormData;
+}
+
+function maskBankAccountNumber(value) {
+  const normalized = normalizeIban(value);
+  return normalized ? `**** ${normalized.slice(-4)}` : "";
 }
 
 function toNumber(value) {
@@ -1262,6 +1295,8 @@ export default function ReimbursementManager({
     publications: [],
     conferences: [],
   });
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [isLoadingBankAccounts, setIsLoadingBankAccounts] = useState(false);
   const [requests, setRequests] = useState([]);
   const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [isLoadingContext, setIsLoadingContext] = useState(true);
@@ -1293,6 +1328,36 @@ export default function ReimbursementManager({
   const detectedBank = useMemo(() => detectKosovoBankFromAccount(normalizedAccount), [normalizedAccount]);
   const selectedBank = useMemo(() => getBankByName(form.bankName), [form.bankName]);
   const visualBank = selectedBank || detectedBank;
+  const selectedProfileBankAccount = useMemo(
+    () => bankAccounts.find((account) => account.id === form.selectedBankAccountId) || null,
+    [bankAccounts, form.selectedBankAccountId]
+  );
+  const legacyBankSnapshot = useMemo(() => {
+    const banking = form.banking && typeof form.banking === "object" && !Array.isArray(form.banking)
+      ? form.banking
+      : {};
+    const bankName = form.bankName || banking.bankName;
+    const accountNumber = form.bankAccountNumber || form.iban || banking.iban;
+    const swiftCode = form.swiftCode || banking.swift;
+
+    if (!bankName && !accountNumber && !swiftCode) {
+      return null;
+    }
+
+    return {
+      id: form.bankAccountId || "",
+      label: form.bankAccountLabel || "Llogari bankare",
+      bankName,
+      bankAccountNumber: accountNumber,
+      iban: form.iban || accountNumber,
+      swiftCode,
+      bankCountry: form.bankCountry || banking.country || "",
+      currency: form.currency || banking.currency || "EUR",
+      isLegacy: true,
+    };
+  }, [form]);
+  const selectedBankAccountSummary = selectedProfileBankAccount || legacyBankSnapshot;
+  const hasProfileBankSelection = Boolean(selectedProfileBankAccount || legacyBankSnapshot);
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
   const stepStates = useMemo(() => {
     const academicMainField = selectedType === "conference"
@@ -1309,13 +1374,15 @@ export default function ReimbursementManager({
       financial:
         Number(String(form.amount || "").replace(",", ".")) > 0
         && (
-          bankRequired
+          bankRequired && SERVER_BANK_SNAPSHOT_TYPES.has(selectedType)
+            ? hasProfileBankSelection
+            : bankRequired
             ? isAccountNumberValid && hasValue(form.bankName) && isValidSwift(form.swiftCode)
             : hasValue(form.requestedFromUibm) && hasCompleteCostItem(form.costItems)
         ),
       documents: selectedFiles.length > 0,
     };
-  }, [bankRequired, form, isAccountNumberValid, selectedFiles.length, selectedType]);
+  }, [bankRequired, form, hasProfileBankSelection, isAccountNumberValid, selectedFiles.length, selectedType]);
 
   const visibleRequests = useMemo(() => {
     const rows = hasLoadedRequests ? requests : requestsError ? [] : normalizeLegacyRows(fallbackRows);
@@ -1406,8 +1473,42 @@ export default function ReimbursementManager({
       }
     }
 
+    async function loadBankAccounts() {
+      setIsLoadingBankAccounts(true);
+
+      try {
+        const response = await fetch(apiUrl("/auth/me/bank-accounts"), {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (response.status === 401) {
+          throw new Error("Sesioni nuk eshte aktiv. Kyquni me Google per te derguar rimbursim.");
+        }
+
+        if (!response.ok) {
+          throw new Error("Llogarite bankare nuk u ngarkuan.");
+        }
+
+        if (isMounted) {
+          setBankAccounts(Array.isArray(data.bankAccounts) ? data.bankAccounts : []);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setBankAccounts([]);
+          setError(loadError.message || "Llogarite bankare nuk u ngarkuan.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingBankAccounts(false);
+        }
+      }
+    }
+
     loadContext();
     loadRequests();
+    loadBankAccounts();
 
     return () => {
       isMounted = false;
@@ -1445,6 +1546,32 @@ export default function ReimbursementManager({
     });
     setHasHydratedAutoFields(true);
   }, [effectiveProfile, hasHydratedAutoFields, isLoadingContext]);
+
+  useEffect(() => {
+    if (!SERVER_BANK_SNAPSHOT_TYPES.has(selectedType) || isLoadingBankAccounts || !bankAccounts.length) {
+      return;
+    }
+
+    setForm((prev) => {
+      const currentAccount = bankAccounts.find((account) => account.id === prev.selectedBankAccountId);
+      const defaultAccount = bankAccounts.find((account) => account.isDefault) || bankAccounts[0];
+      const nextAccount = currentAccount || defaultAccount;
+
+      if (!nextAccount) {
+        return prev;
+      }
+
+      if (prev.selectedBankAccountId === nextAccount.id && prev.currency === (nextAccount.currency || prev.currency)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        selectedBankAccountId: nextAccount.id,
+        currency: nextAccount.currency || prev.currency || "EUR",
+      };
+    });
+  }, [bankAccounts, isLoadingBankAccounts, selectedType]);
 
   useEffect(() => {
     if (
@@ -1572,6 +1699,18 @@ export default function ReimbursementManager({
       return nextForm;
     });
     setFieldErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleBankAccountSelect = (event) => {
+    const accountId = event.target.value;
+    const account = bankAccounts.find((item) => item.id === accountId);
+
+    setForm((prev) => ({
+      ...prev,
+      selectedBankAccountId: accountId,
+      currency: account?.currency || prev.currency || "EUR",
+    }));
+    setFieldErrors((prev) => ({ ...prev, selectedBankAccountId: "" }));
   };
 
   const handleTeamMemberChange = (index, field) => (event) => {
@@ -1753,6 +1892,10 @@ export default function ReimbursementManager({
         return;
       }
 
+      if (SERVER_BANK_SNAPSHOT_TYPES.has(selectedType) && BANK_PROFILE_FORM_FIELDS.includes(field)) {
+        return;
+      }
+
       if (!hasValue(form[field])) {
         nextErrors[field] = message;
       }
@@ -1774,7 +1917,11 @@ export default function ReimbursementManager({
       nextErrors.amount = "Shuma e kerkuar duhet te jete numer pozitiv.";
     }
 
-    if (bankRequired) {
+    if (bankRequired && SERVER_BANK_SNAPSHOT_TYPES.has(selectedType)) {
+      if (!hasProfileBankSelection) {
+        nextErrors.selectedBankAccountId = "Ju lutem shtoni një llogari bankare në profil para aplikimit.";
+      }
+    } else if (bankRequired) {
       const submittedAccount = form.bankAccountNumber || form.iban;
 
       if (submittedAccount && !isValidBankAccountIdentifier(submittedAccount)) {
@@ -2095,6 +2242,9 @@ export default function ReimbursementManager({
       ...(request.requestData || {}),
       amount: request.requestData?.amount || banking.amount || "",
       currency: request.requestData?.currency || banking.currency || "EUR",
+      selectedBankAccountId: request.requestData?.selectedBankAccountId || request.requestData?.bankAccountId || "",
+      bankAccountId: request.requestData?.bankAccountId || "",
+      bankAccountLabel: request.requestData?.bankAccountLabel || "",
       bankApplicantName: request.requestData?.bankApplicantName || banking.applicantName || "",
       bankName: request.requestData?.bankName || banking.bankName || "",
       bankNameOther: request.requestData?.bankNameOther || "",
@@ -2833,6 +2983,71 @@ export default function ReimbursementManager({
     return renderPublicationFields();
   };
 
+  const renderBankAccountSelection = () => {
+    const summary = selectedBankAccountSummary;
+
+    if (isLoadingBankAccounts) {
+      return (
+        <div className="reimbursement-field reimbursement-wide">
+          <span>Llogaria bankare</span>
+          <div className="reimbursement-bank-placeholder">Duke ngarkuar llogarite bankare...</div>
+        </div>
+      );
+    }
+
+    if (!bankAccounts.length && !summary) {
+      return (
+        <div className="reimbursement-field reimbursement-wide">
+          <span>Llogaria bankare</span>
+          <div className="reimbursement-bank-placeholder" role="alert">
+            Ju lutem shtoni një llogari bankare në profil para aplikimit.
+          </div>
+          {fieldErrors.selectedBankAccountId ? <small className="reimbursement-field-error">{tx(fieldErrors.selectedBankAccountId)}</small> : null}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {bankAccounts.length ? (
+          <label className="reimbursement-field reimbursement-wide">
+            <span>Llogaria bankare</span>
+            <select value={form.selectedBankAccountId} onChange={handleBankAccountSelect} required>
+              {bankAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {[account.label || account.bankName || "Llogari bankare", maskBankAccountNumber(account.iban || account.bankAccountNumber), account.isDefault ? "Llogari Kryesore" : ""].filter(Boolean).join(" - ")}
+                </option>
+              ))}
+            </select>
+            {fieldErrors.selectedBankAccountId ? <small className="reimbursement-field-error">{tx(fieldErrors.selectedBankAccountId)}</small> : null}
+          </label>
+        ) : null}
+
+        {summary ? (
+          <div className="reimbursement-field reimbursement-bank-result reimbursement-wide">
+            <span>{summary.isLegacy ? "Llogaria bankare e ruajtur ne kerkese" : "Detajet e llogarise"}</span>
+            <div className="reimbursement-detected-bank" aria-live="polite">
+              <span className="reimbursement-bank-logo">
+                <Landmark size={18} />
+              </span>
+              <span>
+                <strong>{summary.bankName || "-"}</strong>
+                <small>
+                  {[
+                    maskBankAccountNumber(summary.iban || summary.bankAccountNumber),
+                    summary.swiftCode,
+                    summary.bankCountry,
+                    summary.currency,
+                  ].filter(Boolean).join(" | ")}
+                </small>
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
   const renderFinanceFields = () => (
     <div className="reimbursement-bank-panel">
       <div className="reimbursement-bank-grid">
@@ -2852,9 +3067,13 @@ export default function ReimbursementManager({
           {fieldErrors.amount ? <small className="reimbursement-field-error">{tx(fieldErrors.amount)}</small> : null}
         </label>
 
-        {renderInput(r.currency, "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
+        {SERVER_BANK_SNAPSHOT_TYPES.has(selectedType)
+          ? null
+          : renderInput(r.currency, "currency", { type: "select", options: ["EUR", "USD", "CHF"], required: true })}
 
-        {bankRequired ? (
+        {bankRequired && SERVER_BANK_SNAPSHOT_TYPES.has(selectedType) ? (
+          renderBankAccountSelection()
+        ) : bankRequired ? (
           <>
             {renderInput(r.bankApplicantName, "bankApplicantName", { required: true })}
 
