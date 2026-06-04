@@ -42,6 +42,7 @@ import { sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
   detectKosovoBankFromAccount,
+  KOSOVO_BANKS,
   maskBankAccount,
 } from "../../../../shared/banking.js";
 
@@ -401,6 +402,64 @@ const buildBankAccountLabel = ({ bankName = "", bankAccountNumber = "", iban = "
 
   return [displayName, maskedIdentifier].filter(Boolean).join(" - ");
 };
+
+const normalizeBankNameForLogo = (value = "") =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const PROFILE_BANK_LOGO_ALIASES = {
+  bkt: "NCBAXKPR",
+  bktkosovo: "NCBAXKPR",
+  bankakombetaretregtarekosove: "NCBAXKPR",
+  procredit: "MBKOXKPR",
+  procreditbank: "MBKOXKPR",
+  procreditbankkosovo: "MBKOXKPR",
+  raiffeisen: "RBKOXKPR",
+  raiffeisenbank: "RBKOXKPR",
+  raiffeisenbankkosovo: "RBKOXKPR",
+  teb: "TEBKXKPR",
+  tebbank: "TEBKXKPR",
+  tebbankkosovo: "TEBKXKPR",
+  nlb: "NLPRXKPR",
+  nlbbanka: "NLPRXKPR",
+  bankaperbiznes: "BPBXXKPR",
+  bpb: "BPBXXKPR",
+  bpbbank: "BPBXXKPR",
+  ziraat: "TCZBXKPR",
+  ziraatbank: "TCZBXKPR",
+  ziraatbankkosovo: "TCZBXKPR",
+  isbank: "ISBKXKPR",
+  isbankkosovo: "ISBKXKPR",
+  pribank: "PHHAXKPR",
+  economic: "EKOMXKPR",
+  economicbank: "EKOMXKPR",
+  bankaekonomike: "EKOMXKPR",
+};
+
+const getProfileBankBySavedName = (bankName = "") => {
+  const normalizedName = normalizeBankNameForLogo(bankName);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  const exactBank = KOSOVO_BANKS.find((bank) => normalizeBankNameForLogo(bank.name) === normalizedName);
+
+  if (exactBank) {
+    return exactBank;
+  }
+
+  const aliasSwift = PROFILE_BANK_LOGO_ALIASES[normalizedName];
+
+  return aliasSwift ? KOSOVO_BANKS.find((bank) => bank.swift === aliasSwift) || null : null;
+};
+
+const getProfileBankCardLogoBank = (account = {}) =>
+  getProfileBankBySavedName(account.bankName)
+  || detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
 
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
@@ -2727,7 +2786,7 @@ export default function ProfessorDashboard() {
                 ) : bankAccounts.length ? (
                   <div className="prof-bank-account-list">
                     {bankAccounts.map((account) => {
-                      const cardBank = detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
+                      const cardBank = getProfileBankCardLogoBank(account);
 
                       return (
                         <article className="prof-bank-account-card" key={account.id}>
