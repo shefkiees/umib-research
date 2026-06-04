@@ -40,6 +40,10 @@ import PublicationForm, {
 import { apiUrl } from "../../utils/api";
 import { sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
+import {
+  detectKosovoBankFromAccount,
+  maskBankAccount,
+} from "../../../../shared/banking.js";
 
 import {
   professorProfile,
@@ -384,24 +388,16 @@ const getKosovoIbanBankIdentifier = (value = "") => {
 };
 
 const detectProfileKosovoBank = (value = "") => {
-  const bankIdentifier = getKosovoIbanBankIdentifier(value);
-
-  if (!bankIdentifier) {
-    return null;
-  }
-
-  return PROFILE_KOSOVO_BANKS.find((bank) => bank.code === bankIdentifier) || null;
+  return detectKosovoBankFromAccount(value);
 };
 
 const maskBankAccountNumber = (value = "") => {
-  const normalized = String(value || "").replace(/\s+/g, "");
-
-  return normalized ? `**** ${normalized.slice(-4)}` : "";
+  return maskBankAccount(value);
 };
 
 const buildBankAccountLabel = ({ bankName = "", bankAccountNumber = "", iban = "" } = {}) => {
   const displayName = String(bankName || "").trim() || "Llogari bankare";
-  const maskedIdentifier = maskBankAccountNumber(iban || bankAccountNumber);
+  const maskedIdentifier = maskBankAccount(iban || bankAccountNumber);
 
   return [displayName, maskedIdentifier].filter(Boolean).join(" - ");
 };
@@ -492,7 +488,7 @@ export default function ProfessorDashboard() {
 
   const settingsText = t("professor.settings");
   const detectedProfileBank = useMemo(
-    () => detectProfileKosovoBank(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban),
+    () => detectKosovoBankFromAccount(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban),
     [bankAccountDraft.bankAccountNumber, bankAccountDraft.iban]
   );
 
@@ -1152,7 +1148,7 @@ export default function ProfessorDashboard() {
       [field]: field === "swiftCode" || field === "currency" ? String(value).toUpperCase() : value,
       ...(field === "bankAccountNumber"
         ? (() => {
-            const detectedBank = detectProfileKosovoBank(value);
+            const detectedBank = detectKosovoBankFromAccount(value);
 
             return {
               iban: value,
@@ -2737,7 +2733,7 @@ export default function ProfessorDashboard() {
                             <strong>{account.bankName || settingsText.bankAccountsTitle}</strong>
                             {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
                           </div>
-                          <p>{[maskBankAccountNumber(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
+                          <p>{[maskBankAccount(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
                         </div>
                         <div className="prof-bank-account-card-actions">
                           {!account.isDefault ? (
@@ -2865,7 +2861,7 @@ export default function ProfessorDashboard() {
                 </p>
                 <p>
                   <span>{settingsText.bankAccountNumber}</span>
-                  <strong>{maskBankAccountNumber(bankAccountDeleteTarget.iban || bankAccountDeleteTarget.bankAccountNumber) || "-"}</strong>
+                  <strong>{maskBankAccount(bankAccountDeleteTarget.iban || bankAccountDeleteTarget.bankAccountNumber) || "-"}</strong>
                 </p>
               </div>
               {bankAccountDeleteTarget.isDefault ? (
