@@ -1,17 +1,22 @@
 import {
   BookOpen,
   Calendar,
+  ChevronDown,
+  ChevronRight,
   History,
   List,
   Wallet,
   BarChart3,
 } from "lucide-react";
+import { useState } from "react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function Sidebar({ activePage, onNavigate, setActivePage, onLogout }) {
   const { t } = useLanguage();
+  const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
+  const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const reimbursementSubmenu = [
     { name: "Publikime Shkencore", target: "Rimbursime" },
     { name: "Konferenca dhe Simpoziume", target: "Rimbursime" },
@@ -36,6 +41,25 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
     }
   };
 
+  const handleMainItemClick = (itemName) => {
+    if (itemName === "Rimbursime") {
+      setIsReimbursementMenuOpen((isOpen) => !isOpen);
+      setActiveReimbursementSubmenu("");
+      handleNavigate(itemName);
+      return;
+    }
+
+    setIsReimbursementMenuOpen(false);
+    setActiveReimbursementSubmenu("");
+    handleNavigate(itemName);
+  };
+
+  const handleReimbursementSubmenuClick = (submenuItem) => {
+    setIsReimbursementMenuOpen(true);
+    setActiveReimbursementSubmenu(submenuItem.name);
+    handleNavigate(submenuItem.target);
+  };
+
   return (
     <aside className="prof-sidebar">
       <div className="prof-sidebar-top">
@@ -52,23 +76,32 @@ export default function Sidebar({ activePage, onNavigate, setActivePage, onLogou
           {menuMain.map((item) => (
             <div className="prof-sidebar-item" key={item.name}>
               <button
+                type="button"
                 className={`prof-sidebar-link ${
                   activePage === item.name ? "active" : ""
                 }`}
-                onClick={() => handleNavigate(item.name)}
+                onClick={() => handleMainItemClick(item.name)}
+                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : undefined}
               >
                 <span className="prof-sidebar-icon">{item.icon}</span>
                 <span className="prof-sidebar-text">{item.label}</span>
+                {item.name === "Rimbursime" ? (
+                  <span className="prof-sidebar-chevron" aria-hidden="true">
+                    {isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </span>
+                ) : null}
               </button>
 
-              {item.name === "Rimbursime" ? (
+              {item.name === "Rimbursime" && isReimbursementMenuOpen ? (
                 <div className="prof-sidebar-submenu" aria-label="Nenkategorite e rimbursimeve">
                   {reimbursementSubmenu.map((submenuItem) => (
                     <button
                       key={submenuItem.name}
                       type="button"
-                      className="prof-sidebar-sublink"
-                      onClick={() => handleNavigate(submenuItem.target)}
+                      className={`prof-sidebar-sublink ${
+                        activeReimbursementSubmenu === submenuItem.name ? "active" : ""
+                      }`}
+                      onClick={() => handleReimbursementSubmenuClick(submenuItem)}
                     >
                       {submenuItem.name}
                     </button>
