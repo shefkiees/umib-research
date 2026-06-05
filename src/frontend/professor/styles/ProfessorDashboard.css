@@ -1654,6 +1654,55 @@ body {
   font-weight: 650;
 }
 
+.publication-save-alert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(2px);
+}
+
+.publication-save-alert {
+  width: min(310px, calc(100vw - 48px));
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(31, 41, 55, 0.94);
+  color: #f8fafc;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  text-align: center;
+}
+
+.publication-save-alert p {
+  margin: 0;
+  padding: 24px 22px 18px;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.publication-save-alert button {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  background: transparent;
+  color: #7db5ff;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.publication-save-alert button:hover,
+.publication-save-alert button:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
 /* ===== GENERIC CARD ===== */
 .prof-card {
   padding: 16px;
@@ -1837,11 +1886,11 @@ body {
 }
 
 .publication-doi-action {
-  border: 1px solid #111827;
-  background: #111827;
+  border: 1px solid #2f7ed8;
+  background: #2f7ed8;
   color: #ffffff;
   letter-spacing: 0.01em;
-  box-shadow: 0 8px 16px rgba(17, 24, 39, 0.16);
+  box-shadow: 0 8px 16px rgba(47, 126, 216, 0.18);
 }
 
 .publication-manual-action {
@@ -1852,9 +1901,9 @@ body {
 }
 
 .publication-doi-action:hover:not(:disabled) {
-  border-color: #1f2937;
-  background: #1f2937;
-  box-shadow: 0 10px 20px rgba(17, 24, 39, 0.22);
+  border-color: #256fc5;
+  background: #256fc5;
+  box-shadow: 0 10px 20px rgba(47, 126, 216, 0.24);
   transform: translateY(-1px);
 }
 

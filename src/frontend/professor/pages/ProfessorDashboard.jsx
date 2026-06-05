@@ -56,7 +56,6 @@ import {
 import "../styles/ProfessorDashboard.css";
 
 const AUTO_DISMISS_PUBLICATION_ERROR_MS = 3200;
-const PUBLICATION_SUCCESS_TOAST_DURATION_MS = 2200;
 
 const PUBLICATION_ERROR_MESSAGES = {
   duplicate_publication: "professor.dashboard.duplicatePublication",
@@ -1021,16 +1020,6 @@ export default function ProfessorDashboard() {
     return () => window.clearTimeout(timeout);
   }, [publicationsError]);
 
-  useEffect(() => {
-    if (!publicationSuccessToast) {
-      return undefined;
-    }
-
-    const timeout = window.setTimeout(() => setPublicationSuccessToast(""), PUBLICATION_SUCCESS_TOAST_DURATION_MS);
-
-    return () => window.clearTimeout(timeout);
-  }, [publicationSuccessToast]);
-
   const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
     setIsPublicationsLoading(true);
     setPublicationsError("");
@@ -1936,7 +1925,7 @@ export default function ProfessorDashboard() {
       resetManualPublicationDraft();
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
-      setPublicationSuccessToast("Artikulli u ruajt me sukses.");
+      setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -1966,7 +1955,7 @@ export default function ProfessorDashboard() {
 
       cancelPublicationEdit();
       await loadPublications({ page: publicationsPage, query: searchQuery });
-      setPublicationSuccessToast("Artikulli u ruajt me sukses.");
+      setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -3137,8 +3126,13 @@ export default function ProfessorDashboard() {
       ) : null}
 
       {publicationSuccessToast ? (
-        <div className="prof-toast success publication-save-toast" role="status" aria-live="polite">
-          {publicationSuccessToast}
+        <div className="publication-save-alert-overlay" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="publication-save-alert">
+            <p>{publicationSuccessToast}</p>
+            <button type="button" onClick={() => setPublicationSuccessToast("")}>
+              Mbyll
+            </button>
+          </div>
         </div>
       ) : null}
 
