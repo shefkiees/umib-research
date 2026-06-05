@@ -1459,7 +1459,9 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     title: metadata.title || "",
     abstract: nullableConferenceAbstract(publicationType, metadata.abstract),
     publicationType,
-    venue: metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
+    venue: publicationType === "book"
+      ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
+      : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")

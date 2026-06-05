@@ -79,6 +79,26 @@ function normalizeMetadataPublicationType(value) {
   return typeMap[normalized] || normalizeText(value);
 }
 
+function isBookChapterMetadataType(value) {
+  const normalized = normalizeComparableText(value).replace(/\s+/g, "_");
+
+  return normalized === "book_chapter" || normalized === "chapter";
+}
+
+function isBookChapterMetadata(metadata = {}) {
+  const raw = metadata.raw_json || metadata;
+
+  return [
+    metadata.type,
+    raw.type,
+    raw.subtype,
+    raw._crossref?.type,
+    raw._doi_org?.type,
+    raw._openalex?.type_crossref,
+    raw._openalex?.type,
+  ].some(isBookChapterMetadataType);
+}
+
 function normalizeIssn(value) {
   return normalizeText(value).replace(/[^0-9x]/gi, "").toUpperCase();
 }
@@ -656,6 +676,81 @@ function normalizeAffiliations(value) {
     .join("; ");
 }
 
+function normalizeTitleArray(value) {
+  return uniqueValues((Array.isArray(value) ? value : [value])
+    .map((item) => firstTextValue(item?.title || item?.value || item?.name || item))
+    .filter(Boolean));
+}
+
+function getBookChapterTitleFields(data = {}, chapterTitle = "") {
+  const raw = data.raw_json || data;
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const sources = [raw, crossref, doiOrg];
+  const chapterKey = normalizeComparableText(chapterTitle || raw.title || firstTextValue(raw.title));
+  const explicitBookTitles = uniqueValues(sources.flatMap((source) => [
+    ...normalizeTitleArray(source.source_title || source.sourceTitle || source["source-title"]),
+    ...normalizeTitleArray(source.book_title || source.bookTitle || source["book-title"]),
+    ...normalizeTitleArray(source.volume_title || source.volumeTitle || source["volume-title"]),
+  ]));
+  const containerTitles = uniqueValues(sources.flatMap((source) =>
+    normalizeTitleArray(source.container_title || source.containerTitle || source["container-title"])
+  ));
+  const explicitSeriesTitles = uniqueValues(sources.flatMap((source) => [
+    ...normalizeTitleArray(source.series_title || source.seriesTitle || source["series-title"]),
+    ...normalizeTitleArray(source.collection_title || source.collectionTitle || source["collection-title"]),
+  ]));
+  const explicitSeriesTitleKeys = new Set(explicitSeriesTitles.map(normalizeComparableText).filter(Boolean));
+  const usableExplicitBookTitles = explicitBookTitles.filter((title) =>
+    normalizeComparableText(title)
+    && normalizeComparableText(title) !== chapterKey
+    && !explicitSeriesTitleKeys.has(normalizeComparableText(title))
+  );
+  const usableContainerTitles = containerTitles.filter((title) =>
+    normalizeComparableText(title)
+    && normalizeComparableText(title) !== chapterKey
+    && !explicitSeriesTitleKeys.has(normalizeComparableText(title))
+  );
+  const bookTitle = usableExplicitBookTitles[0]
+    || (usableContainerTitles.length > 1 ? usableContainerTitles[usableContainerTitles.length - 1] : usableContainerTitles[0])
+    || "";
+  const seriesTitle = explicitSeriesTitles[0]
+    || (usableContainerTitles.length > 1
+      ? usableContainerTitles.find((title) => normalizeComparableText(title) !== normalizeComparableText(bookTitle)) || ""
+      : "");
+
+  return {
+    bookTitle: normalizeText(bookTitle),
+    book_title: normalizeText(bookTitle),
+    seriesTitle: normalizeText(seriesTitle),
+    series_title: normalizeText(seriesTitle),
+  };
+}
+
+function normalizeBookChapterMetadata(metadata = {}) {
+  if (!isBookChapterMetadata(metadata)) {
+    return metadata;
+  }
+
+  const titleFields = getBookChapterTitleFields(metadata, metadata.title);
+  const bookTitle = titleFields.bookTitle || metadata.book_title || metadata.bookTitle || metadata.container_title || "";
+  const seriesTitle = titleFields.seriesTitle || metadata.series_title || metadata.seriesTitle || "";
+
+  return {
+    ...metadata,
+    container_title: bookTitle,
+    bookTitle,
+    book_title: bookTitle,
+    seriesTitle,
+    series_title: seriesTitle,
+    raw_json: {
+      ...(metadata.raw_json || {}),
+      book_title: bookTitle,
+      series_title: seriesTitle,
+    },
+  };
+}
+
 function createFieldSource(value, sourceWhenPresent = "api") {
   const normalizedValue = Array.isArray(value)
     ? value.filter(Boolean)
@@ -687,7 +782,7 @@ function buildMetadataFieldSources(metadata = {}) {
     authors: createFieldSource(Array.isArray(metadata.authors) ? metadata.authors.map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean) : []),
     authorAffiliation: createFieldSource(null),
     publicationType: createFieldSource(metadata.type),
-    venue: createFieldSource(metadata.conferenceName || metadata.conference_name || metadata.container_title),
+    venue: createFieldSource(metadata.conferenceName || metadata.conference_name || metadata.book_title || metadata.bookTitle || metadata.container_title),
     publisher: createFieldSource(metadata.publisher),
     publicationDate: createFieldSource(metadata.published_date),
     publicationYear: createFieldSource(metadata.year),
@@ -1165,8 +1260,40 @@ function mergeMetadata(primary, fallback) {
   const fallbackLookup = getMetadataCorrespondingLookup(fallback);
   const correspondingLookup = primaryLookup?.status === "verified" ? primaryLookup : fallbackLookup || primaryLookup;
   const mergedConferenceName = preferText(primary.conferenceName || primary.conference_name, fallback.conferenceName || fallback.conference_name);
+  const mergedIsBookChapter = isBookChapterMetadata(primary) || isBookChapterMetadata(fallback) || isBookChapterMetadataType(mergedType);
+  const primaryBookChapterTitles = mergedIsBookChapter ? getBookChapterTitleFields(primary, primary.title) : {};
+  const fallbackBookChapterTitles = mergedIsBookChapter ? getBookChapterTitleFields(fallback, fallback.title) : {};
+  const primaryBookTitleCandidate = primary.book_title || primary.bookTitle || primaryBookChapterTitles.bookTitle;
+  const fallbackBookTitleCandidate = fallback.book_title || fallback.bookTitle || fallbackBookChapterTitles.bookTitle;
+  const primarySeriesTitleCandidate = primary.series_title || primary.seriesTitle || primaryBookChapterTitles.seriesTitle;
+  const fallbackSeriesTitleCandidate = fallback.series_title || fallback.seriesTitle || fallbackBookChapterTitles.seriesTitle;
+  const primaryLooksLikeFallbackSeries = normalizeComparableText(primaryBookTitleCandidate)
+    && normalizeComparableText(primaryBookTitleCandidate) === normalizeComparableText(fallbackSeriesTitleCandidate);
+  const fallbackLooksLikePrimarySeries = normalizeComparableText(fallbackBookTitleCandidate)
+    && normalizeComparableText(fallbackBookTitleCandidate) === normalizeComparableText(primarySeriesTitleCandidate);
+  const mergedBookTitle = mergedIsBookChapter
+    ? primaryLooksLikeFallbackSeries && fallbackBookTitleCandidate
+      ? fallbackBookTitleCandidate
+      : fallbackLooksLikePrimarySeries && primaryBookTitleCandidate
+        ? primaryBookTitleCandidate
+        : preferText(
+          primaryBookTitleCandidate,
+          preferText(
+            fallbackBookTitleCandidate,
+            preferText(primary.container_title, fallback.container_title)
+          )
+        )
+    : "";
+  const mergedSeriesTitle = mergedIsBookChapter
+    ? preferText(
+      primarySeriesTitleCandidate,
+      fallbackSeriesTitleCandidate
+    )
+    : "";
   const mergedContainerTitle = normalizedMergedType === "conference_paper"
     ? preferText(mergedConferenceName, preferText(primary.container_title, fallback.container_title))
+    : mergedIsBookChapter
+      ? mergedBookTitle || preferText(primary.container_title, fallback.container_title)
     : preferText(primary.container_title, fallback.container_title);
 
   const mergedMetadata = {
@@ -1174,6 +1301,10 @@ function mergeMetadata(primary, fallback) {
     title: preferText(primary.title, fallback.title),
     authors,
     container_title: mergedContainerTitle,
+    bookTitle: mergedBookTitle,
+    book_title: mergedBookTitle,
+    seriesTitle: mergedSeriesTitle,
+    series_title: mergedSeriesTitle,
     conferenceName: mergedConferenceName,
     conference_name: mergedConferenceName,
     publisher: preferText(primary.publisher, fallback.publisher),
@@ -1197,12 +1328,18 @@ function mergeMetadata(primary, fallback) {
       _doi_org: primaryRaw._doi_org || fallbackRaw._doi_org || {},
       _crossref: primaryRaw._crossref || fallbackRaw._crossref || {},
       _openalex: primaryRaw._openalex || fallbackRaw._openalex || {},
+      ...(mergedIsBookChapter ? {
+        book_title: mergedBookTitle,
+        series_title: mergedSeriesTitle,
+      } : {}),
     },
   };
 
+  const normalizedMergedMetadata = normalizeBookChapterMetadata(mergedMetadata);
+
   return correspondingLookup?.status === "verified"
-    ? applyCorrespondingResolution(mergedMetadata, correspondingLookup)
-    : mergedMetadata;
+    ? applyCorrespondingResolution(normalizedMergedMetadata, correspondingLookup)
+    : normalizedMergedMetadata;
 }
 
 function normalizeUrlCandidate(value) {
@@ -2058,8 +2195,13 @@ function shouldRefreshCachedMetadata(metadata = {}) {
   const hasCachedIssn = hasText(metadata.issn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISSN"));
   const hasCachedIsbn = hasText(metadata.isbn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISBN"));
   const isConferenceType = comparableType === "conference_paper";
+  const isBookChapterType = isBookChapterMetadata(metadata);
 
   if (isConferenceType && shouldTryPublisherConferenceMetadata(metadata)) {
+    return true;
+  }
+
+  if (isBookChapterType && !getBookChapterTitleFields(metadata, metadata.title).bookTitle) {
     return true;
   }
 
@@ -2086,9 +2228,13 @@ function mapMetadata(data, doi) {
     ? data["container-title"][0] || ""
     : data["container-title"] || data.event?.name || "";
   const type = normalizeMetadataPublicationType(data.type);
+  const isBookChapter = isBookChapterMetadata(data);
+  const bookChapterTitles = isBookChapter ? getBookChapterTitleFields(data, title) : {};
   const conferenceName = normalizeConferenceName(data);
   const containerTitle = type === "conference_paper"
     ? conferenceName || rawContainerTitle
+    : isBookChapter
+      ? bookChapterTitles.bookTitle || rawContainerTitle || conferenceName
     : rawContainerTitle || conferenceName;
   const conferenceLocation = normalizeConferenceLocation(data);
   const authors = Array.isArray(data.author)
@@ -2135,9 +2281,19 @@ function mapMetadata(data, doi) {
     issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type,
+    bookTitle: isBookChapter ? bookChapterTitles.bookTitle || containerTitle : "",
+    book_title: isBookChapter ? bookChapterTitles.bookTitle || containerTitle : "",
+    seriesTitle: isBookChapter ? bookChapterTitles.seriesTitle || "" : "",
+    series_title: isBookChapter ? bookChapterTitles.seriesTitle || "" : "",
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
-    raw_json: data,
+    raw_json: {
+      ...data,
+      ...(isBookChapter ? {
+        book_title: bookChapterTitles.bookTitle || containerTitle,
+        series_title: bookChapterTitles.seriesTitle || "",
+      } : {}),
+    },
   };
 }
 
@@ -2211,6 +2367,23 @@ export async function getCachedDoiMetadata(db, doi) {
     metadata.container_title = conferenceName;
   }
 
+  const bookNormalizedMetadata = normalizeBookChapterMetadata(metadata);
+  const bookTitleChanged = bookNormalizedMetadata.container_title !== metadata.container_title
+    || bookNormalizedMetadata.book_title !== metadata.book_title
+    || bookNormalizedMetadata.series_title !== metadata.series_title;
+
+  if (bookTitleChanged) {
+    Object.assign(metadata, bookNormalizedMetadata);
+    await db.query(
+      `update publication_metadata
+       set container_title = $2,
+           raw_json = $3::jsonb,
+           updated_at = now()
+       where doi = $1`,
+      [doi, metadata.container_title, JSON.stringify(metadata.raw_json || {})]
+    );
+  }
+
   if (!hasIdentifierColumns) {
     return metadata;
   }
@@ -2238,6 +2411,7 @@ export async function getCachedDoiMetadata(db, doi) {
 }
 
 export async function upsertDoiMetadata(dbOrClient, metadata) {
+  metadata = normalizeBookChapterMetadata(metadata);
   const hasIdentifierColumns = await hasPublicationMetadataIdentifierColumns(dbOrClient);
 
   if (hasIdentifierColumns) {
