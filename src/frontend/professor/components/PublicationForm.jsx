@@ -953,7 +953,6 @@ const PublicationForm = ({
           <input
             value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
             onChange={updateIndexingField("citeScore")}
-            placeholder={t("common.noData")}
             readOnly={isFieldLocked("citeScore")}
           />
         </label>

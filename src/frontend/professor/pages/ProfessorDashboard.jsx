@@ -1909,7 +1909,7 @@ export default function ProfessorDashboard() {
       resetManualPublicationDraft();
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
-      setPublicationSuccessToast("Publikimi u ruajt me sukses.");
+      setPublicationSuccessToast("Artikulli u ruajt me sukses.");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -1939,7 +1939,7 @@ export default function ProfessorDashboard() {
 
       cancelPublicationEdit();
       await loadPublications({ page: publicationsPage, query: searchQuery });
-      setPublicationSuccessToast("Publikimi u ruajt me sukses.");
+      setPublicationSuccessToast("Artikulli u ruajt me sukses.");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -1963,7 +1963,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "Publikimi nuk u ridergua.");
+        throw new Error(data.message || "Artikulli nuk u ridërgua.");
       }
 
       cancelPublicationEdit();
@@ -1972,7 +1972,7 @@ export default function ProfessorDashboard() {
         loadNotifications(),
       ]);
     } catch (error) {
-      setPublicationsError(error.message || "Publikimi nuk u ridergua.");
+      setPublicationsError(error.message || "Artikulli nuk u ridërgua.");
     } finally {
       setPublicationActionId("");
     }
@@ -2543,7 +2543,7 @@ export default function ProfessorDashboard() {
           <AlertTriangle size={13} />
         </span>
         <div>
-          <strong>Publikimi kerkon korrigjim</strong>
+          <strong>Artikulli kërkon korrigjim</strong>
           <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
           {issues.length ? (
             <div className="publication-revision-issues" aria-label="Pikat per kontroll">

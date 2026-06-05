@@ -146,7 +146,7 @@ const DoiLookup = ({ onPublicationSaved }) => {
       {error && <p style={{ color: "red" }}>{error}</p>}
       {savedPublication && (
         <p style={{ color: "#475569", marginTop: "-6px" }}>
-          Publikimi: {savedPublication.title || savedPublication.doi}
+          Artikulli: {savedPublication.title || savedPublication.doi}
         </p>
       )}
       {metadata && <DoiMetadataCard metadata={metadata} />}
