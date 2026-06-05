@@ -1632,6 +1632,12 @@ body {
   border: 1px solid #bbf7d0;
 }
 
+.prof-toast.error {
+  background: #fef2f2;
+  color: #b42318;
+  border: 1px solid #fecaca;
+}
+
 .publication-save-toast {
   top: 50%;
   left: 50%;

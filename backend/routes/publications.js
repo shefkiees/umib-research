@@ -1227,8 +1227,48 @@ async function fetchPublicationByDoi(client, ownerId, doi) {
   return rows[0] || null;
 }
 
+async function resolveExistingExternalMetadataId(client, doi) {
+  const normalizedDoi = normalizeDoi(doi);
+
+  if (!normalizedDoi) {
+    return null;
+  }
+
+  const { rows } = await client.query(
+    `select doi
+     from publication_metadata
+     where doi = $1
+     limit 1`,
+    [normalizedDoi]
+  );
+
+  return rows[0]?.doi || null;
+}
+
 function sendPublicationError(res, status, error, message, extra = {}) {
   res.status(status).json({ error, message, ...extra });
+}
+
+function formatPublicationSqlError(error, fallbackMessage) {
+  const details = [
+    error?.message,
+    error?.detail,
+    error?.constraint ? `constraint: ${error.constraint}` : "",
+    error?.table ? `table: ${error.table}` : "",
+    error?.column ? `column: ${error.column}` : "",
+  ].filter(Boolean);
+
+  return details.length ? `Gabim SQL: ${details.join(" | ")}` : fallbackMessage;
+}
+
+function getPublicationSqlErrorDetails(error) {
+  return {
+    code: error?.code || "",
+    detail: error?.detail || "",
+    constraint: error?.constraint || "",
+    table: error?.table || "",
+    column: error?.column || "",
+  };
 }
 
 function normalizeMetadataReviewChecklist(value = {}) {
@@ -1481,6 +1521,7 @@ async function createPublication(client, ownerId, values) {
     return fetchPublicationById(client, rows[0].id, ownerId);
   }
 
+  const externalMetadataId = await resolveExistingExternalMetadataId(client, values.externalMetadataId);
   const { rows } = await client.query(
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
@@ -1514,7 +1555,7 @@ async function createPublication(client, ownerId, values) {
       values.indexingSource,
       values.metadataSource,
       values.metadataVerified,
-      values.externalMetadataId,
+      externalMetadataId,
     ]
   );
 
@@ -1652,7 +1693,13 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     }
 
     console.error("POST /api/publications failed:", error);
-    sendPublicationError(res, 500, "save_failed", "Publikimi nuk u ruajt.");
+    sendPublicationError(
+      res,
+      500,
+      "save_failed",
+      formatPublicationSqlError(error, "Publikimi nuk u ruajt."),
+      { sql: getPublicationSqlErrorDetails(error) }
+    );
   } finally {
     client.release();
   }
@@ -1760,6 +1807,9 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     await client.query("begin");
 
     const isUnified = await hasUnifiedPublicationSchema(client);
+    const externalMetadataId = isUnified
+      ? await resolveExistingExternalMetadataId(client, values.externalMetadataId)
+      : null;
     const { rows } = isUnified
       ? await client.query(
           `update publications
@@ -1817,7 +1867,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.indexingSource,
             values.metadataSource,
             values.metadataVerified,
-            values.externalMetadataId,
+            externalMetadataId,
           ]
         )
       : await client.query(
@@ -1861,7 +1911,13 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     }
 
     console.error("PUT /api/publications/:id failed:", error);
-    res.status(500).json({ error: "update_failed", message: "Publikimi nuk u perditesua." });
+    sendPublicationError(
+      res,
+      500,
+      "update_failed",
+      formatPublicationSqlError(error, "Publikimi nuk u perditesua."),
+      { sql: getPublicationSqlErrorDetails(error) }
+    );
   } finally {
     client.release();
   }

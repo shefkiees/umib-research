@@ -192,6 +192,21 @@ const formatDate = (value) => {
 
 const normalizeLooseBoolean = (value) => value === true || value === "true" || value === 1 || value === "1";
 
+const normalizePublicationDateForPayload = (value) => {
+  const text = String(value || "").trim();
+  const dayMonthYear = text.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+
+  if (dayMonthYear) {
+    return `${dayMonthYear[3]}-${dayMonthYear[2]}-${dayMonthYear[1]}`;
+  }
+
+  return "";
+};
+
 const normalizeQuartileValue = (value) => {
   const match = String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/);
 
@@ -1173,6 +1188,7 @@ export default function ProfessorDashboard() {
     const authorAffiliation = draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
     const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "";
     const indexingCategory = draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "";
+    const publicationDate = normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
     const quartile = normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "");
     const sjr = draft.sjr || selectedIndexing.sjr || "";
     const citeScore = draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing);
@@ -1229,6 +1245,8 @@ export default function ProfessorDashboard() {
       publishedIn: draft.venue || draft.publishedIn || "",
       conferenceLocation: draft.conferenceLocation || draft.conference_location || "",
       conference_location: draft.conferenceLocation || draft.conference_location || "",
+      publicationDate,
+      publication_date: publicationDate,
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: normalizedAuthors,
       authorAffiliation,
@@ -1891,7 +1909,7 @@ export default function ProfessorDashboard() {
       resetManualPublicationDraft();
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
-      setPublicationSuccessToast("Publikimi u ruajt me sukses!");
+      setPublicationSuccessToast("Publikimi u ruajt me sukses.");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -1921,7 +1939,7 @@ export default function ProfessorDashboard() {
 
       cancelPublicationEdit();
       await loadPublications({ page: publicationsPage, query: searchQuery });
-      setPublicationSuccessToast("Publikimi u ruajt me sukses!");
+      setPublicationSuccessToast("Publikimi u ruajt me sukses.");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -3082,6 +3100,12 @@ export default function ProfessorDashboard() {
       {publicationSuccessToast ? (
         <div className="prof-toast success publication-save-toast" role="status" aria-live="polite">
           {publicationSuccessToast}
+        </div>
+      ) : null}
+
+      {activePage === "Publikime" && publicationsError ? (
+        <div className="prof-toast error publication-save-toast" role="alert" aria-live="assertive">
+          {formatUiMessage(publicationsError)}
         </div>
       ) : null}
 
