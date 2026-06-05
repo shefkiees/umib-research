@@ -1113,6 +1113,22 @@ export default function ProfessorDashboard() {
         result = (Number(first.year) || 0) - (Number(second.year) || 0);
       } else if (publicationSort.key === "quartile") {
         result = getPublicationQuartileRank(first) - getPublicationQuartileRank(second);
+      } else if (publicationSort.key === "type") {
+        result = String(first.publicationType || "").localeCompare(String(second.publicationType || ""), "sq", { sensitivity: "base" });
+      } else if (publicationSort.key === "venue") {
+        result = String(first.publishedIn || first.published_in || first.venue || first.journal || "").localeCompare(
+          String(second.publishedIn || second.published_in || second.venue || second.journal || ""),
+          "sq",
+          { sensitivity: "base" }
+        );
+      } else if (publicationSort.key === "indexing") {
+        result = String(first.indexingPlatform || first.indexing_platform || "").localeCompare(
+          String(second.indexingPlatform || second.indexing_platform || ""),
+          "sq",
+          { sensitivity: "base" }
+        ) || (getPublicationQuartileRank(first) - getPublicationQuartileRank(second));
+      } else if (publicationSort.key === "status") {
+        result = String(first.status || "").localeCompare(String(second.status || ""), "sq", { sensitivity: "base" });
       }
 
       return result * direction;
@@ -2354,6 +2370,14 @@ export default function ProfessorDashboard() {
     </span>
   );
 
+  const renderPublicationListStatus = (value) => {
+    if (String(value || "").toLowerCase() === "draft") {
+      return null;
+    }
+
+    return renderStatus(value);
+  };
+
   const formatPublicationAuthors = (authors = []) => {
     const names = authors
       .map((author) => (typeof author === "string" ? author : author.fullName || author.full_name || author.name))
@@ -2545,22 +2569,26 @@ export default function ProfessorDashboard() {
       ) : filteredPublications.length ? (
         <div className="publication-table" role="table" aria-label={t("professor.dashboard.publicationRegistryTitle")}>
           <div className="publication-table-head" role="row">
+            <span>{t("professor.dashboard.publicationNumberColumn")}</span>
             {renderPublicationSortHeader("title", t("professor.dashboard.publicationColumn"))}
             {renderPublicationSortHeader("authors", t("professor.dashboard.authorsColumn"))}
-            <span>{t("professor.dashboard.publicationTypeColumn")}</span>
-            <span>{t("professor.dashboard.publishedInColumn")}</span>
+            {renderPublicationSortHeader("type", t("professor.dashboard.publicationTypeColumn"))}
+            {renderPublicationSortHeader("venue", t("professor.dashboard.publishedInColumn"))}
             {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
-            <span>{t("professor.dashboard.indexingColumn")}</span>
-            <span>{t("professor.dashboard.statusColumn")}</span>
+            {renderPublicationSortHeader("indexing", t("professor.dashboard.indexingColumn"))}
+            {renderPublicationSortHeader("status", t("professor.dashboard.statusColumn"))}
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
-          {sortedPublications.map((row) => (
+          {sortedPublications.map((row, index) => (
             <div
               className={`publication-table-row ${focusedPublicationId === row.id ? "is-focused" : ""}`}
               id={`publication-row-${row.id}`}
               role="row"
               key={row.id}
             >
+              <div className="publication-number-cell" aria-label={t("professor.dashboard.publicationNumberColumn")}>
+                {index + 1}
+              </div>
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.publicationColumn")}</span>
                 {renderPublicationTitleCell(row)}
@@ -2587,7 +2615,7 @@ export default function ProfessorDashboard() {
               </div>
               <div className="publication-meta-cell publication-status-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.statusColumn")}</span>
-                {renderStatus(row.status)}
+                {renderPublicationListStatus(row.status)}
               </div>
               <div className="publication-meta-cell publication-actions-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.actionsColumn")}</span>
