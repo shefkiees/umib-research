@@ -1632,6 +1632,14 @@ body {
   border: 1px solid #bbf7d0;
 }
 
+.publication-save-toast {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
 /* ===== GENERIC CARD ===== */
 .prof-card {
   padding: 16px;

@@ -56,6 +56,7 @@ import {
 import "../styles/ProfessorDashboard.css";
 
 const AUTO_DISMISS_PUBLICATION_ERROR_MS = 3200;
+const PUBLICATION_SUCCESS_TOAST_DURATION_MS = 2200;
 
 const PUBLICATION_ERROR_MESSAGES = {
   duplicate_publication: "professor.dashboard.duplicatePublication",
@@ -691,6 +692,7 @@ export default function ProfessorDashboard() {
   const [publicationDraft, setPublicationDraft] = useState(createEmptyPublicationDraft);
   const [manualPublicationDraft, setManualPublicationDraft] = useState(createEmptyPublicationDraft);
   const [publicationActionId, setPublicationActionId] = useState("");
+  const [publicationSuccessToast, setPublicationSuccessToast] = useState("");
   const [focusedPublicationId, setFocusedPublicationId] = useState("");
   const [publicationSort, setPublicationSort] = useState({ key: "", direction: "asc" });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -994,6 +996,16 @@ export default function ProfessorDashboard() {
 
     return () => window.clearTimeout(timeout);
   }, [publicationsError]);
+
+  useEffect(() => {
+    if (!publicationSuccessToast) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setPublicationSuccessToast(""), PUBLICATION_SUCCESS_TOAST_DURATION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [publicationSuccessToast]);
 
   const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
     setIsPublicationsLoading(true);
@@ -1859,6 +1871,7 @@ export default function ProfessorDashboard() {
   const saveManualPublication = async () => {
     setPublicationActionId("manual");
     setPublicationsError("");
+    setPublicationSuccessToast("");
 
     try {
       const response = await fetch(apiUrl("/publications"), {
@@ -1878,6 +1891,7 @@ export default function ProfessorDashboard() {
       resetManualPublicationDraft();
       setPublicationsPage(1);
       await loadPublications({ page: 1, query: searchQuery });
+      setPublicationSuccessToast("Publikimi u ruajt me sukses!");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -1888,6 +1902,7 @@ export default function ProfessorDashboard() {
   const savePublicationEdit = async (id) => {
     setPublicationActionId(id);
     setPublicationsError("");
+    setPublicationSuccessToast("");
 
     try {
       const response = await fetch(apiUrl(`/publications/${id}`), {
@@ -1906,6 +1921,7 @@ export default function ProfessorDashboard() {
 
       cancelPublicationEdit();
       await loadPublications({ page: publicationsPage, query: searchQuery });
+      setPublicationSuccessToast("Publikimi u ruajt me sukses!");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
     } finally {
@@ -3060,6 +3076,12 @@ export default function ProfessorDashboard() {
       {passwordResetToast ? (
         <div className="prof-toast success" role="status" aria-live="polite">
           {passwordResetToast}
+        </div>
+      ) : null}
+
+      {publicationSuccessToast ? (
+        <div className="prof-toast success publication-save-toast" role="status" aria-live="polite">
+          {publicationSuccessToast}
         </div>
       ) : null}
 

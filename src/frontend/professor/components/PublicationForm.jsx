@@ -717,7 +717,7 @@ const PublicationForm = ({
     }
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
 
@@ -742,7 +742,7 @@ const PublicationForm = ({
     }
 
     setFormError("");
-    onSubmit();
+    await onSubmit();
   };
 
   const authors = value.authors || [];
