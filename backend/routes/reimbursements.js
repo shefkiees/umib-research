@@ -106,6 +106,7 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "coauthors",
   "affiliation",
   "indexingPlatform",
+  "indexingCategory",
   "impactFactor",
   "scopusQuartile",
   "volume",
@@ -775,6 +776,41 @@ function authorAffiliation(author = {}) {
   return normalizeText((author || {}).affiliation);
 }
 
+function uniqueNonEmptyValues(values = []) {
+  return values
+    .map((value) => normalizeText(value))
+    .filter(Boolean)
+    .filter((value, index, items) => items.indexOf(value) === index);
+}
+
+function buildPublicationWorkSummary(publication) {
+  return [
+    normalizeText(publication?.title),
+    normalizeText(publication?.abstract),
+  ].filter(Boolean).join("\n\n");
+}
+
+function getPublicationAuthorAffiliations(publication) {
+  const authors = Array.isArray(publication?.authors) ? publication.authors : [];
+
+  return authors
+    .map((author) => {
+      const name = authorDisplayName(author);
+      const affiliation = authorAffiliation(author);
+
+      return name && affiliation ? `${name} - ${affiliation}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildPublicationSourceLink(publication) {
+  const sourceUrl = normalizeText(publication?.sourceUrl || publication?.source_url);
+  const doi = normalizeText(publication?.doi);
+
+  return sourceUrl || (doi ? `https://doi.org/${doi}` : "");
+}
+
 function publicationToReadOnlyRequestData(publication) {
   if (!publication) {
     return {};
@@ -792,10 +828,11 @@ function publicationToReadOnlyRequestData(publication) {
     .map(authorDisplayName)
     .join("; ");
   const indexing = Array.isArray(publication.indexing) ? publication.indexing : [];
-  const indexingPlatform = indexing
-    .map((item) => normalizeText(item.source))
-    .filter(Boolean)
-    .join(", ");
+  const indexingPlatform = uniqueNonEmptyValues(indexing.map((item) => item.source || item.platform))
+    .join(", ") || normalizeText(publication.indexingPlatform || publication.indexing_platform);
+  const indexingCategory = indexing
+    .map((item) => normalizeText(item.category))
+    .find(Boolean) || normalizeText(publication.indexingCategory || publication.indexing_category);
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
   const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
   const venue = normalizeText(publication.venue || publication.publishedIn || publication.published_in || publication.journal);
@@ -828,6 +865,7 @@ function publicationToReadOnlyRequestData(publication) {
     coauthors,
     affiliation: authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author))),
     indexingPlatform,
+    indexingCategory,
     impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
     scopusQuartile: normalizeText(firstQuartile?.quartile),
     publicationIdentifiers: identifiers
@@ -838,6 +876,46 @@ function publicationToReadOnlyRequestData(publication) {
       .map((item) => item.url || item.fileUrl || item.file_url)
       .filter(Boolean)
       .join("; "),
+  };
+}
+
+function publicationToConferenceRequestData(publication) {
+  if (!publication) {
+    return {};
+  }
+
+  const publicationData = publicationToReadOnlyRequestData(publication);
+
+  return {
+    publicationId: publicationData.publicationId,
+    publicationTitle: publicationData.publicationTitle,
+    doi: publicationData.doi,
+    publicationType: publicationData.publicationType,
+    venue: publicationData.venue,
+    journal: publicationData.journal,
+    publishedIn: publicationData.publishedIn,
+    publisher: publicationData.publisher,
+    publicationDate: publicationData.publicationDate,
+    publicationYear: publicationData.publicationYear,
+    publicationLink: publicationData.publicationLink,
+    volume: publicationData.volume,
+    issue: publicationData.issue,
+    pages: publicationData.pages,
+    issn: publicationData.issn,
+    isbn: publicationData.isbn,
+    abstract: publicationData.abstract,
+    mainAuthor: publicationData.mainAuthor,
+    coParticipant: publicationData.coauthors,
+    authorsAffiliation: getPublicationAuthorAffiliations(publication) || publicationData.affiliation,
+    correspondingAuthor: publicationData.correspondingAuthor,
+    coauthors: publicationData.coauthors,
+    affiliation: publicationData.affiliation,
+    indexingPlatform: publicationData.indexingPlatform,
+    indexingCategory: publicationData.indexingCategory,
+    impactFactor: publicationData.impactFactor,
+    scopusQuartile: publicationData.scopusQuartile,
+    abstractTitle: buildPublicationWorkSummary(publication),
+    eventPublicationLink: buildPublicationSourceLink(publication),
   };
 }
 
@@ -859,6 +937,80 @@ function mergePublicationReadOnlyData(requestData, publication) {
   return {
     ...(requestData || {}),
     ...publicationToReadOnlyRequestData(publication),
+  };
+}
+
+function mergeConferencePublicationData(requestData, publication) {
+  if (!publication) {
+    return requestData || {};
+  }
+
+  return {
+    ...(requestData || {}),
+    ...publicationToConferenceRequestData(publication),
+  };
+}
+
+function shouldLinkPublicationForRequest(requestType) {
+  return requestType === "publication" || requestType === "conference";
+}
+
+function mergeLinkedPublicationData(requestType, requestData, publication) {
+  if (requestType === "conference") {
+    return mergeConferencePublicationData(requestData, publication);
+  }
+
+  if (requestType === "publication") {
+    return mergePublicationReadOnlyData(requestData, publication);
+  }
+
+  return requestData || {};
+}
+
+async function applyLinkedPublicationSnapshot(dbOrClient, ownerId, requestType, formData, options = {}) {
+  if (!shouldLinkPublicationForRequest(requestType)) {
+    return { formData: formData || {}, publication: null, error: null };
+  }
+
+  const requestedPublicationId = normalizeText(formData?.publicationId);
+  const publicationId = parseOptionalUuid(requestedPublicationId);
+
+  if (!requestedPublicationId) {
+    return { formData: formData || {}, publication: null, error: null };
+  }
+
+  if (!publicationId) {
+    return {
+      formData: formData || {},
+      publication: null,
+      error: {
+        status: 400,
+        error: "invalid_publication_id",
+        message: "Publikimi i zgjedhur nuk eshte valid.",
+      },
+    };
+  }
+
+  const publication = await selectPublicationForReimbursement(dbOrClient, ownerId, publicationId);
+
+  if (!publication && (options.requireExisting || requestedPublicationId)) {
+    return {
+      formData: formData || {},
+      publication: null,
+      error: {
+        status: 400,
+        error: "publication_not_found",
+        message: "Publikimi i zgjedhur nuk u gjet.",
+      },
+    };
+  }
+
+  return {
+    formData: requestType === "conference"
+      ? mergeConferencePublicationData(formData, publication)
+      : formData || {},
+    publication,
+    error: null,
   };
 }
 
@@ -900,8 +1052,12 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                       json_build_object(
                         'id', pi.id,
                         'source', pi.source,
+                        'platform', pi.source,
+                        'category', pi.category,
                         'quartile', pi.quartile,
                         'impactFactor', pi.impact_factor,
+                        'sjr', pi.sjr,
+                        'citeScore', pi.cite_score,
                         'indexedUrl', pi.indexed_url
                       )
                       order by pi.created_at asc
@@ -964,7 +1120,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
 }
 
 async function hydrateReimbursementRowForPublication(dbOrClient, row) {
-  if (!row || row.request_type !== "publication") {
+  if (!row || !shouldLinkPublicationForRequest(row.request_type)) {
     return row;
   }
 
@@ -978,7 +1134,7 @@ async function hydrateReimbursementRowForPublication(dbOrClient, row) {
 
   return {
     ...row,
-    request_data: mergePublicationReadOnlyData(requestData, publication),
+    request_data: mergeLinkedPublicationData(row.request_type, requestData, publication),
   };
 }
 
@@ -1276,9 +1432,9 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
   delete writableFormData.attachmentUrl;
   delete writableFormData.notes;
   delete writableFormData[RETIRED_REASON_FIELD];
-  const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
+  const publicationId = shouldLinkPublicationForRequest(requestType) ? parseOptionalUuid(formData.publicationId) : null;
 
-  if (requestType === "publication") {
+  if (shouldLinkPublicationForRequest(requestType)) {
     writableFormData.publicationId = publicationId || "";
   }
 
@@ -1301,13 +1457,12 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     requestType,
     requestTypeLabel: REQUEST_TYPES[requestType],
   };
-  const documentRequestData = requestType === "publication"
-    ? mergePublicationReadOnlyData(requestData, linkedRecords.publication)
-    : requestData;
+  const documentRequestData = mergeLinkedPublicationData(requestType, requestData, linkedRecords.publication);
+  const storedRequestData = requestType === "conference" ? documentRequestData : requestData;
   const title = buildRequestTitle(requestType, documentRequestData);
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
 
-  return { requestData, documentRequestData, title, amount, currency, publicationId, conferenceId };
+  return { requestData: storedRequestData, documentRequestData, title, amount, currency, publicationId, conferenceId };
 }
 
 function buildPreviewRow(user, requestType, payload) {
@@ -1668,8 +1823,12 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                       json_build_object(
                         'id', pi.id,
                         'source', pi.source,
+                        'platform', pi.source,
+                        'category', pi.category,
                         'quartile', pi.quartile,
                         'impactFactor', pi.impact_factor,
+                        'sjr', pi.sjr,
+                        'citeScore', pi.cite_score,
                         'indexedUrl', pi.indexed_url
                       )
                       order by pi.created_at asc
@@ -1831,6 +1990,17 @@ router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
 
     let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
     formData = await applyBankAccountSnapshot(db, requestType, formData, req.user.id);
+    const linkedPublicationSnapshot = await applyLinkedPublicationSnapshot(db, req.user.id, requestType, formData, { requireExisting: requestType === "publication" });
+
+    if (linkedPublicationSnapshot.error) {
+      res.status(linkedPublicationSnapshot.error.status).json({
+        error: linkedPublicationSnapshot.error.error,
+        message: linkedPublicationSnapshot.error.message,
+      });
+      return;
+    }
+
+    formData = linkedPublicationSnapshot.formData;
     const profileValidationError = getApplicantSnapshotValidationError(requestType, formData);
     const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
     const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
@@ -1847,20 +2017,7 @@ router.post("/preview/:format", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
-    const linkedPublication = publicationId
-      ? await selectPublicationForReimbursement(db, req.user.id, publicationId)
-      : null;
-
-    if (requestType === "publication" && !linkedPublication) {
-      res.status(400).json({
-        error: "publication_not_found",
-        message: "Publikimi i zgjedhur nuk u gjet.",
-      });
-      return;
-    }
-
-    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublicationSnapshot.publication });
     const previewRow = buildPreviewRow(user, requestType, payload);
     const filenames = getReimbursementDocumentFilenames(previewRow);
     const buffer = format === "docx"
@@ -1902,6 +2059,17 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
 
   let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user);
   formData = await applyBankAccountSnapshot(db, requestType, formData, req.user.id);
+  const linkedPublicationSnapshot = await applyLinkedPublicationSnapshot(db, req.user.id, requestType, formData, { requireExisting: requestType === "publication" && !asDraft });
+
+  if (linkedPublicationSnapshot.error) {
+    res.status(linkedPublicationSnapshot.error.status).json({
+      error: linkedPublicationSnapshot.error.error,
+      message: linkedPublicationSnapshot.error.message,
+    });
+    return;
+  }
+
+  formData = linkedPublicationSnapshot.formData;
   const profileValidationError = asDraft ? null : getApplicantSnapshotValidationError(requestType, formData);
   const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
   const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
@@ -1924,21 +2092,7 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
   try {
     await client.query("begin");
 
-    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
-    const linkedPublication = publicationId
-      ? await selectPublicationForReimbursement(client, req.user.id, publicationId)
-      : null;
-
-    if (requestType === "publication" && !asDraft && !linkedPublication) {
-      await client.query("rollback");
-      res.status(400).json({
-        error: "publication_not_found",
-        message: "Publikimi i zgjedhur nuk u gjet.",
-      });
-      return;
-    }
-
-    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublicationSnapshot.publication });
 
     const insertResult = await client.query(
       `insert into reimbursements
@@ -2037,6 +2191,18 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
 
     let formData = applyApplicantSnapshot(requestType, sanitizeRequestData(req.body?.formData), user, current.request_data || {});
     formData = await applyBankAccountSnapshot(client, requestType, formData, req.user.id, current.request_data || {});
+    const linkedPublicationSnapshot = await applyLinkedPublicationSnapshot(client, req.user.id, requestType, formData, { requireExisting: requestType === "publication" && isSubmit });
+
+    if (linkedPublicationSnapshot.error) {
+      await client.query("rollback");
+      res.status(linkedPublicationSnapshot.error.status).json({
+        error: linkedPublicationSnapshot.error.error,
+        message: linkedPublicationSnapshot.error.message,
+      });
+      return;
+    }
+
+    formData = linkedPublicationSnapshot.formData;
     const profileValidationError = isSubmit ? getApplicantSnapshotValidationError(requestType, formData) : null;
     const bankValidationError = getBankAccountSnapshotValidationError(requestType, formData);
     const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
@@ -2059,21 +2225,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
     const nextStatus = isSubmit && !blockedSubmit
       ? "submitted"
       : current.status === "needs_correction" ? "needs_correction" : "draft";
-    const publicationId = requestType === "publication" ? parseOptionalUuid(formData.publicationId) : null;
-    const linkedPublication = publicationId
-      ? await selectPublicationForReimbursement(client, req.user.id, publicationId)
-      : null;
-
-    if (requestType === "publication" && isSubmit && !linkedPublication) {
-      await client.query("rollback");
-      res.status(400).json({
-        error: "publication_not_found",
-        message: "Publikimi i zgjedhur nuk u gjet.",
-      });
-      return;
-    }
-
-    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublication });
+    const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublicationSnapshot.publication });
     const updateResult = await client.query(
       `update reimbursements
        set publication_id = $2,
@@ -2175,6 +2327,20 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
 
     let requestData = applyApplicantSnapshot(current.request_type, current.request_data || {}, user, current.request_data || {});
     requestData = await applyBankAccountSnapshot(client, current.request_type, requestData, req.user.id, current.request_data || {});
+    const linkedPublicationSnapshot = await applyLinkedPublicationSnapshot(client, req.user.id, current.request_type, requestData, { requireExisting: current.request_type === "publication" });
+
+    if (linkedPublicationSnapshot.error) {
+      await client.query("rollback");
+      res.status(linkedPublicationSnapshot.error.status).json({
+        error: linkedPublicationSnapshot.error.error,
+        message: linkedPublicationSnapshot.error.message,
+      });
+      return;
+    }
+
+    requestData = current.request_type === "conference"
+      ? linkedPublicationSnapshot.formData
+      : requestData;
     const profileValidationError = getApplicantSnapshotValidationError(current.request_type, requestData);
     const bankValidationError = getBankAccountSnapshotValidationError(current.request_type, requestData);
     const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);

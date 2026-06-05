@@ -206,6 +206,7 @@ function getPublicationSections() {
         createField("ISBN", "isbn"),
         createField("Abstrakti", "abstract"),
         createField("Indeksim ne platformen", "indexingPlatform"),
+        createField("Kategoria e indeksimit", "indexingCategory"),
         createField("Impact faktori (IF)", "impactFactor"),
         createField("Kuartili", "scopusQuartile"),
         createField("Data e pranimit", "acceptanceDate"),
@@ -463,6 +464,12 @@ function templateValue(data, field) {
   return valueOf(data, field) || EMPTY_VALUE;
 }
 
+function templateValueFrom(data, ...fields) {
+  return fields
+    .map((field) => valueOf(data, field))
+    .find(Boolean) || EMPTY_VALUE;
+}
+
 function getTemplateValues(data) {
   const baseValues = {
     documentNumber: data.documentNumber || "",
@@ -491,13 +498,13 @@ function getTemplateValues(data) {
       eventPlaceDate: templateValue(data, "eventPlaceDate") || [templateValue(data, "location"), templateValue(data, "conferenceDate")].filter((item) => item !== EMPTY_VALUE).join(" / "),
       organizer: templateValue(data, "organizer"),
       invitationProgram: templateValue(data, "invitationProgram"),
-      abstractTitle: templateValue(data, "abstractTitle"),
+      abstractTitle: templateValueFrom(data, "abstractTitle", "publicationTitle", "abstract"),
       acceptanceConfirmation: templateValue(data, "acceptanceConfirmation"),
       authorsAffiliation: templateValue(data, "authorsAffiliation"),
       speakerWithPaperPoster: templateValue(data, "speakerWithPaperPoster"),
       artisticSportEvent: templateValue(data, "artisticSportEvent"),
       chairPanelist: templateValue(data, "chairPanelist"),
-      eventPublicationLink: templateValue(data, "eventPublicationLink"),
+      eventPublicationLink: templateValueFrom(data, "eventPublicationLink", "publicationLink", "doi"),
     };
   }
 
@@ -563,10 +570,11 @@ function getTemplateValues(data) {
     isbn: templateValue(data, "isbn"),
     abstract: templateValue(data, "abstract"),
     indexingPlatform: templateValue(data, "indexingPlatform"),
+    indexingCategory: templateValue(data, "indexingCategory"),
     impactFactor: templateValue(data, "impactFactor"),
     scopusQuartile: templateValue(data, "scopusQuartile"),
     acceptanceDate: templateValue(data, "acceptanceDate"),
-    publicationDate: templateValue(data, "publicationDate"),
+    publicationDate: templateValueFrom(data, "publicationDate", "publicationYear"),
     publicationLink: templateValue(data, "publicationLink"),
     uibmDatabaseEvidence: templateValue(data, "uibmDatabaseEvidence"),
     publicationConferenceDetails: templateValue(data, "publicationConferenceDetails"),
