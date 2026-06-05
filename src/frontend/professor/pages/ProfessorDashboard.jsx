@@ -1183,23 +1183,24 @@ export default function ProfessorDashboard() {
   const buildPublicationPayload = (draft = {}) => {
     const payload = { ...draft };
     const authors = Array.isArray(draft.authors) ? draft.authors : [];
-    const draftIndexing = Array.isArray(draft.indexing) ? draft.indexing : [];
+    const isConferencePaper = (draft.publicationType || draft.publication_type) === "conference_paper";
+    const draftIndexing = !isConferencePaper && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
-    const indexingPlatform = draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "";
-    const indexingCategory = draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "";
+    const indexingPlatform = isConferencePaper ? "" : draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "";
+    const indexingCategory = isConferencePaper ? "" : draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "";
     const publicationDate = normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
-    const quartile = normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "");
-    const sjr = draft.sjr || selectedIndexing.sjr || "";
-    const citeScore = draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing);
-    const quartileVerificationStatus = draft.quartileVerificationStatus || draft.quartile_verification_status || selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status || (quartile ? "manual" : "empty");
+    const quartile = isConferencePaper ? "" : normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "");
+    const sjr = isConferencePaper ? "" : draft.sjr || selectedIndexing.sjr || "";
+    const citeScore = isConferencePaper ? "" : draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing);
+    const quartileVerificationStatus = isConferencePaper ? "empty" : draft.quartileVerificationStatus || draft.quartile_verification_status || selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status || (quartile ? "manual" : "empty");
     const normalizedQuartileVerificationStatus = String(quartileVerificationStatus || "").toLowerCase();
-    const quartileVerified = normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified);
+    const quartileVerified = !isConferencePaper && normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified);
     const quartileFromLookup = quartileVerified || normalizedQuartileVerificationStatus === "historical" || normalizedQuartileVerificationStatus === "verified";
     const quartileSource = quartileFromLookup
       ? draft.quartileSource || draft.quartile_source || selectedIndexing.quartileSource || selectedIndexing.quartile_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
-    const indexingVerified = normalizeLooseBoolean(draft.indexingVerified ?? draft.indexing_verified);
+    const indexingVerified = !isConferencePaper && normalizeLooseBoolean(draft.indexingVerified ?? draft.indexing_verified);
     const indexingSource = indexingVerified || quartileFromLookup
       ? draft.indexingSource || draft.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
@@ -1245,8 +1246,13 @@ export default function ProfessorDashboard() {
       publishedIn: draft.venue || draft.publishedIn || "",
       conferenceLocation: draft.conferenceLocation || draft.conference_location || "",
       conference_location: draft.conferenceLocation || draft.conference_location || "",
+      publisher: isConferencePaper ? "" : draft.publisher || "",
       publicationDate,
       publication_date: publicationDate,
+      volume: isConferencePaper ? "" : draft.volume || "",
+      issue: isConferencePaper ? "" : draft.issue || "",
+      issn: isConferencePaper ? "" : draft.issn || "",
+      isbn: isConferencePaper ? "" : draft.isbn || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: normalizedAuthors,
       authorAffiliation,

@@ -57,6 +57,28 @@ function normalizeComparableText(value) {
     .trim();
 }
 
+function normalizeMetadataPublicationType(value) {
+  const normalized = normalizeComparableText(value).replace(/\s+/g, "_");
+  const typeMap = {
+    article_journal: "journal_article",
+    journal: "journal_article",
+    journal_article: "journal_article",
+    conference: "conference_paper",
+    conference_paper: "conference_paper",
+    conference_proceeding: "conference_paper",
+    conference_proceedings: "conference_paper",
+    paper_conference: "conference_paper",
+    proceedings: "conference_paper",
+    proceedings_article: "conference_paper",
+    proceedings_series: "conference_paper",
+    book: "book",
+    book_chapter: "book",
+    chapter: "book",
+  };
+
+  return typeMap[normalized] || normalizeText(value);
+}
+
 function normalizeIssn(value) {
   return normalizeText(value).replace(/[^0-9x]/gi, "").toUpperCase();
 }
@@ -1511,10 +1533,10 @@ async function enrichMetadataCorrespondingAuthors(metadata = {}) {
 function shouldRefreshCachedMetadata(metadata = {}) {
   const type = normalizeText(metadata.type);
   const hasCrossrefSnapshot = Boolean(metadata.raw_json?._crossref);
-  const comparableType = normalizeComparableText(type).replace(/\s+/g, "_");
+  const comparableType = normalizeMetadataPublicationType(type);
   const hasCachedIssn = hasText(metadata.issn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISSN"));
   const hasCachedIsbn = hasText(metadata.isbn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISBN"));
-  const isConferenceType = ["proceedings_article", "conference_paper"].includes(comparableType);
+  const isConferenceType = comparableType === "conference_paper";
 
   if (!hasCrossrefSnapshot) {
     if (["journal_article", "article_journal"].includes(comparableType) && !hasCachedIssn) {
@@ -1530,7 +1552,7 @@ function shouldRefreshCachedMetadata(metadata = {}) {
     }
   }
 
-  return type === "proceedings-article" && !isFullDate(metadata.published_date) && !hasCrossrefSnapshot;
+  return isConferenceType && !isFullDate(metadata.published_date) && !hasCrossrefSnapshot;
 }
 
 function mapMetadata(data, doi) {
@@ -1580,7 +1602,7 @@ function mapMetadata(data, doi) {
     pages: normalizeText(data.page),
     issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
-    type: normalizeText(data.type),
+    type: normalizeMetadataPublicationType(data.type),
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: data,
@@ -1847,7 +1869,7 @@ function mapOpenAlexWork(data = {}, doi) {
     hostVenue.issn,
     hostVenue.issn_l,
   ].flatMap((value) => (Array.isArray(value) ? value : [value])));
-  const type = normalizeText(data.type_crossref || data.type);
+  const type = normalizeMetadataPublicationType(data.type_crossref || data.type);
 
   return {
     doi,
