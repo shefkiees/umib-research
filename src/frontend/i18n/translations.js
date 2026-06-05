@@ -651,7 +651,7 @@ export const translations = {
         },
       },
       reimbursements: {
-        titleNew: "Kërkesë për Rimbursim",
+        titleNew: "Apliko për Rimbursim",
         titleEdit: "Edito kerkesen",
         editingDescription: "Po punon ne kerkesen {{title}}.",
         cancelEdit: "Anulo editimin",

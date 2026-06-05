@@ -3367,7 +3367,7 @@ export default function ReimbursementManager({
                   {selectedType === "publication"
                     ? "Publikime shkencore"
                     : selectedType === "conference"
-                      ? "Detajet e konferencës, simpoziumit ose aktivitetit"
+                      ? "Konferenca dhe Simpoziume Shkencore"
                       : r.academicTitle}
                 </h4>
               </div>
