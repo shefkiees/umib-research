@@ -1397,6 +1397,11 @@ function extractPublisherConferenceFields(html, metadata = {}) {
     "dcterms.abstract",
     "abstract",
   ]).map(normalizeAbstractText);
+  const descriptionMeta = extractMetaContents(html, [
+    "description",
+    "og:description",
+    "twitter:description",
+  ]).map(normalizeAbstractText);
   const locationMeta = extractMetaContents(html, [
     "citation_conference_location",
     "conference_location",
@@ -1426,11 +1431,16 @@ function extractPublisherConferenceFields(html, metadata = {}) {
     "article:published_time",
     "date",
   ]).map(normalizePublisherDate);
+  const titleText = normalizeComparableText(metadata.title);
+  const descriptionCandidates = [...jsonLd.descriptions, ...descriptionMeta]
+    .filter((item) => item && normalizeComparableText(item) !== titleText);
+
   return {
     abstract: uniqueValues([
       ...abstractMeta,
       ...jsonLd.abstracts,
       ...extractHtmlAbstractSections(html),
+      ...descriptionCandidates,
     ]).find(Boolean) || "",
     conferenceName: uniqueValues([...nameMeta, ...jsonLd.names]).find(Boolean) || "",
     conferenceLocation: uniqueValues([...locationMeta, ...jsonLd.locations]).find(Boolean) || "",
@@ -1806,7 +1816,7 @@ function shouldTryPublisherConferenceMetadata(metadata = {}) {
 
   const raw = metadata.raw_json || {};
 
-  if (raw._publisher_html_metadata?.attempted && raw._publisher_html_metadata?.version >= 2) {
+  if (raw._publisher_html_metadata?.attempted && raw._publisher_html_metadata?.version >= 3) {
     return false;
   }
 
@@ -1826,7 +1836,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
   const urlCandidates = getMetadataArticleUrlCandidates(metadata);
   let lastAttempt = {
     attempted: true,
-    version: 2,
+    version: 3,
     status: "unavailable",
     url: urlCandidates[0] || "",
   };
@@ -1883,7 +1893,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
 
       lastAttempt = {
         attempted: true,
-        version: 2,
+        version: 3,
         status: found.length ? "matched" : "no_fields_found",
         url: response.url || url,
         found,
@@ -1902,7 +1912,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
     } catch {
       lastAttempt = {
         attempted: true,
-        version: 2,
+        version: 3,
         status: "unavailable",
         url,
       };
