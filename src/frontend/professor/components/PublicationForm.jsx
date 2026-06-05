@@ -392,6 +392,10 @@ function getConferencePaperReset() {
   };
 }
 
+function isTrustedAuthorFieldSource(value) {
+  return ["api", "doi", "lookup"].includes(String(value || "").trim().toLowerCase());
+}
+
 function normalizeName(value) {
   return String(value || "")
     .toLowerCase()
@@ -447,6 +451,8 @@ function parsePublishedValue(input) {
 function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthorIndex = 0) {
   const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
   const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
+  const affiliation = normalizeAuthorAffiliation(normalizedAuthor);
+  const metadataOrcid = normalizedAuthor.orcid || normalizedAuthor.ORCID || "";
   const matchesCurrentUser = currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
 
   return {
@@ -454,8 +460,12 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     fullName,
     givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
-    orcid: normalizedAuthor.orcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
-    affiliation: normalizeAuthorAffiliation(normalizedAuthor),
+    orcid: metadataOrcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
+    orcidSource: metadataOrcid ? "doi" : "",
+    orcid_source: metadataOrcid ? "doi" : "",
+    affiliation,
+    affiliationSource: affiliation ? "doi" : "",
+    affiliation_source: affiliation ? "doi" : "",
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: normalizeBoolean(
@@ -507,7 +517,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     publicationType,
     venue: metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
-    publisher: isConferencePaper ? "" : metadata.publisher || "",
+    publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
@@ -600,7 +610,7 @@ const PublicationForm = ({
   const primaryIndexing = getSelectedIndexingItem(indexingItems, value.quartile);
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
-  const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
+  const isFieldLocked = (field) => isTrustedSource(field);
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
@@ -809,7 +819,8 @@ const PublicationForm = ({
   );
   const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
     const authorsLocked = isFieldLocked("authors");
-    const affiliationLocked = authorsLocked && Boolean(String(author.affiliation || "").trim());
+    const affiliationLocked = authorsLocked && isTrustedAuthorFieldSource(author.affiliationSource || author.affiliation_source);
+    const orcidLocked = authorsLocked && isTrustedAuthorFieldSource(author.orcidSource || author.orcid_source);
     const hasOrcid = Boolean(String(author.orcid || "").trim());
 
     return (
@@ -846,12 +857,10 @@ const PublicationForm = ({
         </div>
         <div className="publication-author-field publication-author-orcid-field">
           <span className="publication-author-field-label">ORCID</span>
-          {authorsLocked ? (
-            hasOrcid ? (
-              <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
-                {author.orcid}
-              </span>
-            ) : null
+          {orcidLocked && hasOrcid ? (
+            <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
+              {author.orcid}
+            </span>
           ) : (
             <input
               value={author.orcid || ""}

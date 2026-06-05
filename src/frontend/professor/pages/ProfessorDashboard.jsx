@@ -1218,6 +1218,10 @@ export default function ProfessorDashboard() {
       delete authorPayload.is_corresponding_author;
       delete authorPayload.correspondingAuthor;
       delete authorPayload.corresponding_author;
+      delete authorPayload.orcidSource;
+      delete authorPayload.orcid_source;
+      delete authorPayload.affiliationSource;
+      delete authorPayload.affiliation_source;
 
       return {
         ...authorPayload,
@@ -1246,7 +1250,7 @@ export default function ProfessorDashboard() {
       publishedIn: draft.venue || draft.publishedIn || "",
       conferenceLocation: draft.conferenceLocation || draft.conference_location || "",
       conference_location: draft.conferenceLocation || draft.conference_location || "",
-      publisher: isConferencePaper ? "" : draft.publisher || "",
+      publisher: draft.publisher || "",
       publicationDate,
       publication_date: publicationDate,
       volume: isConferencePaper ? "" : draft.volume || "",
