@@ -1819,39 +1819,6 @@ body {
   gap: 8px;
 }
 
-.publication-quartile-verification-badge {
-  flex: 0 0 auto;
-  max-width: 180px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.publication-quartile-verification-badge.verified {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.publication-quartile-verification-badge.historical {
-  background: #fff7e8;
-  color: #92400e;
-}
-
-.publication-quartile-verification-badge.manual-required {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.publication-quartile-verification-badge.missing {
-  background: #fee2e2;
-  color: #b42318;
-}
-
 .publication-form .prof-form-field input,
 .publication-form .prof-form-field select {
   height: 48px;

@@ -524,28 +524,7 @@ const PublicationForm = ({
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
-  const isQuartileVerified = Boolean(value.quartileVerified ?? value.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified);
-  const quartileVerificationStatus = value.quartileVerificationStatus || value.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || "";
-  const normalizedQuartileStatus = String(quartileVerificationStatus || "").toLowerCase();
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const isQuartileHistorical = !isQuartileVerified && normalizedQuartileStatus === "historical" && Boolean(displayableQuartile);
-  const isQuartileManualRequired = !isQuartileVerified && !isQuartileHistorical && normalizedQuartileStatus === "manual_required";
-  const isQuartileMissing = !isQuartileVerified && !isQuartileHistorical && !isQuartileManualRequired;
-  const quartileBadgeLabel = isQuartileVerified
-    ? t("professor.dashboard.publicationForm.quartileStatus.verified")
-    : isQuartileHistorical
-      ? t("professor.dashboard.publicationForm.quartileStatus.historical")
-      : isQuartileManualRequired
-        ? t("professor.dashboard.publicationForm.quartileStatus.manualRequired")
-        : t("professor.dashboard.publicationForm.quartileStatus.missing");
-  const quartileBadgeClass = isQuartileVerified
-    ? "verified"
-    : isQuartileHistorical
-      ? "historical"
-      : isQuartileManualRequired
-        ? "manual-required"
-        : "missing";
-  const showQuartileBadge = isQuartileVerified || isQuartileHistorical || isQuartileManualRequired || isQuartileMissing;
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
     String(value.indexingCategory || primaryIndexing.category || "").trim()
@@ -931,11 +910,6 @@ const PublicationForm = ({
         <label className="prof-form-field">
           <span className="publication-quartile-label">
             <span>{t("professor.dashboard.publicationForm.quartile")}</span>
-            {showQuartileBadge ? (
-              <span className={`publication-quartile-verification-badge ${quartileBadgeClass}`}>
-                {quartileBadgeLabel}
-              </span>
-            ) : null}
           </span>
           <select
             value={displayableQuartile}
