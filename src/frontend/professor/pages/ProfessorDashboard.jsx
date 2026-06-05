@@ -45,6 +45,9 @@ import {
   KOSOVO_BANKS,
   maskBankAccount,
 } from "../../../../shared/banking.js";
+import {
+  PUBLICATION_REVIEW_ROLE_VALUES,
+} from "../../../../shared/publicationConstants.js";
 
 import {
   professorProfile,
@@ -117,6 +120,8 @@ const DEFAULT_PROFESSOR_STATISTICS = {
     publicationsInReview: 0,
     publicationsDraft: 0,
     citationsTotal: 0,
+    citationSources: 0,
+    citationsAvailable: false,
     conferencesTotal: 0,
     upcomingConferences: 0,
     reimbursementsTotal: 0,
@@ -147,7 +152,28 @@ const STATUS_LABELS = {
   unknown: "Pa status",
 };
 
-const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
+const METADATA_REVIEW_LABELS = {
+  unchecked: "Pa kontroll",
+  in_review: "Metadata ne shqyrtim",
+  ok: "Metadata OK",
+  correction: "Korrigjim metadata",
+};
+
+const METADATA_SOURCE_LABELS = {
+  doi: "DOI",
+  manual: "Manual",
+  mixed: "DOI + manual",
+  api: "API",
+  empty: "Pa burim",
+};
+
+const PUBLICATION_TYPE_LABEL_KEYS = {
+  journal_article: "professor.dashboard.publicationForm.journalArticle",
+  conference_paper: "professor.dashboard.publicationForm.conferencePaper",
+  book: "professor.dashboard.publicationForm.book",
+};
+
+const PUBLICATION_REVIEW_ROLES = new Set(PUBLICATION_REVIEW_ROLE_VALUES);
 
 const formatDate = (value) => {
   if (!value) {
@@ -2055,8 +2081,10 @@ export default function ProfessorDashboard() {
       },
       {
         label: t("professor.dashboard.citationsFromMetadata"),
-        value: summary.citationsTotal,
-        change: t("professor.dashboard.citationsDescription"),
+        value: summary.citationsAvailable ? summary.citationsTotal : t("common.noData"),
+        change: summary.citationsAvailable
+          ? t("professor.dashboard.citationsDescription")
+          : t("professor.dashboard.citationsUnavailable"),
         icon: <CheckCircle2 size={22} />,
       },
       {
@@ -2162,6 +2190,140 @@ export default function ProfessorDashboard() {
 
   const renderPublicationTitle = (row) => {
     return row.title;
+  };
+
+  const getPublicationTypeLabel = (row = {}) => {
+    const type = row.publicationType || row.publication_type;
+
+    return type ? t(PUBLICATION_TYPE_LABEL_KEYS[type] || type) : t("common.noData");
+  };
+
+  const getPublicationPublishedSummary = (row = {}) => {
+    const date = formatDate(row.publicationDate || row.publication_date);
+    const year = row.publicationYear || row.publication_year || row.year;
+
+    if (date && year && !String(date).startsWith(String(year))) {
+      return `${date} | ${year}`;
+    }
+
+    return date || year || t("professor.dashboard.noYear");
+  };
+
+  const getPublicationMetadataSourceLabel = (row = {}) => {
+    const source = String(row.metadataSource || row.metadata_source || "empty").toLowerCase();
+
+    return METADATA_SOURCE_LABELS[source] || source || METADATA_SOURCE_LABELS.empty;
+  };
+
+  const getPublicationReviewStatusLabel = (row = {}) => {
+    const status = String(row.metadataReviewStatus || row.metadata_review_status || "unchecked").toLowerCase();
+
+    return METADATA_REVIEW_LABELS[status] || status || METADATA_REVIEW_LABELS.unchecked;
+  };
+
+  const getPublicationEvidenceLinks = (row = {}) => {
+    const seenUrls = new Set();
+    const links = [];
+    const addLink = (url, label) => {
+      const normalizedUrl = String(url || "").trim();
+
+      if (!normalizedUrl || seenUrls.has(normalizedUrl)) {
+        return;
+      }
+
+      seenUrls.add(normalizedUrl);
+      links.push({
+        url: normalizedUrl,
+        label: label || t("professor.dashboard.publicationLinkLabel"),
+      });
+    };
+
+    addLink(row.sourceUrl || row.source_url, t("professor.dashboard.publicationSourceLinkLabel"));
+
+    (Array.isArray(row.evidenceLinks || row.evidence_links) ? (row.evidenceLinks || row.evidence_links) : [])
+      .forEach((item, index) => addLink(
+        item.url || item.fileUrl || item.file_url,
+        item.label || item.fileType || item.file_type || `${t("professor.dashboard.publicationEvidenceLabel")} ${index + 1}`
+      ));
+
+    return links;
+  };
+
+  const renderPublicationField = (label, value, className = "") => {
+    if (!value) {
+      return null;
+    }
+
+    return (
+      <span className={`publication-detail-item ${className}`.trim()}>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </span>
+    );
+  };
+
+  const renderPublicationLinks = (row = {}) => {
+    const links = getPublicationEvidenceLinks(row);
+
+    if (!links.length) {
+      return null;
+    }
+
+    return (
+      <div className="publication-link-list">
+        {links.slice(0, 3).map((link) => (
+          <a href={link.url} target="_blank" rel="noreferrer" key={link.url}>
+            <Link2 size={12} aria-hidden="true" />
+            {link.label}
+          </a>
+        ))}
+      </div>
+    );
+  };
+
+  const renderPublicationMainInfo = (row = {}) => (
+    <div className="publication-title-cell">
+      <h4>{renderPublicationTitle(row)}</h4>
+      <div className="publication-detail-stack publication-detail-stack--compact">
+        {renderPublicationField("DOI", row.doi)}
+        {renderPublicationField(t("professor.dashboard.publicationForm.publishedIn"), row.publishedIn || row.venue || row.journal)}
+        {renderPublicationField(t("professor.dashboard.publicationForm.publisher"), row.publisher)}
+      </div>
+      {renderPublicationLinks(row)}
+      {renderRevisionNotice(row)}
+    </div>
+  );
+
+  const renderPublicationAcademicDetails = (row = {}) => (
+    <div className="publication-detail-stack">
+      {renderPublicationField(t("professor.dashboard.publicationForm.publicationType"), getPublicationTypeLabel(row))}
+      <span className="publication-detail-item">
+        <span>{t("professor.dashboard.authorsColumn")}</span>
+        <strong>{formatPublicationAuthors(row.authors)}</strong>
+      </span>
+      {renderPublicationField(t("professor.dashboard.publicationForm.publishedAt"), getPublicationPublishedSummary(row))}
+    </div>
+  );
+
+  const renderPublicationStatusDetails = (row = {}) => {
+    const reviewStatus = String(row.metadataReviewStatus || row.metadata_review_status || "unchecked").toLowerCase();
+    const indexingPlatform = row.indexingPlatform || row.indexing_platform || "";
+
+    return (
+      <div className="publication-status-stack">
+        {renderStatus(row.status)}
+        <span className={`publication-review-badge ${reviewStatus}`}>
+          {getPublicationReviewStatusLabel(row)}
+        </span>
+        <div className="publication-chip-row">
+          {indexingPlatform ? (
+            <span className="publication-mini-chip">{indexingPlatform}</span>
+          ) : null}
+          {formatPublicationQuartile(row)}
+          <span className="publication-mini-chip muted">{getPublicationMetadataSourceLabel(row)}</span>
+        </div>
+      </div>
+    );
   };
 
   const formatPublicationAuthors = (authors = []) => {
@@ -2368,9 +2530,8 @@ export default function ProfessorDashboard() {
           <div className="publication-table-head" role="row">
             <span>{t("professor.dashboard.publicationNumberColumn")}</span>
             {renderPublicationSortHeader("title", t("professor.dashboard.publicationColumn"))}
-            <span>{t("professor.dashboard.authorsColumn")}</span>
-            {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
-            {renderPublicationSortHeader("quartile", t("professor.dashboard.publicationQuartileColumn"))}
+            <span>{t("professor.dashboard.publicationDetailsColumn")}</span>
+            <span>{t("professor.dashboard.publicationStatusColumn")}</span>
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
           {sortedPublications.map((row, index) => (
@@ -2383,21 +2544,17 @@ export default function ProfessorDashboard() {
               <div className="publication-number-cell" aria-label={t("professor.dashboard.publicationNumberColumn")}>
                 {index + 1}
               </div>
-              <div className="publication-title-cell">
-                <h4>{renderPublicationTitle(row)}</h4>
-                {renderRevisionNotice(row)}
+              <div className="publication-meta-cell">
+                <span className="publication-mobile-label">{t("professor.dashboard.publicationColumn")}</span>
+                {renderPublicationMainInfo(row)}
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.authorsColumn")}</span>
-                {formatPublicationAuthors(row.authors)}
+                <span className="publication-mobile-label">{t("professor.dashboard.publicationDetailsColumn")}</span>
+                {renderPublicationAcademicDetails(row)}
               </div>
               <div className="publication-meta-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
-                {row.year || t("professor.dashboard.noYear")}
-              </div>
-              <div className="publication-meta-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.publicationQuartileColumn")}</span>
-                {formatPublicationQuartile(row)}
+                <span className="publication-mobile-label">{t("professor.dashboard.publicationStatusColumn")}</span>
+                {renderPublicationStatusDetails(row)}
               </div>
               <div className="publication-meta-cell publication-actions-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.actionsColumn")}</span>

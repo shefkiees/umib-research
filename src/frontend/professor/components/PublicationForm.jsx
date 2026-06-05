@@ -2,28 +2,46 @@ import React, { useState } from "react";
 import { Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
+import {
+  INDEXING_PLATFORM_VALUES,
+  PROFESSOR_PUBLICATION_STATUS_VALUES,
+  PUBLICATION_TYPE_VALUES,
+  QUARTILE_VALUES,
+  REVIEW_PUBLICATION_STATUS_VALUES,
+} from "../../../../shared/publicationConstants.js";
 
-export const PUBLICATION_TYPES = [
-  { value: "", labelKey: "professor.dashboard.publicationForm.selectType" },
-  { value: "journal_article", labelKey: "professor.dashboard.publicationForm.journalArticle" },
-  { value: "conference_paper", labelKey: "professor.dashboard.publicationForm.conferencePaper" },
-  { value: "book", labelKey: "professor.dashboard.publicationForm.book" },
-];
+const PUBLICATION_TYPE_LABEL_KEYS = {
+  "": "professor.dashboard.publicationForm.selectType",
+  journal_article: "professor.dashboard.publicationForm.journalArticle",
+  conference_paper: "professor.dashboard.publicationForm.conferencePaper",
+  book: "professor.dashboard.publicationForm.book",
+};
 
-const PROFESSOR_STATUS_OPTIONS = [
-  { value: "draft", label: "Në draft" },
-  { value: "submitted", label: "Dorëzuar" },
-];
+export const PUBLICATION_TYPES = PUBLICATION_TYPE_VALUES.map((value) => ({
+  value,
+  labelKey: PUBLICATION_TYPE_LABEL_KEYS[value] || "professor.dashboard.publicationForm.selectType",
+}));
 
-const REVIEW_STATUS_OPTIONS = [
-  ...PROFESSOR_STATUS_OPTIONS,
-  { value: "in_review", label: "Në shqyrtim" },
-  { value: "approved", label: "Aprovuar" },
-  { value: "rejected", label: "Refuzuar" },
-];
+const PUBLICATION_STATUS_LABEL_KEYS = {
+  draft: "professor.dashboard.publicationForm.statusDraft",
+  submitted: "professor.dashboard.publicationForm.statusSubmitted",
+  in_review: "professor.dashboard.publicationForm.statusInReview",
+  approved: "professor.dashboard.publicationForm.statusApproved",
+  rejected: "professor.dashboard.publicationForm.statusRejected",
+};
 
-const INDEXING_PLATFORM_OPTIONS = ["", "Scopus", "SCImago", "OpenAlex", "DOAJ", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"];
-const QUARTILE_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4"];
+const PROFESSOR_STATUS_OPTIONS = PROFESSOR_PUBLICATION_STATUS_VALUES.map((value) => ({
+  value,
+  labelKey: PUBLICATION_STATUS_LABEL_KEYS[value],
+}));
+
+const REVIEW_STATUS_OPTIONS = REVIEW_PUBLICATION_STATUS_VALUES.map((value) => ({
+  value,
+  labelKey: PUBLICATION_STATUS_LABEL_KEYS[value],
+}));
+
+const INDEXING_PLATFORM_OPTIONS = ["", ...INDEXING_PLATFORM_VALUES];
+const QUARTILE_OPTIONS = ["", ...QUARTILE_VALUES];
 
 const EMPTY_AUTHOR = {
   fullName: "",
@@ -485,6 +503,18 @@ const PublicationForm = ({
     ? t(`professor.dashboard.publicationForm.quartileSource.${quartileSource}`)
     : t("professor.dashboard.publicationForm.quartileSource.manualRequired");
   const showQuartileBadge = isQuartileVerified || showQuartileManualBadge;
+  const statusOptions = canReview ? REVIEW_STATUS_OPTIONS : PROFESSOR_STATUS_OPTIONS;
+  const selectedStatusValue = statusOptions.some((option) => option.value === value.status)
+    ? value.status
+    : "draft";
+  const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
+  const hasIndexingDetails = Boolean(
+    String(value.indexingCategory || primaryIndexing.category || "").trim()
+    || normalizeQuartile(displayableQuartile)
+    || String(value.sjr || primaryIndexing.sjr || "").trim()
+    || String(value.citeScore || primaryIndexing.citeScore || primaryIndexing.cite_score || "").trim()
+    || Boolean(value.indexingVerified ?? value.indexing_verified)
+  );
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -657,8 +687,8 @@ const PublicationForm = ({
       return;
     }
 
-    if (!String(value.indexingPlatform || primaryIndexing.source || "").trim()) {
-      setFormError(t("professor.dashboard.publicationForm.indexingPlatformRequired"));
+    if (value.publicationType === "journal_article" && hasIndexingDetails && !hasIndexingPlatform) {
+      setFormError(t("professor.dashboard.publicationForm.indexingPlatformRequiredWhenIndexed"));
       return;
     }
 
@@ -720,6 +750,16 @@ const PublicationForm = ({
           <span>{t("professor.dashboard.publicationForm.publicationType")}</span>
           <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isFieldLocked("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
+          </select>
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.status")}</span>
+          <select value={selectedStatusValue} onChange={updateField("status")} disabled={submitting}>
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey)}
+              </option>
+            ))}
           </select>
         </label>
         <label className="prof-form-field">

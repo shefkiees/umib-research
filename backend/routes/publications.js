@@ -9,15 +9,24 @@ import {
   normalizeYear,
 } from "../services/doiMetadata.service.js";
 import { createNotification } from "../services/notification.service.js";
+import {
+  INDEXING_PLATFORM_VALUES,
+  INDEXING_SOURCE_VALUES,
+  METADATA_REVIEW_STATUS_VALUES,
+  PROFESSOR_PUBLICATION_STATUS_VALUES,
+  PUBLICATION_REVIEW_ROLE_VALUES,
+  PUBLICATION_STATUS_VALUES,
+  PUBLICATION_TYPE_VALUES,
+} from "../../shared/publicationConstants.js";
 
 const router = express.Router();
-const VALID_PUBLICATION_STATUSES = new Set(["draft", "submitted", "in_review", "needs_correction", "approved", "rejected"]);
-const PROFESSOR_PUBLICATION_STATUSES = new Set(["draft", "submitted"]);
-const PUBLICATION_REVIEW_ROLES = new Set(["admin", "committee", "prorector"]);
-const VALID_PUBLICATION_TYPES = new Set(["", "journal_article", "conference_paper", "book"]);
-const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
-const VALID_INDEXING_PLATFORMS = new Set(["Scopus", "SCImago", "OpenAlex", "DOAJ", "Web of Science", "SCIE", "SSCI", "AHCI", "Other"]);
-const VALID_INDEXING_SOURCES = new Set(["scopus", "scimago", "doaj", "openalex", "manual"]);
+const VALID_PUBLICATION_STATUSES = new Set(PUBLICATION_STATUS_VALUES);
+const PROFESSOR_PUBLICATION_STATUSES = new Set(PROFESSOR_PUBLICATION_STATUS_VALUES);
+const PUBLICATION_REVIEW_ROLES = new Set(PUBLICATION_REVIEW_ROLE_VALUES);
+const VALID_PUBLICATION_TYPES = new Set(PUBLICATION_TYPE_VALUES);
+const VALID_METADATA_REVIEW_STATUSES = new Set(METADATA_REVIEW_STATUS_VALUES);
+const VALID_INDEXING_PLATFORMS = new Set(INDEXING_PLATFORM_VALUES);
+const VALID_INDEXING_SOURCES = new Set(INDEXING_SOURCE_VALUES);
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -531,14 +540,33 @@ function normalizePublicationPayload(body = {}, options = {}) {
     && requestedIndexingSource !== "manual"
     && Boolean(indexingPlatform || indexing?.some((item) => item.source || item.category || item.quartile || item.sjr || item.citeScore));
   const indexingSource = indexingVerified ? requestedIndexingSource : "manual";
+  const hasIndexingClaim = Boolean(
+    indexingCategory
+    || normalizeQuartile(body.quartile)
+    || normalizeText(body.sjr)
+    || normalizeText(body.citeScore || body.cite_score || body.citescore)
+    || indexingVerified
+    || indexing?.some((item) =>
+      item.category
+      || item.quartile
+      || item.sjr
+      || item.citeScore
+      || item.cite_score
+      || item.impactFactor
+      || item.impact_factor
+      || item.indexedUrl
+      || item.indexed_url
+    )
+  );
+  const shouldRequireIndexingPlatform = publicationType === "journal_article" && hasIndexingClaim && !indexingPlatform;
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
   }
 
-  if (!indexingPlatform) {
-    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme eshte obligativ." });
-  } else if (!VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
+  if (shouldRequireIndexingPlatform) {
+    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme kerkohet kur publikimi shenohet si i indeksuar." });
+  } else if (indexingPlatform && !VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme nuk eshte valid." });
   }
 
@@ -577,7 +605,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
             quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
           }
         : item)
-      : [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
+      : hasIndexingClaim || indexingPlatform
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
+        : []
     : undefined;
 
   return {

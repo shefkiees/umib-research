@@ -4,6 +4,7 @@ import DoiMetadataCard from "./DoiMetadataCard";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 
+// Deprecated: publication DOI lookup is handled inline by PublicationForm.
 const DoiLookup = ({ onPublicationSaved }) => {
   const { t } = useLanguage();
   const [doi, setDoi] = useState("");

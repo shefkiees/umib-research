@@ -24,8 +24,19 @@ const CITATION_COUNT_SQL = `
       m.raw_json->>'citationCount',
       m.raw_json->>'citation_count'
     )::int
-    else 0
+    else null
   end
+`;
+
+const PUBLICATION_ACADEMIC_DATE_SQL = `
+  coalesce(
+    p.publication_date,
+    case
+      when p.publication_year between 1 and 9999 then make_date(p.publication_year, 1, 1)
+      else null
+    end,
+    p.created_at::date
+  )
 `;
 
 function requireAuthenticatedUser(req, res, next) {
@@ -93,8 +104,12 @@ router.get("/stats", requireAuthenticatedUser, async (req, res) => {
               ${CITATION_COUNT_SQL}
             ), 0)::int
             from publications p
-            left join publication_metadata m on m.doi = p.doi
+            left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
             where p.owner_id = $1) as citations_total,
+           (select count(${CITATION_COUNT_SQL})::int
+            from publications p
+            left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+            where p.owner_id = $1) as citation_sources,
            (select count(*)::int
             from (
               select c.id::text as activity_id
@@ -132,14 +147,14 @@ router.get("/stats", requireAuthenticatedUser, async (req, res) => {
          ),
          publication_monthly as (
            select
-             date_trunc('month', p.created_at)::date as month_start,
+             date_trunc('month', ${PUBLICATION_ACADEMIC_DATE_SQL})::date as month_start,
              count(*)::int as publications,
              coalesce(sum(
                ${CITATION_COUNT_SQL}
              ), 0)::int as citations
            from publications p
-           left join publication_metadata m on m.doi = p.doi
-           where p.owner_id = $1 and p.created_at >= $2::date
+           left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+           where p.owner_id = $1 and ${PUBLICATION_ACADEMIC_DATE_SQL} >= $2::date
            group by 1
          ),
          conference_events as (
@@ -227,6 +242,8 @@ router.get("/stats", requireAuthenticatedUser, async (req, res) => {
         publicationsInReview: toNumber(summaryRow.publications_in_review),
         publicationsDraft: toNumber(summaryRow.publications_draft),
         citationsTotal: toNumber(summaryRow.citations_total),
+        citationSources: toNumber(summaryRow.citation_sources),
+        citationsAvailable: toNumber(summaryRow.citation_sources) > 0,
         conferencesTotal: toNumber(summaryRow.conferences_total),
         upcomingConferences: toNumber(summaryRow.upcoming_conferences),
         reimbursementsTotal: toNumber(summaryRow.reimbursements_total),
