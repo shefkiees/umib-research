@@ -59,6 +59,16 @@ function normalizeNullableText(value) {
   return normalized || null;
 }
 
+function nullableConferenceText(publicationType, value) {
+  return publicationType === "conference_paper" ? normalizeNullableText(value) : normalizeText(value);
+}
+
+function nullableConferenceAbstract(publicationType, value) {
+  const abstract = normalizeAbstractText(value);
+
+  return publicationType === "conference_paper" ? abstract || null : abstract;
+}
+
 function normalizeRole(value) {
   const normalized = normalizeText(value).toLowerCase();
   const roleAliases = {
@@ -283,17 +293,40 @@ function normalizeIndexing(value) {
     .filter((item) => item.source || item.category || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
 }
 
-function deriveAuthorAffiliation(authors = [], fallback = "") {
-  return normalizeText(fallback)
-    || (Array.isArray(authors) ? authors.map((author) => normalizeAuthorAffiliation(
-      author?.affiliation
-      || author?.affiliations
-      || author?.institution
-      || author?.organization
-      || author?.currentAffiliation
-      || author?.current_affiliation
-    )).find(Boolean) : "")
-    || "";
+function normalizeComparableAffiliation(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeConferenceAuthorAffiliations(authors = [], publicationType = "", metadataSource = "manual") {
+  const normalizedAuthors = (Array.isArray(authors) ? authors : []).map((author) => ({
+    ...author,
+    affiliation: publicationType === "conference_paper" ? normalizeNullableText(author?.affiliation) : author?.affiliation,
+  }));
+
+  if (publicationType !== "conference_paper" || metadataSource !== "doi") {
+    return normalizedAuthors;
+  }
+
+  const affiliationCounts = normalizedAuthors.reduce((counts, author) => {
+    const key = normalizeComparableAffiliation(author.affiliation);
+
+    return key ? counts.set(key, (counts.get(key) || 0) + 1) : counts;
+  }, new Map());
+
+  return normalizedAuthors.map((author) => {
+    const key = normalizeComparableAffiliation(author.affiliation);
+
+    return key && affiliationCounts.get(key) > 1
+      ? { ...author, affiliation: null }
+      : author;
+  });
 }
 
 function deriveIndexingPlatform(indexing = [], fallback = "") {
@@ -334,10 +367,6 @@ function createFieldSource(value, sourceWhenPresent = "manual") {
 function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
   const baseSource = metadataSource === "doi" ? "api" : metadataSource === "mixed" ? "manual" : "manual";
   const indexing = Array.isArray(values.indexing) ? values.indexing : [];
-  const publicationType = normalizePublicationType(values.publicationType || values.publication_type);
-  const paperLevelAuthorAffiliation = publicationType === "conference_paper"
-    ? ""
-    : values.authorAffiliation || values.author_affiliation || values.affiliation;
   const selectedIndexing = getSelectedIndexingItem(indexing, values.quartile);
   const indexingSource = normalizeBoolean(values.indexingVerified ?? values.indexing_verified ?? selectedIndexing.indexingVerified ?? selectedIndexing.indexing_verified)
     ? "lookup"
@@ -355,7 +384,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     doi: createFieldSource(values.doi, baseSource),
     title: createFieldSource(values.title, baseSource),
     authors: createFieldSource((Array.isArray(values.authors) ? values.authors : []).map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean), baseSource),
-    authorAffiliation: createFieldSource(paperLevelAuthorAffiliation, baseSource),
+    authorAffiliation: createFieldSource(null, baseSource),
     publicationType: createFieldSource(values.publicationType || values.publication_type, baseSource),
     venue: createFieldSource(values.venue || values.publishedIn || values.published_in || values.journal, baseSource),
     publisher: createFieldSource(values.publisher, baseSource),
@@ -588,9 +617,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const indexing = hasIndexingInput
     ? normalizeIndexingInput(rawIndexing, publicationType)
     : undefined;
-  const authorAffiliation = publicationType === "conference_paper"
-    ? ""
-    : deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
+  const authorAffiliation = null;
   const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
   const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category);
   const evidenceLinks = hasEvidenceLinksInput
@@ -638,16 +665,13 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "indexingCategory", message: "Kategoria / grupi i indeksimit eshte shume e gjate." });
   }
 
-  const authorsWithAffiliation = authors.map((author, index) => {
-    const authorWithAffiliation = publicationType !== "conference_paper" && index === 0 && !author.affiliation
-      ? { ...author, affiliation: authorAffiliation }
-      : author;
-
+  const authorsWithAffiliation = sanitizeConferenceAuthorAffiliations(authors.map((author) => {
     return {
-      ...authorWithAffiliation,
-      isCorrespondingAuthor: Boolean(authorWithAffiliation.isCorrespondingAuthor),
+      ...author,
+      affiliation: normalizeNullableText(author.affiliation),
+      isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor),
     };
-  });
+  }), publicationType, metadataSource);
   const normalizedIndexing = indexing !== undefined
     ? indexing.length
       ? indexing.map((item, index) => index === 0
@@ -679,7 +703,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
     values: {
       doi: doi || null,
       title,
-      abstract: normalizeAbstractText(body.abstract),
+      abstract: nullableConferenceAbstract(publicationType, body.abstract),
       publicationType,
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
       conferenceLocation: normalizeText(body.conferenceLocation ?? body.conference_location),
@@ -689,9 +713,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
       sourceUrl,
       volume: normalizeText(body.volume),
       issue: normalizeText(body.issue),
-      pages: normalizeText(body.pages),
-      issn: normalizeText(body.issn),
-      isbn: normalizeText(body.isbn),
+      pages: nullableConferenceText(publicationType, body.pages),
+      issn: nullableConferenceText(publicationType, body.issn),
+      isbn: nullableConferenceText(publicationType, body.isbn),
       authorAffiliation,
       indexingPlatform,
       indexingCategory,
@@ -775,9 +799,7 @@ function mapPublication(row) {
     indexedUrl: item.indexed_url || item.indexedUrl || "",
     indexed_url: item.indexed_url || item.indexedUrl || "",
   }));
-  const authorAffiliation = publicationType === "conference_paper"
-    ? ""
-    : row.author_affiliation || deriveAuthorAffiliation(authors);
+  const authorAffiliation = null;
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
   const indexingVerified = Boolean(row.indexing_verified);
@@ -790,7 +812,7 @@ function mapPublication(row) {
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
-    abstract: normalizeAbstractText(row.abstract),
+    abstract: nullableConferenceAbstract(publicationType, row.abstract),
     publicationType,
     venue: row.venue || "",
     conferenceLocation: row.conference_location || "",
@@ -800,9 +822,9 @@ function mapPublication(row) {
     sourceUrl: row.source_url || "",
     volume: row.volume || "",
     issue: row.issue || "",
-    pages: row.pages || "",
-    issn: row.issn || "",
-    isbn: row.isbn || "",
+    pages: nullableConferenceText(publicationType, row.pages),
+    issn: nullableConferenceText(publicationType, row.issn),
+    isbn: nullableConferenceText(publicationType, row.isbn),
     authorAffiliation,
     indexingPlatform,
     indexingCategory,
@@ -859,7 +881,7 @@ function mapPublication(row) {
     citescore: selectedCiteScore,
     citeScoreVerified: selectedCiteScoreVerified,
     cite_score_verified: selectedCiteScoreVerified,
-    authors: authors.map((author, index) => ({
+    authors: sanitizeConferenceAuthorAffiliations(authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
       full_name: author.full_name || author.fullName || "",
       givenName: author.given_name || author.givenName || "",
@@ -867,21 +889,21 @@ function mapPublication(row) {
       familyName: author.family_name || author.familyName || "",
       family_name: author.family_name || author.familyName || "",
       orcid: author.orcid || "",
-      affiliation: normalizeAuthorAffiliation(
+      affiliation: normalizeNullableText(normalizeAuthorAffiliation(
         author.affiliation
         || author.affiliations
         || author.institution
         || author.organization
         || author.currentAffiliation
         || author.current_affiliation
-      ) || (publicationType !== "conference_paper" && index === 0 ? authorAffiliation : ""),
+      )),
       authorOrder: author.author_order || author.authorOrder || index + 1,
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
       is_main_author: index === 0,
       isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
       is_corresponding_author: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-    })),
+    })), publicationType, row.metadata_source || "manual"),
     indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
       type: item.type || item.identifier_type || "",
@@ -1201,6 +1223,18 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists revision_requested_at timestamptz;
     alter table publications add column if not exists resubmitted_at timestamptz;
     alter table if exists publication_authors add column if not exists is_corresponding_author boolean not null default false;
+    alter table publications alter column abstract drop not null;
+    alter table publications alter column abstract drop default;
+    alter table publications alter column pages drop not null;
+    alter table publications alter column pages drop default;
+    alter table publications alter column issn drop not null;
+    alter table publications alter column issn drop default;
+    alter table publications alter column isbn drop not null;
+    alter table publications alter column isbn drop default;
+    alter table publications alter column author_affiliation drop not null;
+    alter table publications alter column author_affiliation drop default;
+    alter table if exists publication_authors alter column affiliation drop not null;
+    alter table if exists publication_authors alter column affiliation drop default;
     alter table if exists publication_indexing add column if not exists source_key text not null default 'manual';
     alter table if exists publication_indexing add column if not exists category text not null default '';
     alter table if exists publication_indexing add column if not exists sjr text not null default '';
@@ -1378,7 +1412,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       givenName: "",
       familyName: "",
       orcid: matchesCurrentUser ? normalizeOrcid(currentUser.orcid_id || currentUser.orcidId) : "",
-      affiliation: "",
+      affiliation: null,
       isMainAuthor: index === mainAuthorIndex,
       isCorrespondingAuthor: false,
       authorOrder: index + 1,
@@ -1398,7 +1432,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       || author?.affiliations
       || author?.institution
       || author?.organization
-    ),
+    ) || null,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: normalizeBoolean(
       author?.isCorrespondingAuthor
@@ -1423,7 +1457,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   return {
     doi: metadata.doi || "",
     title: metadata.title || "",
-    abstract: metadata.abstract || "",
+    abstract: nullableConferenceAbstract(publicationType, metadata.abstract),
     publicationType,
     venue: metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
@@ -1435,10 +1469,10 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     sourceUrl: metadata.source_url || "",
     volume: metadata.volume || "",
     issue: metadata.issue || "",
-    pages: metadata.pages || "",
-    issn,
-    isbn,
-    authorAffiliation: publicationType === "conference_paper" ? "" : deriveAuthorAffiliation(metadataAuthors),
+    pages: nullableConferenceText(publicationType, metadata.pages),
+    issn: nullableConferenceText(publicationType, issn),
+    isbn: nullableConferenceText(publicationType, isbn),
+    authorAffiliation: null,
     indexingPlatform: deriveIndexingPlatform(indexing),
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
     indexingVerified: Boolean(metadata.indexingVerified ?? metadata.indexing_verified),

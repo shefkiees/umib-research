@@ -270,7 +270,6 @@ function getIndexingCiteScore(item = {}) {
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
-  const isConferencePaper = publicationType === "conference_paper";
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
@@ -313,13 +312,7 @@ export function publicationToDraft(publication = {}) {
     pages: publication.pages || "",
     issn: publication.issn || "",
     isbn: publication.isbn || "",
-    authorAffiliation: isConferencePaper
-      ? ""
-      : publication.authorAffiliation
-        || publication.author_affiliation
-        || publication.affiliation
-        || normalizedAuthors.find((author) => author.affiliation)?.affiliation
-        || "",
+    authorAffiliation: "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
     quartile: normalizeQuartile(publication.quartile || displayablePrimaryQuartile),
@@ -463,6 +456,7 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
   const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
   const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
   const affiliation = normalizeAuthorAffiliation(normalizedAuthor);
+  const affiliationSource = "";
   const metadataOrcid = normalizeOrcid(normalizedAuthor.orcid || normalizedAuthor.ORCID);
   const matchesCurrentUser = currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
   const currentUserOrcid = normalizeOrcid(currentUserAuthor.orcid || currentUserAuthor.orcidId || currentUserAuthor.orcid_id);
@@ -476,8 +470,8 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
     orcidSource: metadataOrcid ? "doi" : "",
     orcid_source: metadataOrcid ? "doi" : "",
     affiliation,
-    affiliationSource: affiliation ? "doi" : "",
-    affiliation_source: affiliation ? "doi" : "",
+    affiliationSource,
+    affiliation_source: affiliationSource,
     authorOrder: index + 1,
     isMainAuthor: index === mainAuthorIndex,
     isCorrespondingAuthor: normalizeBoolean(
@@ -541,7 +535,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     pages: metadata.pages || "",
     issn: isConferencePaper ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
-    authorAffiliation: isConferencePaper ? "" : metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
+    authorAffiliation: "",
     indexingPlatform,
     indexingCategory,
     quartile,
@@ -845,7 +839,6 @@ const PublicationForm = ({
   );
   const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
     const authorsLocked = isFieldLocked("authors");
-    const affiliationLocked = authorsLocked && isTrustedAuthorFieldSource(author.affiliationSource || author.affiliation_source);
     const orcidLocked = authorsLocked && isTrustedAuthorFieldSource(author.orcidSource || author.orcid_source);
     const hasOrcid = Boolean(String(author.orcid || "").trim());
 
@@ -868,18 +861,12 @@ const PublicationForm = ({
         </div>
         <div className="publication-author-field publication-author-affiliation-field">
           <span className="publication-author-field-label">{t("professor.dashboard.publicationForm.affiliation")}</span>
-          {affiliationLocked ? (
-            <span className="publication-author-readonly-text" title={author.affiliation || ""}>
-              {author.affiliation}
-            </span>
-          ) : (
-            <input
-              value={author.affiliation || ""}
-              onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-              placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
-              aria-label={t("professor.dashboard.publicationForm.affiliation")}
-            />
-          )}
+          <input
+            value={author.affiliation || ""}
+            onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+            placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+            aria-label={t("professor.dashboard.publicationForm.affiliation")}
+          />
         </div>
         <div className="publication-author-field publication-author-orcid-field">
           <span className="publication-author-field-label">ORCID</span>

@@ -545,6 +545,51 @@ function hasText(value) {
   return normalizeText(value) !== "";
 }
 
+function nullWhenMissing(value, normalizer = normalizeText) {
+  const normalized = normalizer(value);
+
+  return normalized || null;
+}
+
+function sanitizeRepeatedConferenceAffiliations(authors = []) {
+  const normalizedAuthors = (Array.isArray(authors) ? authors : []).map((author) => ({
+    ...author,
+    affiliation: nullWhenMissing(getAuthorAffiliation(author)),
+  }));
+  const affiliationCounts = normalizedAuthors.reduce((counts, author) => {
+    const key = normalizeComparableText(author.affiliation);
+
+    return key ? counts.set(key, (counts.get(key) || 0) + 1) : counts;
+  }, new Map());
+
+  return normalizedAuthors.map((author) => {
+    const key = normalizeComparableText(author.affiliation);
+
+    return key && affiliationCounts.get(key) > 1
+      ? { ...author, affiliation: null }
+      : author;
+  });
+}
+
+function normalizeConferenceMissingMetadata(metadata = {}) {
+  if (normalizeMetadataPublicationType(metadata.type) !== "conference_paper") {
+    return metadata;
+  }
+
+  const authors = Array.isArray(metadata.authors)
+    ? sanitizeRepeatedConferenceAffiliations(metadata.authors)
+    : [];
+
+  return {
+    ...metadata,
+    authors,
+    abstract: nullWhenMissing(metadata.abstract, normalizeAbstractText),
+    pages: nullWhenMissing(metadata.pages),
+    issn: nullWhenMissing(metadata.issn),
+    isbn: nullWhenMissing(metadata.isbn),
+  };
+}
+
 function normalizeMetadataBoolean(value) {
   const text = normalizeComparableText(value);
 
@@ -622,12 +667,6 @@ function createFieldSource(value, sourceWhenPresent = "api") {
   };
 }
 
-function getFirstAuthorAffiliation(authors = []) {
-  return (Array.isArray(authors) ? authors : [])
-    .map((author) => normalizeAffiliations(author?.affiliation || author?.affiliations || author?.institution || author?.organization))
-    .find(Boolean) || "";
-}
-
 function buildMetadataFieldSources(metadata = {}) {
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const publicationType = normalizeMetadataPublicationType(metadata.type);
@@ -646,7 +685,7 @@ function buildMetadataFieldSources(metadata = {}) {
     doi: createFieldSource(metadata.doi),
     title: createFieldSource(metadata.title),
     authors: createFieldSource(Array.isArray(metadata.authors) ? metadata.authors.map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean) : []),
-    authorAffiliation: createFieldSource(publicationType === "conference_paper" ? "" : getFirstAuthorAffiliation(metadata.authors)),
+    authorAffiliation: createFieldSource(null),
     publicationType: createFieldSource(metadata.type),
     venue: createFieldSource(metadata.conferenceName || metadata.conference_name || metadata.container_title),
     publisher: createFieldSource(metadata.publisher),
@@ -2102,7 +2141,30 @@ function mapMetadata(data, doi) {
   };
 }
 
+let publicationMetadataNullableSchemaReady = false;
+
+async function ensurePublicationMetadataNullableSchema(db) {
+  if (publicationMetadataNullableSchemaReady) {
+    return;
+  }
+
+  await db.query(`
+    alter table if exists publication_metadata alter column abstract drop not null;
+    alter table if exists publication_metadata alter column abstract drop default;
+    alter table if exists publication_metadata alter column pages drop not null;
+    alter table if exists publication_metadata alter column pages drop default;
+    alter table if exists publication_metadata alter column issn drop not null;
+    alter table if exists publication_metadata alter column issn drop default;
+    alter table if exists publication_metadata alter column isbn drop not null;
+    alter table if exists publication_metadata alter column isbn drop default;
+  `);
+
+  publicationMetadataNullableSchemaReady = true;
+}
+
 async function hasPublicationMetadataIdentifierColumns(db) {
+  await ensurePublicationMetadataNullableSchema(db);
+
   const { rows } = await db.query(
     `select count(*)::int as count
      from information_schema.columns
@@ -3594,10 +3656,13 @@ async function enrichMetadataIndexing(metadata = {}) {
     indexing,
   };
 
+  const normalizedMetadata = normalizeConferenceMissingMetadata(enrichedMetadata);
+  const fieldSources = buildMetadataFieldSources(normalizedMetadata);
+
   return {
-    ...enrichedMetadata,
-    fieldSources: buildMetadataFieldSources(enrichedMetadata),
-    field_sources: buildMetadataFieldSources(enrichedMetadata),
+    ...normalizedMetadata,
+    fieldSources,
+    field_sources: fieldSources,
   };
 }
 

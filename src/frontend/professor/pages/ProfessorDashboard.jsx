@@ -1186,9 +1186,7 @@ export default function ProfessorDashboard() {
     const isConferencePaper = (draft.publicationType || draft.publication_type) === "conference_paper";
     const draftIndexing = !isConferencePaper && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
-    const authorAffiliation = isConferencePaper
-      ? ""
-      : draft.authorAffiliation || draft.author_affiliation || draft.affiliation || authors.find((author) => author?.affiliation)?.affiliation || "";
+    const authorAffiliation = null;
     const indexingPlatform = isConferencePaper ? "" : draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "";
     const indexingCategory = isConferencePaper ? "" : draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "";
     const publicationDate = normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
@@ -1228,7 +1226,7 @@ export default function ProfessorDashboard() {
 
       return {
         ...authorPayload,
-        affiliation: !isConferencePaper && index === 0 && !authorPayload.affiliation ? authorAffiliation : authorPayload.affiliation,
+        affiliation: authorPayload.affiliation || "",
         isCorrespondingAuthor,
         is_corresponding_author: isCorrespondingAuthor,
       };

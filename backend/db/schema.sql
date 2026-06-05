@@ -251,6 +251,14 @@ alter table publication_metadata add column if not exists pages text not null de
 alter table publication_metadata add column if not exists type text not null default '';
 alter table publication_metadata add column if not exists abstract text not null default '';
 alter table publication_metadata add column if not exists raw_json jsonb not null default '{}'::jsonb;
+alter table publication_metadata alter column abstract drop not null;
+alter table publication_metadata alter column abstract drop default;
+alter table publication_metadata alter column pages drop not null;
+alter table publication_metadata alter column pages drop default;
+alter table publication_metadata alter column issn drop not null;
+alter table publication_metadata alter column issn drop default;
+alter table publication_metadata alter column isbn drop not null;
+alter table publication_metadata alter column isbn drop default;
 
 create index if not exists publication_metadata_year_idx
 on publication_metadata (year);
@@ -322,6 +330,16 @@ check (metadata_review_status in ('unchecked', 'in_review', 'ok', 'correction'))
 alter table publications drop constraint if exists publications_indexing_source_check;
 alter table publications add constraint publications_indexing_source_check
 check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'manual'));
+alter table publications alter column abstract drop not null;
+alter table publications alter column abstract drop default;
+alter table publications alter column pages drop not null;
+alter table publications alter column pages drop default;
+alter table publications alter column issn drop not null;
+alter table publications alter column issn drop default;
+alter table publications alter column isbn drop not null;
+alter table publications alter column isbn drop default;
+alter table publications alter column author_affiliation drop not null;
+alter table publications alter column author_affiliation drop default;
 
 update publications p
 set
@@ -410,6 +428,8 @@ create table if not exists publication_authors (
 
 alter table publication_authors add column if not exists author_order integer not null default 0;
 alter table publication_authors add column if not exists is_corresponding_author boolean not null default false;
+alter table publication_authors alter column affiliation drop not null;
+alter table publication_authors alter column affiliation drop default;
 update publication_authors
 set author_order = position
 where author_order = 0 and position > 0;
