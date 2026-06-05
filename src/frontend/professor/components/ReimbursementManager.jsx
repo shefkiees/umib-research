@@ -197,6 +197,7 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "coauthors",
   "affiliation",
   "indexingPlatform",
+  "indexingCategory",
   "impactFactor",
   "scopusQuartile",
   "volume",
@@ -219,6 +220,7 @@ const PUBLICATION_LABELS = {
   issue: "Numri i artikullit",
   pages: "Faqet",
   indexingPlatform: "Indeksimi në platformë",
+  indexingCategory: "Kategoria e indeksimit",
   impactFactor: "Faktori i ndikimit (IF)",
   scopusQuartile: "Kuartili",
 };
@@ -338,6 +340,7 @@ const DEFAULT_FORM_VALUES = {
   publicationYear: "",
   affiliation: "",
   indexingPlatform: "",
+  indexingCategory: "",
   impactFactor: "",
   scopusQuartile: "",
   acceptanceDate: "",
@@ -582,6 +585,7 @@ function getPublicationDisplaySections(form) {
       title: "Indeksimi dhe impact factor",
       fields: [
         createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+        createDisplayField("Kategoria e indeksimit", form.indexingCategory),
         createDisplayField("Impact Factor", form.impactFactor),
         createDisplayField("Kuartili", form.scopusQuartile),
       ].filter(Boolean),
@@ -650,6 +654,7 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("Perkatesia e autorit", form.affiliation),
       doiField,
       createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+      createDisplayField("Kategoria e indeksimit", form.indexingCategory),
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("Kuartili", form.scopusQuartile),
     ].filter(Boolean),
@@ -796,22 +801,31 @@ function getPublicationAuthorAffiliations(publication) {
 }
 
 function getPublicationWorkSummary(publication) {
-  return cleanDisplayValue(publication?.abstract);
+  const title = cleanDisplayValue(publication?.title);
+  const abstract = cleanDisplayValue(publication?.abstract);
+
+  return [title, abstract].filter(Boolean).join("\n\n");
 }
 
 function getPublicationDoiLink(publication) {
   const doi = cleanDisplayValue(publication?.doi);
 
-  return doi ? `https://doi.org/${doi}` : "";
+  return cleanDisplayValue(publication?.sourceUrl || publication?.source_url) || (doi ? `https://doi.org/${doi}` : "");
 }
 
 function getPublicationIndexingFields(publication) {
   const indexing = Array.isArray(publication?.indexing) ? publication.indexing : [];
   const indexingPlatform = indexing
-    .map((item) => item.source || "")
+    .map((item) => item.source || item.platform || "")
     .map((item) => String(item).trim())
     .filter(Boolean)
-    .join(", ");
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .join(", ") || publication?.indexingPlatform || publication?.indexing_platform || "";
+  const indexingCategory = indexing
+    .map((item) => item.category || "")
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .find(Boolean) || publication?.indexingCategory || publication?.indexing_category || "";
   const impactFactor = indexing.find((item) => item.impactFactor || item.impact_factor)?.impactFactor
     || indexing.find((item) => item.impactFactor || item.impact_factor)?.impact_factor
     || "";
@@ -819,6 +833,7 @@ function getPublicationIndexingFields(publication) {
 
   return {
     indexingPlatform,
+    indexingCategory,
     impactFactor,
     scopusQuartile,
   };
@@ -862,6 +877,7 @@ function applyPublicationToForm(prev, publication) {
     coauthors: authors.coauthors,
     affiliation: authors.affiliation || "",
     indexingPlatform: indexing.indexingPlatform,
+    indexingCategory: indexing.indexingCategory,
     impactFactor: indexing.impactFactor,
     scopusQuartile: indexing.scopusQuartile,
   };
@@ -1988,6 +2004,25 @@ export default function ReimbursementManager({
       abstractTitle: getPublicationWorkSummary(selectedPublication),
       authorsAffiliation: affiliations,
       eventPublicationLink: getPublicationDoiLink(selectedPublication),
+      publicationTitle: selectedPublication.title || "",
+      doi: selectedPublication.doi || "",
+      publicationType: selectedPublication.publicationType || selectedPublication.publication_type || "",
+      venue: selectedPublication.venue || selectedPublication.publishedIn || selectedPublication.published_in || selectedPublication.journal || "",
+      journal: selectedPublication.venue || selectedPublication.publishedIn || selectedPublication.published_in || selectedPublication.journal || "",
+      publisher: selectedPublication.publisher || "",
+      publicationDate: normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date),
+      publicationYear: selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year || "",
+      publicationLink: selectedPublication.sourceUrl || selectedPublication.source_url || "",
+      volume: selectedPublication.volume || "",
+      issue: selectedPublication.issue || "",
+      pages: selectedPublication.pages || "",
+      issn: selectedPublication.issn || "",
+      isbn: selectedPublication.isbn || "",
+      abstract: selectedPublication.abstract || "",
+      indexingPlatform: getPublicationIndexingFields(selectedPublication).indexingPlatform,
+      indexingCategory: getPublicationIndexingFields(selectedPublication).indexingCategory,
+      impactFactor: getPublicationIndexingFields(selectedPublication).impactFactor,
+      scopusQuartile: getPublicationIndexingFields(selectedPublication).scopusQuartile,
     }));
     setIsAbstractExpanded(false);
   };
@@ -2799,6 +2834,7 @@ export default function ReimbursementManager({
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
         createDisplayField("Platforma e indeksimit", indexing.indexingPlatform),
+        createDisplayField("Kategoria e indeksimit", indexing.indexingCategory),
         createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
     };

@@ -101,6 +101,7 @@ export const REIMBURSEMENT_SCHEMAS = {
           { field: "isbn", label: "ISBN", source: "publication", readOnly: true },
           { field: "abstract", label: "Abstrakti", wide: true, type: "textarea", rows: 3, source: "publication", readOnly: true },
           { field: "indexingPlatform", label: "Indeksim ne platforme", source: "publication", readOnly: true },
+          { field: "indexingCategory", label: "Kategoria e indeksimit", source: "publication", readOnly: true },
           { field: "impactFactor", label: "Impact faktori (IF)", source: "publication", readOnly: true },
           { field: "scopusQuartile", label: "Kuartili", type: "select", optionsKey: "scopus", source: "publication", readOnly: true },
           { field: "acceptanceDate", label: "Data e pranimit", type: "date" },
