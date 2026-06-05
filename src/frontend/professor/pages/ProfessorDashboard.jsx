@@ -3149,15 +3149,15 @@ export default function ProfessorDashboard() {
                   <h5>{editingBankAccountId ? settingsText.bankAccountEditTitle : settingsText.bankAccountAddTitle}</h5>
                   <div className="prof-bank-account-grid">
                     <label className="prof-form-field">
-                      <span>{settingsText.bankName}</span>
-                      <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
-                    </label>
-                    <label className="prof-form-field">
                       <span>{settingsText.bankAccountNumber}</span>
                       <input value={bankAccountDraft.bankAccountNumber} onChange={handleBankAccountDraftChange("bankAccountNumber")} />
                       {detectedProfileBank ? (
                         <small className="prof-bank-detected-message">{settingsText.bankAutoDetected}</small>
                       ) : null}
+                    </label>
+                    <label className="prof-form-field">
+                      <span>{settingsText.bankName}</span>
+                      <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankSwift}</span>
