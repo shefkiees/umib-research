@@ -476,7 +476,7 @@ export const translations = {
           doiLoadFailed: "Metadatat për DOI nuk mund të ngarkohen. Mund të vazhdoni manualisht.",
           doiLookupFailed: "Kërkimi i DOI dështoi. Mund të vazhdoni manualisht.",
           authorRequired: "Shto së paku një autor me emër të plotë.",
-          selectType: "Zgjidh tipin",
+          selectType: "Zgjidh llojin",
           journalArticle: "Artikull reviste",
           conferencePaper: "Punim konference",
           book: "Libër / kapitull",
