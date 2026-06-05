@@ -528,7 +528,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issue: isConferencePaper ? "" : metadata.issue || "",
     pages: metadata.pages || "",
     issn: isConferencePaper ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
-    isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
+    isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
     indexingPlatform,
     indexingCategory,
@@ -610,7 +610,13 @@ const PublicationForm = ({
   const primaryIndexing = getSelectedIndexingItem(indexingItems, value.quartile);
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
-  const isFieldLocked = (field) => isTrustedSource(field);
+  const isFieldLocked = (field) => {
+    if (field === "abstract" && isConferencePaper) {
+      return false;
+    }
+
+    return isTrustedSource(field);
+  };
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
