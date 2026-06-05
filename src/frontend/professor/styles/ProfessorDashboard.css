@@ -2251,10 +2251,10 @@ body {
 .publication-table-head,
 .publication-table-row {
   display: grid;
-  grid-template-columns: minmax(42px, 0.22fr) minmax(240px, 1.45fr) minmax(150px, 0.85fr) minmax(118px, 0.55fr) minmax(190px, 1fr) minmax(70px, 0.35fr) minmax(112px, 0.55fr) minmax(116px, 0.58fr) minmax(136px, 0.65fr);
+  grid-template-columns: minmax(42px, 0.22fr) minmax(260px, 1.5fr) minmax(160px, 0.9fr) minmax(124px, 0.58fr) minmax(220px, 1.12fr) minmax(74px, 0.36fr) minmax(116px, 0.58fr) minmax(136px, 0.65fr);
   gap: 0;
   align-items: stretch;
-  min-width: 1165px;
+  min-width: 1070px;
 }
 
 .publication-table-head {
@@ -4444,8 +4444,8 @@ body {
 
   .publication-table-head,
   .publication-table-row {
-    grid-template-columns: minmax(38px, 0.2fr) minmax(220px, 1.35fr) minmax(140px, 0.8fr) minmax(108px, 0.52fr) minmax(170px, 0.95fr) minmax(64px, 0.34fr) minmax(104px, 0.52fr) minmax(108px, 0.54fr) minmax(128px, 0.62fr);
-    min-width: 1070px;
+    grid-template-columns: minmax(38px, 0.2fr) minmax(230px, 1.36fr) minmax(144px, 0.8fr) minmax(112px, 0.52fr) minmax(190px, 0.98fr) minmax(64px, 0.34fr) minmax(108px, 0.54fr) minmax(128px, 0.62fr);
+    min-width: 960px;
   }
 
   .publication-row-actions {

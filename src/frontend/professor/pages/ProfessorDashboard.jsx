@@ -1121,12 +1121,6 @@ export default function ProfessorDashboard() {
           "sq",
           { sensitivity: "base" }
         );
-      } else if (publicationSort.key === "indexing") {
-        result = String(first.indexingPlatform || first.indexing_platform || "").localeCompare(
-          String(second.indexingPlatform || second.indexing_platform || ""),
-          "sq",
-          { sensitivity: "base" }
-        ) || (getPublicationQuartileRank(first) - getPublicationQuartileRank(second));
       } else if (publicationSort.key === "status") {
         result = String(first.status || "").localeCompare(String(second.status || ""), "sq", { sensitivity: "base" });
       }
@@ -2344,19 +2338,6 @@ export default function ProfessorDashboard() {
     return datePrefix || t("professor.dashboard.noYear");
   };
 
-  const getPublicationIndexingSummary = (row = {}) => {
-    const publicationType = row.publicationType || row.publication_type;
-
-    if (!supportsPublicationIndexing(publicationType)) {
-      return "";
-    }
-
-    const indexingPlatform = row.indexingPlatform || row.indexing_platform || "";
-    const quartile = getPublicationQuartileValue(row);
-
-    return [indexingPlatform, quartile].filter(Boolean).join(" · ");
-  };
-
   const renderPublicationTitleCell = (row = {}) => (
     <div className="publication-title-cell">
       <h4>{renderPublicationTitle(row)}</h4>
@@ -2575,7 +2556,6 @@ export default function ProfessorDashboard() {
             {renderPublicationSortHeader("type", t("professor.dashboard.publicationTypeColumn"))}
             {renderPublicationSortHeader("venue", t("professor.dashboard.publishedInColumn"))}
             {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
-            {renderPublicationSortHeader("indexing", t("professor.dashboard.indexingColumn"))}
             {renderPublicationSortHeader("status", t("professor.dashboard.statusColumn"))}
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
@@ -2608,10 +2588,6 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
                 {renderPublicationTextCell(getPublicationYearSummary(row))}
-              </div>
-              <div className="publication-meta-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.indexingColumn")}</span>
-                {renderPublicationTextCell(getPublicationIndexingSummary(row))}
               </div>
               <div className="publication-meta-cell publication-status-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.statusColumn")}</span>
