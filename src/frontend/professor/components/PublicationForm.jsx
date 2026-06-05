@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -73,6 +73,21 @@ export const createEmptyPublicationDraft = () => ({
   correspondingAuthorConfidence: "",
   correspondingAuthorReason: "",
 });
+
+function hasPublicationDraftContent(value = {}) {
+  return Boolean(
+    String(value.doi || "").trim()
+    || String(value.title || "").trim()
+    || String(value.publicationType || "").trim()
+    || String(value.venue || "").trim()
+    || String(value.abstract || "").trim()
+    || String(value.publisher || "").trim()
+    || String(value.pages || "").trim()
+    || String(value.isbn || "").trim()
+    || String(value.issn || "").trim()
+    || (Array.isArray(value.authors) && value.authors.length > 0)
+  );
+}
 
 function normalizePublicationAuthors(authors = []) {
   const normalizedAuthors = authors.map((author) => (typeof author === "string" ? { fullName: author } : author || {}));
@@ -628,6 +643,7 @@ const PublicationForm = ({
   const { t } = useLanguage();
   const formRef = useRef(null);
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
+  const [showPublicationFields, setShowPublicationFields] = useState(() => mode === "edit" || hasPublicationDraftContent(value));
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
@@ -668,6 +684,37 @@ const PublicationForm = ({
     || String(value.citeScore || getIndexingCiteScore(primaryIndexing)).trim()
     || normalizeBoolean(value.indexingVerified ?? value.indexing_verified)
   );
+
+  useEffect(() => {
+    if (mode === "edit" || hasPublicationDraftContent(value)) {
+      setShowPublicationFields(true);
+      return;
+    }
+
+    setShowPublicationFields(false);
+  }, [
+    mode,
+    value.doi,
+    value.title,
+    value.publicationType,
+    value.venue,
+    value.abstract,
+    value.publisher,
+    value.pages,
+    value.isbn,
+    value.issn,
+    value.authors,
+  ]);
+
+  const updateDoiLookupValue = (event) => {
+    const nextValue = event.target.value;
+
+    setDoiLookupValue(nextValue);
+
+    if (nextValue.trim()) {
+      setShowPublicationFields(true);
+    }
+  };
 
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
@@ -793,6 +840,7 @@ const PublicationForm = ({
       return;
     }
 
+    setShowPublicationFields(true);
     setIsLookingUpDoi(true);
     setDoiError("");
 
@@ -809,6 +857,7 @@ const PublicationForm = ({
         ...metadataToDraft(result.data, currentUserAuthor),
         status: PUBLICATION_STATUS_VALUES.includes(value.status) ? value.status : "draft",
       });
+      setShowPublicationFields(true);
       setDoiLookupValue(result.data.doi || doi);
     } catch (error) {
       setDoiError(error.message || t("professor.dashboard.publicationForm.doiLookupFailed"));
@@ -819,12 +868,16 @@ const PublicationForm = ({
   };
 
   const focusManualFields = () => {
-    const target = formRef.current?.querySelector(
-      ".prof-form-grid input:not([readonly]), .prof-form-grid select:not(:disabled), .prof-form-grid textarea:not([readonly])"
-    );
+    setShowPublicationFields(true);
 
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
-    target?.focus({ preventScroll: true });
+    window.setTimeout(() => {
+      const target = formRef.current?.querySelector(
+        ".prof-form-grid input:not([readonly]), .prof-form-grid select:not(:disabled), .prof-form-grid textarea:not([readonly])"
+      );
+
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus({ preventScroll: true });
+    }, 0);
   };
 
   const submit = async (event) => {
@@ -960,7 +1013,7 @@ const PublicationForm = ({
             <Search size={18} className="publication-doi-input-icon" aria-hidden="true" />
             <input
               value={doiLookupValue}
-              onChange={(event) => setDoiLookupValue(event.target.value)}
+              onChange={updateDoiLookupValue}
               placeholder="10.xxxx/xxxxx"
               aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
               disabled={isLookingUpDoi || submitting}
@@ -992,6 +1045,8 @@ const PublicationForm = ({
       </div>
 
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
+      {showPublicationFields ? (
+        <>
       <div className="prof-form-grid">
         <label className="prof-form-field reimbursement-wide">
           <span>{t("professor.dashboard.publicationForm.title")}</span>
@@ -1181,6 +1236,8 @@ const PublicationForm = ({
           {submitting ? t("common.loading") : submitLabel || (mode === "edit" ? t("professor.dashboard.saveChanges") : t("professor.dashboard.savePublication"))}
         </button>
       </div>
+        </>
+      ) : null}
     </form>
   );
 };
