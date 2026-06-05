@@ -92,7 +92,7 @@ function normalizePublicationAuthors(authors = []) {
       fullName: normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "",
       givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
       familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
-      orcid: normalizedAuthor.orcid || "",
+      orcid: normalizeOrcid(normalizedAuthor.orcid || normalizedAuthor.ORCID),
       affiliation: normalizeAuthorAffiliation(normalizedAuthor),
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
@@ -172,6 +172,14 @@ function normalizeQuartile(value) {
   const match = String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/);
 
   return match?.[0] || "";
+}
+
+function normalizeOrcid(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/^https?:\/\/orcid\.org\//i, "");
+
+  return /^0000-0000-0000-0000$/.test(normalized) ? "" : normalized;
 }
 
 function normalizeCiteScoreForDisplay(value, { verifiedZero = false } = {}) {
@@ -376,6 +384,7 @@ function getConferencePaperReset() {
     volume: "",
     issue: "",
     issn: "",
+    isbn: "",
     indexingPlatform: "",
     indexingCategory: "",
     indexingVerified: false,
@@ -451,15 +460,16 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
   const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
   const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
   const affiliation = normalizeAuthorAffiliation(normalizedAuthor);
-  const metadataOrcid = normalizedAuthor.orcid || normalizedAuthor.ORCID || "";
+  const metadataOrcid = normalizeOrcid(normalizedAuthor.orcid || normalizedAuthor.ORCID);
   const matchesCurrentUser = currentUserAuthor.name && normalizeName(fullName) === normalizeName(currentUserAuthor.name);
+  const currentUserOrcid = normalizeOrcid(currentUserAuthor.orcid || currentUserAuthor.orcidId || currentUserAuthor.orcid_id);
 
   return {
     ...EMPTY_AUTHOR,
     fullName,
     givenName: normalizedAuthor.givenName || normalizedAuthor.given_name || "",
     familyName: normalizedAuthor.familyName || normalizedAuthor.family_name || "",
-    orcid: metadataOrcid || (matchesCurrentUser ? currentUserAuthor.orcid : "") || "",
+    orcid: metadataOrcid || (matchesCurrentUser ? currentUserOrcid : "") || "",
     orcidSource: metadataOrcid ? "doi" : "",
     orcid_source: metadataOrcid ? "doi" : "",
     affiliation,
@@ -527,7 +537,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     issue: isConferencePaper ? "" : metadata.issue || "",
     pages: metadata.pages || "",
     issn: isConferencePaper ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
-    isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
+    isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
     indexingPlatform,
     indexingCategory,
@@ -598,9 +608,9 @@ const PublicationForm = ({
   const showVolumeField = !isConferencePaper && (!isDoiImported || hasValue("volume"));
   const showIssueField = !isConferencePaper;
   const showIndexingFields = !isConferencePaper;
-  const showIdentifierField = isConferencePaper || (!isDoiImported || hasValue("issn") || hasValue("isbn"));
+  const showIdentifierField = !isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn"));
   const showIssnInput = !isConferencePaper && (!isDoiImported || hasValue("issn"));
-  const showIsbnInput = isConferencePaper || !isDoiImported || hasValue("isbn");
+  const showIsbnInput = !isDoiImported || hasValue("isbn");
   const showAbstractField = isConferencePaper || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;

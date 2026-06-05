@@ -586,9 +586,11 @@ export function normalizeYear(value) {
 }
 
 function normalizeOrcid(value) {
-  return normalizeText(value)
+  const normalized = normalizeText(value)
     .replace(/^https?:\/\/orcid\.org\//i, "")
     .trim();
+
+  return /^0000-0000-0000-0000$/.test(normalized) ? "" : normalized;
 }
 
 function normalizeAffiliations(value) {

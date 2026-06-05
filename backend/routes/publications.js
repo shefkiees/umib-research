@@ -85,6 +85,12 @@ function normalizeBoolean(value) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
 
+function normalizeOrcid(value) {
+  const normalized = normalizeText(value).replace(/^https?:\/\/orcid\.org\//i, "");
+
+  return /^0000-0000-0000-0000$/.test(normalized) ? "" : normalized;
+}
+
 function normalizeAuthorAffiliation(value) {
   if (Array.isArray(value)) {
     return value
@@ -223,7 +229,7 @@ function normalizeAuthors(value) {
         fullName: resolvedFullName,
         givenName,
         familyName,
-        orcid: normalizeText(author.orcid),
+        orcid: normalizeOrcid(author.orcid),
         affiliation: normalizeAuthorAffiliation(
           author.affiliation
           || author.affiliations
@@ -1363,7 +1369,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
       fullName: normalizeText(author),
       givenName: "",
       familyName: "",
-      orcid: matchesCurrentUser ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : "",
+      orcid: matchesCurrentUser ? normalizeOrcid(currentUser.orcid_id || currentUser.orcidId) : "",
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
       isCorrespondingAuthor: false,
@@ -1378,7 +1384,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
     fullName,
     givenName: normalizeText(author?.givenName || author?.given_name),
     familyName: normalizeText(author?.familyName || author?.family_name),
-    orcid: normalizeText(author?.orcid) || (matchesCurrentUser ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : ""),
+    orcid: normalizeOrcid(author?.orcid) || (matchesCurrentUser ? normalizeOrcid(currentUser.orcid_id || currentUser.orcidId) : ""),
     affiliation: normalizeAuthorAffiliation(
       author?.affiliation
       || author?.affiliations

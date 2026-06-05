@@ -1259,7 +1259,7 @@ export default function ProfessorDashboard() {
       volume: isConferencePaper ? "" : draft.volume || "",
       issue: isConferencePaper ? "" : draft.issue || "",
       issn: isConferencePaper ? "" : draft.issn || "",
-      isbn: draft.isbn || "",
+      isbn: isConferencePaper ? "" : draft.isbn || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: normalizedAuthors,
       authorAffiliation,
