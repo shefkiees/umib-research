@@ -762,69 +762,74 @@ const PublicationForm = ({
     index !== mainAuthorEntry.index
     && !normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)
   );
-  const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => (
-    <div className="publication-author-row" key={`publication-author-${index}`}>
-      <label className="publication-author-field">
-        <span>{t("professor.dashboard.publicationForm.author")}</span>
-        {isFieldLocked("authors") ? (
-          <span className="publication-author-readonly-text" title={author.fullName || ""}>
-            {author.fullName || "-"}
-          </span>
-        ) : (
-          <input
-            value={author.fullName || ""}
-            onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
-            placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-            aria-label={t("professor.dashboard.publicationForm.author")}
-            required={required}
-          />
-        )}
-      </label>
-      <label className="publication-author-field publication-author-affiliation-field">
-        <span>{t("professor.dashboard.publicationForm.affiliation")}</span>
-        {isFieldLocked("authors") ? (
-          <span className="publication-author-readonly-text" title={author.affiliation || ""}>
-            {author.affiliation || "-"}
-          </span>
-        ) : (
-          <input
-            value={author.affiliation || ""}
-            onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-            placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
-            aria-label={t("professor.dashboard.publicationForm.affiliation")}
-          />
-        )}
-      </label>
-      <label className="publication-author-field publication-author-orcid-field">
-        <span>ORCID</span>
-        {isFieldLocked("authors") ? (
-          <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
-            {author.orcid || "-"}
-          </span>
-        ) : (
-          <input
-            value={author.orcid || ""}
-            onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
-            placeholder="0000-0000-0000-0000"
-            aria-label="ORCID"
-          />
-        )}
-      </label>
-      {showRemove && !isFieldLocked("authors") ? (
-        <div className="publication-author-inline-actions">
-          <button
-            type="button"
-            className="publication-remove-button"
-            onClick={() => removeAuthor(index)}
-            aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
-          >
-            <Trash2 size={14} aria-hidden="true" />
-            <span>{t("professor.dashboard.publicationForm.remove")}</span>
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
+  const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
+    const authorsLocked = isFieldLocked("authors");
+    const affiliationLocked = authorsLocked && Boolean(String(author.affiliation || "").trim());
+
+    return (
+      <div className="publication-author-row" key={`publication-author-${index}`}>
+        <label className="publication-author-field">
+          <span>{t("professor.dashboard.publicationForm.author")}</span>
+          {authorsLocked ? (
+            <span className="publication-author-readonly-text" title={author.fullName || ""}>
+              {author.fullName || "-"}
+            </span>
+          ) : (
+            <input
+              value={author.fullName || ""}
+              onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
+              placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+              aria-label={t("professor.dashboard.publicationForm.author")}
+              required={required}
+            />
+          )}
+        </label>
+        <label className="publication-author-field publication-author-affiliation-field">
+          <span>{t("professor.dashboard.publicationForm.affiliation")}</span>
+          {affiliationLocked ? (
+            <span className="publication-author-readonly-text" title={author.affiliation || ""}>
+              {author.affiliation}
+            </span>
+          ) : (
+            <input
+              value={author.affiliation || ""}
+              onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+              placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+              aria-label={t("professor.dashboard.publicationForm.affiliation")}
+            />
+          )}
+        </label>
+        <label className="publication-author-field publication-author-orcid-field">
+          <span>ORCID</span>
+          {authorsLocked ? (
+            <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
+              {author.orcid || "-"}
+            </span>
+          ) : (
+            <input
+              value={author.orcid || ""}
+              onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
+              placeholder="0000-0000-0000-0000"
+              aria-label="ORCID"
+            />
+          )}
+        </label>
+        {showRemove && !authorsLocked ? (
+          <div className="publication-author-inline-actions">
+            <button
+              type="button"
+              className="publication-remove-button"
+              onClick={() => removeAuthor(index)}
+              aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              <span>{t("professor.dashboard.publicationForm.remove")}</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <form className="publication-form" onSubmit={submit}>

@@ -784,6 +784,17 @@ function getAuthorFullName(author = {}) {
   );
 }
 
+function getAuthorAffiliation(author = {}) {
+  return normalizeAffiliations(
+    author.affiliation
+    || author.affiliations
+    || author.institution
+    || author.organization
+    || author.currentAffiliation
+    || author.current_affiliation
+  );
+}
+
 function normalizeAuthorMatchName(value = "") {
   return normalizeComparableText(value).replace(/\b[a-z]\b/g, "").replace(/\s+/g, " ").trim();
 }
@@ -914,21 +925,20 @@ function applyCorrespondingResolution(metadata = {}, lookup = {}) {
   return withCorrespondingLookup({ ...metadata, authors: nextAuthors }, resolvedLookup);
 }
 
-function mergeAuthorCorrespondingFlags(primaryAuthors = [], fallbackAuthors = []) {
+function mergeAuthorMetadata(primaryAuthors = [], fallbackAuthors = []) {
   if (!Array.isArray(primaryAuthors) || !primaryAuthors.length) {
     return Array.isArray(fallbackAuthors) ? fallbackAuthors : [];
   }
 
-  const correspondingFallbackAuthors = (Array.isArray(fallbackAuthors) ? fallbackAuthors : [])
-    .filter(authorHasCorrespondingFlag);
+  const normalizedFallbackAuthors = Array.isArray(fallbackAuthors) ? fallbackAuthors : [];
 
-  if (!correspondingFallbackAuthors.length) {
+  if (!normalizedFallbackAuthors.length) {
     return primaryAuthors;
   }
 
   return primaryAuthors.map((author) => {
     const primaryKeys = new Set(getAuthorMatchKeys(author));
-    const matchedFallbackAuthor = correspondingFallbackAuthors.find((fallbackAuthor) =>
+    const matchedFallbackAuthor = normalizedFallbackAuthors.find((fallbackAuthor) =>
       getAuthorMatchKeys(fallbackAuthor).some((key) => primaryKeys.has(key))
     );
 
@@ -936,15 +946,25 @@ function mergeAuthorCorrespondingFlags(primaryAuthors = [], fallbackAuthors = []
       return author;
     }
 
-    return {
+    const fallbackAffiliation = getAuthorAffiliation(matchedFallbackAuthor);
+    const nextAuthor = {
       ...author,
-      isCorrespondingAuthor: true,
-      is_corresponding_author: true,
-      correspondingAuthorSource: matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag",
-      corresponding_author_source: matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag",
-      correspondingAuthorConfidence: matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified",
-      corresponding_author_confidence: matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified",
     };
+
+    if (!getAuthorAffiliation(nextAuthor) && fallbackAffiliation) {
+      nextAuthor.affiliation = fallbackAffiliation;
+    }
+
+    if (authorHasCorrespondingFlag(matchedFallbackAuthor)) {
+      nextAuthor.isCorrespondingAuthor = true;
+      nextAuthor.is_corresponding_author = true;
+      nextAuthor.correspondingAuthorSource = matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag";
+      nextAuthor.corresponding_author_source = matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag";
+      nextAuthor.correspondingAuthorConfidence = matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified";
+      nextAuthor.corresponding_author_confidence = matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified";
+    }
+
+    return nextAuthor;
   });
 }
 
@@ -979,7 +999,7 @@ function mergeMetadata(primary, fallback) {
   const primaryRaw = primary.raw_json || {};
   const fallbackRaw = fallback.raw_json || {};
   const authors = Array.isArray(primary.authors) && primary.authors.length
-    ? mergeAuthorCorrespondingFlags(primary.authors, fallback.authors)
+    ? mergeAuthorMetadata(primary.authors, fallback.authors)
     : fallback.authors;
   const primaryLookup = getMetadataCorrespondingLookup({ ...primary, authors });
   const fallbackLookup = getMetadataCorrespondingLookup(fallback);
