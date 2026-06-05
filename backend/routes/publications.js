@@ -538,6 +538,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "venue", message: "Konferenca eshte obligative per punim konference." });
   }
 
+  if (publicationType === "conference_paper" && !normalizeText(body.conferenceLocation ?? body.conference_location)) {
+    errors.push({ field: "conferenceLocation", message: "Vendi i konferences eshte obligativ per punim konference." });
+  }
+
   if (publicationType === "book" && !normalizeText(body.publisher) && !normalizeText(body.isbn)) {
     errors.push({ field: "publisher", message: "Book / Chapter duhet te kete botues ose ISBN." });
   }
@@ -1407,7 +1411,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     title: metadata.title || "",
     abstract: metadata.abstract || "",
     publicationType,
-    venue: metadata.container_title || "",
+    venue: metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")

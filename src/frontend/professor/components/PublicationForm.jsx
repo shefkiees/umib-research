@@ -515,7 +515,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     title: metadata.title || "",
     abstract: metadata.abstract || "",
     publicationType,
-    venue: metadata.container_title || "",
+    venue: metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
@@ -772,7 +772,12 @@ const PublicationForm = ({
     event.preventDefault();
     const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
 
-    if (!String(value.venue || "").trim()) {
+    if (value.publicationType === "conference_paper" && !String(value.venue || "").trim()) {
+      setFormError(t("professor.dashboard.publicationForm.conferenceNameRequired"));
+      return;
+    }
+
+    if (value.publicationType !== "conference_paper" && !String(value.venue || "").trim()) {
       setFormError(t("professor.dashboard.publicationForm.publishedInRequired"));
       return;
     }
@@ -806,6 +811,9 @@ const PublicationForm = ({
         ? "professor.dashboard.publicationForm.publishedInPlaceholderJournal"
         : "professor.dashboard.publicationForm.publishedInPlaceholderDefault";
   const venuePlaceholder = t(venuePlaceholderKey);
+  const venueLabelKey = value.publicationType === "conference_paper"
+    ? "professor.dashboard.publicationForm.conferenceName"
+    : "professor.dashboard.publicationForm.publishedIn";
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
   const mainAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isMainAuthor ?? author.is_main_author)) || authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
   const correspondingAuthorEntry = authorEntries.find(({ author, index }) =>
@@ -923,7 +931,7 @@ const PublicationForm = ({
           </select>
         </label>
         <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.publishedIn")}</span>
+          <span>{t(venueLabelKey)}</span>
           <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} required readOnly={isFieldLocked("venue")} />
         </label>
         {value.publicationType === "conference_paper" ? (

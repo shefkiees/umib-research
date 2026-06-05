@@ -632,7 +632,7 @@ function buildMetadataFieldSources(metadata = {}) {
     authors: createFieldSource(Array.isArray(metadata.authors) ? metadata.authors.map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean) : []),
     authorAffiliation: createFieldSource(getFirstAuthorAffiliation(metadata.authors)),
     publicationType: createFieldSource(metadata.type),
-    venue: createFieldSource(metadata.container_title),
+    venue: createFieldSource(metadata.conferenceName || metadata.conference_name || metadata.container_title),
     publisher: createFieldSource(metadata.publisher),
     publicationDate: createFieldSource(metadata.published_date),
     publicationYear: createFieldSource(metadata.year),
@@ -651,6 +651,56 @@ function buildMetadataFieldSources(metadata = {}) {
     citeScore: createFieldSource(firstCiteScore, indexingFieldSource),
     impactFactor: createFieldSource(firstImpactFactor, indexingFieldSource),
   };
+}
+
+function getConferenceNameCandidates(source = {}) {
+  if (!source || typeof source !== "object") {
+    return [];
+  }
+
+  return [
+    source.conferenceName,
+    source.conference_name,
+    source["conference-name"],
+    source["conference-title"],
+    source.conferenceTitle,
+    source.conference_title,
+    source.eventName,
+    source.event_name,
+    source["event-name"],
+    source.eventTitle,
+    source.event_title,
+    source["event-title"],
+    source.event?.name,
+    source.event?.title,
+    source.event?.subtitle,
+    source.conference?.name,
+    source.conference?.title,
+    source.conference?.subtitle,
+    source.proceedings?.name,
+    source.proceedings?.title,
+    source["proceedings-title"],
+  ];
+}
+
+function normalizeConferenceName(data = {}) {
+  const candidates = [
+    ...getConferenceNameCandidates(data),
+    ...getConferenceNameCandidates(data.raw_json),
+    ...getConferenceNameCandidates(data.raw_json?._doi_org),
+    ...getConferenceNameCandidates(data.raw_json?._crossref),
+    ...getConferenceNameCandidates(data.raw_json?._publisher_html_metadata),
+  ];
+
+  for (const candidate of candidates) {
+    const value = normalizeText(candidate);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 function normalizeLocationValue(value) {
@@ -699,9 +749,24 @@ function getLocationCandidates(source = {}) {
     source["venue-location"],
     source.venueLocation,
     source.venue_location,
+    source["conference-location"],
+    source.conferenceLocation,
+    source.conference_location,
+    source["conference-place"],
+    source.conferencePlace,
+    source.conference_place,
+    source["event-location"],
+    source.eventLocation,
+    source.event_location,
+    source.address,
     source.city && source.country ? { city: source.city, country: source.country } : "",
     source.city,
     source.country,
+    source.conference?.location,
+    source.conference?.place,
+    source.conference?.city && source.conference?.country ? { city: source.conference.city, country: source.conference.country } : "",
+    source.conference?.city,
+    source.conference?.country,
     source.venue?.location,
     source.venue?.place,
     source.venue?.city && source.venue?.country ? { city: source.venue.city, country: source.venue.country } : "",
@@ -772,9 +837,8 @@ function getBestPublicationDateParts(data) {
   const candidates = [
     data["published-print"],
     data["published-online"],
+    data.published,
     data.issued,
-    data.event?.start,
-    data.event?.end,
   ].map(getDateParts).filter((parts) => parts.length > 0);
 
   return candidates.find((parts) => normalizeYear(parts[0]) && isValidMonth(parts[1]) && isValidDay(parts[2]))
@@ -1026,12 +1090,19 @@ function mergeMetadata(primary, fallback) {
   const primaryLookup = getMetadataCorrespondingLookup({ ...primary, authors });
   const fallbackLookup = getMetadataCorrespondingLookup(fallback);
   const correspondingLookup = primaryLookup?.status === "verified" ? primaryLookup : fallbackLookup || primaryLookup;
+  const mergedType = preferText(primary.type, fallback.type);
+  const mergedConferenceName = preferText(primary.conferenceName || primary.conference_name, fallback.conferenceName || fallback.conference_name);
+  const mergedContainerTitle = normalizeMetadataPublicationType(mergedType) === "conference_paper"
+    ? preferText(mergedConferenceName, preferText(primary.container_title, fallback.container_title))
+    : preferText(primary.container_title, fallback.container_title);
 
   const mergedMetadata = {
     ...primary,
     title: preferText(primary.title, fallback.title),
     authors,
-    container_title: preferText(primary.container_title, fallback.container_title),
+    container_title: mergedContainerTitle,
+    conferenceName: mergedConferenceName,
+    conference_name: mergedConferenceName,
     publisher: preferText(primary.publisher, fallback.publisher),
     published_date: isFullDate(fallback.published_date) && !isFullDate(primary.published_date)
       ? fallback.published_date
@@ -1044,7 +1115,7 @@ function mergeMetadata(primary, fallback) {
     isbn: preferText(primary.isbn, fallback.isbn),
     conferenceLocation: preferText(primary.conferenceLocation, fallback.conferenceLocation),
     conference_location: preferText(primary.conference_location, fallback.conference_location),
-    type: preferText(primary.type, fallback.type),
+    type: mergedType,
     abstract: preferText(primary.abstract, fallback.abstract),
     source_url: preferText(primary.source_url, fallback.source_url),
     raw_json: {
@@ -1156,6 +1227,207 @@ function htmlToText(value) {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim());
+}
+
+function getHtmlAttribute(tag, name) {
+  const pattern = new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i");
+  return decodeHtmlEntities(tag.match(pattern)?.[2] || "");
+}
+
+function extractMetaContents(html, names = []) {
+  const normalizedNames = new Set(names.map(normalizeComparableText));
+  const values = [];
+  const tags = String(html || "").match(/<meta\b[^>]*>/gi) || [];
+
+  for (const tag of tags) {
+    const key = normalizeComparableText(
+      getHtmlAttribute(tag, "name")
+      || getHtmlAttribute(tag, "property")
+      || getHtmlAttribute(tag, "itemprop")
+    );
+
+    if (normalizedNames.has(key)) {
+      values.push(getHtmlAttribute(tag, "content"));
+    }
+  }
+
+  return uniqueValues(values.map(normalizeText).filter(Boolean));
+}
+
+function normalizePublisherDate(value) {
+  const text = normalizeText(value);
+
+  if (!text) {
+    return "";
+  }
+
+  if (/^(?:19|20)\d{2}$/.test(text)) {
+    return text;
+  }
+
+  const ymd = text.match(/\b((?:19|20)\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+  if (ymd && isValidMonth(Number(ymd[2])) && isValidDay(Number(ymd[3]))) {
+    return `${ymd[1]}-${String(Number(ymd[2])).padStart(2, "0")}-${String(Number(ymd[3])).padStart(2, "0")}`;
+  }
+
+  const dmy = text.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.]((?:19|20)\d{2})\b/);
+  if (dmy && isValidMonth(Number(dmy[2])) && isValidDay(Number(dmy[1]))) {
+    return `${dmy[3]}-${String(Number(dmy[2])).padStart(2, "0")}-${String(Number(dmy[1])).padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime()) && normalizeYear(parsed.getUTCFullYear())) {
+    return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+  }
+
+  const year = normalizeYear(text.match(/\b((?:19|20)\d{2})\b/)?.[1]);
+  return year ? String(year) : "";
+}
+
+function extractHtmlAbstractSections(html) {
+  const source = String(html || "");
+  const sections = [];
+  const classPattern = /<(?:section|div|article)\b[^>]*(?:class|id)=["'][^"']*abstract[^"']*["'][^>]*>([\s\S]*?)<\/(?:section|div|article)>/gi;
+  const headingPattern = /<h[1-6]\b[^>]*>\s*(?:abstract|summary)\s*<\/h[1-6]>([\s\S]{0,7000}?)(?=<h[1-6]\b|<(?:section|div)\b[^>]*(?:class|id)=["'][^"']*(?:keywords|references|bibliography)[^"']*["']|$)/gi;
+  let match;
+
+  while ((match = classPattern.exec(source))) {
+    sections.push(htmlToText(match[1]));
+  }
+
+  while ((match = headingPattern.exec(source))) {
+    sections.push(htmlToText(match[1]));
+  }
+
+  return uniqueValues(sections.map(normalizeAbstractText).filter((item) => item.length >= 20));
+}
+
+function collectPublisherJsonLdFields(value, fields = { abstracts: [], descriptions: [], names: [], locations: [], dates: [] }, context = "") {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectPublisherJsonLdFields(item, fields, context));
+    return fields;
+  }
+
+  if (!value || typeof value !== "object") {
+    return fields;
+  }
+
+  const typeText = normalizeComparableText(value["@type"] || value.type);
+  const nextContext = `${context} ${typeText}`.trim();
+  const isConferenceContext = /\b(event|conference|symposium|workshop|congress|proceedings)\b/.test(nextContext);
+
+  Object.entries(value).forEach(([key, item]) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (typeof item === "string") {
+      if (normalizedKey.includes("abstract")) {
+        fields.abstracts.push(item);
+      } else if (normalizedKey === "description") {
+        fields.descriptions.push(item);
+      } else if (isConferenceContext && ["name", "title", "headline"].includes(normalizedKey)) {
+        fields.names.push(item);
+      } else if (["datepublished", "datecreated", "datemodified", "uploaddate"].includes(normalizedKey.replace(/\s+/g, ""))) {
+        fields.dates.push(item);
+      } else if (
+        (normalizedKey.includes("conference") && (normalizedKey.includes("location") || normalizedKey.includes("place")))
+        || (normalizedKey.includes("location") && /\b(event|conference)\b/.test(nextContext))
+      ) {
+        fields.locations.push(item);
+      }
+    } else if (item && typeof item === "object") {
+      if (
+        (normalizedKey.includes("conference") && (normalizedKey.includes("location") || normalizedKey.includes("place")))
+        || (normalizedKey.includes("location") && /\b(event|conference)\b/.test(nextContext))
+      ) {
+        fields.locations.push(normalizeLocationValue(item));
+      }
+
+      collectPublisherJsonLdFields(item, fields, `${nextContext} ${normalizedKey}`.trim());
+    }
+  });
+
+  return fields;
+}
+
+function extractPublisherJsonLdFields(html) {
+  const fields = { abstracts: [], descriptions: [], names: [], locations: [], dates: [] };
+  const scriptPattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+
+  while ((match = scriptPattern.exec(String(html || "")))) {
+    const parsed = parseJsonLike(match[1]);
+
+    if (parsed) {
+      collectPublisherJsonLdFields(parsed, fields);
+    }
+  }
+
+  return {
+    abstracts: uniqueValues(fields.abstracts.map(normalizeAbstractText).filter(Boolean)),
+    descriptions: uniqueValues(fields.descriptions.map(normalizeAbstractText).filter(Boolean)),
+    names: uniqueValues(fields.names.map(normalizeText).filter(Boolean)),
+    locations: uniqueValues(fields.locations.map(normalizeLocationValue).filter(Boolean)),
+    dates: uniqueValues(fields.dates.map(normalizePublisherDate).filter(Boolean)),
+  };
+}
+
+function extractPublisherConferenceFields(html, metadata = {}) {
+  const jsonLd = extractPublisherJsonLdFields(html);
+  const abstractMeta = extractMetaContents(html, [
+    "citation_abstract",
+    "dc.description",
+    "dcterms.abstract",
+    "abstract",
+  ]).map(normalizeAbstractText);
+  const descriptionMeta = extractMetaContents(html, [
+    "description",
+    "og:description",
+    "twitter:description",
+  ]).map(normalizeAbstractText);
+  const locationMeta = extractMetaContents(html, [
+    "citation_conference_location",
+    "conference_location",
+    "conference-place",
+    "conference_place",
+    "event_location",
+    "event-location",
+  ]).map(normalizeLocationValue);
+  const nameMeta = extractMetaContents(html, [
+    "citation_conference",
+    "citation_conference_title",
+    "citation_conference_name",
+    "conference",
+    "conference_name",
+    "conference-name",
+    "conference_title",
+    "conference-title",
+    "event_name",
+    "event-name",
+    "event_title",
+    "event-title",
+  ]).map(normalizeText);
+  const dateMeta = extractMetaContents(html, [
+    "citation_publication_date",
+    "dc.date",
+    "dcterms.issued",
+    "article:published_time",
+    "date",
+  ]).map(normalizePublisherDate);
+  const titleText = normalizeComparableText(metadata.title);
+  const descriptionCandidates = [...jsonLd.descriptions, ...descriptionMeta]
+    .filter((item) => item.length >= 80 && normalizeComparableText(item) !== titleText);
+
+  return {
+    abstract: uniqueValues([
+      ...abstractMeta,
+      ...jsonLd.abstracts,
+      ...extractHtmlAbstractSections(html),
+      ...descriptionCandidates,
+    ]).find(Boolean) || "",
+    conferenceName: uniqueValues([...nameMeta, ...jsonLd.names]).find(Boolean) || "",
+    conferenceLocation: uniqueValues([...locationMeta, ...jsonLd.locations]).find(Boolean) || "",
+    publishedDate: uniqueValues([...dateMeta, ...jsonLd.dates]).find(Boolean) || "",
+  };
 }
 
 function getKnownAuthorName(author = {}) {
@@ -1490,6 +1762,150 @@ async function fetchPublisherCorrespondingAuthorLookup(metadata = {}) {
   return lastManualLookup;
 }
 
+function getBestEventDateParts(data = {}) {
+  const candidates = [
+    data.event?.start,
+    data.event?.end,
+  ].map(getDateParts).filter((parts) => parts.length > 0);
+
+  return candidates.find((parts) => normalizeYear(parts[0]) && isValidMonth(parts[1]) && isValidDay(parts[2]))
+    || candidates.find((parts) => normalizeYear(parts[0]) && isValidMonth(parts[1]))
+    || candidates.find((parts) => normalizeYear(parts[0]))
+    || [];
+}
+
+function publicationDateMatchesConferenceEvent(metadata = {}) {
+  const currentDate = normalizeText(metadata.published_date);
+
+  if (!isFullDate(currentDate)) {
+    return false;
+  }
+
+  const raw = metadata.raw_json || {};
+  const eventDates = [
+    raw,
+    raw._doi_org,
+    raw._crossref,
+  ].map((item) => formatDateParts(getBestEventDateParts(item || {}))).filter(isFullDate);
+
+  return eventDates.includes(currentDate);
+}
+
+function shouldTryPublisherConferenceMetadata(metadata = {}) {
+  if (normalizeMetadataPublicationType(metadata.type) !== "conference_paper") {
+    return false;
+  }
+
+  const raw = metadata.raw_json || {};
+
+  if (raw._publisher_html_metadata?.attempted) {
+    return false;
+  }
+
+  return !normalizeAbstractText(metadata.abstract)
+    || !normalizeConferenceName(metadata)
+    || !normalizeConferenceLocation(metadata)
+    || !isFullDate(metadata.published_date)
+    || publicationDateMatchesConferenceEvent(metadata);
+}
+
+async function enrichConferencePublisherMetadata(metadata = {}) {
+  if (!shouldTryPublisherConferenceMetadata(metadata)) {
+    return metadata;
+  }
+
+  const urlCandidates = getMetadataArticleUrlCandidates(metadata);
+  let lastAttempt = {
+    attempted: true,
+    status: "unavailable",
+    url: urlCandidates[0] || "",
+  };
+
+  for (const url of urlCandidates) {
+    try {
+      const response = await fetchJson(url, {
+        headers: {
+          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
+          "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+        },
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType && !contentType.toLowerCase().includes("html")) {
+        continue;
+      }
+
+      const fields = extractPublisherConferenceFields(await response.text(), metadata);
+      const nextMetadata = { ...metadata };
+      const found = [];
+
+      if (!normalizeAbstractText(nextMetadata.abstract) && fields.abstract) {
+        nextMetadata.abstract = fields.abstract;
+        found.push("abstract");
+      }
+
+      if (!normalizeConferenceLocation(nextMetadata) && fields.conferenceLocation) {
+        nextMetadata.conferenceLocation = fields.conferenceLocation;
+        nextMetadata.conference_location = fields.conferenceLocation;
+        found.push("conference_location");
+      }
+
+      if (!normalizeConferenceName(nextMetadata) && fields.conferenceName) {
+        nextMetadata.conferenceName = fields.conferenceName;
+        nextMetadata.conference_name = fields.conferenceName;
+        nextMetadata.container_title = fields.conferenceName;
+        found.push("conference_name");
+      }
+
+      if (
+        fields.publishedDate
+        && (!isFullDate(nextMetadata.published_date) || publicationDateMatchesConferenceEvent(nextMetadata))
+      ) {
+        nextMetadata.published_date = fields.publishedDate;
+        nextMetadata.year = normalizeYear(String(fields.publishedDate).slice(0, 4)) || nextMetadata.year;
+        found.push("published_date");
+      }
+
+      lastAttempt = {
+        attempted: true,
+        status: found.length ? "matched" : "no_fields_found",
+        url: response.url || url,
+        found,
+        conferenceName: fields.conferenceName || "",
+        conferenceLocation: fields.conferenceLocation || "",
+      };
+
+      nextMetadata.raw_json = {
+        ...(nextMetadata.raw_json || {}),
+        _publisher_html_metadata: lastAttempt,
+      };
+
+      if (found.length) {
+        return nextMetadata;
+      }
+    } catch {
+      lastAttempt = {
+        attempted: true,
+        status: "unavailable",
+        url,
+      };
+    }
+  }
+
+  return {
+    ...metadata,
+    raw_json: {
+      ...(metadata.raw_json || {}),
+      _publisher_html_metadata: lastAttempt,
+    },
+  };
+}
+
 async function enrichMetadataCorrespondingAuthors(metadata = {}) {
   const existingLookup = getCorrespondingLookup(metadata);
 
@@ -1538,6 +1954,10 @@ function shouldRefreshCachedMetadata(metadata = {}) {
   const hasCachedIsbn = hasText(metadata.isbn) || hasText(getRawIdentifierValue(metadata.raw_json, "ISBN"));
   const isConferenceType = comparableType === "conference_paper";
 
+  if (isConferenceType && shouldTryPublisherConferenceMetadata(metadata)) {
+    return true;
+  }
+
   if (!hasCrossrefSnapshot) {
     if (["journal_article", "article_journal"].includes(comparableType) && !hasCachedIssn) {
       return true;
@@ -1557,9 +1977,14 @@ function shouldRefreshCachedMetadata(metadata = {}) {
 
 function mapMetadata(data, doi) {
   const title = Array.isArray(data.title) ? data.title[0] || "" : data.title || "";
-  const containerTitle = Array.isArray(data["container-title"])
+  const rawContainerTitle = Array.isArray(data["container-title"])
     ? data["container-title"][0] || ""
     : data["container-title"] || data.event?.name || "";
+  const type = normalizeMetadataPublicationType(data.type);
+  const conferenceName = normalizeConferenceName(data);
+  const containerTitle = type === "conference_paper"
+    ? conferenceName || rawContainerTitle
+    : rawContainerTitle || conferenceName;
   const conferenceLocation = normalizeConferenceLocation(data);
   const authors = Array.isArray(data.author)
     ? data.author
@@ -1594,6 +2019,8 @@ function mapMetadata(data, doi) {
     container_title: normalizeText(containerTitle),
     conferenceLocation,
     conference_location: conferenceLocation,
+    conferenceName,
+    conference_name: conferenceName,
     publisher: normalizeText(data.publisher),
     published_date: formatDateParts(dateParts),
     year: normalizeYear(dateParts[0]) || extractYearFromDoi(doi),
@@ -1602,7 +2029,7 @@ function mapMetadata(data, doi) {
     pages: normalizeText(data.page),
     issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
-    type: normalizeMetadataPublicationType(data.type),
+    type,
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: data,
@@ -1645,9 +2072,16 @@ export async function getCachedDoiMetadata(db, doi) {
     abstract: normalizeAbstractText(rows[0].abstract),
   };
   const conferenceLocation = normalizeConferenceLocation(metadata);
+  const conferenceName = normalizeConferenceName(metadata);
 
   metadata.conferenceLocation = conferenceLocation;
   metadata.conference_location = conferenceLocation;
+  metadata.conferenceName = conferenceName;
+  metadata.conference_name = conferenceName;
+
+  if (normalizeMetadataPublicationType(metadata.type) === "conference_paper" && conferenceName) {
+    metadata.container_title = conferenceName;
+  }
 
   if (!hasIdentifierColumns) {
     return metadata;
@@ -1870,14 +2304,19 @@ function mapOpenAlexWork(data = {}, doi) {
     hostVenue.issn_l,
   ].flatMap((value) => (Array.isArray(value) ? value : [value])));
   const type = normalizeMetadataPublicationType(data.type_crossref || data.type);
+  const conferenceName = type === "conference_paper"
+    ? normalizeText(source.display_name || hostVenue.display_name)
+    : "";
 
   return {
     doi,
     title: normalizeText(data.title || data.display_name),
     authors,
-    container_title: normalizeText(source.display_name || hostVenue.display_name),
+    container_title: conferenceName || normalizeText(source.display_name || hostVenue.display_name),
     conferenceLocation: "",
     conference_location: "",
+    conferenceName,
+    conference_name: conferenceName,
     publisher: normalizeText(source.host_organization_name || hostVenue.publisher),
     published_date: normalizeText(data.publication_date),
     year: normalizeYear(data.publication_year),
@@ -3116,7 +3555,8 @@ export async function fetchDoiMetadata(doi) {
   }
 
   if (metadata) {
-    return enrichMetadataIndexing(await enrichMetadataCorrespondingAuthors(metadata));
+    const conferenceEnriched = await enrichConferencePublisherMetadata(metadata);
+    return enrichMetadataIndexing(await enrichMetadataCorrespondingAuthors(conferenceEnriched));
   }
 
   if (errors.every((error) => error instanceof DoiLookupError && error.code === "doi_not_found")) {
