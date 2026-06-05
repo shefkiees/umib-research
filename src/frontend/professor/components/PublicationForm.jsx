@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Loader2, Plus, Search, Trash2 } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -626,6 +626,7 @@ const PublicationForm = ({
   currentUserAuthor = {},
 }) => {
   const { t } = useLanguage();
+  const formRef = useRef(null);
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
@@ -817,6 +818,15 @@ const PublicationForm = ({
     }
   };
 
+  const focusManualFields = () => {
+    const target = formRef.current?.querySelector(
+      ".prof-form-grid input:not([readonly]), .prof-form-grid select:not(:disabled), .prof-form-grid textarea:not([readonly])"
+    );
+
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
@@ -940,25 +950,45 @@ const PublicationForm = ({
   };
 
   return (
-    <form className="publication-form" onSubmit={submit}>
-      <div className="publication-form-toolbar">
-        <div className="publication-doi-lookup">
-          <input
-            value={doiLookupValue}
-            onChange={(event) => setDoiLookupValue(event.target.value)}
-            placeholder="10.xxxx/xxxxx"
-            aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
-            disabled={isLookingUpDoi || submitting}
-          />
+    <form className="publication-form" onSubmit={submit} ref={formRef}>
+      <div className="publication-doi-card">
+        <div className="publication-doi-card-copy">
+          <h4>{t("professor.dashboard.publicationForm.doiLookupTitle")}</h4>
+          <p>{t("professor.dashboard.publicationForm.doiLookupDescription")}</p>
+        </div>
+        <div className="publication-form-toolbar">
+          <div className="publication-doi-lookup">
+            <Search size={18} className="publication-doi-input-icon" aria-hidden="true" />
+            <input
+              value={doiLookupValue}
+              onChange={(event) => setDoiLookupValue(event.target.value)}
+              placeholder="10.xxxx/xxxxx"
+              aria-label={t("professor.dashboard.publicationForm.doiLookupAria")}
+              disabled={isLookingUpDoi || submitting}
+            />
+          </div>
           <button
             type="button"
-            className={`prof-btn-secondary publication-doi-action ${isLookingUpDoi ? "is-loading" : ""}`.trim()}
+            className={`publication-doi-action ${isLookingUpDoi ? "is-loading" : ""}`.trim()}
             onClick={lookupDoi}
             disabled={isLookingUpDoi || submitting}
           >
             {isLookingUpDoi ? <Loader2 size={16} className="publication-doi-action-spinner" /> : <Search size={16} />}
             {isLookingUpDoi ? t("common.loading") : t("professor.dashboard.publicationForm.getMetadata")}
           </button>
+          <button
+            type="button"
+            className="publication-manual-action"
+            onClick={focusManualFields}
+            disabled={submitting}
+          >
+            <Plus size={17} aria-hidden="true" />
+            {t("professor.dashboard.publicationForm.addManually")}
+          </button>
+        </div>
+        <div className="publication-doi-hint">
+          <FileText size={16} aria-hidden="true" />
+          <span>{t("professor.dashboard.publicationForm.doiHintBefore")} <code>10.</code> {t("professor.dashboard.publicationForm.doiHintAfter")}</span>
         </div>
       </div>
 

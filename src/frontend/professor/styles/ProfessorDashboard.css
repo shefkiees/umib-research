@@ -1726,7 +1726,58 @@ body {
 .publication-form-toolbar {
   display: flex;
   align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
   justify-content: flex-start;
+}
+
+.publication-doi-card {
+  display: grid;
+  gap: 18px;
+  padding: 24px 30px 30px;
+  border: 1px solid #dfe7f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.publication-doi-card-copy h4 {
+  margin: 0;
+  color: #041225;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.publication-doi-card-copy p {
+  margin: 10px 0 0;
+  color: #53657c;
+  font-size: 0.95rem;
+}
+
+.publication-doi-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f4f7fb;
+  color: #53657c;
+  font-size: 0.9rem;
+}
+
+.publication-doi-hint svg {
+  flex: 0 0 auto;
+  color: #536b88;
+}
+
+.publication-doi-hint code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #31506f;
+  font: inherit;
 }
 
 .publication-form-section-header {
@@ -1744,14 +1795,11 @@ body {
 }
 
 .publication-doi-lookup {
+  position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 0;
-  width: min(100%, 760px);
-  padding: 8px;
-  border: 1px solid #e4ebf3;
-  border-radius: 12px;
-  background: #f8fbff;
+  align-items: center;
+  flex: 1 1 440px;
+  min-width: 260px;
 }
 
 .publication-doi-lookup input,
@@ -1765,48 +1813,74 @@ body {
 }
 
 .publication-doi-lookup input {
-  flex: 1 1 260px;
+  width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
-  border-radius: 8px 0 0 8px;
+  min-height: 54px;
+  border-radius: 12px;
+  padding-left: 44px;
   background: #ffffff;
 }
 
-.publication-doi-lookup button {
-  flex: 0 0 auto;
-  border-radius: 0 8px 8px 0;
-  min-height: 44px;
-  padding-inline: 16px;
-  white-space: nowrap;
+.publication-doi-input-icon {
+  position: absolute;
+  left: 18px;
+  color: #61728a;
+  pointer-events: none;
 }
 
-.publication-doi-lookup .publication-doi-action {
+.publication-doi-action,
+.publication-manual-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border: 1px solid #1f6fb8;
-  background: linear-gradient(135deg, #1d67aa 0%, #0a539c 100%);
-  color: #ffffff;
+  gap: 10px;
+  min-height: 54px;
+  border-radius: 12px;
+  padding: 0 24px;
+  white-space: nowrap;
   font-weight: 800;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 16px rgba(10, 83, 156, 0.18);
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
-.publication-doi-lookup .publication-doi-action:hover:not(:disabled) {
-  border-color: #164f86;
-  background: linear-gradient(135deg, #2477be 0%, #0b4c8c 100%);
-  box-shadow: 0 10px 20px rgba(10, 83, 156, 0.24);
+.publication-doi-action {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 16px rgba(17, 24, 39, 0.16);
+}
+
+.publication-manual-action {
+  border: 1px solid #d9e0e8;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+}
+
+.publication-doi-action:hover:not(:disabled) {
+  border-color: #1f2937;
+  background: #1f2937;
+  box-shadow: 0 10px 20px rgba(17, 24, 39, 0.22);
   transform: translateY(-1px);
 }
 
-.publication-doi-lookup .publication-doi-action:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 6px 14px rgba(10, 83, 156, 0.18);
+.publication-manual-action:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
-.publication-doi-lookup .publication-doi-action:disabled {
+.publication-doi-action:active:not(:disabled),
+.publication-manual-action:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.12);
+}
+
+.publication-doi-action:disabled,
+.publication-manual-action:disabled {
   border-color: #b9c8d8;
   background: #d9e4ef;
   color: #64748b;
@@ -1815,7 +1889,7 @@ body {
   opacity: 0.9;
 }
 
-.publication-doi-lookup .publication-doi-action.is-loading {
+.publication-doi-action.is-loading {
   color: #f8fbff;
 }
 
@@ -4422,11 +4496,21 @@ body {
     width: 100%;
   }
 
+  .publication-doi-card {
+    padding: 20px;
+  }
+
+  .publication-form-toolbar {
+    gap: 10px;
+  }
+
   .publication-doi-lookup input {
     flex-basis: 0;
   }
 
-  .publication-doi-lookup button {
+  .publication-doi-action,
+  .publication-manual-action {
+    flex: 1 1 180px;
     width: auto;
   }
 

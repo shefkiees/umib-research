@@ -471,6 +471,11 @@ export const translations = {
         confirmDeletePublication: "A jeni të sigurt që doni ta fshini këtë artikull?",
         publicationForm: {
           doiLookupAria: "DOI për kërkim automatik",
+          doiLookupTitle: "Identifikuesi DOI i artikullit",
+          doiLookupDescription: "Shkruani DOI-n për të marrë automatikisht të dhënat, ose shtoni artikullin manualisht.",
+          addManually: "Shto manualisht",
+          doiHintBefore: "Këshillë: DOI-ja zakonisht fillon me",
+          doiHintAfter: "dhe gjendet në faqen e botuesit të artikullit.",
           getMetadata: "Merr të dhënat",
           doiRequired: "Shënoni DOI për t’i marrë metadatat, ose vazhdoni manualisht.",
           doiLoadFailed: "Metadatat për DOI nuk mund të ngarkohen. Mund të vazhdoni manualisht.",
@@ -978,6 +983,11 @@ export const translations = {
         confirmDeletePublication: "Are you sure you want to delete this publication?",
         publicationForm: {
           doiLookupAria: "DOI for automatic lookup",
+          doiLookupTitle: "Article DOI identifier",
+          doiLookupDescription: "Enter the DOI to fetch metadata automatically, or add the article manually.",
+          addManually: "Add manually",
+          doiHintBefore: "Tip: A DOI usually starts with",
+          doiHintAfter: "and appears on the article publisher page.",
           getMetadata: "Fetch metadata",
           doiRequired: "Enter a DOI to fetch metadata, or continue manually.",
           doiLoadFailed: "DOI metadata could not be loaded. You can continue manually.",
