@@ -513,7 +513,8 @@ export const translations = {
           },
           quartileStatus: {
             verified: "Verified",
-            historical: "Historical data",
+            historical: "Historical Data",
+            manualRequired: "Manual Required",
             missing: "Nuk u gjet quartile",
           },
           affiliation: "Affiliation",
@@ -1021,7 +1022,8 @@ export const translations = {
           },
           quartileStatus: {
             verified: "Verified",
-            historical: "Historical data",
+            historical: "Historical Data",
+            manualRequired: "Manual Required",
             missing: "No quartile found",
           },
           affiliation: "Author affiliation / Affiliation",

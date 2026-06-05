@@ -360,28 +360,24 @@ function selectQuartileCandidate(items = [], publicationYear) {
   const targetYear = normalizeYear(publicationYear);
 
   if (!rowsWithQuartile.length) {
-    return { selected: null, status: "manual_required", reason: "no_verified_quartile_rows" };
-  }
-
-  if (!targetYear) {
-    return { selected: null, status: "manual_required", reason: "publication_year_missing" };
+    return { selected: null, status: "missing", reason: "no_quartile_rows" };
   }
 
   const yearCandidates = targetYear
     ? rowsWithQuartile.filter((item) => normalizeYear(item.year) === targetYear)
     : rowsWithQuartile;
 
-  if (targetYear && !yearCandidates.length) {
+  if (!targetYear || !yearCandidates.length) {
     const availableYearCandidates = rowsWithQuartile
       .map((item) => ({ ...item, normalizedYear: normalizeYear(item.year) }))
-      .filter((item) => item.normalizedYear && item.normalizedYear <= targetYear);
+      .filter((item) => item.normalizedYear && (!targetYear || item.normalizedYear <= targetYear));
     const latestAvailableYear = availableYearCandidates.reduce(
       (latestYear, item) => Math.max(latestYear, item.normalizedYear),
       0
     );
 
     if (!latestAvailableYear) {
-      return { selected: null, status: "manual_required", reason: "no_quartile_for_publication_year" };
+      return { selected: null, status: "missing", reason: targetYear ? "no_quartile_for_publication_year" : "publication_year_missing_no_historical_year" };
     }
 
     const latestCandidates = availableYearCandidates
@@ -2692,17 +2688,47 @@ function mergeIndexingBundles(bundles = [], helperItems = []) {
     .map((bundle) => bundle?.selected)
     .filter((item) => item?.quartile);
 
+  const selectDominantCandidate = (candidates = []) => {
+    const candidateGroups = new Map();
+
+    candidates.forEach((candidate) => {
+      const key = [
+        normalizeQuartile(candidate.quartile),
+        normalizeComparableText(candidate.category),
+      ].join("|");
+      const current = candidateGroups.get(key) || { candidate, count: 0 };
+      current.count += 1;
+      candidateGroups.set(key, current);
+    });
+
+    const sortedGroups = [...candidateGroups.values()].sort((first, second) => second.count - first.count);
+    const [dominant, runnerUp] = sortedGroups;
+
+    if (!dominant || (runnerUp && runnerUp.count === dominant.count)) {
+      return null;
+    }
+
+    return dominant.candidate;
+  };
+
   const mergeSelectedCandidates = (candidates, status, reason) => {
     const quartiles = uniqueValues(candidates.map((item) => item.quartile));
     const categories = uniqueValues(candidates.flatMap((item) => splitCategoryKeys(item.category)));
 
     if (quartiles.length > 1 || categories.length > 1) {
-      return {
-        indexing: items.map((item) => markQuartileSelection(item, false, "missing", "conflicting_provider_results")),
-        selected: null,
-        status: "missing",
-        reason: "conflicting_provider_results",
-      };
+      const dominantCandidate = status === "historical" ? selectDominantCandidate(candidates) : null;
+
+      if (!dominantCandidate) {
+        return {
+          indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "conflicting_provider_results")),
+          selected: null,
+          status: "manual_required",
+          reason: "conflicting_provider_results",
+        };
+      }
+
+      candidates = [dominantCandidate];
+      reason = "historical_dominant_quartile";
     }
 
     const providerPriority = ["scopus", "scimago"];
@@ -2746,18 +2772,25 @@ function mergeIndexingBundles(bundles = [], helperItems = []) {
   }
 
   if (!selectedCandidates.length) {
+    const hasRejectedQuartile = items.some((item) => item.quartile);
+
     return {
-      indexing: items.map((item) => markQuartileSelection(item, false, "missing", "no_unambiguous_quartile")),
+      indexing: items.map((item) => markQuartileSelection(
+        item,
+        false,
+        hasRejectedQuartile ? "manual_required" : "missing",
+        hasRejectedQuartile ? "no_unambiguous_quartile" : "no_ranking_quartile_found"
+      )),
       selected: null,
-      status: items.some((item) => item.quartile) ? "missing" : "empty",
-      reason: items.some((item) => item.quartile) ? "no_unambiguous_quartile" : "no_ranking_quartile_found",
+      status: hasRejectedQuartile ? "manual_required" : "missing",
+      reason: hasRejectedQuartile ? "no_unambiguous_quartile" : "no_ranking_quartile_found",
     };
   }
 
   return {
-    indexing: items.map((item) => markQuartileSelection(item, false, "missing", "no_unambiguous_quartile")),
+    indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "no_unambiguous_quartile")),
     selected: null,
-    status: "missing",
+    status: "manual_required",
     reason: "no_unambiguous_quartile",
   };
 }
@@ -2919,7 +2952,7 @@ async function enrichMetadataIndexing(metadata = {}) {
     : "manual";
   const quartileVerificationStatus = hasSelectedQuartile
     ? quartileStatus || (quartileVerified ? "verified" : "historical")
-    : (indexingResolution.status === "empty" ? "empty" : "missing");
+    : (["manual_required", "missing"].includes(indexingResolution.status) ? indexingResolution.status : "missing");
   const enrichedMetadata = {
     ...metadata,
     raw_json: {

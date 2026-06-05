@@ -1833,8 +1833,8 @@ body {
 }
 
 .publication-quartile-verification-badge.verified {
-  background: #eef6ff;
-  color: #1d4d7d;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .publication-quartile-verification-badge.historical {
@@ -1842,9 +1842,14 @@ body {
   color: #92400e;
 }
 
-.publication-quartile-verification-badge.missing {
+.publication-quartile-verification-badge.manual-required {
   background: #f1f5f9;
   color: #475569;
+}
+
+.publication-quartile-verification-badge.missing {
+  background: #fee2e2;
+  color: #b42318;
 }
 
 .publication-form .prof-form-field input,

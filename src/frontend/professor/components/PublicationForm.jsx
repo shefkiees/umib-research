@@ -529,13 +529,23 @@ const PublicationForm = ({
   const normalizedQuartileStatus = String(quartileVerificationStatus || "").toLowerCase();
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
   const isQuartileHistorical = !isQuartileVerified && normalizedQuartileStatus === "historical" && Boolean(displayableQuartile);
-  const showQuartileMissingBadge = !isQuartileVerified && !isQuartileHistorical;
+  const isQuartileManualRequired = !isQuartileVerified && !isQuartileHistorical && normalizedQuartileStatus === "manual_required";
+  const isQuartileMissing = !isQuartileVerified && !isQuartileHistorical && !isQuartileManualRequired;
   const quartileBadgeLabel = isQuartileVerified
     ? t("professor.dashboard.publicationForm.quartileStatus.verified")
     : isQuartileHistorical
       ? t("professor.dashboard.publicationForm.quartileStatus.historical")
-      : t("professor.dashboard.publicationForm.quartileStatus.missing");
-  const showQuartileBadge = isQuartileVerified || isQuartileHistorical || showQuartileMissingBadge;
+      : isQuartileManualRequired
+        ? t("professor.dashboard.publicationForm.quartileStatus.manualRequired")
+        : t("professor.dashboard.publicationForm.quartileStatus.missing");
+  const quartileBadgeClass = isQuartileVerified
+    ? "verified"
+    : isQuartileHistorical
+      ? "historical"
+      : isQuartileManualRequired
+        ? "manual-required"
+        : "missing";
+  const showQuartileBadge = isQuartileVerified || isQuartileHistorical || isQuartileManualRequired || isQuartileMissing;
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
     String(value.indexingCategory || primaryIndexing.category || "").trim()
@@ -922,7 +932,7 @@ const PublicationForm = ({
           <span className="publication-quartile-label">
             <span>{t("professor.dashboard.publicationForm.quartile")}</span>
             {showQuartileBadge ? (
-              <span className={`publication-quartile-verification-badge ${isQuartileVerified ? "verified" : isQuartileHistorical ? "historical" : "missing"}`}>
+              <span className={`publication-quartile-verification-badge ${quartileBadgeClass}`}>
                 {quartileBadgeLabel}
               </span>
             ) : null}
