@@ -60,6 +60,35 @@ const KOSOVO_BANKS = [
   { name: "Economic Bank", swift: "EKOMXKPR", ibanCodes: ["1401", "14"], logoSrc: "/bank-logos/economic.jpg" },
 ];
 
+const BANK_LOGO_ALIASES = {
+  bkt: "NCBAXKPR",
+  bktkosovo: "NCBAXKPR",
+  bankakombetaretregtarekosove: "NCBAXKPR",
+  procredit: "MBKOXKPR",
+  procreditbank: "MBKOXKPR",
+  procreditbankkosovo: "MBKOXKPR",
+  raiffeisen: "RBKOXKPR",
+  raiffeisenbank: "RBKOXKPR",
+  raiffeisenbankkosovo: "RBKOXKPR",
+  teb: "TEBKXKPR",
+  tebbank: "TEBKXKPR",
+  tebbankkosovo: "TEBKXKPR",
+  nlb: "NLPRXKPR",
+  nlbbanka: "NLPRXKPR",
+  bankaperbiznes: "BPBXXKPR",
+  bpb: "BPBXXKPR",
+  bpbbank: "BPBXXKPR",
+  ziraat: "TCZBXKPR",
+  ziraatbank: "TCZBXKPR",
+  ziraatbankkosovo: "TCZBXKPR",
+  isbank: "ISBKXKPR",
+  isbankkosovo: "ISBKXKPR",
+  pribank: "PHHAXKPR",
+  economic: "EKOMXKPR",
+  economicbank: "EKOMXKPR",
+  bankaekonomike: "EKOMXKPR",
+};
+
 const FORM_STEPS = [
   { id: "basic", label: "Te dhenat baze" },
   { id: "academic", label: "Te dhenat akademike" },
@@ -1006,7 +1035,7 @@ function normalizeBankNameForMatch(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function getBankBySavedName(name) {
@@ -1017,9 +1046,20 @@ function getBankBySavedName(name) {
   }
 
   const normalizedName = normalizeBankNameForMatch(name);
-  return normalizedName
-    ? KOSOVO_BANKS.find((bank) => normalizeBankNameForMatch(bank.name) === normalizedName) || null
-    : null;
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  const normalizedMatch = KOSOVO_BANKS.find((bank) => normalizeBankNameForMatch(bank.name) === normalizedName);
+
+  if (normalizedMatch) {
+    return normalizedMatch;
+  }
+
+  const aliasSwift = BANK_LOGO_ALIASES[normalizedName];
+
+  return aliasSwift ? KOSOVO_BANKS.find((bank) => bank.swift === aliasSwift) || null : null;
 }
 
 function getBankLogoBankForAccount(account = {}) {
