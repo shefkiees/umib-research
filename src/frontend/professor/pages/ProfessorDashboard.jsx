@@ -142,7 +142,7 @@ const STATUS_LABELS = {
   submitted: "Dorëzuar",
   received: "Pranuar",
   in_review: "Në shqyrtim",
-  needs_correction: "Kthyer për korrigjim",
+  needs_correction: "Kërkon korrigjim",
   committee_approved: "Aprovuar nga komisioni",
   approved: "Aprovuar final",
   rejected: "Refuzuar",
