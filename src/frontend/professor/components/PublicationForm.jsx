@@ -765,13 +765,13 @@ const PublicationForm = ({
   const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
     const authorsLocked = isFieldLocked("authors");
     const affiliationLocked = authorsLocked && Boolean(String(author.affiliation || "").trim());
+    const hasOrcid = Boolean(String(author.orcid || "").trim());
 
     return (
       <div className="publication-author-row" key={`publication-author-${index}`}>
-        <label className="publication-author-field">
-          <span>{t("professor.dashboard.publicationForm.author")}</span>
+        <div className="publication-author-field publication-author-name-field">
           {authorsLocked ? (
-            <span className="publication-author-readonly-text" title={author.fullName || ""}>
+            <span className="publication-author-name" title={author.fullName || ""}>
               {author.fullName || "-"}
             </span>
           ) : (
@@ -783,9 +783,8 @@ const PublicationForm = ({
               required={required}
             />
           )}
-        </label>
-        <label className="publication-author-field publication-author-affiliation-field">
-          <span>{t("professor.dashboard.publicationForm.affiliation")}</span>
+        </div>
+        <div className="publication-author-field publication-author-affiliation-field">
           {affiliationLocked ? (
             <span className="publication-author-readonly-text" title={author.affiliation || ""}>
               {author.affiliation}
@@ -798,13 +797,14 @@ const PublicationForm = ({
               aria-label={t("professor.dashboard.publicationForm.affiliation")}
             />
           )}
-        </label>
-        <label className="publication-author-field publication-author-orcid-field">
-          <span>ORCID</span>
+        </div>
+        <div className="publication-author-field publication-author-orcid-field">
           {authorsLocked ? (
-            <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
-              {author.orcid || "-"}
-            </span>
+            hasOrcid ? (
+              <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
+                {author.orcid}
+              </span>
+            ) : null
           ) : (
             <input
               value={author.orcid || ""}
@@ -813,7 +813,7 @@ const PublicationForm = ({
               aria-label="ORCID"
             />
           )}
-        </label>
+        </div>
         {showRemove && !authorsLocked ? (
           <div className="publication-author-inline-actions">
             <button
