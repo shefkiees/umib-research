@@ -1741,16 +1741,8 @@ body {
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
-.publication-doi-card-copy h4 {
-  margin: 0;
-  color: #041225;
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
 .publication-doi-card-copy p {
-  margin: 10px 0 0;
+  margin: 0;
   color: #53657c;
   font-size: 0.95rem;
 }

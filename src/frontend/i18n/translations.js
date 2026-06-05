@@ -471,7 +471,6 @@ export const translations = {
         confirmDeletePublication: "A jeni të sigurt që doni ta fshini këtë artikull?",
         publicationForm: {
           doiLookupAria: "DOI për kërkim automatik",
-          doiLookupTitle: "Identifikuesi DOI i artikullit",
           doiLookupDescription: "Shkruani DOI-n për të marrë automatikisht të dhënat, ose shtoni artikullin manualisht.",
           addManually: "Shto manualisht",
           doiHintBefore: "Këshillë: DOI-ja zakonisht fillon me",
@@ -983,7 +982,6 @@ export const translations = {
         confirmDeletePublication: "Are you sure you want to delete this publication?",
         publicationForm: {
           doiLookupAria: "DOI for automatic lookup",
-          doiLookupTitle: "Article DOI identifier",
           doiLookupDescription: "Enter the DOI to fetch metadata automatically, or add the article manually.",
           addManually: "Add manually",
           doiHintBefore: "Tip: A DOI usually starts with",

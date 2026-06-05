@@ -953,7 +953,6 @@ const PublicationForm = ({
     <form className="publication-form" onSubmit={submit} ref={formRef}>
       <div className="publication-doi-card">
         <div className="publication-doi-card-copy">
-          <h4>{t("professor.dashboard.publicationForm.doiLookupTitle")}</h4>
           <p>{t("professor.dashboard.publicationForm.doiLookupDescription")}</p>
         </div>
         <div className="publication-form-toolbar">
