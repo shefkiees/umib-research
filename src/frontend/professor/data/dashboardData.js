@@ -12,7 +12,7 @@ import {
 
 export const navigationItems = [
   { id: "Statistika", label: "Statistika", icon: BarChart3 },
-  { id: "Publikime", label: "Publikimet", icon: BookOpen },
+  { id: "Publikime", label: "Artikujt", icon: BookOpen },
   { id: "Konferenca", label: "Konferenca", icon: CalendarDays },
   { id: "Rimbursime", label: "Rimbursime", icon: Wallet },
 ];
