@@ -76,8 +76,7 @@ export const createEmptyPublicationDraft = () => ({
 
 function hasPublicationDraftContent(value = {}) {
   return Boolean(
-    String(value.doi || "").trim()
-    || String(value.title || "").trim()
+    String(value.title || "").trim()
     || String(value.publicationType || "").trim()
     || String(value.venue || "").trim()
     || String(value.abstract || "").trim()
@@ -694,7 +693,6 @@ const PublicationForm = ({
     setShowPublicationFields(false);
   }, [
     mode,
-    value.doi,
     value.title,
     value.publicationType,
     value.venue,
@@ -707,13 +705,7 @@ const PublicationForm = ({
   ]);
 
   const updateDoiLookupValue = (event) => {
-    const nextValue = event.target.value;
-
-    setDoiLookupValue(nextValue);
-
-    if (nextValue.trim()) {
-      setShowPublicationFields(true);
-    }
+    setDoiLookupValue(event.target.value);
   };
 
   const updateField = (field) => (event) => {
@@ -840,7 +832,6 @@ const PublicationForm = ({
       return;
     }
 
-    setShowPublicationFields(true);
     setIsLookingUpDoi(true);
     setDoiError("");
 
