@@ -1443,6 +1443,17 @@ function hasMeaningfulPublicationInput(value) {
   return normalizeText(value) !== "";
 }
 
+function hasSubmittedPublicationDetails(body = {}) {
+  const hasTitle = Boolean(normalizeText(body.title));
+  const hasVenue = Boolean(normalizeText(body.venue || body.publishedIn || body.published_in || body.journal));
+  const hasAuthors = Array.isArray(body.authors)
+    && body.authors.some((author) =>
+      normalizeText(author?.fullName || author?.full_name || author?.name || author?.givenName || author?.given_name || author?.familyName || author?.family_name)
+    );
+
+  return hasTitle && hasVenue && hasAuthors;
+}
+
 function mergePublicationMetadataDefaults(defaults = {}, input = {}) {
   const merged = { ...defaults, ...input };
 
@@ -1459,6 +1470,10 @@ async function applyDoiMetadataDefaults(dbOrClient, body = {}, currentUser = {})
   const doi = normalizeDoi(body.doi || body.metadata?.doi);
 
   if (!doi || !isValidDoi(doi)) {
+    return body;
+  }
+
+  if (hasSubmittedPublicationDetails(body)) {
     return body;
   }
 
