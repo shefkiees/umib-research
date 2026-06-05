@@ -174,6 +174,23 @@ function normalizeQuartile(value) {
   return match?.[0] || "";
 }
 
+function normalizeCiteScoreForDisplay(value, { verifiedZero = false } = {}) {
+  const text = String(value || "").trim();
+  const match = text.match(/\b\d+(?:[.,]\d+)?\b/);
+  const normalized = match ? match[0].replace(",", ".") : text;
+  const numericValue = Number(normalized);
+
+  if (!text) {
+    return "";
+  }
+
+  if (Number.isFinite(numericValue) && numericValue === 0 && !verifiedZero) {
+    return "";
+  }
+
+  return normalized;
+}
+
 function normalizeIndexingSource(value) {
   const text = String(value || "").trim().toLowerCase();
 
@@ -192,7 +209,9 @@ function isDisplayableQuartile(item = {}) {
   return Boolean(normalizeQuartile(item.quartile))
     && (
       Boolean(item.quartileVerified ?? item.quartile_verified)
+      || status === "verified"
       || status === "manual"
+      || status === "historical"
       || !status
     );
 }
@@ -216,7 +235,9 @@ export function publicationToDraft(publication = {}) {
     quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
     impactFactor: item.impactFactor || item.impact_factor || "",
     sjr: item.sjr || "",
-    citeScore: item.citeScore || item.cite_score || item.citescore || "",
+    citeScore: normalizeCiteScoreForDisplay(item.citeScore || item.cite_score || item.citescore, { verifiedZero: Boolean(item.citeScoreVerified ?? item.cite_score_verified) }),
+    citeScoreVerified: Boolean(item.citeScoreVerified ?? item.cite_score_verified),
+    cite_score_verified: Boolean(item.citeScoreVerified ?? item.cite_score_verified),
     indexedUrl: item.indexedUrl || item.indexed_url || "",
   })) : publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
   const primaryIndexing = indexing[0] || {};
@@ -251,7 +272,10 @@ export function publicationToDraft(publication = {}) {
     quartileSource: normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
     quartileVerificationStatus: publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty"),
     sjr: publication.sjr || primaryIndexing.sjr || "",
-    citeScore: publication.citeScore || publication.cite_score || primaryIndexing.citeScore || primaryIndexing.cite_score || "",
+    citeScore: normalizeCiteScoreForDisplay(
+      publication.citeScore || publication.cite_score || primaryIndexing.citeScore || primaryIndexing.cite_score || "",
+      { verifiedZero: Boolean(publication.citeScoreVerified ?? publication.cite_score_verified ?? primaryIndexing.citeScoreVerified ?? primaryIndexing.cite_score_verified) }
+    ),
     indexingVerified: Boolean(publication.indexingVerified ?? publication.indexing_verified),
     indexingSource: normalizeIndexingSource(publication.indexingSource || publication.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
     status: publication.status || "draft",
@@ -375,19 +399,27 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const publicationType = normalizeDoiType(metadata.type);
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
-  const selectedQuartileIndexing = indexing.find((item) => item?.quartileVerified || item?.quartile_verified);
+  const selectedQuartileIndexing = indexing.find((item) => item?.quartileVerified || item?.quartile_verified)
+    || indexing.find((item) => String(item?.quartileVerificationStatus || item?.quartile_verification_status || "").toLowerCase() === "historical")
+    || indexing.find((item) => normalizeQuartile(item?.quartile));
+  const selectedQuartileStatus = String(metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "").toLowerCase();
   const quartileVerified = Boolean(metadata.quartileVerified ?? metadata.quartile_verified ?? selectedQuartileIndexing?.quartileVerified ?? selectedQuartileIndexing?.quartile_verified);
-  const quartile = quartileVerified ? normalizeQuartile(metadata.quartile || selectedQuartileIndexing?.quartile || "") : "";
-  const quartileSource = quartileVerified
+  const quartileHistorical = selectedQuartileStatus === "historical" || Boolean(metadata.quartileHistorical ?? metadata.quartile_historical);
+  const quartile = quartileVerified || quartileHistorical ? normalizeQuartile(metadata.quartile || selectedQuartileIndexing?.quartile || "") : "";
+  const quartileSource = quartileVerified || quartileHistorical
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
-  const quartileVerificationStatus = metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "manual_required";
+  const quartileVerificationStatus = selectedQuartileStatus || "missing";
   const indexingPlatform = normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source);
-  const indexingCategory = quartileVerified ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
+  const indexingCategory = quartileVerified || quartileHistorical ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
   const indexingVerified = Boolean(metadata.indexingVerified ?? metadata.indexing_verified);
   const indexingSource = normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source);
   const sjr = metadata.sjr || indexing.find((item) => item?.sjr)?.sjr || "";
-  const citeScore = metadata.citeScore || metadata.cite_score || indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore)?.citeScore || indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore)?.cite_score || "";
+  const citeScoreIndexing = indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore) || {};
+  const citeScore = normalizeCiteScoreForDisplay(
+    metadata.citeScore || metadata.cite_score || citeScoreIndexing.citeScore || citeScoreIndexing.cite_score || citeScoreIndexing.citescore || "",
+    { verifiedZero: Boolean(metadata.citeScoreVerified ?? metadata.cite_score_verified ?? citeScoreIndexing.citeScoreVerified ?? citeScoreIndexing.cite_score_verified) }
+  );
   const matchedAuthorIndex = authors.findIndex((author) => {
     const normalizedAuthor = typeof author === "string" ? { fullName: author } : author || {};
     const fullName = normalizedAuthor.fullName || normalizedAuthor.full_name || normalizedAuthor.name || "";
@@ -419,6 +451,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     indexingCategory,
     quartile,
     quartileVerified,
+    quartileHistorical,
     quartileSource,
     quartileVerificationStatus,
     sjr,
@@ -442,10 +475,12 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
       quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
       impactFactor: item.impactFactor || item.impact_factor || "",
       sjr: item.sjr || (index === 0 ? sjr : ""),
-      citeScore: item.citeScore || item.cite_score || item.citescore || (index === 0 ? citeScore : ""),
+      citeScore: normalizeCiteScoreForDisplay(item.citeScore || item.cite_score || item.citescore || (index === 0 ? citeScore : ""), { verifiedZero: Boolean(item.citeScoreVerified ?? item.cite_score_verified ?? metadata.citeScoreVerified ?? metadata.cite_score_verified) }),
+      citeScoreVerified: Boolean(item.citeScoreVerified ?? item.cite_score_verified),
+      cite_score_verified: Boolean(item.citeScoreVerified ?? item.cite_score_verified),
       indexedUrl: item.indexedUrl || item.indexed_url || "",
     })) : indexingPlatform || indexingCategory || quartile || sjr || citeScore
-      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, impactFactor: "", sjr, citeScore, indexedUrl: "" }]
+      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, impactFactor: "", sjr, citeScore, citeScoreVerified: Boolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), cite_score_verified: Boolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), indexedUrl: "" }]
       : [],
     metadataSource: "doi",
     metadataVerified: true,
@@ -490,15 +525,17 @@ const PublicationForm = ({
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => isDoiImported && isTrustedSource(field);
   const isQuartileVerified = Boolean(value.quartileVerified ?? value.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified);
-  const quartileSource = normalizeIndexingSource(value.quartileSource || value.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source);
   const quartileVerificationStatus = value.quartileVerificationStatus || value.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || "";
+  const normalizedQuartileStatus = String(quartileVerificationStatus || "").toLowerCase();
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const showQuartileManualBadge = !isQuartileVerified
-    && ["manual_required", "conflict"].includes(String(quartileVerificationStatus || "").toLowerCase());
+  const isQuartileHistorical = !isQuartileVerified && normalizedQuartileStatus === "historical" && Boolean(displayableQuartile);
+  const showQuartileMissingBadge = !isQuartileVerified && !isQuartileHistorical;
   const quartileBadgeLabel = isQuartileVerified
-    ? t(`professor.dashboard.publicationForm.quartileSource.${quartileSource}`)
-    : t("professor.dashboard.publicationForm.quartileSource.manualRequired");
-  const showQuartileBadge = isQuartileVerified || showQuartileManualBadge;
+    ? t("professor.dashboard.publicationForm.quartileStatus.verified")
+    : isQuartileHistorical
+      ? t("professor.dashboard.publicationForm.quartileStatus.historical")
+      : t("professor.dashboard.publicationForm.quartileStatus.missing");
+  const showQuartileBadge = isQuartileVerified || isQuartileHistorical || showQuartileMissingBadge;
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
     String(value.indexingCategory || primaryIndexing.category || "").trim()
@@ -711,6 +748,80 @@ const PublicationForm = ({
         ? "professor.dashboard.publicationForm.publishedInPlaceholderJournal"
         : "professor.dashboard.publicationForm.publishedInPlaceholderDefault";
   const venuePlaceholder = t(venuePlaceholderKey);
+  const mainAuthor = authorRows[0] || { ...EMPTY_AUTHOR };
+  const coauthorRows = authorRows.slice(1);
+  const renderAuthorFields = (author, index, { showRemove = false } = {}) => (
+    <div className="publication-author-card" key={`publication-author-${index}`}>
+      <label className="publication-author-field">
+        <span>{t("professor.dashboard.publicationForm.author")}</span>
+        {isFieldLocked("authors") ? (
+          <span className="publication-author-readonly-text" title={author.fullName || ""}>
+            {author.fullName || "-"}
+          </span>
+        ) : (
+          <input
+            value={author.fullName || ""}
+            onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
+            placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+            aria-label={t("professor.dashboard.publicationForm.author")}
+            required={index === 0}
+          />
+        )}
+      </label>
+      <label className="publication-author-field publication-author-affiliation-field">
+        <span>{t("professor.dashboard.publicationForm.affiliation")}</span>
+        {isFieldLocked("authors") ? (
+          <span className="publication-author-readonly-text" title={author.affiliation || ""}>
+            {author.affiliation || "-"}
+          </span>
+        ) : (
+          <input
+            value={author.affiliation || ""}
+            onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+            placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+            aria-label={t("professor.dashboard.publicationForm.affiliation")}
+          />
+        )}
+      </label>
+      <label className="publication-author-field publication-author-orcid-field">
+        <span>ORCID</span>
+        {isFieldLocked("authors") ? (
+          <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
+            {author.orcid || "-"}
+          </span>
+        ) : (
+          <input
+            value={author.orcid || ""}
+            onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
+            placeholder="0000-0000-0000-0000"
+            aria-label="ORCID"
+          />
+        )}
+      </label>
+      <div className="publication-author-inline-actions">
+        <label className="publication-author-corresponding-option">
+          <input
+            type="checkbox"
+            aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
+            checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
+            onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
+          />
+          <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
+        </label>
+        {showRemove && !isFieldLocked("authors") ? (
+          <button
+            type="button"
+            className="publication-remove-button"
+            onClick={() => removeAuthor(index)}
+            aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>{t("professor.dashboard.publicationForm.remove")}</span>
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
     <form className="publication-form" onSubmit={submit}>
@@ -811,7 +922,7 @@ const PublicationForm = ({
           <span className="publication-quartile-label">
             <span>{t("professor.dashboard.publicationForm.quartile")}</span>
             {showQuartileBadge ? (
-              <span className={`publication-quartile-verification-badge ${isQuartileVerified ? "verified" : "manual"}`}>
+              <span className={`publication-quartile-verification-badge ${isQuartileVerified ? "verified" : isQuartileHistorical ? "historical" : "missing"}`}>
                 {quartileBadgeLabel}
               </span>
             ) : null}
@@ -833,7 +944,7 @@ const PublicationForm = ({
           <input
             value={value.citeScore || primaryIndexing.citeScore || primaryIndexing.cite_score || ""}
             onChange={updateIndexingField("citeScore")}
-            placeholder="0.0"
+            placeholder={t("common.noData")}
             readOnly={isFieldLocked("citeScore")}
           />
         </label>
@@ -886,98 +997,21 @@ const PublicationForm = ({
             <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-table-wrap ${isFieldLocked("authors") ? "publication-authors-table-wrap--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
-          <table className="publication-authors-simple-table">
-            <thead>
-              <tr>
-                <th>{t("professor.dashboard.publicationForm.author")}</th>
-                <th>{t("professor.dashboard.publicationForm.affiliation")}</th>
-                <th>ORCID</th>
-                <th>{t("professor.dashboard.publicationForm.correspondingAuthor")}</th>
-                <th aria-label={t("professor.dashboard.publicationForm.remove")}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {authorRows.map((author, index) => (
-                <tr key={`publication-author-${index}`}>
-                  <td>
-                    <div className="publication-author-name-cell">
-                      {index === 0 ? (
-                        <span className="publication-main-author-label">
-                          {t("professor.dashboard.publicationForm.mainAuthor")}
-                        </span>
-                      ) : null}
-                      {isFieldLocked("authors") ? (
-                        <span className="publication-author-readonly-text" title={author.fullName || ""}>
-                          {author.fullName || "-"}
-                        </span>
-                      ) : (
-                        <input
-                          value={author.fullName || ""}
-                          onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
-                          placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-                          aria-label={t("professor.dashboard.publicationForm.author")}
-                          required={index === 0}
-                        />
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    {isFieldLocked("authors") ? (
-                      <span className="publication-author-readonly-text" title={author.affiliation || ""}>
-                        {author.affiliation || "-"}
-                      </span>
-                    ) : (
-                      <input
-                        value={author.affiliation || ""}
-                        onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-                        placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
-                        aria-label={t("professor.dashboard.publicationForm.affiliation")}
-                      />
-                    )}
-                  </td>
-                  <td>
-                    {isFieldLocked("authors") ? (
-                      <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
-                        {author.orcid || "-"}
-                      </span>
-                    ) : (
-                      <input
-                        value={author.orcid || ""}
-                        onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
-                        placeholder="0000-0000-0000-0000"
-                        aria-label="ORCID"
-                      />
-                    )}
-                  </td>
-                  <td>
-                    <label className="publication-author-corresponding-option">
-                      <input
-                        type="checkbox"
-                        aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
-                        checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
-                        onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
-                      />
-                      <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-                    </label>
-                  </td>
-                  <td className="publication-author-actions-cell">
-                    {index > 0 && !isFieldLocked("authors") ? (
-                      <button
-                        type="button"
-                        className="publication-remove-button"
-                        onClick={() => removeAuthor(index)}
-                        aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                        <span>{t("professor.dashboard.publicationForm.remove")}</span>
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className={`publication-authors-groups ${isFieldLocked("authors") ? "publication-authors-groups--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
+          <section className="publication-author-group">
+            <h5>{t("professor.dashboard.publicationForm.mainAuthor")}</h5>
+            {renderAuthorFields(mainAuthor, 0)}
+          </section>
+          <section className="publication-author-group">
+            <h5>{t("professor.dashboard.publicationForm.coauthors")}</h5>
+            <div className="publication-coauthors-list">
+              {coauthorRows.length ? coauthorRows.map((author, coauthorIndex) =>
+                renderAuthorFields(author, coauthorIndex + 1, { showRemove: true })
+              ) : (
+                <p className="publication-no-coauthors">{t("professor.dashboard.publicationForm.noCoauthors")}</p>
+              )}
+            </div>
+          </section>
           {!isFieldLocked("authors") ? (
             <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
               <Plus size={14} aria-hidden="true" />
@@ -986,7 +1020,7 @@ const PublicationForm = ({
           ) : null}
         </div>
         {showCorrespondingAuthorManualNotice ? (
-          <p className="publication-form-message hint">
+          <p className="publication-corresponding-info-alert">
             {t("professor.dashboard.publicationForm.correspondingAuthorManualNotice")}
           </p>
         ) : null}

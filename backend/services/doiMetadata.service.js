@@ -124,7 +124,7 @@ function getMetadataIssns(metadata = {}) {
     ...issnTypeValues,
   ].flatMap((value) => (Array.isArray(value) ? value : [value]));
 
-  return values.map(normalizeIssn).filter(Boolean);
+  return uniqueValues(values.map(normalizeIssn));
 }
 
 function uniqueValues(values = []) {
@@ -142,6 +142,22 @@ function normalizeMetricValue(value) {
   const match = text.match(/\b\d+(?:[.,]\d+)?\b/);
 
   return match ? match[0].replace(",", ".") : "";
+}
+
+function normalizeCiteScoreValue(value, { allowZero = false } = {}) {
+  const normalized = normalizeMetricValue(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const numericValue = Number(normalized);
+
+  if (Number.isFinite(numericValue) && numericValue === 0 && !allowZero) {
+    return "";
+  }
+
+  return normalized;
 }
 
 function normalizeIndexingSourceKey(value) {
@@ -179,6 +195,7 @@ function createIndexingResult({
   quartile = "",
   sjr = "",
   citeScore = "",
+  citeScoreVerified = false,
   impactFactor = "",
   indexedUrl = "",
   year = null,
@@ -193,7 +210,7 @@ function createIndexingResult({
 
   const normalizedQuartile = normalizeQuartile(quartile);
   const normalizedSjr = normalizeMetricValue(sjr);
-  const normalizedCiteScore = normalizeMetricValue(citeScore);
+  const normalizedCiteScore = normalizeCiteScoreValue(citeScore, { allowZero: citeScoreVerified });
 
   return {
     source: normalizedPlatform,
@@ -206,6 +223,8 @@ function createIndexingResult({
     citeScore: normalizedCiteScore,
     cite_score: normalizedCiteScore,
     citescore: normalizedCiteScore,
+    citeScoreVerified: Boolean(citeScoreVerified && normalizedCiteScore),
+    cite_score_verified: Boolean(citeScoreVerified && normalizedCiteScore),
     impactFactor: normalizeText(impactFactor),
     impact_factor: normalizeText(impactFactor),
     indexedUrl: normalizeText(indexedUrl),
@@ -242,8 +261,10 @@ function getCachedIndexing(metadata = {}) {
           quartile: normalizeQuartile(item?.quartile),
           impactFactor: normalizeText(item?.impactFactor || item?.impact_factor),
           sjr: normalizeMetricValue(item?.sjr),
-          citeScore: normalizeMetricValue(item?.citeScore || item?.cite_score || item?.citescore),
-          cite_score: normalizeMetricValue(item?.citeScore || item?.cite_score || item?.citescore),
+          citeScore: normalizeCiteScoreValue(item?.citeScore || item?.cite_score || item?.citescore, { allowZero: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified) }),
+          cite_score: normalizeCiteScoreValue(item?.citeScore || item?.cite_score || item?.citescore, { allowZero: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified) }),
+          citeScoreVerified: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified),
+          cite_score_verified: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified),
           indexedUrl: normalizeText(item?.indexedUrl || item?.indexed_url),
           indexed_url: normalizeText(item?.indexedUrl || item?.indexed_url),
           year: normalizeYear(item?.year),
@@ -311,16 +332,19 @@ function splitCategoryKeys(category = "") {
 }
 
 function markQuartileSelection(item, selected, status, reason) {
+  const selectedFromLookup = Boolean(selected && ["verified", "historical"].includes(status));
+  const verified = Boolean(selected && status === "verified");
+
   return {
     ...item,
-    quartileVerified: Boolean(selected),
-    quartile_verified: Boolean(selected),
-    quartileSource: selected ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
-    quartile_source: selected ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
-    quartileVerificationStatus: selected ? "verified" : status,
-    quartile_verification_status: selected ? "verified" : status,
-    quartileSelectionReason: selected ? reason : reason || status,
-    quartile_selection_reason: selected ? reason : reason || status,
+    quartileVerified: verified,
+    quartile_verified: verified,
+    quartileSource: selectedFromLookup ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
+    quartile_source: selectedFromLookup ? normalizeIndexingSourceKey(item.sourceKey || item.source_key || item.source) : "manual",
+    quartileVerificationStatus: selectedFromLookup ? status : status,
+    quartile_verification_status: selectedFromLookup ? status : status,
+    quartileSelectionReason: selectedFromLookup ? reason : reason || status,
+    quartile_selection_reason: selectedFromLookup ? reason : reason || status,
   };
 }
 
@@ -374,7 +398,7 @@ function selectQuartileCandidate(items = [], publicationYear) {
       const primaryCandidates = latestCandidates.filter((item) => Boolean(item.primaryCategory || item.primary_category));
 
       if (primaryCandidates.length === 1) {
-        return { selected: primaryCandidates[0], status: "verified", reason: "latest_available_primary_category_from_provider" };
+        return { selected: primaryCandidates[0], status: "historical", reason: "latest_available_primary_category_from_provider" };
       }
 
       return { selected: null, status: "manual_required", reason: "latest_available_multiple_categories_without_primary" };
@@ -384,7 +408,7 @@ function selectQuartileCandidate(items = [], publicationYear) {
       return { selected: null, status: "manual_required", reason: "latest_available_conflicting_quartiles_for_category" };
     }
 
-    return { selected: latestCandidates[0], status: "verified", reason: "latest_available_verified_quartile" };
+    return { selected: latestCandidates[0], status: "historical", reason: "latest_available_quartile" };
   }
 
   const candidates = yearCandidates;
@@ -423,6 +447,7 @@ function createIndexingBundle({ provider, platform, source, sourceKey, rows = []
       quartile: row.quartile,
       sjr: row.sjr,
       citeScore: row.citeScore || row.cite_score,
+      citeScoreVerified: Boolean(row.citeScoreVerified || row.cite_score_verified),
       impactFactor: row.impactFactor || row.impact_factor,
       indexedUrl: row.indexedUrl || indexedUrl,
       year: row.year,
@@ -456,6 +481,10 @@ function summarizeIndexingItems(items = []) {
 }
 
 function logQuartileLookup(context, provider, bundle, reason = "") {
+  if (process.env.DOI_QUARTILE_DEBUG !== "true") {
+    return;
+  }
+
   const items = bundle?.items || [];
   const selected = bundle?.selected || null;
   const summary = summarizeIndexingItems(items);
@@ -2068,6 +2097,7 @@ function getScopusQuartileRows(data) {
           category,
           quartile: directQuartile,
           citeScore,
+          citeScoreVerified: Boolean(citeScore),
           year: context.year,
           primaryCategory,
         });
@@ -2104,6 +2134,7 @@ function getScopusQuartileRows(data) {
           category,
           quartile,
           citeScore,
+          citeScoreVerified: Boolean(citeScore),
           year: context.year,
           primaryCategory: primaryCategory || hasPrimaryCategoryFlag(rankItem) || hasPrimaryCategoryFlag(areaItems[index] || {}),
         });
@@ -2143,6 +2174,7 @@ async function fetchScopusIndexingByTitle(title, publicationYear) {
   const rows = getScopusQuartileRows(data).map((row) => ({
     ...row,
     citeScore: row.citeScore || citeScore,
+    citeScoreVerified: Boolean(row.citeScore || citeScore),
   }));
 
   return createIndexingBundle({
@@ -2181,6 +2213,7 @@ async function fetchScopusIndexingByIssn(issn, publicationYear) {
   const rows = getScopusQuartileRows(data).map((row) => ({
     ...row,
     citeScore: row.citeScore || citeScore,
+    citeScoreVerified: Boolean(row.citeScore || citeScore),
   }));
 
   return createIndexingBundle({
@@ -2223,6 +2256,7 @@ async function fetchScopusIndexingByDoi(metadata = {}) {
   const rows = getScopusQuartileRows(data).map((row) => ({
     ...row,
     citeScore: row.citeScore || citeScore,
+    citeScoreVerified: Boolean(row.citeScore || citeScore),
   }));
 
   if (rows.length) {
@@ -2292,7 +2326,7 @@ function parseJournalRankQuartiles(html) {
         year,
         subject: cells[1] || "",
         category: cells[1] || "",
-        citeScore: normalizeMetricValue(cells.find((cell) => normalizeComparableText(cell).includes("citescore")) || ""),
+        citeScore: normalizeCiteScoreValue(cells.find((cell) => normalizeComparableText(cell).includes("citescore")) || ""),
       });
     }
   }
@@ -2656,46 +2690,75 @@ function mergeIndexingBundles(bundles = [], helperItems = []) {
   ]);
   const selectedCandidates = bundles
     .map((bundle) => bundle?.selected)
-    .filter((item) => item?.quartileVerified && item?.quartile);
+    .filter((item) => item?.quartile);
+
+  const mergeSelectedCandidates = (candidates, status, reason) => {
+    const quartiles = uniqueValues(candidates.map((item) => item.quartile));
+    const categories = uniqueValues(candidates.flatMap((item) => splitCategoryKeys(item.category)));
+
+    if (quartiles.length > 1 || categories.length > 1) {
+      return {
+        indexing: items.map((item) => markQuartileSelection(item, false, "missing", "conflicting_provider_results")),
+        selected: null,
+        status: "missing",
+        reason: "conflicting_provider_results",
+      };
+    }
+
+    const providerPriority = ["scopus", "scimago"];
+    const selected = candidates
+      .sort((first, second) => {
+        const firstIndex = providerPriority.indexOf(normalizeIndexingSourceKey(first.sourceKey || first.source_key || first.source));
+        const secondIndex = providerPriority.indexOf(normalizeIndexingSourceKey(second.sourceKey || second.source_key || second.source));
+
+        return (firstIndex === -1 ? providerPriority.length : firstIndex)
+          - (secondIndex === -1 ? providerPriority.length : secondIndex);
+      })[0];
+
+    return {
+      indexing: items.map((item) => markQuartileSelection(
+        item,
+        sameIndexingCandidate(item, selected),
+        status,
+        reason
+      )),
+      selected,
+      status,
+      reason,
+    };
+  };
+
+  const verifiedCandidates = selectedCandidates.filter((item) =>
+    Boolean(item.quartileVerified || item.quartile_verified)
+    || String(item.quartileVerificationStatus || item.quartile_verification_status).toLowerCase() === "verified"
+  );
+
+  if (verifiedCandidates.length) {
+    return mergeSelectedCandidates(verifiedCandidates, "verified", "provider_results_agree");
+  }
+
+  const historicalCandidates = selectedCandidates.filter((item) =>
+    String(item.quartileVerificationStatus || item.quartile_verification_status).toLowerCase() === "historical"
+  );
+
+  if (historicalCandidates.length) {
+    return mergeSelectedCandidates(historicalCandidates, "historical", "historical_provider_results_agree");
+  }
 
   if (!selectedCandidates.length) {
     return {
-      indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "no_unambiguous_verified_quartile")),
+      indexing: items.map((item) => markQuartileSelection(item, false, "missing", "no_unambiguous_quartile")),
       selected: null,
-      status: items.some((item) => item.quartile) ? "manual_required" : "empty",
-      reason: items.some((item) => item.quartile) ? "no_unambiguous_verified_quartile" : "no_ranking_quartile_found",
+      status: items.some((item) => item.quartile) ? "missing" : "empty",
+      reason: items.some((item) => item.quartile) ? "no_unambiguous_quartile" : "no_ranking_quartile_found",
     };
   }
-
-  const quartiles = uniqueValues(selectedCandidates.map((item) => item.quartile));
-  const categories = uniqueValues(selectedCandidates.flatMap((item) => splitCategoryKeys(item.category)));
-
-  if (quartiles.length > 1 || categories.length > 1) {
-    return {
-      indexing: items.map((item) => markQuartileSelection(item, false, "manual_required", "conflicting_provider_results")),
-      selected: null,
-      status: "manual_required",
-      reason: "conflicting_provider_results",
-    };
-  }
-
-  const providerPriority = ["scopus", "scimago"];
-  const selected = selectedCandidates
-    .sort((first, second) =>
-      providerPriority.indexOf(normalizeIndexingSourceKey(first.sourceKey || first.source_key || first.source))
-      - providerPriority.indexOf(normalizeIndexingSourceKey(second.sourceKey || second.source_key || second.source))
-    )[0];
 
   return {
-    indexing: items.map((item) => markQuartileSelection(
-      item,
-      sameIndexingCandidate(item, selected),
-      "verified",
-      "provider_results_agree"
-    )),
-    selected,
-    status: "verified",
-    reason: "provider_results_agree",
+    indexing: items.map((item) => markQuartileSelection(item, false, "missing", "no_unambiguous_quartile")),
+    selected: null,
+    status: "missing",
+    reason: "no_unambiguous_quartile",
   };
 }
 
@@ -2841,16 +2904,22 @@ async function enrichMetadataIndexing(metadata = {}) {
   const indexingResolution = await resolveIndexingMetadata(metadata);
   const indexing = indexingResolution.indexing || [];
   const selectedQuartile = indexingResolution.selected || null;
-  const quartileVerified = Boolean(selectedQuartile?.quartileVerified || selectedQuartile?.quartile_verified);
-  const quartile = quartileVerified ? normalizeQuartile(selectedQuartile.quartile) : "";
+  const quartileStatus = normalizeText(indexingResolution.status || selectedQuartile?.quartileVerificationStatus || selectedQuartile?.quartile_verification_status || "").toLowerCase();
+  const hasSelectedQuartile = Boolean(selectedQuartile && normalizeQuartile(selectedQuartile.quartile));
+  const quartileVerified = Boolean(hasSelectedQuartile && quartileStatus === "verified");
+  const quartileHistorical = Boolean(hasSelectedQuartile && quartileStatus === "historical");
+  const quartile = hasSelectedQuartile ? normalizeQuartile(selectedQuartile.quartile) : "";
   const firstIndexing = selectedQuartile || indexing.find((item) => item?.indexingVerified || item?.source || item?.quartile || item?.category || item?.sjr || item?.citeScore) || {};
   const indexingVerified = Boolean(firstIndexing.indexingVerified || firstIndexing.indexing_verified);
-  const indexingSource = indexingVerified
+  const indexingSource = indexingVerified || hasSelectedQuartile
     ? normalizeIndexingSourceKey(firstIndexing.indexingSource || firstIndexing.indexing_source || firstIndexing.sourceKey || firstIndexing.source_key || firstIndexing.source)
     : "manual";
-  const quartileSource = quartileVerified
+  const quartileSource = hasSelectedQuartile
     ? normalizeIndexingSourceKey(selectedQuartile.quartileSource || selectedQuartile.quartile_source || selectedQuartile.sourceKey || selectedQuartile.source_key || selectedQuartile.source)
     : "manual";
+  const quartileVerificationStatus = hasSelectedQuartile
+    ? quartileStatus || (quartileVerified ? "verified" : "historical")
+    : (indexingResolution.status === "empty" ? "empty" : "missing");
   const enrichedMetadata = {
     ...metadata,
     raw_json: {
@@ -2867,16 +2936,18 @@ async function enrichMetadataIndexing(metadata = {}) {
     quartile,
     quartileVerified,
     quartile_verified: quartileVerified,
+    quartileHistorical,
+    quartile_historical: quartileHistorical,
     quartileSource,
     quartile_source: quartileSource,
-    quartileVerificationStatus: quartileVerified ? "verified" : (indexingResolution.status || "manual_required"),
-    quartile_verification_status: quartileVerified ? "verified" : (indexingResolution.status || "manual_required"),
+    quartileVerificationStatus,
+    quartile_verification_status: quartileVerificationStatus,
     quartileSelectionReason: indexingResolution.reason || "",
     quartile_selection_reason: indexingResolution.reason || "",
     indexingPlatform: indexingVerified ? firstIndexing.source || firstIndexing.platform || "" : "",
     indexing_platform: indexingVerified ? firstIndexing.source || firstIndexing.platform || "" : "",
-    indexingCategory: quartileVerified ? firstIndexing.category || "" : "",
-    indexing_category: quartileVerified ? firstIndexing.category || "" : "",
+    indexingCategory: hasSelectedQuartile ? firstIndexing.category || "" : "",
+    indexing_category: hasSelectedQuartile ? firstIndexing.category || "" : "",
     indexingVerified,
     indexing_verified: indexingVerified,
     indexingSource,
@@ -2884,6 +2955,8 @@ async function enrichMetadataIndexing(metadata = {}) {
     sjr: firstIndexing.sjr || "",
     citeScore: firstIndexing.citeScore || firstIndexing.cite_score || "",
     cite_score: firstIndexing.citeScore || firstIndexing.cite_score || "",
+    citeScoreVerified: Boolean(firstIndexing.citeScoreVerified || firstIndexing.cite_score_verified),
+    cite_score_verified: Boolean(firstIndexing.citeScoreVerified || firstIndexing.cite_score_verified),
     indexing,
   };
 
