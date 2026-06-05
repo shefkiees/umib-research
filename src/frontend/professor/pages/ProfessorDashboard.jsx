@@ -567,6 +567,12 @@ const getLocalizedProfileBankDisplayName = (bankName = "", language = "sq") => {
   return displayNames?.[language === "en" ? "en" : "sq"] || savedBankName;
 };
 
+const shouldShowLocalizedProfileBankDraftName = (bankName = "", detectedBank = null) => {
+  const savedBank = getProfileBankBySavedName(bankName);
+
+  return Boolean(savedBank && detectedBank && savedBank.swift === detectedBank.swift);
+};
+
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
 const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
@@ -657,6 +663,12 @@ export default function ProfessorDashboard() {
   const detectedProfileBank = useMemo(
     () => detectKosovoBankFromAccount(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban),
     [bankAccountDraft.bankAccountNumber, bankAccountDraft.iban]
+  );
+  const bankAccountDraftDisplayName = useMemo(
+    () => shouldShowLocalizedProfileBankDraftName(bankAccountDraft.bankName, detectedProfileBank)
+      ? getLocalizedProfileBankDisplayName(bankAccountDraft.bankName, language)
+      : bankAccountDraft.bankName,
+    [bankAccountDraft.bankName, detectedProfileBank, language]
   );
 
   const translatedProfileMenuItems = useMemo(
@@ -3157,7 +3169,7 @@ export default function ProfessorDashboard() {
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankName}</span>
-                      <input value={bankAccountDraft.bankName} onChange={handleBankAccountDraftChange("bankName")} />
+                      <input value={bankAccountDraftDisplayName} onChange={handleBankAccountDraftChange("bankName")} />
                     </label>
                     <label className="prof-form-field">
                       <span>{settingsText.bankSwift}</span>
