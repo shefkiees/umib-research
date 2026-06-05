@@ -757,9 +757,13 @@ const PublicationForm = ({
   const venuePlaceholder = t(venuePlaceholderKey);
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
   const mainAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isMainAuthor ?? author.is_main_author)) || authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
-  const correspondingAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author));
+  const correspondingAuthorEntry = authorEntries.find(({ author, index }) =>
+    index !== mainAuthorEntry.index
+    && normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)
+  );
   const coauthorEntries = authorEntries.filter(({ author, index }) =>
     index !== mainAuthorEntry.index
+    && index !== correspondingAuthorEntry?.index
     && !normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)
   );
   const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
@@ -785,6 +789,7 @@ const PublicationForm = ({
           )}
         </div>
         <div className="publication-author-field publication-author-affiliation-field">
+          <span className="publication-author-field-label">{t("professor.dashboard.publicationForm.affiliation")}</span>
           {affiliationLocked ? (
             <span className="publication-author-readonly-text" title={author.affiliation || ""}>
               {author.affiliation}
@@ -799,6 +804,7 @@ const PublicationForm = ({
           )}
         </div>
         <div className="publication-author-field publication-author-orcid-field">
+          <span className="publication-author-field-label">ORCID</span>
           {authorsLocked ? (
             hasOrcid ? (
               <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>

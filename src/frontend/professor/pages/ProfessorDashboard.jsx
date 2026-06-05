@@ -1175,9 +1175,15 @@ export default function ProfessorDashboard() {
     const indexingSource = indexingVerified || quartileFromLookup
       ? draft.indexingSource || draft.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
+    const mainAuthorIndex = authors.findIndex((author) => normalizeLooseBoolean(author?.isMainAuthor ?? author?.is_main_author));
+    const resolvedMainAuthorIndex = mainAuthorIndex >= 0 ? mainAuthorIndex : 0;
+    const correspondingAuthorIndex = authors.findIndex((author, index) =>
+      index !== resolvedMainAuthorIndex
+      && normalizeLooseBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
+    );
     const normalizedAuthors = authors.map((author, index) => {
       const authorPayload = { ...(author || {}) };
-      const isCorrespondingAuthor = normalizeLooseBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author);
+      const isCorrespondingAuthor = correspondingAuthorIndex >= 0 && index === correspondingAuthorIndex;
 
       delete authorPayload.isCorrespondingAuthor;
       delete authorPayload.is_corresponding_author;
