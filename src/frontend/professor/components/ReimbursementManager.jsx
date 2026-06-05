@@ -89,6 +89,49 @@ const BANK_LOGO_ALIASES = {
   bankaekonomike: "EKOMXKPR",
 };
 
+const BANK_DISPLAY_NAMES_BY_SWIFT = {
+  NCBAXKPR: {
+    sq: "Banka Kombëtare Tregtare",
+    en: "BKT Kosovo",
+  },
+  MBKOXKPR: {
+    sq: "ProCredit Bank",
+    en: "ProCredit Bank",
+  },
+  RBKOXKPR: {
+    sq: "Raiffeisen Bank",
+    en: "Raiffeisen Bank",
+  },
+  TEBKXKPR: {
+    sq: "TEB Bank",
+    en: "TEB Bank",
+  },
+  NLPRXKPR: {
+    sq: "NLB Banka",
+    en: "NLB Banka",
+  },
+  BPBXXKPR: {
+    sq: "Banka për Biznes",
+    en: "BPB",
+  },
+  TCZBXKPR: {
+    sq: "Ziraat Bank",
+    en: "Ziraat Bank",
+  },
+  ISBKXKPR: {
+    sq: "İşbank",
+    en: "Isbank",
+  },
+  PHHAXKPR: {
+    sq: "PriBank",
+    en: "PriBank",
+  },
+  EKOMXKPR: {
+    sq: "Banka Ekonomike",
+    en: "Economic Bank",
+  },
+};
+
 const FORM_STEPS = [
   { id: "basic", label: "Te dhenat baze" },
   { id: "academic", label: "Te dhenat akademike" },
@@ -1067,6 +1110,14 @@ function getBankLogoBankForAccount(account = {}) {
     || detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
 }
 
+function getLocalizedBankDisplayName(bankName, language = "sq") {
+  const savedBankName = String(bankName || "").trim();
+  const matchedBank = getBankBySavedName(savedBankName);
+  const displayNames = matchedBank ? BANK_DISPLAY_NAMES_BY_SWIFT[matchedBank.swift] : null;
+
+  return displayNames?.[language === "en" ? "en" : "sq"] || savedBankName;
+}
+
 function isValidSwift(value) {
   return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(value ?? "").trim().toUpperCase());
 }
@@ -1352,7 +1403,7 @@ export default function ReimbursementManager({
   onTypeChange,
   onNavigate,
 }) {
-  const { t, tx } = useLanguage();
+  const { language, t, tx } = useLanguage();
   const r = t("professor.reimbursements");
   const [selectedType, setSelectedType] = useState("publication");
   const [form, setForm] = useState(() => createDefaultForm());
@@ -3052,6 +3103,9 @@ export default function ReimbursementManager({
   const renderBankAccountSelection = () => {
     const summary = selectedBankAccountSummary;
     const summaryBank = summary ? getBankLogoBankForAccount(summary) : null;
+    const summaryBankDisplayName = summary
+      ? getLocalizedBankDisplayName(summary.bankName, language) || "-"
+      : "-";
 
     if (isLoadingBankAccounts) {
       return (
@@ -3080,11 +3134,15 @@ export default function ReimbursementManager({
           <label className="reimbursement-field reimbursement-wide">
             <span>Llogaria bankare</span>
             <select value={form.selectedBankAccountId} onChange={handleBankAccountSelect} required>
-              {bankAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {[account.label || account.bankName || "Llogari bankare", maskBankAccountNumber(account.iban || account.bankAccountNumber), account.isDefault ? "Llogari Kryesore" : ""].filter(Boolean).join(" - ")}
-                </option>
-              ))}
+              {bankAccounts.map((account) => {
+                const bankDisplayName = getLocalizedBankDisplayName(account.bankName, language) || account.label || "Llogari bankare";
+
+                return (
+                  <option key={account.id} value={account.id}>
+                    {[bankDisplayName, maskBankAccountNumber(account.iban || account.bankAccountNumber), account.isDefault ? "Llogari Kryesore" : ""].filter(Boolean).join(" - ")}
+                  </option>
+                );
+              })}
             </select>
             {fieldErrors.selectedBankAccountId ? <small className="reimbursement-field-error">{tx(fieldErrors.selectedBankAccountId)}</small> : null}
           </label>
@@ -3102,7 +3160,7 @@ export default function ReimbursementManager({
                 )}
               </span>
               <span>
-                <strong>{summary.bankName || "-"}</strong>
+                <strong>{summaryBankDisplayName}</strong>
                 <small>
                   {[
                     maskBankAccountNumber(summary.iban || summary.bankAccountNumber),
