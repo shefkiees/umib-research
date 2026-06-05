@@ -468,6 +468,49 @@ const PROFILE_BANK_LOGO_ALIASES = {
   bankaekonomike: "EKOMXKPR",
 };
 
+const PROFILE_BANK_DISPLAY_NAMES_BY_SWIFT = {
+  NCBAXKPR: {
+    sq: "Banka Kombëtare Tregtare",
+    en: "BKT Kosovo",
+  },
+  MBKOXKPR: {
+    sq: "ProCredit Bank",
+    en: "ProCredit Bank",
+  },
+  RBKOXKPR: {
+    sq: "Raiffeisen Bank",
+    en: "Raiffeisen Bank",
+  },
+  TEBKXKPR: {
+    sq: "TEB Bank",
+    en: "TEB Bank",
+  },
+  NLPRXKPR: {
+    sq: "NLB Banka",
+    en: "NLB Banka",
+  },
+  BPBXXKPR: {
+    sq: "Banka për Biznes",
+    en: "BPB",
+  },
+  TCZBXKPR: {
+    sq: "Ziraat Bank",
+    en: "Ziraat Bank",
+  },
+  ISBKXKPR: {
+    sq: "İşbank",
+    en: "Isbank",
+  },
+  PHHAXKPR: {
+    sq: "PriBank",
+    en: "PriBank",
+  },
+  EKOMXKPR: {
+    sq: "Banka Ekonomike",
+    en: "Economic Bank",
+  },
+};
+
 const getProfileBankBySavedName = (bankName = "") => {
   const normalizedName = normalizeBankNameForLogo(bankName);
 
@@ -489,6 +532,14 @@ const getProfileBankBySavedName = (bankName = "") => {
 const getProfileBankCardLogoBank = (account = {}) =>
   getProfileBankBySavedName(account.bankName)
   || detectKosovoBankFromAccount(account.iban || account.bankAccountNumber);
+
+const getLocalizedProfileBankDisplayName = (bankName = "", language = "sq") => {
+  const savedBankName = String(bankName || "").trim();
+  const matchedBank = getProfileBankBySavedName(savedBankName);
+  const displayNames = matchedBank ? PROFILE_BANK_DISPLAY_NAMES_BY_SWIFT[matchedBank.swift] : null;
+
+  return displayNames?.[language === "en" ? "en" : "sq"] || savedBankName;
+};
 
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
@@ -2886,6 +2937,7 @@ export default function ProfessorDashboard() {
                   <div className="prof-bank-account-list">
                     {bankAccounts.map((account) => {
                       const cardBank = getProfileBankCardLogoBank(account);
+                      const bankDisplayName = getLocalizedProfileBankDisplayName(account.bankName, language);
 
                       return (
                         <article className="prof-bank-account-card" key={account.id}>
@@ -2896,7 +2948,7 @@ export default function ProfessorDashboard() {
                           ) : null}
                           <div className="prof-bank-account-main">
                             <div className="prof-bank-account-title-row">
-                              <strong>{account.bankName || settingsText.bankAccountsTitle}</strong>
+                              <strong>{bankDisplayName || settingsText.bankAccountsTitle}</strong>
                               {account.isDefault ? <span className="prof-bank-default-badge">{settingsText.bankDefaultBadge}</span> : null}
                             </div>
                             <p>{[maskBankAccount(account.iban || account.bankAccountNumber), account.swiftCode, account.currency].filter(Boolean).join(" | ")}</p>
@@ -3024,7 +3076,7 @@ export default function ProfessorDashboard() {
               <div className="prof-bank-delete-summary">
                 <p>
                   <span>{settingsText.bankName}</span>
-                  <strong>{bankAccountDeleteTarget.bankName || "-"}</strong>
+                  <strong>{getLocalizedProfileBankDisplayName(bankAccountDeleteTarget.bankName, language) || "-"}</strong>
                 </p>
                 <p>
                   <span>{settingsText.bankAccountNumber}</span>
