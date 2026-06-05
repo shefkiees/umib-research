@@ -1925,45 +1925,93 @@ body {
   font-weight: 800;
 }
 
-.publication-authors-list-wrap {
+.publication-authors-table-wrap {
   display: grid;
   gap: 10px;
   max-width: 100%;
+  overflow-x: auto;
 }
 
-.publication-authors-list {
+.publication-authors-simple-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.publication-authors-simple-table th {
+  padding: 0 8px 7px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.publication-authors-simple-table td {
+  padding: 8px;
+  border-top: 1px solid #edf2f7;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 700;
+  vertical-align: top;
+}
+
+.publication-authors-simple-table th:nth-child(1),
+.publication-authors-simple-table td:nth-child(1) {
+  width: 30%;
+}
+
+.publication-authors-simple-table th:nth-child(2),
+.publication-authors-simple-table td:nth-child(2) {
+  width: 34%;
+}
+
+.publication-authors-simple-table th:nth-child(3),
+.publication-authors-simple-table td:nth-child(3) {
+  width: 18%;
+}
+
+.publication-authors-simple-table th:nth-child(4),
+.publication-authors-simple-table td:nth-child(4) {
+  width: 150px;
+}
+
+.publication-authors-simple-table th:nth-child(5),
+.publication-authors-simple-table td:nth-child(5) {
+  width: 42px;
+}
+
+.publication-author-name-cell {
   display: grid;
-  gap: 8px;
-}
-
-.publication-author-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.15fr) minmax(180px, 1fr) minmax(140px, 0.7fr) max-content 34px;
-  gap: 8px;
-  align-items: center;
-}
-
-.publication-author-name-field {
-  position: relative;
+  gap: 3px;
   min-width: 0;
 }
 
 .publication-main-author-label {
-  position: absolute;
-  top: -7px;
-  left: 9px;
-  z-index: 1;
-  padding: 0 4px;
-  background: #fbfcfe;
+  display: inline-flex;
+  width: fit-content;
   color: #64748b;
-  font-size: 0.64rem;
-  font-weight: 800;
-  line-height: 1;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 
-.publication-author-row input[type="text"],
-.publication-author-row input:not([type]) {
+.publication-author-readonly-text {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.publication-author-orcid {
+  white-space: nowrap;
+}
+
+.publication-authors-simple-table input[type="text"],
+.publication-authors-simple-table input:not([type]) {
   width: 100%;
   min-width: 0;
   border: 1px solid #d7e1ec;
@@ -1974,18 +2022,10 @@ body {
   font-size: 0.88rem;
 }
 
-.publication-author-row input:focus {
+.publication-authors-simple-table input:focus {
   outline: 0;
   border-color: #1d4d7d;
   box-shadow: 0 0 0 3px rgba(29, 77, 125, 0.1);
-}
-
-.publication-authors-list-wrap--readonly input:not([type="checkbox"]) {
-  border-color: transparent;
-  background: transparent;
-  padding-inline: 0;
-  color: #0f172a;
-  font-weight: 600;
 }
 
 .publication-author-corresponding-option {
@@ -2004,10 +2044,8 @@ body {
   accent-color: #1d4d7d;
 }
 
-.publication-author-actions {
-  display: flex;
-  justify-content: flex-end;
-  min-width: 32px;
+.publication-author-actions-cell {
+  text-align: right;
 }
 
 .publication-add-coauthor {
@@ -2057,25 +2095,39 @@ body {
   color: #b42318;
 }
 
-@media (max-width: 900px) {
-  .publication-author-row {
-    grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr);
-  }
-
-  .publication-author-corresponding-option,
-  .publication-author-actions {
-    justify-self: start;
-  }
-}
-
 @media (max-width: 640px) {
-  .publication-author-row {
-    grid-template-columns: 1fr;
-    gap: 7px;
+  .publication-authors-table-wrap {
+    overflow-x: visible;
   }
 
-  .publication-author-actions {
-    justify-content: flex-start;
+  .publication-authors-simple-table {
+    min-width: 0;
+  }
+
+  .publication-authors-simple-table thead {
+    display: none;
+  }
+
+  .publication-authors-simple-table,
+  .publication-authors-simple-table tbody,
+  .publication-authors-simple-table tr,
+  .publication-authors-simple-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .publication-authors-simple-table tr {
+    padding: 8px 0;
+    border-top: 1px solid #edf2f7;
+  }
+
+  .publication-authors-simple-table td {
+    border-top: 0;
+    padding: 5px 0;
+  }
+
+  .publication-author-actions-cell {
+    text-align: left;
   }
 }
 

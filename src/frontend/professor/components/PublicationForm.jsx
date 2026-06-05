@@ -4,10 +4,9 @@ import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
   INDEXING_PLATFORM_VALUES,
-  PROFESSOR_PUBLICATION_STATUS_VALUES,
+  PUBLICATION_STATUS_VALUES,
   PUBLICATION_TYPE_VALUES,
   QUARTILE_VALUES,
-  REVIEW_PUBLICATION_STATUS_VALUES,
 } from "../../../../shared/publicationConstants.js";
 
 const PUBLICATION_TYPE_LABEL_KEYS = {
@@ -20,24 +19,6 @@ const PUBLICATION_TYPE_LABEL_KEYS = {
 export const PUBLICATION_TYPES = PUBLICATION_TYPE_VALUES.map((value) => ({
   value,
   labelKey: PUBLICATION_TYPE_LABEL_KEYS[value] || "professor.dashboard.publicationForm.selectType",
-}));
-
-const PUBLICATION_STATUS_LABEL_KEYS = {
-  draft: "professor.dashboard.publicationForm.statusDraft",
-  submitted: "professor.dashboard.publicationForm.statusSubmitted",
-  in_review: "professor.dashboard.publicationForm.statusInReview",
-  approved: "professor.dashboard.publicationForm.statusApproved",
-  rejected: "professor.dashboard.publicationForm.statusRejected",
-};
-
-const PROFESSOR_STATUS_OPTIONS = PROFESSOR_PUBLICATION_STATUS_VALUES.map((value) => ({
-  value,
-  labelKey: PUBLICATION_STATUS_LABEL_KEYS[value],
-}));
-
-const REVIEW_STATUS_OPTIONS = REVIEW_PUBLICATION_STATUS_VALUES.map((value) => ({
-  value,
-  labelKey: PUBLICATION_STATUS_LABEL_KEYS[value],
 }));
 
 const INDEXING_PLATFORM_OPTIONS = ["", ...INDEXING_PLATFORM_VALUES];
@@ -485,7 +466,6 @@ const PublicationForm = ({
   submitLabel,
   submitting = false,
   mode = "create",
-  canReview = false,
   currentUserAuthor = {},
 }) => {
   const { t } = useLanguage();
@@ -519,10 +499,6 @@ const PublicationForm = ({
     ? t(`professor.dashboard.publicationForm.quartileSource.${quartileSource}`)
     : t("professor.dashboard.publicationForm.quartileSource.manualRequired");
   const showQuartileBadge = isQuartileVerified || showQuartileManualBadge;
-  const statusOptions = canReview ? REVIEW_STATUS_OPTIONS : PROFESSOR_STATUS_OPTIONS;
-  const selectedStatusValue = statusOptions.some((option) => option.value === value.status)
-    ? value.status
-    : "draft";
   const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
   const hasIndexingDetails = Boolean(
     String(value.indexingCategory || primaryIndexing.category || "").trim()
@@ -683,7 +659,7 @@ const PublicationForm = ({
       onChange({
         ...value,
         ...metadataToDraft(result.data, currentUserAuthor),
-        status: canReview ? value.status || "draft" : PROFESSOR_STATUS_OPTIONS.some((item) => item.value === value.status) ? value.status : "draft",
+        status: PUBLICATION_STATUS_VALUES.includes(value.status) ? value.status : "draft",
       });
       setDoiLookupValue(result.data.doi || doi);
     } catch (error) {
@@ -769,16 +745,6 @@ const PublicationForm = ({
           <span>{t("professor.dashboard.publicationForm.publicationType")}</span>
           <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isFieldLocked("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
-          </select>
-        </label>
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.status")}</span>
-          <select value={selectedStatusValue} onChange={updateField("status")} disabled={submitting}>
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
           </select>
         </label>
         <label className="prof-form-field">
@@ -920,64 +886,98 @@ const PublicationForm = ({
             <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-list-wrap ${isFieldLocked("authors") ? "publication-authors-list-wrap--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
-          <div className="publication-authors-list">
-            {authorRows.map((author, index) => (
-              <div className="publication-author-row" key={`publication-author-${index}`}>
-                <div className="publication-author-name-field">
-                  {index === 0 ? (
-                    <span className="publication-main-author-label">
-                      {t("professor.dashboard.publicationForm.mainAuthor")}
-                    </span>
-                  ) : null}
-                  <input
-                    value={author.fullName || ""}
-                    onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
-                    placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
-                    aria-label={t("professor.dashboard.publicationForm.author")}
-                    required={index === 0}
-                    readOnly={isFieldLocked("authors")}
-                  />
-                </div>
-                <input
-                  value={author.affiliation || ""}
-                  onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-                  placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
-                  aria-label={t("professor.dashboard.publicationForm.affiliation")}
-                  readOnly={isFieldLocked("authors")}
-                />
-                <input
-                  value={author.orcid || ""}
-                  onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
-                  placeholder="ORCID"
-                  aria-label="ORCID"
-                  readOnly={isFieldLocked("authors")}
-                />
-                <label className="publication-author-corresponding-option">
-                  <input
-                    type="checkbox"
-                    aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
-                    checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
-                    onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
-                  />
-                  <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
-                </label>
-                <div className="publication-author-actions">
-                  {index > 0 && !isFieldLocked("authors") ? (
-                    <button
-                      type="button"
-                      className="publication-remove-button"
-                      onClick={() => removeAuthor(index)}
-                      aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
-                    >
-                      <Trash2 size={14} aria-hidden="true" />
-                      <span>{t("professor.dashboard.publicationForm.remove")}</span>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className={`publication-authors-table-wrap ${isFieldLocked("authors") ? "publication-authors-table-wrap--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
+          <table className="publication-authors-simple-table">
+            <thead>
+              <tr>
+                <th>{t("professor.dashboard.publicationForm.author")}</th>
+                <th>{t("professor.dashboard.publicationForm.affiliation")}</th>
+                <th>ORCID</th>
+                <th>{t("professor.dashboard.publicationForm.correspondingAuthor")}</th>
+                <th aria-label={t("professor.dashboard.publicationForm.remove")}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {authorRows.map((author, index) => (
+                <tr key={`publication-author-${index}`}>
+                  <td>
+                    <div className="publication-author-name-cell">
+                      {index === 0 ? (
+                        <span className="publication-main-author-label">
+                          {t("professor.dashboard.publicationForm.mainAuthor")}
+                        </span>
+                      ) : null}
+                      {isFieldLocked("authors") ? (
+                        <span className="publication-author-readonly-text" title={author.fullName || ""}>
+                          {author.fullName || "-"}
+                        </span>
+                      ) : (
+                        <input
+                          value={author.fullName || ""}
+                          onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
+                          placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
+                          aria-label={t("professor.dashboard.publicationForm.author")}
+                          required={index === 0}
+                        />
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    {isFieldLocked("authors") ? (
+                      <span className="publication-author-readonly-text" title={author.affiliation || ""}>
+                        {author.affiliation || "-"}
+                      </span>
+                    ) : (
+                      <input
+                        value={author.affiliation || ""}
+                        onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+                        placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+                        aria-label={t("professor.dashboard.publicationForm.affiliation")}
+                      />
+                    )}
+                  </td>
+                  <td>
+                    {isFieldLocked("authors") ? (
+                      <span className="publication-author-readonly-text publication-author-orcid" title={author.orcid || ""}>
+                        {author.orcid || "-"}
+                      </span>
+                    ) : (
+                      <input
+                        value={author.orcid || ""}
+                        onChange={(event) => setAuthorField(index, "orcid", event.target.value)}
+                        placeholder="0000-0000-0000-0000"
+                        aria-label="ORCID"
+                      />
+                    )}
+                  </td>
+                  <td>
+                    <label className="publication-author-corresponding-option">
+                      <input
+                        type="checkbox"
+                        aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
+                        checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
+                        onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
+                      />
+                      <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>
+                    </label>
+                  </td>
+                  <td className="publication-author-actions-cell">
+                    {index > 0 && !isFieldLocked("authors") ? (
+                      <button
+                        type="button"
+                        className="publication-remove-button"
+                        onClick={() => removeAuthor(index)}
+                        aria-label={t("professor.dashboard.publicationForm.removeCoauthor", { index })}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                        <span>{t("professor.dashboard.publicationForm.remove")}</span>
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           {!isFieldLocked("authors") ? (
             <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
               <Plus size={14} aria-hidden="true" />
