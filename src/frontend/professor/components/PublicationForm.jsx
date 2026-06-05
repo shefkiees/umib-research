@@ -727,7 +727,7 @@ const PublicationForm = ({
   const authors = value.authors || [];
   const authorRows = authors.length ? authors : [{ ...EMPTY_AUTHOR }];
   const correspondingAuthorStatus = String(value.correspondingAuthorStatus || value.corresponding_author_status || "").toLowerCase();
-  const hasCorrespondingAuthor = authors.some((author) => Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author));
+  const hasCorrespondingAuthor = authors.some((author) => normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author));
   const showCorrespondingAuthorManualNotice = correspondingAuthorStatus === "manual_required" && !hasCorrespondingAuthor;
   const venuePlaceholderKey = value.publicationType === "conference_paper"
     ? "professor.dashboard.publicationForm.publishedInPlaceholderConference"
@@ -792,7 +792,7 @@ const PublicationForm = ({
           <input
             type="checkbox"
             aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
-            checked={Boolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
+            checked={normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)}
             onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
           />
           <span>{t("professor.dashboard.publicationForm.correspondingAuthor")}</span>

@@ -2330,6 +2330,44 @@ function parseJournalRankQuartiles(html) {
   return rows;
 }
 
+function parseJournalRankIndicators(html) {
+  const indicatorsByYear = new Map();
+  const rowPattern = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowPattern.exec(String(html || "")))) {
+    const cells = [...rowMatch[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((cell) => decodeHtmlEntities(cell[1].replace(/<[^>]+>/g, " ")));
+    const type = normalizeComparableText(cells[0]);
+    const value = normalizeMetricValue(cells[1]);
+    const year = normalizeYear(cells[2]);
+
+    if (!type || !value || !year) {
+      continue;
+    }
+
+    const current = indicatorsByYear.get(year) || { year };
+
+    if (type.includes("citescore")) {
+      current.citeScore = normalizeCiteScoreValue(value);
+      current.cite_score = current.citeScore;
+    } else if (type === "sjr" || type.includes("scimago")) {
+      current.sjr = value;
+    }
+
+    indicatorsByYear.set(year, current);
+  }
+
+  return indicatorsByYear;
+}
+
+function mergeJournalRankIndicators(rows = [], indicatorsByYear = new Map()) {
+  return rows.map((row) => ({
+    ...row,
+    ...(indicatorsByYear.get(normalizeYear(row.year)) || {}),
+  }));
+}
+
 async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
   const normalizedIssn = normalizeIssn(issn);
 
@@ -2367,13 +2405,29 @@ async function fetchJournalRankIndexingByIssn(issn, publicationYear) {
   }
 
   const rows = parseJournalRankQuartiles(await quartilesResponse.text());
+  let indicatorsByYear = new Map();
+
+  try {
+    const indicatorsResponse = await fetchJson(`${JOURNAL_RANK_BASE_URL}/ru/record-sources/indicators/${recordId}/?pagesize=100`, {
+      headers: {
+        Accept: "text/html",
+        "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+      },
+    });
+
+    if (indicatorsResponse.ok) {
+      indicatorsByYear = parseJournalRankIndicators(await indicatorsResponse.text());
+    }
+  } catch {
+    indicatorsByYear = new Map();
+  }
 
   return createIndexingBundle({
     provider: "journalrank",
     platform: "Scopus",
     source: "Journal Rank CiteScore",
     sourceKey: "scopus",
-    rows,
+    rows: mergeJournalRankIndicators(rows, indicatorsByYear),
     publicationYear,
     indexedUrl: quartilesUrl,
   });
