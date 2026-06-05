@@ -55,8 +55,6 @@ import {
 } from "../data/dashboardData";
 import "../styles/ProfessorDashboard.css";
 
-const AUTO_DISMISS_PUBLICATION_ERROR_MS = 3200;
-
 const PUBLICATION_ERROR_MESSAGES = {
   duplicate_publication: "professor.dashboard.duplicatePublication",
   "Ky publikim ekziston tashme ne listen tuaj.": "professor.dashboard.duplicatePublication",
@@ -1009,16 +1007,6 @@ export default function ProfessorDashboard() {
   useEffect(() => {
     setPublicationsPage(1);
   }, [searchQuery]);
-
-  useEffect(() => {
-    if (!publicationsError) {
-      return undefined;
-    }
-
-    const timeout = window.setTimeout(() => setPublicationsError(""), AUTO_DISMISS_PUBLICATION_ERROR_MS);
-
-    return () => window.clearTimeout(timeout);
-  }, [publicationsError]);
 
   const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
     setIsPublicationsLoading(true);
@@ -3137,8 +3125,13 @@ export default function ProfessorDashboard() {
       ) : null}
 
       {activePage === "Publikime" && publicationsError ? (
-        <div className="prof-toast error publication-save-toast" role="alert" aria-live="assertive">
-          {formatUiMessage(publicationsError)}
+        <div className="publication-save-alert-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+          <div className="publication-save-alert">
+            <p>{formatUiMessage(publicationsError)}</p>
+            <button type="button" onClick={() => setPublicationsError("")}>
+              Mbyll
+            </button>
+          </div>
         </div>
       ) : null}
 
