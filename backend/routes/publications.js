@@ -334,6 +334,10 @@ function createFieldSource(value, sourceWhenPresent = "manual") {
 function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
   const baseSource = metadataSource === "doi" ? "api" : metadataSource === "mixed" ? "manual" : "manual";
   const indexing = Array.isArray(values.indexing) ? values.indexing : [];
+  const publicationType = normalizePublicationType(values.publicationType || values.publication_type);
+  const paperLevelAuthorAffiliation = publicationType === "conference_paper"
+    ? ""
+    : values.authorAffiliation || values.author_affiliation || values.affiliation;
   const selectedIndexing = getSelectedIndexingItem(indexing, values.quartile);
   const indexingSource = normalizeBoolean(values.indexingVerified ?? values.indexing_verified ?? selectedIndexing.indexingVerified ?? selectedIndexing.indexing_verified)
     ? "lookup"
@@ -351,7 +355,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     doi: createFieldSource(values.doi, baseSource),
     title: createFieldSource(values.title, baseSource),
     authors: createFieldSource((Array.isArray(values.authors) ? values.authors : []).map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean), baseSource),
-    authorAffiliation: createFieldSource(values.authorAffiliation || values.author_affiliation || values.affiliation, baseSource),
+    authorAffiliation: createFieldSource(paperLevelAuthorAffiliation, baseSource),
     publicationType: createFieldSource(values.publicationType || values.publication_type, baseSource),
     venue: createFieldSource(values.venue || values.publishedIn || values.published_in || values.journal, baseSource),
     publisher: createFieldSource(values.publisher, baseSource),
@@ -584,7 +588,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const indexing = hasIndexingInput
     ? normalizeIndexingInput(rawIndexing, publicationType)
     : undefined;
-  const authorAffiliation = deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
+  const authorAffiliation = publicationType === "conference_paper"
+    ? ""
+    : deriveAuthorAffiliation(authors, body.authorAffiliation || body.author_affiliation || body.affiliation);
   const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
   const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category);
   const evidenceLinks = hasEvidenceLinksInput
@@ -633,7 +639,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authorsWithAffiliation = authors.map((author, index) => {
-    const authorWithAffiliation = index === 0 && !author.affiliation
+    const authorWithAffiliation = publicationType !== "conference_paper" && index === 0 && !author.affiliation
       ? { ...author, affiliation: authorAffiliation }
       : author;
 
@@ -769,7 +775,9 @@ function mapPublication(row) {
     indexedUrl: item.indexed_url || item.indexedUrl || "",
     indexed_url: item.indexed_url || item.indexedUrl || "",
   }));
-  const authorAffiliation = row.author_affiliation || deriveAuthorAffiliation(authors);
+  const authorAffiliation = publicationType === "conference_paper"
+    ? ""
+    : row.author_affiliation || deriveAuthorAffiliation(authors);
   const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
   const indexingVerified = Boolean(row.indexing_verified);
@@ -866,7 +874,7 @@ function mapPublication(row) {
         || author.organization
         || author.currentAffiliation
         || author.current_affiliation
-      ) || (index === 0 ? authorAffiliation : ""),
+      ) || (publicationType !== "conference_paper" && index === 0 ? authorAffiliation : ""),
       authorOrder: author.author_order || author.authorOrder || index + 1,
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
@@ -1430,7 +1438,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     pages: metadata.pages || "",
     issn,
     isbn,
-    authorAffiliation: deriveAuthorAffiliation(metadataAuthors),
+    authorAffiliation: publicationType === "conference_paper" ? "" : deriveAuthorAffiliation(metadataAuthors),
     indexingPlatform: deriveIndexingPlatform(indexing),
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
     indexingVerified: Boolean(metadata.indexingVerified ?? metadata.indexing_verified),

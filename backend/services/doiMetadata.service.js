@@ -630,6 +630,7 @@ function getFirstAuthorAffiliation(authors = []) {
 
 function buildMetadataFieldSources(metadata = {}) {
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const publicationType = normalizeMetadataPublicationType(metadata.type);
   const firstIndexing = indexing.find((item) => item?.source || item?.category || item?.quartile || item?.impactFactor || item?.impact_factor || item?.sjr || item?.citeScore || item?.cite_score) || {};
   const firstImpactFactor = firstIndexing.impactFactor || firstIndexing.impact_factor || "";
   const firstSjr = firstIndexing.sjr || "";
@@ -645,7 +646,7 @@ function buildMetadataFieldSources(metadata = {}) {
     doi: createFieldSource(metadata.doi),
     title: createFieldSource(metadata.title),
     authors: createFieldSource(Array.isArray(metadata.authors) ? metadata.authors.map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean) : []),
-    authorAffiliation: createFieldSource(getFirstAuthorAffiliation(metadata.authors)),
+    authorAffiliation: createFieldSource(publicationType === "conference_paper" ? "" : getFirstAuthorAffiliation(metadata.authors)),
     publicationType: createFieldSource(metadata.type),
     venue: createFieldSource(metadata.conferenceName || metadata.conference_name || metadata.container_title),
     publisher: createFieldSource(metadata.publisher),
@@ -1026,7 +1027,14 @@ function applyCorrespondingResolution(metadata = {}, lookup = {}) {
   return withCorrespondingLookup({ ...metadata, authors: nextAuthors }, resolvedLookup);
 }
 
-function mergeAuthorMetadata(primaryAuthors = [], fallbackAuthors = []) {
+function isRepeatedConferenceAffiliation(authors = [], affiliation = "") {
+  const comparableAffiliation = normalizeComparableText(affiliation);
+
+  return Boolean(comparableAffiliation)
+    && authors.filter((author) => normalizeComparableText(getAuthorAffiliation(author)) === comparableAffiliation).length > 1;
+}
+
+function mergeAuthorMetadata(primaryAuthors = [], fallbackAuthors = [], options = {}) {
   if (!Array.isArray(primaryAuthors) || !primaryAuthors.length) {
     return Array.isArray(fallbackAuthors) ? fallbackAuthors : [];
   }
@@ -1047,13 +1055,18 @@ function mergeAuthorMetadata(primaryAuthors = [], fallbackAuthors = []) {
       return author;
     }
 
+    const primaryAffiliation = getAuthorAffiliation(author);
     const fallbackAffiliation = getAuthorAffiliation(matchedFallbackAuthor);
     const fallbackOrcid = normalizeOrcid(matchedFallbackAuthor.orcid || matchedFallbackAuthor.ORCID);
     const nextAuthor = {
       ...author,
     };
 
-    if (!getAuthorAffiliation(nextAuthor) && fallbackAffiliation) {
+    const repeatedConferenceAffiliation = options.publicationType === "conference_paper"
+      && isRepeatedConferenceAffiliation(primaryAuthors, primaryAffiliation)
+      && normalizeComparableText(primaryAffiliation) !== normalizeComparableText(fallbackAffiliation);
+
+    if ((!primaryAffiliation || repeatedConferenceAffiliation) && fallbackAffiliation) {
       nextAuthor.affiliation = fallbackAffiliation;
     }
 
@@ -1104,15 +1117,16 @@ function mergeMetadata(primary, fallback) {
 
   const primaryRaw = primary.raw_json || {};
   const fallbackRaw = fallback.raw_json || {};
+  const mergedType = preferText(primary.type, fallback.type);
+  const normalizedMergedType = normalizeMetadataPublicationType(mergedType);
   const authors = Array.isArray(primary.authors) && primary.authors.length
-    ? mergeAuthorMetadata(primary.authors, fallback.authors)
+    ? mergeAuthorMetadata(primary.authors, fallback.authors, { publicationType: normalizedMergedType })
     : fallback.authors;
   const primaryLookup = getMetadataCorrespondingLookup({ ...primary, authors });
   const fallbackLookup = getMetadataCorrespondingLookup(fallback);
   const correspondingLookup = primaryLookup?.status === "verified" ? primaryLookup : fallbackLookup || primaryLookup;
-  const mergedType = preferText(primary.type, fallback.type);
   const mergedConferenceName = preferText(primary.conferenceName || primary.conference_name, fallback.conferenceName || fallback.conference_name);
-  const mergedContainerTitle = normalizeMetadataPublicationType(mergedType) === "conference_paper"
+  const mergedContainerTitle = normalizedMergedType === "conference_paper"
     ? preferText(mergedConferenceName, preferText(primary.container_title, fallback.container_title))
     : preferText(primary.container_title, fallback.container_title);
 

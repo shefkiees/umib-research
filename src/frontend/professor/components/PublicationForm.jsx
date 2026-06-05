@@ -270,6 +270,7 @@ function getIndexingCiteScore(item = {}) {
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
+  const isConferencePaper = publicationType === "conference_paper";
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
@@ -312,11 +313,13 @@ export function publicationToDraft(publication = {}) {
     pages: publication.pages || "",
     issn: publication.issn || "",
     isbn: publication.isbn || "",
-    authorAffiliation: publication.authorAffiliation
-      || publication.author_affiliation
-      || publication.affiliation
-      || normalizedAuthors.find((author) => author.affiliation)?.affiliation
-      || "",
+    authorAffiliation: isConferencePaper
+      ? ""
+      : publication.authorAffiliation
+        || publication.author_affiliation
+        || publication.affiliation
+        || normalizedAuthors.find((author) => author.affiliation)?.affiliation
+        || "",
     indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
     indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
     quartile: normalizeQuartile(publication.quartile || displayablePrimaryQuartile),
@@ -538,7 +541,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     pages: metadata.pages || "",
     issn: isConferencePaper ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
-    authorAffiliation: metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
+    authorAffiliation: isConferencePaper ? "" : metadata.authorAffiliation || metadata.author_affiliation || draftAuthors.find((author) => author.affiliation)?.affiliation || "",
     indexingPlatform,
     indexingCategory,
     quartile,
