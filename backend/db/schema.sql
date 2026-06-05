@@ -442,7 +442,7 @@ create table if not exists publication_indexing (
   quartile text not null default '',
   impact_factor text not null default '',
   sjr text not null default '',
-  cite_score text not null default '',
+  cite_score text,
   indexed_url text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -451,7 +451,9 @@ create table if not exists publication_indexing (
 alter table publication_indexing add column if not exists source_key text not null default 'manual';
 alter table publication_indexing add column if not exists category text not null default '';
 alter table publication_indexing add column if not exists sjr text not null default '';
-alter table publication_indexing add column if not exists cite_score text not null default '';
+alter table publication_indexing add column if not exists cite_score text;
+alter table publication_indexing alter column cite_score drop not null;
+alter table publication_indexing alter column cite_score drop default;
 
 create index if not exists publication_indexing_publication_idx
 on publication_indexing (publication_id);

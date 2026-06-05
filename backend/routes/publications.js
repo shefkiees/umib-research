@@ -54,6 +54,11 @@ function normalizeText(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeNullableText(value) {
+  const normalized = normalizeText(value);
+  return normalized || null;
+}
+
 function normalizeRole(value) {
   const normalized = normalizeText(value).toLowerCase();
   const roleAliases = {
@@ -1096,7 +1101,7 @@ async function replacePublicationChildren(client, publicationId, values) {
         item.quartileSelectionReason || item.quartile_selection_reason || "",
         item.impactFactor,
         item.sjr,
-        item.citeScore || item.cite_score,
+        normalizeNullableText(item.citeScore || item.cite_score || item.citescore),
         item.indexedUrl,
       ]
     );
@@ -1177,7 +1182,9 @@ async function ensurePublicationReviewSchema(client) {
     alter table if exists publication_indexing add column if not exists source_key text not null default 'manual';
     alter table if exists publication_indexing add column if not exists category text not null default '';
     alter table if exists publication_indexing add column if not exists sjr text not null default '';
-    alter table if exists publication_indexing add column if not exists cite_score text not null default '';
+    alter table if exists publication_indexing add column if not exists cite_score text;
+    alter table if exists publication_indexing alter column cite_score drop not null;
+    alter table if exists publication_indexing alter column cite_score drop default;
     alter table if exists publication_indexing add column if not exists quartile_verified boolean not null default false;
     alter table if exists publication_indexing add column if not exists quartile_source text not null default 'manual';
     alter table if exists publication_indexing add column if not exists quartile_verification_status text not null default 'empty';
