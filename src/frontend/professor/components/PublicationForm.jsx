@@ -819,7 +819,7 @@ const PublicationForm = ({
           <select
             value={displayableQuartile}
             onChange={updateIndexingField("quartile")}
-            disabled={isFieldLocked("quartile")}
+            disabled={isFieldLocked("quartile") || submitting}
           >
             {QUARTILE_OPTIONS.map((option) => (
               <option key={option || "empty-quartile"} value={option}>

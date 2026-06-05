@@ -504,7 +504,7 @@ export const translations = {
           issue: "Numri i revistës / Issue",
           pages: "Faqet",
           quartile: "Kuartili",
-          selectQuartile: "Zgjidh quartile",
+          selectQuartile: "Zgjidh kuartilin",
           quartileSource: {
             scopus: "Marrë nga Scopus",
             scimago: "Marrë nga SCImago",

@@ -348,7 +348,43 @@ function selectQuartileCandidate(items = [], publicationYear) {
     : rowsWithQuartile;
 
   if (targetYear && !yearCandidates.length) {
-    return { selected: null, status: "manual_required", reason: "no_quartile_for_publication_year" };
+    const availableYearCandidates = rowsWithQuartile
+      .map((item) => ({ ...item, normalizedYear: normalizeYear(item.year) }))
+      .filter((item) => item.normalizedYear && item.normalizedYear <= targetYear);
+    const latestAvailableYear = availableYearCandidates.reduce(
+      (latestYear, item) => Math.max(latestYear, item.normalizedYear),
+      0
+    );
+
+    if (!latestAvailableYear) {
+      return { selected: null, status: "manual_required", reason: "no_quartile_for_publication_year" };
+    }
+
+    const latestCandidates = availableYearCandidates
+      .filter((item) => item.normalizedYear === latestAvailableYear)
+      .map(({ normalizedYear, ...item }) => item);
+    const latestCategoryKeys = uniqueValues(latestCandidates.flatMap((item) => splitCategoryKeys(item.category)));
+    const latestQuartiles = uniqueValues(latestCandidates.map((item) => normalizeQuartile(item.quartile)));
+
+    if (!latestCategoryKeys.length) {
+      return { selected: null, status: "manual_required", reason: "latest_available_category_missing" };
+    }
+
+    if (latestCategoryKeys.length > 1) {
+      const primaryCandidates = latestCandidates.filter((item) => Boolean(item.primaryCategory || item.primary_category));
+
+      if (primaryCandidates.length === 1) {
+        return { selected: primaryCandidates[0], status: "verified", reason: "latest_available_primary_category_from_provider" };
+      }
+
+      return { selected: null, status: "manual_required", reason: "latest_available_multiple_categories_without_primary" };
+    }
+
+    if (latestQuartiles.length > 1) {
+      return { selected: null, status: "manual_required", reason: "latest_available_conflicting_quartiles_for_category" };
+    }
+
+    return { selected: latestCandidates[0], status: "verified", reason: "latest_available_verified_quartile" };
   }
 
   const candidates = yearCandidates;
