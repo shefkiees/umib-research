@@ -2251,10 +2251,10 @@ body {
 .publication-table-head,
 .publication-table-row {
   display: grid;
-  grid-template-columns: minmax(42px, 0.22fr) minmax(260px, 1.5fr) minmax(160px, 0.9fr) minmax(124px, 0.58fr) minmax(220px, 1.12fr) minmax(74px, 0.36fr) minmax(116px, 0.58fr) minmax(136px, 0.65fr);
+  grid-template-columns: minmax(42px, 0.2fr) minmax(250px, 1.42fr) minmax(150px, 0.82fr) minmax(118px, 0.52fr) minmax(205px, 1fr) minmax(70px, 0.32fr) minmax(108px, 0.5fr) minmax(210px, 0.98fr);
   gap: 0;
   align-items: stretch;
-  min-width: 1070px;
+  min-width: 1155px;
 }
 
 .publication-table-head {
@@ -2609,7 +2609,7 @@ body {
 }
 
 .publication-actions-cell .publication-row-actions {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .publication-mobile-label {
@@ -2621,35 +2621,32 @@ body {
 .publication-actions-cell,
 .publication-row-actions {
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 6px;
 }
 
 .publication-actions-cell {
   display: flex;
-}
-
-.publication-actions-cell {
   min-width: 0;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .publication-row-actions {
   display: flex;
-  flex-wrap: nowrap;
-  width: auto;
+  flex-wrap: wrap;
+  width: 100%;
   max-width: 100%;
-  margin-left: auto;
-  justify-content: flex-end;
+  margin-left: 0;
+  justify-content: flex-start;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .publication-row-actions .publication-action-btn {
   min-height: 28px;
-  min-width: 58px;
-  padding: 0 6px;
+  min-width: 72px;
+  padding: 0 8px;
   border-radius: 7px;
   gap: 4px;
   font-size: 0.72rem;
@@ -2697,8 +2694,8 @@ body {
 .publication-row-actions .publication-action-btn--review {
   order: 3;
   min-height: 27px;
-  min-width: 62px;
-  padding: 0 6px;
+  min-width: 78px;
+  padding: 0 8px;
   border-radius: 7px;
   background: #fff7e8;
   border-color: #f4d2a0;
@@ -4444,12 +4441,12 @@ body {
 
   .publication-table-head,
   .publication-table-row {
-    grid-template-columns: minmax(38px, 0.2fr) minmax(230px, 1.36fr) minmax(144px, 0.8fr) minmax(112px, 0.52fr) minmax(190px, 0.98fr) minmax(64px, 0.34fr) minmax(108px, 0.54fr) minmax(128px, 0.62fr);
-    min-width: 960px;
+    grid-template-columns: minmax(38px, 0.19fr) minmax(225px, 1.28fr) minmax(138px, 0.76fr) minmax(108px, 0.48fr) minmax(180px, 0.9fr) minmax(64px, 0.3fr) minmax(102px, 0.46fr) minmax(190px, 0.9fr);
+    min-width: 1045px;
   }
 
   .publication-row-actions {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .publication-row-actions .prof-btn-primary,
