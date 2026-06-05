@@ -288,11 +288,15 @@ function deriveIndexingPlatform(indexing = [], fallback = "") {
 }
 
 function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
+  const selectedIndexing = getSelectedIndexingItem(indexing);
+
   return normalizeIndexingCategory(fallback)
+    || normalizeIndexingCategory(selectedIndexing.category)
     || (Array.isArray(indexing) ? indexing
       .filter((item) => {
-        const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status);
+        const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status).toLowerCase();
         return normalizeBoolean(item?.quartileVerified ?? item?.quartile_verified)
+          || (status === "historical" && normalizeIndexingSource(item?.quartileSource || item?.quartile_source || item?.sourceKey || item?.source_key || item?.source) !== "manual")
           || status === "manual"
           || !status;
       })
@@ -315,11 +319,16 @@ function createFieldSource(value, sourceWhenPresent = "manual") {
 function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
   const baseSource = metadataSource === "doi" ? "api" : metadataSource === "mixed" ? "manual" : "manual";
   const indexing = Array.isArray(values.indexing) ? values.indexing : [];
-  const firstIndexing = indexing.find((item) => item?.source || item?.category || item?.quartile || item?.impactFactor || item?.impact_factor || item?.sjr || item?.citeScore || item?.cite_score) || {};
-  const indexingSource = values.indexingVerified || values.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified
+  const selectedIndexing = getSelectedIndexingItem(indexing, values.quartile);
+  const indexingSource = normalizeBoolean(values.indexingVerified ?? values.indexing_verified ?? selectedIndexing.indexingVerified ?? selectedIndexing.indexing_verified)
     ? "lookup"
     : "manual";
-  const quartileSource = values.quartileVerified || values.quartile_verified || firstIndexing.quartileVerified || firstIndexing.quartile_verified
+  const selectedQuartileStatus = normalizeText(selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status).toLowerCase();
+  const selectedQuartileSource = normalizeIndexingSource(selectedIndexing.quartileSource || selectedIndexing.quartile_source || selectedIndexing.sourceKey || selectedIndexing.source_key || selectedIndexing.source);
+  const hasLookupQuartile = normalizeBoolean(values.quartileVerified ?? values.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified)
+    || selectedQuartileStatus === "verified"
+    || (selectedQuartileStatus === "historical" && selectedQuartileSource !== "manual");
+  const quartileSource = hasLookupQuartile
     ? "lookup"
     : "manual";
 
@@ -341,12 +350,12 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     isbn: createFieldSource(values.isbn, baseSource),
     abstract: createFieldSource(values.abstract, baseSource),
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
-    indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || firstIndexing.source, indexingSource),
-    indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || firstIndexing.category, indexingSource),
-    quartile: createFieldSource(values.quartile || firstIndexing.quartile, quartileSource),
-    sjr: createFieldSource(values.sjr || firstIndexing.sjr, indexingSource),
-    citeScore: createFieldSource(values.citeScore || values.cite_score || firstIndexing.citeScore || firstIndexing.cite_score, indexingSource),
-    impactFactor: createFieldSource(firstIndexing.impactFactor || firstIndexing.impact_factor, indexingSource),
+    indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || selectedIndexing.source, indexingSource),
+    indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || selectedIndexing.category, indexingSource),
+    quartile: createFieldSource(values.quartile || selectedIndexing.quartile, quartileSource),
+    sjr: createFieldSource(values.sjr || selectedIndexing.sjr, indexingSource),
+    citeScore: createFieldSource(values.citeScore || values.cite_score || selectedIndexing.citeScore || selectedIndexing.cite_score, indexingSource),
+    impactFactor: createFieldSource(selectedIndexing.impactFactor || selectedIndexing.impact_factor, indexingSource),
   };
 }
 
@@ -366,17 +375,47 @@ function normalizeIndexingInput(value, publicationType) {
 }
 
 function getPrimaryQuartile(indexing = []) {
-  const primary = (Array.isArray(indexing) ? indexing : [])
-    .filter((item) => {
-      const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status);
-      return normalizeBoolean(item?.quartileVerified ?? item?.quartile_verified)
-        || status === "manual"
-        || (!status && normalizeText(item?.quartile));
-    })
-    .map((item) => normalizeText(item?.quartile))
-    .find(Boolean);
+  const primary = getSelectedIndexingItem(indexing)?.quartile;
 
-  return primary || "";
+  return normalizeText(primary);
+}
+
+function getIndexingYear(item = {}) {
+  return normalizeYear(item.year || item.indexing_year || item.coverYear || item.cover_year) || 0;
+}
+
+function isSelectedIndexingItem(item = {}) {
+  const status = normalizeText(item?.quartileVerificationStatus || item?.quartile_verification_status).toLowerCase();
+  const source = normalizeIndexingSource(item?.quartileSource || item?.quartile_source || item?.sourceKey || item?.source_key || item?.source);
+
+  return Boolean(normalizeText(item?.quartile))
+    && (
+      normalizeBoolean(item?.quartileVerified ?? item?.quartile_verified)
+      || status === "verified"
+      || status === "manual"
+      || (status === "historical" && source !== "manual")
+      || (!status && source !== "manual")
+    );
+}
+
+function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
+  const items = Array.isArray(indexing) ? indexing : [];
+  const normalizedFallbackQuartile = normalizeQuartile(fallbackQuartile);
+  const selected = items.find(isSelectedIndexingItem);
+
+  if (selected) {
+    return selected;
+  }
+
+  const quartileMatches = normalizedFallbackQuartile
+    ? items.filter((item) => normalizeQuartile(item?.quartile) === normalizedFallbackQuartile)
+    : items.filter((item) => normalizeQuartile(item?.quartile));
+
+  return quartileMatches
+    .sort((first, second) => getIndexingYear(second) - getIndexingYear(first))
+    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score)
+    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score)
+    || {};
 }
 
 function normalizeEvidenceLinks(value, errors) {
@@ -716,6 +755,11 @@ function mapPublication(row) {
   const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
   const indexingVerified = Boolean(row.indexing_verified);
   const indexingSource = normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source);
+  const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
+  const selectedQuartile = getPrimaryQuartile(indexing);
+  const selectedCiteScore = normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore);
+  const selectedSjr = normalizeText(row.sjr || selectedIndexing.sjr);
+  const selectedCiteScoreVerified = normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
@@ -739,7 +783,9 @@ function mapPublication(row) {
     indexingSource,
     indexing,
     authors,
-    quartile: getPrimaryQuartile(indexing),
+    quartile: selectedQuartile,
+    sjr: selectedSjr,
+    citeScore: selectedCiteScore,
   }, row.metadata_source || "manual");
 
   return {
@@ -779,7 +825,13 @@ function mapPublication(row) {
     indexing_verified: indexingVerified,
     indexingSource,
     indexing_source: indexingSource,
-    quartile: getPrimaryQuartile(indexing),
+    quartile: selectedQuartile,
+    sjr: selectedSjr,
+    citeScore: selectedCiteScore,
+    cite_score: selectedCiteScore,
+    citescore: selectedCiteScore,
+    citeScoreVerified: selectedCiteScoreVerified,
+    cite_score_verified: selectedCiteScoreVerified,
     authors: authors.map((author, index) => ({
       fullName: author.full_name || author.fullName || "",
       full_name: author.full_name || author.fullName || "",
@@ -1246,18 +1298,17 @@ function normalizeComparableName(value) {
     .replace(/\s+/g, " ");
 }
 
-function metadataAuthorName(author) {
-  if (typeof author === "string") return normalizeText(author);
-  return normalizeText(author?.fullName || author?.full_name || author?.name);
-}
-
 function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, mainAuthorIndex = 0) {
+  const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
+
   if (typeof author === "string") {
+    const matchesCurrentUser = currentUserName && normalizeComparableName(author) === currentUserName;
+
     return {
       fullName: normalizeText(author),
       givenName: "",
       familyName: "",
-      orcid: "",
+      orcid: matchesCurrentUser ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : "",
       affiliation: "",
       isMainAuthor: index === mainAuthorIndex,
       isCorrespondingAuthor: false,
@@ -1265,11 +1316,14 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
     };
   }
 
+  const fullName = normalizeText(author?.fullName || author?.full_name || author?.name);
+  const matchesCurrentUser = currentUserName && normalizeComparableName(fullName) === currentUserName;
+
   return {
-    fullName: normalizeText(author?.fullName || author?.full_name || author?.name),
+    fullName,
     givenName: normalizeText(author?.givenName || author?.given_name),
     familyName: normalizeText(author?.familyName || author?.family_name),
-    orcid: normalizeText(author?.orcid) || (index === mainAuthorIndex ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : ""),
+    orcid: normalizeText(author?.orcid) || (matchesCurrentUser ? normalizeText(currentUser.orcid_id || currentUser.orcidId) : ""),
     affiliation: normalizeAuthorAffiliation(
       author?.affiliation
       || author?.affiliations
@@ -1297,12 +1351,6 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const publicationType = normalizePublicationType(metadata.type);
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
-  const currentUserName = normalizeComparableName(currentUser.full_name || currentUser.name);
-  const matchedAuthorIndex = currentUserName
-    ? metadataAuthors.findIndex((author) => normalizeComparableName(metadataAuthorName(author)) === currentUserName)
-    : -1;
-  const mainAuthorIndex = matchedAuthorIndex >= 0 ? matchedAuthorIndex : 0;
-
   return {
     doi: metadata.doi || "",
     title: metadata.title || "",
@@ -1332,7 +1380,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     quartileVerificationStatus: metadata.quartileVerificationStatus || metadata.quartile_verification_status || "manual_required",
     status: "draft",
     authors: metadataAuthors.map((author, index) =>
-      metadataAuthorToPublicationAuthor(author, index, currentUser, mainAuthorIndex)
+      metadataAuthorToPublicationAuthor(author, index, currentUser, 0)
     ),
     indexing,
     evidenceLinks: [],

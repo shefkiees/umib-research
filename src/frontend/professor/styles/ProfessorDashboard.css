@@ -1947,15 +1947,13 @@ body {
   font-weight: 700;
 }
 
-.publication-author-card {
+.publication-author-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(210px, 1.35fr) minmax(140px, 0.8fr) max-content;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.35fr) minmax(140px, 0.8fr) max-content;
   gap: 10px;
   align-items: end;
-  padding: 10px;
-  border: 1px solid #e6edf5;
-  border-radius: 8px;
-  background: #ffffff;
+  padding: 8px 0;
+  border-bottom: 1px solid #e8edf3;
 }
 
 .publication-author-field {
@@ -1982,8 +1980,8 @@ body {
   white-space: nowrap;
 }
 
-.publication-author-card input[type="text"],
-.publication-author-card input:not([type]) {
+.publication-author-row input[type="text"],
+.publication-author-row input:not([type]) {
   width: 100%;
   min-width: 0;
   border: 1px solid #d7e1ec;
@@ -1994,7 +1992,7 @@ body {
   font-size: 0.88rem;
 }
 
-.publication-author-card input:focus {
+.publication-author-row input:focus {
   outline: 0;
   border-color: #1d4d7d;
   box-shadow: 0 0 0 3px rgba(29, 77, 125, 0.1);
@@ -2003,24 +2001,8 @@ body {
 .publication-author-inline-actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   min-height: 36px;
-}
-
-.publication-author-corresponding-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #334155;
-  font-size: 0.82rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.publication-author-corresponding-option input {
-  width: 16px;
-  height: 16px;
-  accent-color: #1d4d7d;
+  justify-content: flex-end;
 }
 
 .publication-add-coauthor {
@@ -2071,7 +2053,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .publication-author-card {
+  .publication-author-row {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
@@ -2357,8 +2339,7 @@ body {
   overflow-wrap: anywhere;
 }
 
-.publication-author-more-badge,
-.publication-quartile-badge {
+.publication-author-more-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2378,40 +2359,11 @@ body {
   line-height: 1;
 }
 
-.publication-quartile-badge {
-  min-width: 38px;
-  min-height: 24px;
-  padding: 2px 9px;
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #64748b;
-  font-size: 0.74rem;
+.publication-quartile-value {
+  color: #0f172a;
+  font-size: 0.82rem;
   font-weight: 800;
-  line-height: 1;
-}
-
-.publication-quartile-badge.q1 {
-  background: #eaf8ef;
-  border-color: #bfe8cd;
-  color: #16803f;
-}
-
-.publication-quartile-badge.q2 {
-  background: #eaf2ff;
-  border-color: #b8d2ff;
-  color: #1d4ed8;
-}
-
-.publication-quartile-badge.q3 {
-  background: #fff4e5;
-  border-color: #fed7aa;
-  color: #c05621;
-}
-
-.publication-quartile-badge.q4 {
-  background: #f1f5f9;
-  border-color: #dbe3ec;
-  color: #64748b;
+  white-space: nowrap;
 }
 
 .publication-revision-notice {
