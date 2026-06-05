@@ -162,7 +162,7 @@ function normalizePublicationType(value) {
 }
 
 function supportsPublicationIndexing(publicationType) {
-  return true;
+  return publicationType === "journal_article";
 }
 
 function normalizeIndexingPlatform(value) {
@@ -522,6 +522,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const doi = normalizeDoi(body.doi);
   const title = normalizeText(body.title);
   const publicationType = normalizePublicationType(body.publicationType || body.publication_type);
+  const canIndexPublication = supportsPublicationIndexing(publicationType);
+  const isBookPublication = publicationType === "book";
   const publicationYear = normalizeYear(body.publicationYear ?? body.publication_year);
   const publicationDate = normalizeOptionalDate(body.publicationDate || body.publication_date);
   const status = normalizeText(body.status || "draft");
@@ -586,7 +588,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const rawIndexing = supportsPublicationIndexing(publicationType)
+  const rawIndexing = canIndexPublication
     ? Array.isArray(body.indexing) && body.indexing.length
       ? body.indexing
       : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
@@ -604,22 +606,13 @@ function normalizePublicationPayload(body = {}, options = {}) {
         : Array.isArray(body.indexing)
           ? body.indexing
           : []
-    : (body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
-      ? [{
-          source: body.indexingPlatform || body.indexing_platform,
-          category: body.indexingCategory || body.indexing_category,
-          quartile: body.quartile,
-          quartileVerified: body.quartileVerified ?? body.quartile_verified,
-          quartileSource: body.quartileSource || body.quartile_source,
-          quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"),
-        }]
-      : [];
+    : [];
   const indexing = hasIndexingInput
     ? normalizeIndexingInput(rawIndexing, publicationType)
     : undefined;
   const authorAffiliation = null;
-  const indexingPlatform = deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform);
-  const indexingCategory = deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category);
+  const indexingPlatform = canIndexPublication ? deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform) : "";
+  const indexingCategory = canIndexPublication ? deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category) : "";
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
     : undefined;
@@ -627,11 +620,11 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const externalMetadataId = normalizeDoi(body.externalMetadataId || body.external_metadata_id)
     || (metadataSource === "doi" ? doi : null);
   const requestedIndexingSource = normalizeIndexingSource(body.indexingSource || body.indexing_source || indexing?.[0]?.sourceKey || indexing?.[0]?.source_key || indexing?.[0]?.source);
-  const indexingVerified = normalizeBoolean(body.indexingVerified ?? body.indexing_verified)
+  const indexingVerified = canIndexPublication && normalizeBoolean(body.indexingVerified ?? body.indexing_verified)
     && requestedIndexingSource !== "manual"
     && Boolean(indexingPlatform || indexing?.some((item) => item.source || item.category || item.quartile || item.sjr || item.citeScore));
   const indexingSource = indexingVerified ? requestedIndexingSource : "manual";
-  const hasIndexingClaim = Boolean(
+  const hasIndexingClaim = canIndexPublication && Boolean(
     indexingCategory
     || normalizeQuartile(body.quartile)
     || normalizeText(body.sjr)
@@ -672,7 +665,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
       isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor),
     };
   }), publicationType, metadataSource);
-  const normalizedIndexing = indexing !== undefined
+  const normalizedIndexing = !canIndexPublication
+    ? []
+    : indexing !== undefined
     ? indexing.length
       ? indexing.map((item, index) => index === 0
         ? {
@@ -706,15 +701,15 @@ function normalizePublicationPayload(body = {}, options = {}) {
       abstract: nullableConferenceAbstract(publicationType, body.abstract),
       publicationType,
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
-      conferenceLocation: normalizeText(body.conferenceLocation ?? body.conference_location),
+      conferenceLocation: publicationType === "conference_paper" ? normalizeText(body.conferenceLocation ?? body.conference_location) : "",
       publisher: normalizeText(body.publisher),
-      publicationDate,
-      publicationYear,
+      publicationDate: isBookPublication ? null : publicationDate,
+      publicationYear: isBookPublication ? null : publicationYear,
       sourceUrl,
-      volume: normalizeText(body.volume),
-      issue: normalizeText(body.issue),
+      volume: isBookPublication ? "" : normalizeText(body.volume),
+      issue: isBookPublication ? "" : normalizeText(body.issue),
       pages: nullableConferenceText(publicationType, body.pages),
-      issn: nullableConferenceText(publicationType, body.issn),
+      issn: isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
       isbn: nullableConferenceText(publicationType, body.isbn),
       authorAffiliation,
       indexingPlatform,
@@ -775,7 +770,9 @@ function mapPublication(row) {
     : getArrayField(row, "attachments");
   const authors = getPublicationAuthors(row);
   const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
-  const indexing = getArrayField(row, "indexing").map((item) => ({
+  const isBookPublication = publicationType === "book";
+  const hideJournalSpecificFields = publicationType === "conference_paper" || isBookPublication;
+  const indexing = supportsPublicationIndexing(publicationType) ? getArrayField(row, "indexing").map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
     sourceKey: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
@@ -798,32 +795,35 @@ function mapPublication(row) {
     citescore: item.cite_score || item.citeScore || item.citescore || "",
     indexedUrl: item.indexed_url || item.indexedUrl || "",
     indexed_url: item.indexed_url || item.indexedUrl || "",
-  }));
+  })) : [];
   const authorAffiliation = null;
-  const indexingPlatform = row.indexing_platform || deriveIndexingPlatform(indexing);
-  const indexingCategory = row.indexing_category || deriveIndexingCategory(indexing, publicationType);
-  const indexingVerified = Boolean(row.indexing_verified);
-  const indexingSource = normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source);
+  const indexingPlatform = supportsPublicationIndexing(publicationType) ? row.indexing_platform || deriveIndexingPlatform(indexing) : "";
+  const indexingCategory = supportsPublicationIndexing(publicationType) ? row.indexing_category || deriveIndexingCategory(indexing, publicationType) : "";
+  const indexingVerified = supportsPublicationIndexing(publicationType) && Boolean(row.indexing_verified);
+  const indexingSource = supportsPublicationIndexing(publicationType) ? normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source) : "manual";
   const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
-  const selectedQuartile = getPrimaryQuartile(indexing);
-  const selectedCiteScore = normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore);
-  const selectedSjr = normalizeText(row.sjr || selectedIndexing.sjr);
-  const selectedCiteScoreVerified = normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
+  const selectedQuartile = supportsPublicationIndexing(publicationType) ? getPrimaryQuartile(indexing) : "";
+  const selectedCiteScore = supportsPublicationIndexing(publicationType)
+    ? normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore)
+    : "";
+  const selectedSjr = supportsPublicationIndexing(publicationType) ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
+  const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
+    && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
     abstract: nullableConferenceAbstract(publicationType, row.abstract),
     publicationType,
     venue: row.venue || "",
-    conferenceLocation: row.conference_location || "",
+    conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
-    publicationDate: row.publication_date || null,
-    publicationYear: row.publication_year || row.year || "",
+    publicationDate: isBookPublication ? null : row.publication_date || null,
+    publicationYear: isBookPublication ? "" : row.publication_year || row.year || "",
     sourceUrl: row.source_url || "",
-    volume: row.volume || "",
-    issue: row.issue || "",
+    volume: hideJournalSpecificFields ? "" : row.volume || "",
+    issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: nullableConferenceText(publicationType, row.pages),
-    issn: nullableConferenceText(publicationType, row.issn),
+    issn: hideJournalSpecificFields ? "" : nullableConferenceText(publicationType, row.issn),
     isbn: nullableConferenceText(publicationType, row.isbn),
     authorAffiliation,
     indexingPlatform,
@@ -848,20 +848,20 @@ function mapPublication(row) {
     venue: row.venue || "",
     publishedIn: row.venue || "",
     published_in: row.venue || "",
-    conferenceLocation: row.conference_location || "",
-    conference_location: row.conference_location || "",
+    conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
+    conference_location: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
-    publicationDate: row.publication_date || null,
-    publication_date: row.publication_date || null,
-    publicationYear: row.publication_year || row.year || "",
-    publication_year: row.publication_year || row.year || "",
+    publicationDate: isBookPublication ? null : row.publication_date || null,
+    publication_date: isBookPublication ? null : row.publication_date || null,
+    publicationYear: isBookPublication ? "" : row.publication_year || row.year || "",
+    publication_year: isBookPublication ? "" : row.publication_year || row.year || "",
     doi: row.doi || "",
     sourceUrl: row.source_url || "",
     source_url: row.source_url || "",
-    volume: row.volume || "",
-    issue: row.issue || "",
+    volume: hideJournalSpecificFields ? "" : row.volume || "",
+    issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: row.pages || "",
-    issn: row.issn || "",
+    issn: hideJournalSpecificFields ? "" : row.issn || "",
     isbn: row.isbn || "",
     authorAffiliation,
     author_affiliation: authorAffiliation,

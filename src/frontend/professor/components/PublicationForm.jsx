@@ -136,7 +136,7 @@ function normalizeFieldSources(value = {}) {
 }
 
 function supportsQuartile(publicationType) {
-  return publicationType !== "conference_paper";
+  return publicationType === "journal_article";
 }
 
 function normalizeIndexingPlatform(value) {
@@ -270,8 +270,11 @@ function getIndexingCiteScore(item = {}) {
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
+  const hasIndexing = supportsQuartile(publicationType);
+  const isBookPublication = isBookPublicationType(publicationType);
+  const hideJournalSpecificFields = isConferencePaperType(publicationType) || isBookPublication;
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
-  const indexing = Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
+  const indexing = hasIndexing && Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
     sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
@@ -291,7 +294,7 @@ export function publicationToDraft(publication = {}) {
     citeScoreVerified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
     cite_score_verified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
     indexedUrl: item.indexedUrl || item.indexed_url || "",
-  })) : publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
+  })) : hasIndexing && publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
   const primaryIndexing = getSelectedIndexingItem(indexing, publication.quartile);
   const displayablePrimaryQuartile = isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "";
 
@@ -303,29 +306,29 @@ export function publicationToDraft(publication = {}) {
     venue: publication.venue || publication.journal || "",
     conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
-    publicationDate: (publication.publicationDate || publication.publication_date || "").slice(0, 10),
-    publicationYear: publication.publicationYear || publication.publication_year || publication.year || "",
+    publicationDate: isBookPublication ? "" : (publication.publicationDate || publication.publication_date || "").slice(0, 10),
+    publicationYear: isBookPublication ? "" : publication.publicationYear || publication.publication_year || publication.year || "",
     doi: publication.doi || "",
     sourceUrl: publication.sourceUrl || publication.source_url || "",
-    volume: publication.volume || "",
-    issue: publication.issue || "",
+    volume: hideJournalSpecificFields ? "" : publication.volume || "",
+    issue: hideJournalSpecificFields ? "" : publication.issue || "",
     pages: publication.pages || "",
-    issn: publication.issn || "",
+    issn: hideJournalSpecificFields ? "" : publication.issn || "",
     isbn: publication.isbn || "",
     authorAffiliation: "",
-    indexingPlatform: normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source),
-    indexingCategory: normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || ""),
-    quartile: normalizeQuartile(publication.quartile || displayablePrimaryQuartile),
-    quartileVerified: normalizeBoolean(publication.quartileVerified ?? publication.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified),
-    quartileSource: normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
-    quartileVerificationStatus: publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty"),
-    sjr: publication.sjr || primaryIndexing.sjr || "",
+    indexingPlatform: hasIndexing ? normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
+    indexingCategory: hasIndexing ? normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || "") : "",
+    quartile: hasIndexing ? normalizeQuartile(publication.quartile || displayablePrimaryQuartile) : "",
+    quartileVerified: hasIndexing && normalizeBoolean(publication.quartileVerified ?? publication.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified),
+    quartileSource: hasIndexing ? normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source) : "manual",
+    quartileVerificationStatus: hasIndexing ? publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty") : "empty",
+    sjr: hasIndexing ? publication.sjr || primaryIndexing.sjr || "" : "",
     citeScore: normalizeCiteScoreForDisplay(
-      publication.citeScore || publication.cite_score || getIndexingCiteScore(primaryIndexing),
+      hasIndexing ? publication.citeScore || publication.cite_score || getIndexingCiteScore(primaryIndexing) : "",
       { verifiedZero: normalizeBoolean(publication.citeScoreVerified ?? publication.cite_score_verified ?? primaryIndexing.citeScoreVerified ?? primaryIndexing.cite_score_verified) }
     ),
-    indexingVerified: normalizeBoolean(publication.indexingVerified ?? publication.indexing_verified),
-    indexingSource: normalizeIndexingSource(publication.indexingSource || publication.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source),
+    indexingVerified: hasIndexing && normalizeBoolean(publication.indexingVerified ?? publication.indexing_verified),
+    indexingSource: hasIndexing ? normalizeIndexingSource(publication.indexingSource || publication.indexing_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source) : "manual",
     status: publication.status || "draft",
     authors: normalizedAuthors,
     indexing,
@@ -374,6 +377,10 @@ function isConferencePaperType(value) {
   return normalizeDoiType(value) === "conference_paper" || value === "conference_paper";
 }
 
+function isBookPublicationType(value) {
+  return normalizeDoiType(value) === "book" || value === "book";
+}
+
 function getConferencePaperReset() {
   return {
     publisher: "",
@@ -381,6 +388,29 @@ function getConferencePaperReset() {
     issue: "",
     issn: "",
     isbn: "",
+    indexingPlatform: "",
+    indexingCategory: "",
+    indexingVerified: false,
+    indexingSource: "manual",
+    quartile: "",
+    quartileVerified: false,
+    quartileHistorical: false,
+    quartileSource: "manual",
+    quartileVerificationStatus: "empty",
+    sjr: "",
+    citeScore: "",
+    indexing: [],
+  };
+}
+
+function getBookPublicationReset() {
+  return {
+    conferenceLocation: "",
+    publicationDate: "",
+    publicationYear: "",
+    volume: "",
+    issue: "",
+    issn: "",
     indexingPlatform: "",
     indexingCategory: "",
     indexingVerified: false,
@@ -492,29 +522,30 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const publicationType = normalizeDoiType(metadata.type);
   const isConferencePaper = publicationType === "conference_paper";
+  const isBookPublication = publicationType === "book";
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const selectedQuartileIndexing = getSelectedIndexingItem(indexing, metadata.quartile);
   const selectedQuartileStatus = String(metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "").toLowerCase();
   const quartileVerified = normalizeBoolean(metadata.quartileVerified ?? metadata.quartile_verified ?? selectedQuartileIndexing?.quartileVerified ?? selectedQuartileIndexing?.quartile_verified);
   const quartileHistorical = selectedQuartileStatus === "historical" || normalizeBoolean(metadata.quartileHistorical ?? metadata.quartile_historical);
-  const quartile = isConferencePaper ? "" : normalizeQuartile(metadata.quartile || selectedQuartileIndexing?.quartile || "");
+  const quartile = supportsQuartile(publicationType) ? normalizeQuartile(metadata.quartile || selectedQuartileIndexing?.quartile || "") : "";
   const hasMetadataQuartile = Boolean(quartile);
   const quartileSource = hasMetadataQuartile
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
   const quartileVerificationStatus = selectedQuartileStatus || "missing";
-  const indexingPlatform = isConferencePaper ? "" : normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source);
+  const indexingPlatform = supportsQuartile(publicationType) ? normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
   const indexingCategory = hasMetadataQuartile ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
-  const indexingVerified = isConferencePaper ? false : normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified);
-  const indexingSource = isConferencePaper ? "manual" : normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source);
-  const sjr = isConferencePaper ? "" : metadata.sjr || selectedQuartileIndexing.sjr || indexing.find((item) => item?.sjr)?.sjr || "";
+  const indexingVerified = supportsQuartile(publicationType) ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
+  const indexingSource = supportsQuartile(publicationType) ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
+  const sjr = supportsQuartile(publicationType) ? metadata.sjr || selectedQuartileIndexing.sjr || indexing.find((item) => item?.sjr)?.sjr || "" : "";
   const citeScoreIndexing = getIndexingCiteScore(selectedQuartileIndexing)
     ? selectedQuartileIndexing
     : indexing.find((item) => item?.citeScore || item?.cite_score || item?.citescore) || {};
-  const citeScore = isConferencePaper ? "" : normalizeCiteScoreForDisplay(
+  const citeScore = supportsQuartile(publicationType) ? normalizeCiteScoreForDisplay(
     metadata.citeScore || metadata.cite_score || getIndexingCiteScore(citeScoreIndexing),
     { verifiedZero: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified ?? citeScoreIndexing.citeScoreVerified ?? citeScoreIndexing.cite_score_verified) }
-  );
+  ) : "";
   const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, 0));
 
   return {
@@ -524,16 +555,16 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     venue: metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
-    publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
+    publicationDate: !isBookPublication && /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
-    publicationYear: metadata.year || "",
+    publicationYear: isBookPublication ? "" : metadata.year || "",
     doi: metadata.doi || "",
     sourceUrl: metadata.source_url || "",
-    volume: isConferencePaper ? "" : metadata.volume || "",
-    issue: isConferencePaper ? "" : metadata.issue || "",
+    volume: (isConferencePaper || isBookPublication) ? "" : metadata.volume || "",
+    issue: (isConferencePaper || isBookPublication) ? "" : metadata.issue || "",
     pages: metadata.pages || "",
-    issn: isConferencePaper ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
+    issn: (isConferencePaper || isBookPublication) ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
     isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: "",
     indexingPlatform,
@@ -548,7 +579,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     indexingVerified,
     indexingSource: indexingVerified ? indexingSource : "manual",
     authors: draftAuthors,
-    indexing: isConferencePaper ? [] : indexing.length ? indexing.map((item, index) => ({
+    indexing: !supportsQuartile(publicationType) ? [] : indexing.length ? indexing.map((item, index) => ({
       source: item.source || (index === 0 ? indexingPlatform : ""),
       platform: item.platform || item.source || (index === 0 ? indexingPlatform : ""),
       sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source || (index === 0 ? indexingSource : "")),
@@ -600,15 +631,17 @@ const PublicationForm = ({
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const isConferencePaper = isConferencePaperType(value.publicationType);
+  const isBookPublication = isBookPublicationType(value.publicationType);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showPublisherField = !isConferencePaper;
-  const showVolumeField = !isConferencePaper && (!isDoiImported || hasValue("volume"));
-  const showIssueField = !isConferencePaper;
-  const showIndexingFields = !isConferencePaper;
-  const showIdentifierField = !isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn"));
-  const showIssnInput = !isConferencePaper && (!isDoiImported || hasValue("issn"));
-  const showIsbnInput = !isDoiImported || hasValue("isbn");
-  const showAbstractField = isConferencePaper || !isDoiImported || hasValue("abstract");
+  const showPublishedDateField = !isBookPublication;
+  const showVolumeField = !isConferencePaper && !isBookPublication && (!isDoiImported || hasValue("volume"));
+  const showIssueField = !isConferencePaper && !isBookPublication;
+  const showIndexingFields = supportsQuartile(value.publicationType);
+  const showIdentifierField = isBookPublication || (!isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn")));
+  const showIssnInput = !isConferencePaper && !isBookPublication && (!isDoiImported || hasValue("issn"));
+  const showIsbnInput = isBookPublication || !isDoiImported || hasValue("isbn");
+  const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
@@ -638,9 +671,11 @@ const PublicationForm = ({
     const typeReset = field === "publicationType"
       ? isConferencePaperType(nextValue)
         ? getConferencePaperReset()
-        : !supportsQuartile(nextValue)
-          ? { quartile: "", indexing: [] }
-          : {}
+        : isBookPublicationType(nextValue)
+          ? getBookPublicationReset()
+          : !supportsQuartile(nextValue)
+            ? { quartile: "", indexing: [] }
+            : {}
       : {};
 
     onChange({
@@ -825,6 +860,8 @@ const PublicationForm = ({
   const venuePlaceholder = t(venuePlaceholderKey);
   const venueLabelKey = value.publicationType === "conference_paper"
     ? "professor.dashboard.publicationForm.conferenceName"
+    : value.publicationType === "book"
+      ? "professor.dashboard.publicationForm.bookTitle"
     : "professor.dashboard.publicationForm.publishedIn";
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
   const mainAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isMainAuthor ?? author.is_main_author)) || authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
@@ -957,15 +994,17 @@ const PublicationForm = ({
             <input value={value.publisher} onChange={updateField("publisher")} readOnly={isFieldLocked("publisher")} />
           </label>
         ) : null}
-        <label className="prof-form-field">
-          <span>{t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}</span>
-          <input
-            value={publishedValue}
-            onChange={updatePublishedField}
-            placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
-            readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
-          />
-        </label>
+        {showPublishedDateField ? (
+          <label className="prof-form-field">
+            <span>{t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}</span>
+            <input
+              value={publishedValue}
+              onChange={updatePublishedField}
+              placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
+              readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+            />
+          </label>
+        ) : null}
         {showVolumeField ? (
           <label className="prof-form-field">
             <span>{t("professor.dashboard.publicationForm.volume")}</span>
@@ -1027,7 +1066,7 @@ const PublicationForm = ({
         ) : null}
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
-            <span>{isConferencePaper ? "ISBN" : "ISSN / ISBN"}</span>
+            <span>{isConferencePaper || isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>
             <div className="publication-identifier-inputs">
               {showIssnInput ? (
                 <input

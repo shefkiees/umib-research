@@ -3597,6 +3597,44 @@ async function resolveIndexingMetadata(metadata = {}) {
 }
 
 async function enrichMetadataIndexing(metadata = {}) {
+  if (normalizeMetadataPublicationType(metadata.type) !== "journal_article") {
+    const normalizedMetadata = normalizeConferenceMissingMetadata({
+      ...metadata,
+      indexing: [],
+      quartile: "",
+      quartileVerified: false,
+      quartile_verified: false,
+      quartileHistorical: false,
+      quartile_historical: false,
+      quartileSource: "manual",
+      quartile_source: "manual",
+      quartileVerificationStatus: "empty",
+      quartile_verification_status: "empty",
+      quartileSelectionReason: "",
+      quartile_selection_reason: "",
+      indexingPlatform: "",
+      indexing_platform: "",
+      indexingCategory: "",
+      indexing_category: "",
+      indexingVerified: false,
+      indexing_verified: false,
+      indexingSource: "manual",
+      indexing_source: "manual",
+      sjr: "",
+      citeScore: "",
+      cite_score: "",
+      citeScoreVerified: false,
+      cite_score_verified: false,
+    });
+    const fieldSources = buildMetadataFieldSources(normalizedMetadata);
+
+    return {
+      ...normalizedMetadata,
+      fieldSources,
+      field_sources: fieldSources,
+    };
+  }
+
   const indexingResolution = await resolveIndexingMetadata(metadata);
   const indexing = indexingResolution.indexing || [];
   const selectedQuartile = indexingResolution.selected || null;
