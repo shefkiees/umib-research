@@ -564,6 +564,17 @@ export function normalizeAbstractText(value) {
     .trim();
 }
 
+function isWeakConferenceAbstract(value) {
+  const text = normalizeAbstractText(value);
+
+  if (!text) {
+    return false;
+  }
+
+  const sentenceCount = (text.match(/[.!?](?:\s|$)/g) || []).length;
+  return text.length < 180 || sentenceCount < 2;
+}
+
 export function normalizeYear(value) {
   if (value === "" || value === null || value === undefined) {
     return null;
@@ -589,6 +600,8 @@ function normalizeAffiliations(value) {
       || item?.affiliation
       || item?.institution
       || item?.organization
+      || item?.display_name
+      || item?.displayName
       || item?.value
       || item
     ))
@@ -1033,12 +1046,17 @@ function mergeAuthorMetadata(primaryAuthors = [], fallbackAuthors = []) {
     }
 
     const fallbackAffiliation = getAuthorAffiliation(matchedFallbackAuthor);
+    const fallbackOrcid = normalizeOrcid(matchedFallbackAuthor.orcid || matchedFallbackAuthor.ORCID);
     const nextAuthor = {
       ...author,
     };
 
     if (!getAuthorAffiliation(nextAuthor) && fallbackAffiliation) {
       nextAuthor.affiliation = fallbackAffiliation;
+    }
+
+    if (!normalizeOrcid(nextAuthor.orcid || nextAuthor.ORCID) && fallbackOrcid) {
+      nextAuthor.orcid = fallbackOrcid;
     }
 
     if (authorHasCorrespondingFlag(matchedFallbackAuthor)) {
@@ -1379,11 +1397,6 @@ function extractPublisherConferenceFields(html, metadata = {}) {
     "dcterms.abstract",
     "abstract",
   ]).map(normalizeAbstractText);
-  const descriptionMeta = extractMetaContents(html, [
-    "description",
-    "og:description",
-    "twitter:description",
-  ]).map(normalizeAbstractText);
   const locationMeta = extractMetaContents(html, [
     "citation_conference_location",
     "conference_location",
@@ -1413,16 +1426,11 @@ function extractPublisherConferenceFields(html, metadata = {}) {
     "article:published_time",
     "date",
   ]).map(normalizePublisherDate);
-  const titleText = normalizeComparableText(metadata.title);
-  const descriptionCandidates = [...jsonLd.descriptions, ...descriptionMeta]
-    .filter((item) => item.length >= 80 && normalizeComparableText(item) !== titleText);
-
   return {
     abstract: uniqueValues([
       ...abstractMeta,
       ...jsonLd.abstracts,
       ...extractHtmlAbstractSections(html),
-      ...descriptionCandidates,
     ]).find(Boolean) || "",
     conferenceName: uniqueValues([...nameMeta, ...jsonLd.names]).find(Boolean) || "",
     conferenceLocation: uniqueValues([...locationMeta, ...jsonLd.locations]).find(Boolean) || "",
@@ -1798,11 +1806,12 @@ function shouldTryPublisherConferenceMetadata(metadata = {}) {
 
   const raw = metadata.raw_json || {};
 
-  if (raw._publisher_html_metadata?.attempted) {
+  if (raw._publisher_html_metadata?.attempted && raw._publisher_html_metadata?.version >= 2) {
     return false;
   }
 
   return !normalizeAbstractText(metadata.abstract)
+    || isWeakConferenceAbstract(metadata.abstract)
     || !normalizeConferenceName(metadata)
     || !normalizeConferenceLocation(metadata)
     || !isFullDate(metadata.published_date)
@@ -1817,6 +1826,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
   const urlCandidates = getMetadataArticleUrlCandidates(metadata);
   let lastAttempt = {
     attempted: true,
+    version: 2,
     status: "unavailable",
     url: urlCandidates[0] || "",
   };
@@ -1844,7 +1854,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
       const nextMetadata = { ...metadata };
       const found = [];
 
-      if (!normalizeAbstractText(nextMetadata.abstract) && fields.abstract) {
+      if ((!normalizeAbstractText(nextMetadata.abstract) || isWeakConferenceAbstract(nextMetadata.abstract)) && fields.abstract) {
         nextMetadata.abstract = fields.abstract;
         found.push("abstract");
       }
@@ -1873,6 +1883,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
 
       lastAttempt = {
         attempted: true,
+        version: 2,
         status: found.length ? "matched" : "no_fields_found",
         url: response.url || url,
         found,
@@ -1891,6 +1902,7 @@ async function enrichConferencePublisherMetadata(metadata = {}) {
     } catch {
       lastAttempt = {
         attempted: true,
+        version: 2,
         status: "unavailable",
         url,
       };

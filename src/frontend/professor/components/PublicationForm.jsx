@@ -119,7 +119,7 @@ function normalizeAuthorAffiliation(author = {}) {
         return String(item || "").trim();
       }
 
-      return String(item.name || item.affiliation || item.institution || item.organization || item.value || "").trim();
+      return String(item.name || item.affiliation || item.institution || item.organization || item.display_name || item.displayName || item.value || "").trim();
     })
     .filter(Boolean)
     .join("; ");

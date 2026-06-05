@@ -88,12 +88,12 @@ function normalizeBoolean(value) {
 function normalizeAuthorAffiliation(value) {
   if (Array.isArray(value)) {
     return value
-      .map((item) => normalizeText(item?.name || item?.affiliation || item?.institution || item))
+      .map((item) => normalizeText(item?.name || item?.affiliation || item?.institution || item?.organization || item?.display_name || item?.displayName || item))
       .filter(Boolean)
       .join("; ");
   }
 
-  return normalizeText(value?.name || value?.affiliation || value?.institution || value);
+  return normalizeText(value?.name || value?.affiliation || value?.institution || value?.organization || value?.display_name || value?.displayName || value);
 }
 
 function normalizeOptionalDate(value) {
