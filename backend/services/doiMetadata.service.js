@@ -449,9 +449,11 @@ function createQuartileLookupContext(metadata = {}) {
 
 function decodeHtmlEntities(value) {
   return normalizeText(value)
+    .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#42;|&#x2a;|&ast;/gi, "*")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">");
 }
@@ -708,6 +710,206 @@ function preferText(primary, fallback) {
   return hasText(primary) ? primary : fallback;
 }
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getAuthorFullName(author = {}) {
+  return normalizeText(
+    author.fullName
+    || author.full_name
+    || author.name
+    || [author.givenName || author.given_name || author.given, author.familyName || author.family_name || author.family].filter(Boolean).join(" ")
+  );
+}
+
+function normalizeAuthorMatchName(value = "") {
+  return normalizeComparableText(value).replace(/\b[a-z]\b/g, "").replace(/\s+/g, " ").trim();
+}
+
+function getAuthorMatchKeys(author = {}) {
+  const fullName = getAuthorFullName(author);
+  const givenName = normalizeText(author.givenName || author.given_name || author.given);
+  const familyName = normalizeText(author.familyName || author.family_name || author.family);
+  const orcid = normalizeOrcid(author.orcid || author.ORCID);
+  const keys = [
+    normalizeAuthorMatchName(fullName),
+    normalizeAuthorMatchName([givenName, familyName].filter(Boolean).join(" ")),
+    normalizeAuthorMatchName([familyName, givenName].filter(Boolean).join(" ")),
+    orcid ? `orcid:${orcid}` : "",
+  ].filter(Boolean);
+
+  return [...new Set(keys)];
+}
+
+function getAuthorInitials(author = {}) {
+  const fullName = normalizeComparableText(getAuthorFullName(author));
+  const parts = fullName
+    .split(/\s+/)
+    .map((part) => part.replace(/[^A-Za-z]/g, ""))
+    .filter(Boolean);
+
+  if (!parts.length) {
+    return "";
+  }
+
+  return parts.map((part) => part[0].toUpperCase()).join(".");
+}
+
+function authorHasCorrespondingFlag(author = {}) {
+  return normalizeMetadataBoolean(
+    author.isCorrespondingAuthor
+    ?? author.is_corresponding_author
+    ?? author.correspondingAuthor
+    ?? author.corresponding_author
+    ?? author.isCorresponding
+    ?? author.is_corresponding
+    ?? author.corresponding
+  );
+}
+
+function createCorrespondingLookup({
+  status = "manual_required",
+  source = "metadata",
+  confidence = "",
+  reason = "",
+  names = [],
+  url = "",
+} = {}) {
+  return {
+    status,
+    source,
+    confidence,
+    reason,
+    names: uniqueValues(names),
+    url: normalizeText(url),
+  };
+}
+
+function getCorrespondingLookup(metadata = {}) {
+  return metadata.raw_json?._corresponding_author_lookup || null;
+}
+
+function withCorrespondingLookup(metadata = {}, lookup = {}) {
+  return {
+    ...metadata,
+    correspondingAuthorStatus: lookup.status,
+    corresponding_author_status: lookup.status,
+    correspondingAuthorSource: lookup.source,
+    corresponding_author_source: lookup.source,
+    correspondingAuthorConfidence: lookup.confidence,
+    corresponding_author_confidence: lookup.confidence,
+    correspondingAuthorReason: lookup.reason,
+    corresponding_author_reason: lookup.reason,
+    raw_json: {
+      ...(metadata.raw_json || {}),
+      _corresponding_author_lookup: lookup,
+    },
+  };
+}
+
+function matchAuthorIndexesByNames(authors = [], names = []) {
+  const targetKeys = new Set(names.flatMap((name) => [normalizeAuthorMatchName(name), normalizeComparableText(name)]).filter(Boolean));
+  const indexes = new Set();
+
+  authors.forEach((author, index) => {
+    const authorKeys = getAuthorMatchKeys(author);
+
+    if (authorKeys.some((key) => targetKeys.has(key))) {
+      indexes.add(index);
+    }
+  });
+
+  return indexes;
+}
+
+function applyCorrespondingResolution(metadata = {}, lookup = {}) {
+  const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const matchedIndexes = lookup.status === "verified"
+    ? matchAuthorIndexesByNames(authors, lookup.names || [])
+    : new Set();
+  const resolvedLookup = lookup.status === "verified" && !matchedIndexes.size
+    ? createCorrespondingLookup({
+        ...lookup,
+        status: "manual_required",
+        confidence: "",
+        reason: lookup.reason ? `${lookup.reason}_not_matched` : "verified_names_not_matched",
+      })
+    : lookup;
+  const nextAuthors = authors.map((author, index) => {
+    const isCorrespondingAuthor = matchedIndexes.has(index) || (resolvedLookup.status !== "verified" && authorHasCorrespondingFlag(author));
+
+    return {
+      ...author,
+      isCorrespondingAuthor,
+      is_corresponding_author: isCorrespondingAuthor,
+      correspondingAuthorSource: isCorrespondingAuthor ? resolvedLookup.source || author.correspondingAuthorSource || "" : author.correspondingAuthorSource || "",
+      corresponding_author_source: isCorrespondingAuthor ? resolvedLookup.source || author.corresponding_author_source || "" : author.corresponding_author_source || "",
+      correspondingAuthorConfidence: isCorrespondingAuthor ? resolvedLookup.confidence || author.correspondingAuthorConfidence || "" : author.correspondingAuthorConfidence || "",
+      corresponding_author_confidence: isCorrespondingAuthor ? resolvedLookup.confidence || author.corresponding_author_confidence || "" : author.corresponding_author_confidence || "",
+    };
+  });
+
+  return withCorrespondingLookup({ ...metadata, authors: nextAuthors }, resolvedLookup);
+}
+
+function mergeAuthorCorrespondingFlags(primaryAuthors = [], fallbackAuthors = []) {
+  if (!Array.isArray(primaryAuthors) || !primaryAuthors.length) {
+    return Array.isArray(fallbackAuthors) ? fallbackAuthors : [];
+  }
+
+  const correspondingFallbackAuthors = (Array.isArray(fallbackAuthors) ? fallbackAuthors : [])
+    .filter(authorHasCorrespondingFlag);
+
+  if (!correspondingFallbackAuthors.length) {
+    return primaryAuthors;
+  }
+
+  return primaryAuthors.map((author) => {
+    const primaryKeys = new Set(getAuthorMatchKeys(author));
+    const matchedFallbackAuthor = correspondingFallbackAuthors.find((fallbackAuthor) =>
+      getAuthorMatchKeys(fallbackAuthor).some((key) => primaryKeys.has(key))
+    );
+
+    if (!matchedFallbackAuthor) {
+      return author;
+    }
+
+    return {
+      ...author,
+      isCorrespondingAuthor: true,
+      is_corresponding_author: true,
+      correspondingAuthorSource: matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag",
+      corresponding_author_source: matchedFallbackAuthor.correspondingAuthorSource || matchedFallbackAuthor.corresponding_author_source || "metadata_flag",
+      correspondingAuthorConfidence: matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified",
+      corresponding_author_confidence: matchedFallbackAuthor.correspondingAuthorConfidence || matchedFallbackAuthor.corresponding_author_confidence || "verified",
+    };
+  });
+}
+
+function getMetadataCorrespondingLookup(metadata = {}) {
+  const lookup = getCorrespondingLookup(metadata);
+
+  if (lookup) {
+    return lookup;
+  }
+
+  const correspondingAuthors = (Array.isArray(metadata.authors) ? metadata.authors : [])
+    .filter(authorHasCorrespondingFlag)
+    .map(getAuthorFullName)
+    .filter(Boolean);
+
+  return correspondingAuthors.length
+    ? createCorrespondingLookup({
+        status: "verified",
+        source: "metadata_flag",
+        confidence: "verified",
+        reason: "author_metadata_flag",
+        names: correspondingAuthors,
+      })
+    : null;
+}
+
 function mergeMetadata(primary, fallback) {
   if (!fallback) {
     return primary;
@@ -715,11 +917,17 @@ function mergeMetadata(primary, fallback) {
 
   const primaryRaw = primary.raw_json || {};
   const fallbackRaw = fallback.raw_json || {};
+  const authors = Array.isArray(primary.authors) && primary.authors.length
+    ? mergeAuthorCorrespondingFlags(primary.authors, fallback.authors)
+    : fallback.authors;
+  const primaryLookup = getMetadataCorrespondingLookup({ ...primary, authors });
+  const fallbackLookup = getMetadataCorrespondingLookup(fallback);
+  const correspondingLookup = primaryLookup?.status === "verified" ? primaryLookup : fallbackLookup || primaryLookup;
 
-  return {
+  const mergedMetadata = {
     ...primary,
     title: preferText(primary.title, fallback.title),
-    authors: Array.isArray(primary.authors) && primary.authors.length ? primary.authors : fallback.authors,
+    authors,
     container_title: preferText(primary.container_title, fallback.container_title),
     publisher: preferText(primary.publisher, fallback.publisher),
     published_date: isFullDate(fallback.published_date) && !isFullDate(primary.published_date)
@@ -744,6 +952,479 @@ function mergeMetadata(primary, fallback) {
       _openalex: primaryRaw._openalex || fallbackRaw._openalex || {},
     },
   };
+
+  return correspondingLookup?.status === "verified"
+    ? applyCorrespondingResolution(mergedMetadata, correspondingLookup)
+    : mergedMetadata;
+}
+
+function normalizeUrlCandidate(value) {
+  const text = normalizeText(value);
+
+  if (!text) {
+    return "";
+  }
+
+  if (/^doi:\s*10\./i.test(text)) {
+    return `https://doi.org/${normalizeDoi(text)}`;
+  }
+
+  if (/^10\.\d{4,9}\//i.test(text)) {
+    return `https://doi.org/${normalizeDoi(text)}`;
+  }
+
+  if (/^\/\//.test(text)) {
+    return `https:${text}`;
+  }
+
+  return /^https?:\/\//i.test(text) ? text : "";
+}
+
+function getUrlHostname(value) {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isMdpiUrl(value) {
+  const hostname = getUrlHostname(value);
+
+  return hostname === "mdpi.com" || hostname.endsWith(".mdpi.com");
+}
+
+function getMetadataArticleUrlCandidates(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const openAlex = raw._openalex || {};
+  const primaryLocation = openAlex.primary_location || {};
+  const bestOaLocation = openAlex.best_oa_location || {};
+  const locations = Array.isArray(openAlex.locations) ? openAlex.locations : [];
+  const locationUrls = locations.flatMap((location) => [
+    location?.landing_page_url,
+    location?.pdf_url,
+    location?.source?.homepage_url,
+  ]);
+  const doi = normalizeDoi(metadata.doi || raw.DOI || crossref.DOI || doiOrg.DOI);
+  const candidates = [
+    metadata.source_url,
+    metadata.sourceUrl,
+    raw.URL,
+    raw.url,
+    crossref.URL,
+    crossref.url,
+    doiOrg.URL,
+    doiOrg.url,
+    primaryLocation.landing_page_url,
+    primaryLocation.pdf_url,
+    bestOaLocation.landing_page_url,
+    bestOaLocation.pdf_url,
+    openAlex.id,
+    ...locationUrls,
+    doi ? `https://doi.org/${doi}` : "",
+  ].map(normalizeUrlCandidate);
+
+  return uniqueValues(candidates);
+}
+
+function isMdpiMetadata(metadata = {}, urlCandidates = getMetadataArticleUrlCandidates(metadata)) {
+  const raw = metadata.raw_json || {};
+  const openAlexSource = raw._openalex?.primary_location?.source || raw._openalex?.host_venue || {};
+  const publisherText = [
+    metadata.publisher,
+    raw.publisher,
+    raw._crossref?.publisher,
+    raw._doi_org?.publisher,
+    openAlexSource.publisher,
+    openAlexSource.host_organization_name,
+  ].map(normalizeComparableText).join(" ");
+
+  return publisherText.includes("mdpi") || urlCandidates.some(isMdpiUrl);
+}
+
+function htmlToText(value) {
+  return decodeHtmlEntities(String(value || "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(?:p|div|section|article|li|tr|h[1-6])>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim());
+}
+
+function getKnownAuthorName(author = {}) {
+  return getAuthorFullName(author);
+}
+
+function createAuthorNameRegex(name) {
+  const parts = normalizeText(name).split(/\s+/).filter(Boolean);
+
+  if (!parts.length) {
+    return null;
+  }
+
+  return new RegExp(parts.map(escapeRegExp).join("\\s+"), "i");
+}
+
+function resolveKnownAuthorNames(names = [], authors = []) {
+  const matchedIndexes = matchAuthorIndexesByNames(authors, names);
+
+  return [...matchedIndexes]
+    .map((index) => getKnownAuthorName(authors[index]))
+    .filter(Boolean);
+}
+
+function extractMdpiAuthorTextBlocks(html) {
+  const blocks = [];
+  const source = String(html || "");
+  const classPattern = /class=["'][^"']*(?:art-authors|author-list|authors-list|authors-links)[^"']*["']/gi;
+  let match;
+
+  while ((match = classPattern.exec(source))) {
+    const slice = source.slice(Math.max(0, match.index - 500), match.index + 30000);
+    const endIndex = slice.search(/class=["'][^"']*(?:art-affiliations|affiliations|art-abstract|abstract|art-keywords|keywords)[^"']*["']/i);
+    blocks.push(htmlToText(endIndex > 1000 ? slice.slice(0, endIndex) : slice));
+  }
+
+  return uniqueValues(blocks).filter(Boolean);
+}
+
+function containsMdpiStarMarker(value) {
+  return /(?:^|[\s,;(\[])(?:\*|\u2217|\u204e|\ufe61|\uff0a)(?:[\s,;)\]]|$)/.test(value);
+}
+
+function extractMdpiStarAuthorNames(html, authors = []) {
+  const names = [];
+  const knownAuthors = authors.filter((author) => getKnownAuthorName(author));
+
+  for (const blockText of extractMdpiAuthorTextBlocks(html)) {
+    const positions = knownAuthors
+      .map((author) => {
+        const name = getKnownAuthorName(author);
+        const nameRegex = createAuthorNameRegex(name);
+        const match = nameRegex ? blockText.match(nameRegex) : null;
+
+        return match ? { name, index: match.index } : null;
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.index - right.index);
+
+    positions.forEach((position, index) => {
+      const nextPosition = positions[index + 1]?.index ?? blockText.length;
+      const segment = blockText.slice(position.index, nextPosition);
+
+      if (containsMdpiStarMarker(segment)) {
+        names.push(position.name);
+      }
+    });
+  }
+
+  return uniqueValues(names);
+}
+
+function extractMdpiCorrespondenceTextBlocks(html) {
+  const text = htmlToText(html);
+  const blocks = [];
+  const pattern = /\b(?:correspondence|corresponding author|authors? to whom correspondence should be addressed)\b/gi;
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    blocks.push(text.slice(match.index, match.index + 1600));
+  }
+
+  return uniqueValues(blocks).filter(Boolean);
+}
+
+function extractFullAuthorNamesFromText(text, authors = []) {
+  return authors
+    .map(getKnownAuthorName)
+    .filter(Boolean)
+    .filter((name) => {
+      const regex = createAuthorNameRegex(name);
+      return regex ? regex.test(text) : false;
+    });
+}
+
+function normalizeInitials(value) {
+  return normalizeText(value)
+    .toUpperCase()
+    .replace(/[^A-Z.]/g, "")
+    .replace(/\.+/g, ".")
+    .replace(/\.$/, "");
+}
+
+function resolveInitialsToAuthorNames(initials = [], authors = []) {
+  const names = [];
+
+  for (const value of initials) {
+    const target = normalizeInitials(value);
+    const matches = authors.filter((author) => normalizeInitials(getAuthorInitials(author)) === target);
+
+    if (target && matches.length === 1) {
+      names.push(getKnownAuthorName(matches[0]));
+    }
+  }
+
+  return uniqueValues(names);
+}
+
+function getAuthorComparableNameParts(author = {}) {
+  const fullNameParts = normalizeComparableText(getKnownAuthorName(author)).split(/\s+/).filter(Boolean);
+  const givenName = normalizeComparableText(author.givenName || author.given_name || fullNameParts[0]);
+  const familyName = normalizeComparableText(author.familyName || author.family_name || fullNameParts[fullNameParts.length - 1]);
+
+  return {
+    givenName,
+    familyName,
+  };
+}
+
+function extractEmailAuthorNamesFromCorrespondenceBlock(text, authors = []) {
+  const emails = [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map((match) => match[0]);
+  const names = [];
+
+  for (const email of emails) {
+    const localTokens = normalizeComparableText(email.split("@")[0].replace(/[._+-]+/g, " ")).split(/\s+/).filter(Boolean);
+    const localTokenSet = new Set(localTokens);
+    const matches = authors.filter((author) => {
+      const { givenName, familyName } = getAuthorComparableNameParts(author);
+
+      return familyName.length >= 3
+        && localTokenSet.has(familyName)
+        && (
+          givenName.length >= 3
+            ? localTokenSet.has(givenName) || localTokenSet.has(givenName[0])
+            : false
+        );
+    });
+
+    if (matches.length === 1) {
+      names.push(getKnownAuthorName(matches[0]));
+    }
+  }
+
+  return uniqueValues(names);
+}
+
+function extractMdpiCorrespondenceBlockAuthorNames(html, authors = []) {
+  const names = [];
+
+  for (const blockText of extractMdpiCorrespondenceTextBlocks(html)) {
+    names.push(...extractFullAuthorNamesFromText(blockText, authors));
+    names.push(...extractEmailAuthorNamesFromCorrespondenceBlock(blockText, authors));
+    names.push(...resolveInitialsToAuthorNames(
+      [...blockText.matchAll(/\(([A-Z](?:\.[A-Z]){1,}\.?)\)/g)].map((match) => match[1]),
+      authors
+    ));
+  }
+
+  return uniqueValues(names);
+}
+
+function parseJsonLike(value) {
+  try {
+    return JSON.parse(decodeHtmlEntities(value));
+  } catch {
+    return null;
+  }
+}
+
+function collectSchemaCorrespondingAuthorNames(value, names = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectSchemaCorrespondingAuthorNames(item, names));
+    return names;
+  }
+
+  if (!value || typeof value !== "object") {
+    return names;
+  }
+
+  const objectName = normalizeText(value.name || [value.givenName, value.familyName].filter(Boolean).join(" "));
+  const descriptorText = [
+    value.roleName,
+    value.role,
+    value.description,
+    value["@type"],
+  ].map(normalizeComparableText).join(" ");
+  const hasCorrespondingDescriptor = descriptorText.includes("corresponding");
+  const hasCorrespondingBoolean = Object.entries(value).some(([key, item]) =>
+    normalizeComparableText(key).includes("correspond") && normalizeMetadataBoolean(item)
+  );
+
+  if (objectName && (hasCorrespondingDescriptor || hasCorrespondingBoolean)) {
+    names.push(objectName);
+  }
+
+  Object.entries(value).forEach(([key, item]) => {
+    if (normalizeComparableText(key).includes("correspond")) {
+      if (typeof item === "string") {
+        names.push(item);
+      } else {
+        collectSchemaCorrespondingAuthorNames(item, names);
+      }
+    } else if (item && typeof item === "object") {
+      collectSchemaCorrespondingAuthorNames(item, names);
+    }
+  });
+
+  return names;
+}
+
+function extractMdpiSchemaCorrespondingAuthorNames(html, authors = []) {
+  const names = [];
+  const scriptPattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+
+  while ((match = scriptPattern.exec(String(html || "")))) {
+    const parsed = parseJsonLike(match[1]);
+
+    if (parsed) {
+      names.push(...collectSchemaCorrespondingAuthorNames(parsed, []));
+    }
+  }
+
+  return uniqueValues(resolveKnownAuthorNames(names, authors));
+}
+
+function extractMdpiCorrespondingAuthorNames(html, authors = []) {
+  const schemaNames = extractMdpiSchemaCorrespondingAuthorNames(html, authors);
+  const starNames = resolveKnownAuthorNames(extractMdpiStarAuthorNames(html, authors), authors);
+  const correspondenceNames = resolveKnownAuthorNames(extractMdpiCorrespondenceBlockAuthorNames(html, authors), authors);
+
+  return {
+    names: uniqueValues([...schemaNames, ...starNames, ...correspondenceNames]),
+    reasons: [
+      schemaNames.length ? "schema_markup" : "",
+      starNames.length ? "author_star_marker" : "",
+      correspondenceNames.length ? "correspondence_block" : "",
+    ].filter(Boolean),
+  };
+}
+
+async function fetchPublisherCorrespondingAuthorLookup(metadata = {}) {
+  const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const urlCandidates = getMetadataArticleUrlCandidates(metadata);
+
+  if (!authors.length) {
+    return createCorrespondingLookup({
+      status: "manual_required",
+      source: "publisher_html",
+      reason: "no_authors_to_match",
+    });
+  }
+
+  if (!isMdpiMetadata(metadata, urlCandidates)) {
+    return createCorrespondingLookup({
+      status: "manual_required",
+      source: "metadata",
+      reason: "publisher_html_not_supported",
+    });
+  }
+
+  let lastManualLookup = createCorrespondingLookup({
+    status: "manual_required",
+    source: "publisher_html_mdpi",
+    reason: "publisher_html_unavailable",
+    url: urlCandidates[0] || "",
+  });
+
+  for (const url of urlCandidates) {
+    try {
+      const response = await fetchJson(url, {
+        headers: {
+          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
+          "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+        },
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const responseUrl = response.url || url;
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType && !contentType.toLowerCase().includes("html")) {
+        continue;
+      }
+
+      if (!isMdpiUrl(responseUrl) && !isMdpiMetadata(metadata, [responseUrl])) {
+        continue;
+      }
+
+      const { names, reasons } = extractMdpiCorrespondingAuthorNames(await response.text(), authors);
+
+      if (names.length) {
+        return createCorrespondingLookup({
+          status: "verified",
+          source: "publisher_html_mdpi",
+          confidence: "verified",
+          reason: reasons.length ? `mdpi_${reasons.join("_")}` : "mdpi_corresponding_author_confirmed",
+          names,
+          url: responseUrl,
+        });
+      }
+
+      lastManualLookup = createCorrespondingLookup({
+        status: "manual_required",
+        source: "publisher_html_mdpi",
+        reason: "no_clear_corresponding_author",
+        url: responseUrl,
+      });
+    } catch {
+      lastManualLookup = createCorrespondingLookup({
+        status: "manual_required",
+        source: "publisher_html_mdpi",
+        reason: "publisher_html_unavailable",
+        url,
+      });
+    }
+  }
+
+  return lastManualLookup;
+}
+
+async function enrichMetadataCorrespondingAuthors(metadata = {}) {
+  const existingLookup = getCorrespondingLookup(metadata);
+
+  if (existingLookup?.status === "verified" && existingLookup.source === "publisher_html_mdpi") {
+    return applyCorrespondingResolution(metadata, existingLookup);
+  }
+
+  if (existingLookup?.status === "manual_required" && existingLookup.source === "publisher_html_mdpi") {
+    return withCorrespondingLookup(metadata, existingLookup);
+  }
+
+  const publisherLookup = isMdpiMetadata(metadata)
+    ? await fetchPublisherCorrespondingAuthorLookup(metadata)
+    : null;
+
+  if (publisherLookup?.status === "verified") {
+    return applyCorrespondingResolution(metadata, publisherLookup);
+  }
+
+  if (existingLookup?.status === "verified") {
+    return applyCorrespondingResolution(metadata, existingLookup);
+  }
+
+  if (existingLookup?.status === "manual_required" && !publisherLookup) {
+    return withCorrespondingLookup(metadata, existingLookup);
+  }
+
+  const metadataLookup = getMetadataCorrespondingLookup(metadata);
+
+  if (metadataLookup?.status === "verified") {
+    return applyCorrespondingResolution(metadata, metadataLookup);
+  }
+
+  return withCorrespondingLookup(metadata, publisherLookup || existingLookup || createCorrespondingLookup({
+    status: "manual_required",
+    source: "metadata",
+    reason: "no_corresponding_author_metadata",
+  }));
 }
 
 function shouldRefreshCachedMetadata(metadata = {}) {
@@ -2197,7 +2878,7 @@ export async function fetchDoiMetadata(doi) {
   }
 
   if (metadata) {
-    return enrichMetadataIndexing(metadata);
+    return enrichMetadataIndexing(await enrichMetadataCorrespondingAuthors(metadata));
   }
 
   if (errors.every((error) => error instanceof DoiLookupError && error.code === "doi_not_found")) {
@@ -2215,7 +2896,15 @@ export async function getVerifiedDoiMetadata(dbOrClient, doi) {
   const cached = await getCachedDoiMetadata(dbOrClient, doi);
 
   if (cached && !shouldRefreshCachedMetadata(cached)) {
-    return { source: "cache", metadata: await enrichMetadataIndexing(cached) };
+    const hadCorrespondingLookup = Boolean(getCorrespondingLookup(cached));
+    const enrichedCorresponding = await enrichMetadataCorrespondingAuthors(cached);
+    const metadata = await enrichMetadataIndexing(enrichedCorresponding);
+
+    if (!hadCorrespondingLookup && getCorrespondingLookup(metadata)) {
+      await upsertDoiMetadata(dbOrClient, metadata);
+    }
+
+    return { source: "cache", metadata };
   }
 
   const metadata = await fetchDoiMetadata(doi);
