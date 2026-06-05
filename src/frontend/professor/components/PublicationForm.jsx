@@ -1031,7 +1031,7 @@ const PublicationForm = ({
         </div>
         <div className="publication-doi-hint">
           <FileText size={16} aria-hidden="true" />
-          <span>{t("professor.dashboard.publicationForm.doiHintBefore")} <code>10.</code> {t("professor.dashboard.publicationForm.doiHintAfter")}</span>
+          <span>{t("professor.dashboard.publicationForm.doiHint")}</span>
         </div>
       </div>
 
