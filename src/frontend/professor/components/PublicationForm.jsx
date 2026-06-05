@@ -549,7 +549,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, 0));
 
   return {
-    title: metadata.title || "",
+    title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
     abstract: metadata.abstract || "",
     publicationType,
     venue: publicationType === "book"

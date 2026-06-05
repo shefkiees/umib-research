@@ -682,6 +682,26 @@ function normalizeTitleArray(value) {
     .filter(Boolean));
 }
 
+function parsePageRange(value) {
+  const text = normalizeText(value);
+
+  if (!text) {
+    return { pagesStart: null, pagesEnd: null, pages_start: null, pages_end: null };
+  }
+
+  const match = text.match(/([A-Za-z]?\d+)\s*(?:-|--|–|—|to)\s*([A-Za-z]?\d+)/i)
+    || text.match(/^([A-Za-z]?\d+)$/);
+  const pagesStart = match?.[1] || null;
+  const pagesEnd = match?.[2] || pagesStart;
+
+  return {
+    pagesStart,
+    pagesEnd,
+    pages_start: pagesStart,
+    pages_end: pagesEnd,
+  };
+}
+
 function getBookChapterTitleFields(data = {}, chapterTitle = "") {
   const raw = data.raw_json || data;
   const crossref = raw._crossref || {};
@@ -727,26 +747,58 @@ function getBookChapterTitleFields(data = {}, chapterTitle = "") {
   };
 }
 
+function hasExplicitBookChapterBookTitle(data = {}, chapterTitle = "") {
+  const raw = data.raw_json || data;
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const sources = [raw, crossref, doiOrg];
+  const chapterKey = normalizeComparableText(chapterTitle || raw.title || firstTextValue(raw.title));
+  const explicitBookTitles = uniqueValues(sources.flatMap((source) => [
+    ...normalizeTitleArray(source.source_title || source.sourceTitle || source["source-title"]),
+    ...normalizeTitleArray(source.book_title || source.bookTitle || source["book-title"]),
+    ...normalizeTitleArray(source.volume_title || source.volumeTitle || source["volume-title"]),
+  ])).filter((title) => normalizeComparableText(title) && normalizeComparableText(title) !== chapterKey);
+  const multiContainerTitles = sources.some((source) =>
+    normalizeTitleArray(source.container_title || source.containerTitle || source["container-title"]).length > 1
+  );
+
+  return explicitBookTitles.length > 0 || multiContainerTitles;
+}
+
 function normalizeBookChapterMetadata(metadata = {}) {
   if (!isBookChapterMetadata(metadata)) {
     return metadata;
   }
 
   const titleFields = getBookChapterTitleFields(metadata, metadata.title);
-  const bookTitle = titleFields.bookTitle || metadata.book_title || metadata.bookTitle || metadata.container_title || "";
+  const bookTitle = titleFields.bookTitle || metadata.book_title || metadata.bookTitle || "";
   const seriesTitle = titleFields.seriesTitle || metadata.series_title || metadata.seriesTitle || "";
+  const chapterTitle = normalizeText(metadata.chapter_title || metadata.chapterTitle || metadata.title) || null;
+  const pageRange = parsePageRange(metadata.pages);
 
   return {
     ...metadata,
-    container_title: bookTitle,
-    bookTitle,
-    book_title: bookTitle,
-    seriesTitle,
-    series_title: seriesTitle,
+    title: chapterTitle || "",
+    chapterTitle,
+    chapter_title: chapterTitle,
+    container_title: normalizeText(bookTitle),
+    bookTitle: bookTitle || null,
+    book_title: bookTitle || null,
+    seriesTitle: seriesTitle || null,
+    series_title: seriesTitle || null,
+    publicationSubtype: "book_chapter",
+    publication_subtype: "book_chapter",
+    sourceType: metadata.sourceType || metadata.source_type || metadata.raw_json?.type || metadata.raw_json?._crossref?.type || metadata.raw_json?._doi_org?.type || "",
+    source_type: metadata.sourceType || metadata.source_type || metadata.raw_json?.type || metadata.raw_json?._crossref?.type || metadata.raw_json?._doi_org?.type || "",
+    ...pageRange,
     raw_json: {
       ...(metadata.raw_json || {}),
-      book_title: bookTitle,
-      series_title: seriesTitle,
+      chapter_title: chapterTitle,
+      book_title: bookTitle || null,
+      series_title: seriesTitle || null,
+      publication_subtype: "book_chapter",
+      pages_start: pageRange.pages_start,
+      pages_end: pageRange.pages_end,
     },
   };
 }
@@ -1278,10 +1330,7 @@ function mergeMetadata(primary, fallback) {
         ? primaryBookTitleCandidate
         : preferText(
           primaryBookTitleCandidate,
-          preferText(
-            fallbackBookTitleCandidate,
-            preferText(primary.container_title, fallback.container_title)
-          )
+          fallbackBookTitleCandidate
         )
     : "";
   const mergedSeriesTitle = mergedIsBookChapter
@@ -1293,18 +1342,26 @@ function mergeMetadata(primary, fallback) {
   const mergedContainerTitle = normalizedMergedType === "conference_paper"
     ? preferText(mergedConferenceName, preferText(primary.container_title, fallback.container_title))
     : mergedIsBookChapter
-      ? mergedBookTitle || preferText(primary.container_title, fallback.container_title)
+      ? mergedBookTitle
     : preferText(primary.container_title, fallback.container_title);
+  const mergedChapterTitle = mergedIsBookChapter
+    ? preferText(primary.chapter_title || primary.chapterTitle || primary.title, fallback.chapter_title || fallback.chapterTitle || fallback.title)
+    : "";
+  const mergedPageRange = parsePageRange(preferText(primary.pages, fallback.pages));
 
   const mergedMetadata = {
     ...primary,
-    title: preferText(primary.title, fallback.title),
+    title: mergedIsBookChapter ? mergedChapterTitle : preferText(primary.title, fallback.title),
     authors,
     container_title: mergedContainerTitle,
     bookTitle: mergedBookTitle,
     book_title: mergedBookTitle,
     seriesTitle: mergedSeriesTitle,
     series_title: mergedSeriesTitle,
+    chapterTitle: mergedChapterTitle,
+    chapter_title: mergedChapterTitle,
+    publicationSubtype: mergedIsBookChapter ? "book_chapter" : primary.publicationSubtype || primary.publication_subtype || fallback.publicationSubtype || fallback.publication_subtype || "",
+    publication_subtype: mergedIsBookChapter ? "book_chapter" : primary.publicationSubtype || primary.publication_subtype || fallback.publicationSubtype || fallback.publication_subtype || "",
     conferenceName: mergedConferenceName,
     conference_name: mergedConferenceName,
     publisher: preferText(primary.publisher, fallback.publisher),
@@ -1315,6 +1372,7 @@ function mergeMetadata(primary, fallback) {
     volume: preferText(primary.volume, fallback.volume),
     issue: preferText(primary.issue, fallback.issue),
     pages: preferText(primary.pages, fallback.pages),
+    ...(mergedIsBookChapter ? mergedPageRange : {}),
     issn: preferText(primary.issn, fallback.issn),
     isbn: preferText(primary.isbn, fallback.isbn),
     conferenceLocation: preferText(primary.conferenceLocation, fallback.conferenceLocation),
@@ -1329,8 +1387,12 @@ function mergeMetadata(primary, fallback) {
       _crossref: primaryRaw._crossref || fallbackRaw._crossref || {},
       _openalex: primaryRaw._openalex || fallbackRaw._openalex || {},
       ...(mergedIsBookChapter ? {
+        chapter_title: mergedChapterTitle,
         book_title: mergedBookTitle,
         series_title: mergedSeriesTitle,
+        publication_subtype: "book_chapter",
+        pages_start: mergedPageRange.pages_start,
+        pages_end: mergedPageRange.pages_end,
       } : {}),
     },
   };
@@ -2201,7 +2263,7 @@ function shouldRefreshCachedMetadata(metadata = {}) {
     return true;
   }
 
-  if (isBookChapterType && !getBookChapterTitleFields(metadata, metadata.title).bookTitle) {
+  if (isBookChapterType && !hasExplicitBookChapterBookTitle(metadata, metadata.title)) {
     return true;
   }
 
@@ -2230,11 +2292,12 @@ function mapMetadata(data, doi) {
   const type = normalizeMetadataPublicationType(data.type);
   const isBookChapter = isBookChapterMetadata(data);
   const bookChapterTitles = isBookChapter ? getBookChapterTitleFields(data, title) : {};
+  const pageRange = parsePageRange(data.page);
   const conferenceName = normalizeConferenceName(data);
   const containerTitle = type === "conference_paper"
     ? conferenceName || rawContainerTitle
     : isBookChapter
-      ? bookChapterTitles.bookTitle || rawContainerTitle || conferenceName
+      ? bookChapterTitles.bookTitle || ""
     : rawContainerTitle || conferenceName;
   const conferenceLocation = normalizeConferenceLocation(data);
   const authors = Array.isArray(data.author)
@@ -2266,6 +2329,8 @@ function mapMetadata(data, doi) {
   return {
     doi,
     title: normalizeText(title),
+    chapterTitle: isBookChapter ? normalizeText(title) || null : "",
+    chapter_title: isBookChapter ? normalizeText(title) || null : "",
     authors,
     container_title: normalizeText(containerTitle),
     conferenceLocation,
@@ -2278,20 +2343,29 @@ function mapMetadata(data, doi) {
     volume: normalizeText(data.volume),
     issue: normalizeText(data.issue),
     pages: normalizeText(data.page),
+    ...(isBookChapter ? pageRange : {}),
     issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type,
-    bookTitle: isBookChapter ? bookChapterTitles.bookTitle || containerTitle : "",
-    book_title: isBookChapter ? bookChapterTitles.bookTitle || containerTitle : "",
-    seriesTitle: isBookChapter ? bookChapterTitles.seriesTitle || "" : "",
-    series_title: isBookChapter ? bookChapterTitles.seriesTitle || "" : "",
+    bookTitle: isBookChapter ? bookChapterTitles.bookTitle || null : "",
+    book_title: isBookChapter ? bookChapterTitles.bookTitle || null : "",
+    seriesTitle: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
+    series_title: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
+    publicationSubtype: isBookChapter ? "book_chapter" : "",
+    publication_subtype: isBookChapter ? "book_chapter" : "",
+    sourceType: normalizeText(data.type),
+    source_type: normalizeText(data.type),
     abstract: normalizeAbstractText(data.abstract),
     source_url: normalizeText(data.URL) || `https://doi.org/${doi}`,
     raw_json: {
       ...data,
       ...(isBookChapter ? {
-        book_title: bookChapterTitles.bookTitle || containerTitle,
-        series_title: bookChapterTitles.seriesTitle || "",
+        chapter_title: normalizeText(title) || null,
+        book_title: bookChapterTitles.bookTitle || null,
+        series_title: bookChapterTitles.seriesTitle || null,
+        publication_subtype: "book_chapter",
+        pages_start: pageRange.pages_start,
+        pages_end: pageRange.pages_end,
       } : {}),
     },
   };

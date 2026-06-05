@@ -1456,7 +1456,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
   return {
     doi: metadata.doi || "",
-    title: metadata.title || "",
+    title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
     abstract: nullableConferenceAbstract(publicationType, metadata.abstract),
     publicationType,
     venue: publicationType === "book"
