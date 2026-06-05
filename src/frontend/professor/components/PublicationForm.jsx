@@ -376,7 +376,6 @@ function getConferencePaperReset() {
     volume: "",
     issue: "",
     issn: "",
-    isbn: "",
     indexingPlatform: "",
     indexingCategory: "",
     indexingVerified: false,
@@ -599,9 +598,9 @@ const PublicationForm = ({
   const showVolumeField = !isConferencePaper && (!isDoiImported || hasValue("volume"));
   const showIssueField = !isConferencePaper;
   const showIndexingFields = !isConferencePaper;
-  const showIdentifierField = !isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn"));
-  const showIssnInput = !isDoiImported || hasValue("issn");
-  const showIsbnInput = !isDoiImported || hasValue("isbn");
+  const showIdentifierField = isConferencePaper || (!isDoiImported || hasValue("issn") || hasValue("isbn"));
+  const showIssnInput = !isConferencePaper && (!isDoiImported || hasValue("issn"));
+  const showIsbnInput = isConferencePaper || !isDoiImported || hasValue("isbn");
   const showAbstractField = isConferencePaper || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
@@ -1028,7 +1027,7 @@ const PublicationForm = ({
         ) : null}
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
-            <span>ISSN / ISBN</span>
+            <span>{isConferencePaper ? "ISBN" : "ISSN / ISBN"}</span>
             <div className="publication-identifier-inputs">
               {showIssnInput ? (
                 <input
