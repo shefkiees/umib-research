@@ -2932,9 +2932,9 @@ export default function ReimbursementManager({
       <div className="reimbursement-form-grid reimbursement-conference-publication-grid">
         {context.publications.length ? (
           <label className="reimbursement-field reimbursement-wide reimbursement-publication-selector">
-            <span>Zgjidh publikimin</span>
+            <span>Zgjedh publikimin</span>
             <select value={form.publicationId} onChange={handleConferencePublicationSelect}>
-              <option value="">Zgjidh publikimin</option>
+              <option value="">Zgjedh publikimin</option>
               {context.publications.map((publication) => (
                 <option key={publication.id} value={publication.id}>
                   {publication.title || publication.doi || r.publicationWithoutTitle}

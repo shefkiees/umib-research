@@ -1320,6 +1320,33 @@ function extractHtmlAbstractSections(html) {
   return uniqueValues(sections.map(normalizeAbstractText).filter((item) => item.length >= 20));
 }
 
+function extractLabeledAbstractSections(html) {
+  const text = htmlToText(html);
+  const sections = [];
+  const labelPattern = /\b(?:abstract|summary)\s*[:\-]\s*/gi;
+  let match;
+
+  while ((match = labelPattern.exec(text))) {
+    const slice = text.slice(match.index + match[0].length, match.index + match[0].length + 5000);
+    const endMatch = slice.search(/\b(?:references|bibliography|acknowledg(?:e)?ments?|keywords?|key\s+words?|doi|isbn|issn|citation)\b\s*[:\-]?/i);
+    const candidate = normalizeAbstractText(endMatch > 40 ? slice.slice(0, endMatch) : slice);
+
+    if (candidate.length >= 20) {
+      sections.push(candidate);
+    }
+  }
+
+  return uniqueValues(sections);
+}
+
+function selectBestAbstractCandidate(candidates = []) {
+  const normalized = uniqueValues(candidates.map(normalizeAbstractText).filter(Boolean));
+
+  return normalized
+    .filter((item) => item.length >= 20)
+    .sort((first, second) => second.length - first.length)[0] || "";
+}
+
 function collectPublisherJsonLdFields(value, fields = { abstracts: [], descriptions: [], names: [], locations: [], dates: [] }, context = "") {
   if (Array.isArray(value)) {
     value.forEach((item) => collectPublisherJsonLdFields(item, fields, context));
@@ -1436,12 +1463,13 @@ function extractPublisherConferenceFields(html, metadata = {}) {
     .filter((item) => item && normalizeComparableText(item) !== titleText);
 
   return {
-    abstract: uniqueValues([
+    abstract: selectBestAbstractCandidate([
       ...abstractMeta,
       ...jsonLd.abstracts,
       ...extractHtmlAbstractSections(html),
+      ...extractLabeledAbstractSections(html),
       ...descriptionCandidates,
-    ]).find(Boolean) || "",
+    ]),
     conferenceName: uniqueValues([...nameMeta, ...jsonLd.names]).find(Boolean) || "",
     conferenceLocation: uniqueValues([...locationMeta, ...jsonLd.locations]).find(Boolean) || "",
     publishedDate: uniqueValues([...dateMeta, ...jsonLd.dates]).find(Boolean) || "",
