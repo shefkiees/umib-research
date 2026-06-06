@@ -162,10 +162,10 @@ const CONFERENCE_UI_LABELS = {
   coParticipant: "Bashkautorët",
   acceptanceConfirmation: "Konfirmimi i pranimit të punimit",
   authorsAffiliation: "Autoret dhe perkatesia institucionale",
-  speakerWithPaperPoster: "Folës me kumtesë/poster",
-  chairPanelist: "Kryesues/panelist",
+  speakerWithPaperPoster: "Roli në prezantim",
+  chairPanelist: "Roli në organizim/panel",
   artisticSportEvent: "Ngjarje artistike/sportive",
-  eventPublicationLink: "Linku i publikimit të ngjarjes",
+  eventPublicationLink: "Linku zyrtar i ngjarjes/publikimit",
 };
 
 const CONFERENCE_UI_PLACEHOLDERS = {
@@ -173,7 +173,7 @@ const CONFERENCE_UI_PLACEHOLDERS = {
   abstractTitle: "Shkruaj abstraktin e punimit",
   acceptanceConfirmation: "Vendos URL ose shënim për konfirmimin e pranimit",
   authorsAffiliation: "Shkruaj autorët dhe përkatësinë institucionale",
-  eventPublicationLink: "Vendos linkun e ngjarjes ose publikimit",
+  eventPublicationLink: "Vendos linkun zyrtar të konferencës ose publikimit",
 };
 
 const COST_CATEGORY_OPTIONS = [
