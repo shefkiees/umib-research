@@ -638,10 +638,16 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
   }
 
   if (publicationType === "conference_paper") {
+    const conferenceStart = [
+      ...commonStart.slice(0, 3),
+      createDisplayField("Vendi i konferencës", form.conferenceLocation),
+      ...commonStart.slice(3),
+    ];
+
     return {
       title: "",
       fields: [
-        ...commonStart,
+        ...conferenceStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
         createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
