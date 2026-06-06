@@ -870,26 +870,101 @@ function getPublicationDoiLink(publication) {
   return cleanDisplayValue(publication?.sourceUrl || publication?.source_url) || (doi ? `https://doi.org/${doi}` : "");
 }
 
+function normalizeIndexingBoolean(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function normalizeIndexingQuartile(value) {
+  const match = String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/);
+
+  return match?.[0] || "";
+}
+
+function normalizeIndexingSourceKey(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (!text) return "manual";
+  if (text.includes("scopus") || text.includes("citescore")) return "scopus";
+  if (text.includes("scimago") || text.includes("sjr")) return "scimago";
+  if (text.includes("doaj")) return "doaj";
+  if (text.includes("openalex")) return "openalex";
+
+  return ["scopus", "scimago", "doaj", "openalex", "manual"].includes(text) ? text : "manual";
+}
+
+function getIndexingYear(item = {}) {
+  const year = Number.parseInt(item.year || item.indexing_year || item.coverYear || item.cover_year, 10);
+
+  return Number.isFinite(year) ? year : 0;
+}
+
+function isSelectedQuartileIndexing(item = {}) {
+  const status = String(item.quartileVerificationStatus || item.quartile_verification_status || "").toLowerCase();
+  const source = normalizeIndexingSourceKey(item.quartileSource || item.quartile_source || item.sourceKey || item.source_key || item.source);
+
+  return Boolean(normalizeIndexingQuartile(item.quartile))
+    && (
+      normalizeIndexingBoolean(item.quartileVerified ?? item.quartile_verified)
+      || status === "verified"
+      || status === "manual"
+      || (status === "historical" && source !== "manual")
+      || (!status && source !== "manual")
+    );
+}
+
+function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
+  const items = Array.isArray(indexing) ? indexing : [];
+  const selected = items.find(isSelectedQuartileIndexing);
+
+  if (selected) {
+    return selected;
+  }
+
+  const fallback = normalizeIndexingQuartile(fallbackQuartile);
+  const quartileMatches = fallback
+    ? items.filter((item) => normalizeIndexingQuartile(item.quartile) === fallback)
+    : items.filter((item) => normalizeIndexingQuartile(item.quartile));
+
+  return quartileMatches
+    .sort((first, second) => getIndexingYear(second) - getIndexingYear(first))
+    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
+    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
+    || {};
+}
+
 function getPublicationIndexingFields(publication) {
   const indexing = Array.isArray(publication?.indexing) ? publication.indexing : [];
-  const indexingPlatform = indexing
+  const selectedIndexing = getSelectedIndexingItem(indexing, publication?.quartile);
+  const fallbackPlatform = indexing
     .map((item) => item.source || item.platform || "")
     .map((item) => String(item).trim())
     .filter(Boolean)
     .filter((item, index, items) => items.indexOf(item) === index)
-    .join(", ") || publication?.indexingPlatform || publication?.indexing_platform || "";
-  const indexingCategory = indexing
+    .join(", ");
+  const fallbackCategory = indexing
     .map((item) => item.category || "")
     .map((item) => String(item).trim())
     .filter(Boolean)
-    .find(Boolean) || publication?.indexingCategory || publication?.indexing_category || "";
-  const impactFactor = indexing.find((item) => item.impactFactor || item.impact_factor)?.impactFactor
-    || indexing.find((item) => item.impactFactor || item.impact_factor)?.impact_factor
+    .find(Boolean);
+  const fallbackImpactFactor = indexing.find((item) => item.impactFactor || item.impact_factor);
+  const fallbackQuartile = indexing.find((item) => item.quartile);
+  const fallbackCiteScore = indexing.find((item) => item.citeScore || item.cite_score || item.citescore);
+  const indexingPlatform = selectedIndexing.source || selectedIndexing.platform || fallbackPlatform || publication?.indexingPlatform || publication?.indexing_platform || "";
+  const indexingCategory = selectedIndexing.category || fallbackCategory || publication?.indexingCategory || publication?.indexing_category || "";
+  const impactFactor = selectedIndexing.impactFactor
+    || selectedIndexing.impact_factor
+    || fallbackImpactFactor?.impactFactor
+    || fallbackImpactFactor?.impact_factor
     || "";
-  const scopusQuartile = indexing.find((item) => item.quartile)?.quartile || "";
-  const citeScore = indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.citeScore
-    || indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.cite_score
-    || indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.citescore
+  const scopusQuartile = normalizeIndexingQuartile(publication?.quartile)
+    || normalizeIndexingQuartile(selectedIndexing.quartile)
+    || normalizeIndexingQuartile(fallbackQuartile?.quartile);
+  const citeScore = selectedIndexing.citeScore
+    || selectedIndexing.cite_score
+    || selectedIndexing.citescore
+    || fallbackCiteScore?.citeScore
+    || fallbackCiteScore?.cite_score
+    || fallbackCiteScore?.citescore
     || publication?.citeScore
     || publication?.cite_score
     || publication?.citescore
