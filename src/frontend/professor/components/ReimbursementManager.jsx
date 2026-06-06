@@ -3005,7 +3005,7 @@ export default function ReimbursementManager({
         createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
     };
-    const abstractText = cleanDisplayValue(form.abstractTitle || selectedPublication.abstract);
+    const abstractText = cleanDisplayValue(selectedPublication.abstract || form.abstract);
     const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
 
     return (
