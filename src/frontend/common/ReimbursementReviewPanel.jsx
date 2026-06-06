@@ -26,7 +26,7 @@ const REVIEW_STATUS_FILTERS = [
 
 const REVIEW_FORM_FILTERS = [
   { value: "all", label: "Të gjitha" },
-  { value: "publication", label: "Publikime shkencore" },
+  { value: "publication", label: "Artikuj Shkencorë" },
   { value: "conference", label: "Konferenca dhe simpoziume" },
   { value: "project", label: "Projekte shkencore" },
 ];

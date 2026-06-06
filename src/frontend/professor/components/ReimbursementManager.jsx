@@ -209,13 +209,13 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
 ]);
 
 const PUBLICATION_LABELS = {
-  publicationTitle: "Titulli i punimit",
+  publicationTitle: "Titulli i artikullit",
   mainAuthor: "Autori kryesor",
   publicationType: "Lloji i publikimit",
-  venue: "Publikuar ne",
-  publisher: "Botuesi",
+  venue: "Publikuar në",
+  publisher: "Shtëpia botuese",
   coauthors: "Bashkautorët",
-  affiliation: "Përkatësia e autorit",
+  affiliation: "Affiliation",
   volume: "Vëllimi",
   issue: "Numri i revistës / Issue",
   pages: "Faqet",
@@ -475,7 +475,9 @@ function cleanDisplayValue(value) {
 }
 
 function createDisplayField(label, value, options = {}) {
-  const cleanValue = cleanDisplayValue(value);
+  const cleanValue = options.format === "date"
+    ? formatDisplayDate(value)
+    : cleanDisplayValue(value);
 
   if (!cleanValue) {
     return null;
@@ -516,13 +518,13 @@ function getPublicationDisplaySections(form) {
   const publicationType = normalizePublicationType(form.publicationType);
   const typeLabel = getPublicationTypeLabel(form.publicationType);
   const baseFields = [
-    createDisplayField("Titulli i publikimit", form.publicationTitle),
+    createDisplayField("Titulli i artikullit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
     createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {}),
   ].filter(Boolean);
   const authorFields = [
     createDisplayField(publicationType === "book" ? "Autori" : "Autori kryesor", form.mainAuthor),
-    createDisplayField("Perkatesia e autorit", form.affiliation),
+    createDisplayField("Affiliation", form.affiliation),
   ].filter(Boolean);
 
   if (publicationType === "conference_paper") {
@@ -532,18 +534,18 @@ function getPublicationDisplaySections(form) {
       {
         title: "Informacion bibliografik",
         fields: [
-          createDisplayField("Publikuar ne", form.venue || form.journal),
-          createDisplayField("Botuesi", form.publisher),
+          createDisplayField("Publikuar në", form.venue || form.journal),
+          createDisplayField("Shtëpia botuese", form.publisher),
           createDisplayField("ISBN", form.isbn),
           createDisplayField("ISSN", form.issn),
-          createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+          createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
           createDisplayField("Faqet", form.pages),
         ].filter(Boolean),
       },
       {
         title: "Indeksimi",
         fields: [
-          createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+          createDisplayField("Indeksimi në platformë", form.indexingPlatform),
           createDisplayField("Kuartili", form.scopusQuartile),
         ].filter(Boolean),
       },
@@ -557,9 +559,9 @@ function getPublicationDisplaySections(form) {
       {
         title: "Informacion bibliografik",
         fields: [
-          createDisplayField("Botuesi", form.publisher),
+          createDisplayField("Shtëpia botuese", form.publisher),
           createDisplayField("ISBN", form.isbn),
-          createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+          createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
           createDisplayField("Faqet", form.pages),
         ].filter(Boolean),
       },
@@ -572,10 +574,10 @@ function getPublicationDisplaySections(form) {
     {
       title: "Informacion bibliografik",
       fields: [
-        createDisplayField("Publikuar ne", form.venue || form.journal),
-        createDisplayField("Botuesi", form.publisher),
+        createDisplayField("Publikuar në", form.venue || form.journal),
+        createDisplayField("Shtëpia botuese", form.publisher),
         createDisplayField("ISSN", form.issn),
-        createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+        createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
         createDisplayField("Vëllimi", form.volume),
         createDisplayField("Numri i revistës / Issue", form.issue),
         createDisplayField("Faqet", form.pages),
@@ -584,7 +586,7 @@ function getPublicationDisplaySections(form) {
     {
       title: "Indeksimi dhe impact factor",
       fields: [
-        createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+        createDisplayField("Indeksimi në platformë", form.indexingPlatform),
         createDisplayField("Kategoria e indeksimit", form.indexingCategory),
         createDisplayField("Impact Factor", form.impactFactor),
         createDisplayField("Kuartili", form.scopusQuartile),
@@ -599,11 +601,11 @@ function getPublicationMetadataDisplaySection(form) {
   const coauthors = splitCoauthors(form.coauthors);
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
   const commonStart = [
-    createDisplayField("Titulli i publikimit", form.publicationTitle),
+    createDisplayField("Titulli i artikullit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
-    createDisplayField("Publikuar ne", form.venue || form.journal),
+    createDisplayField("Publikuar në", form.venue || form.journal),
     createDisplayField("Shtëpia botuese", form.publisher),
-    createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+    createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
     createDisplayField("Faqet", form.pages),
     createDisplayField("ISSN", form.issn),
     createDisplayField("ISBN", form.isbn),
@@ -628,9 +630,9 @@ function getPublicationMetadataDisplaySection(form) {
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
-        createDisplayField("Perkatesia e autorit", form.affiliation),
+        createDisplayField("Affiliation", form.affiliation),
         doiField,
-        createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+        createDisplayField("Indeksimi në platformë", form.indexingPlatform),
         createDisplayField("Kuartili", form.scopusQuartile),
       ].filter(Boolean),
     };
@@ -639,11 +641,11 @@ function getPublicationMetadataDisplaySection(form) {
   return {
     title: "",
     fields: [
-      createDisplayField("Titulli i publikimit", form.publicationTitle),
+      createDisplayField("Titulli i artikullit", form.publicationTitle),
       createDisplayField("Lloji i publikimit", typeLabel),
-      createDisplayField("Publikuar ne", form.venue || form.journal),
+      createDisplayField("Publikuar në", form.venue || form.journal),
       createDisplayField("Shtëpia botuese", form.publisher),
-      createDisplayField("Data e publikimit", form.publicationDate || form.publicationYear),
+      createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
       createDisplayField("Vëllimi", form.volume),
       createDisplayField("Numri i revistës / Issue", form.issue),
       createDisplayField("Faqet", form.pages),
@@ -651,9 +653,9 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
-      createDisplayField("Perkatesia e autorit", form.affiliation),
+      createDisplayField("Affiliation", form.affiliation),
       doiField,
-      createDisplayField("Platforma e indeksimit", form.indexingPlatform),
+      createDisplayField("Indeksimi në platformë", form.indexingPlatform),
       createDisplayField("Kategoria e indeksimit", form.indexingCategory),
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("Kuartili", form.scopusQuartile),
@@ -725,6 +727,36 @@ function normalizeInputDate(value) {
 
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function formatDisplayDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const text = String(value).trim();
+
+  if (/^\d{4}$/.test(text)) {
+    return text;
+  }
+
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return text;
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
 }
 
 function authorName(author = {}) {
@@ -2649,6 +2681,18 @@ export default function ReimbursementManager({
       );
     }
 
+    if (options.readOnly && options.type === "date") {
+      return (
+        <div className={className}>
+          <span>{tx(displayLabel)}</span>
+          <div className="reimbursement-readonly-display" aria-readonly="true">
+            {formatDisplayDate(form[field]) || t("common.noData")}
+          </div>
+          {fieldError ? <small className="reimbursement-field-error">{tx(fieldError)}</small> : null}
+        </div>
+      );
+    }
+
     return (
       <label className={className}>
         <span>{tx(displayLabel)}</span>
@@ -2821,11 +2865,11 @@ export default function ReimbursementManager({
     const metadataSection = {
       title: "",
       fields: [
-        createDisplayField("Titulli i publikimit", selectedPublication.title),
+        createDisplayField("Titulli i artikullit", selectedPublication.title),
         createDisplayField("Lloji i publikimit", getPublicationTypeLabel(publicationType)),
-        createDisplayField("Publikuar ne", venue),
+        createDisplayField("Publikuar në", venue),
         createDisplayField("Shtëpia botuese", selectedPublication.publisher),
-        createDisplayField("Data e publikimit", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year),
+        createDisplayField("Publikuar më", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year, { format: "date" }),
         createDisplayField("Vëllimi", selectedPublication.volume),
         createDisplayField("Numri i revistës / Issue", selectedPublication.issue),
         createDisplayField("ISSN", selectedPublication.issn),
@@ -2833,7 +2877,7 @@ export default function ReimbursementManager({
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
-        createDisplayField("Platforma e indeksimit", indexing.indexingPlatform),
+        createDisplayField("Indeksimi në platformë", indexing.indexingPlatform),
         createDisplayField("Kategoria e indeksimit", indexing.indexingCategory),
         createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
@@ -2932,9 +2976,9 @@ export default function ReimbursementManager({
       <div className="reimbursement-form-grid reimbursement-conference-publication-grid">
         {context.publications.length ? (
           <label className="reimbursement-field reimbursement-wide reimbursement-publication-selector">
-            <span>Zgjedh publikimin</span>
+            <span>Zgjedh Artikullin</span>
             <select value={form.publicationId} onChange={handleConferencePublicationSelect}>
-              <option value="">Zgjedh publikimin</option>
+              <option value="">Zgjedh Artikullin</option>
               {context.publications.map((publication) => (
                 <option key={publication.id} value={publication.id}>
                   {publication.title || publication.doi || r.publicationWithoutTitle}
@@ -3401,7 +3445,7 @@ export default function ReimbursementManager({
               <div>
                 <h4>
                   {selectedType === "publication"
-                    ? "Publikime shkencore"
+                    ? "Artikuj Shkencorë"
                     : selectedType === "conference"
                       ? "Konferenca dhe Simpoziume Shkencore"
                       : r.academicTitle}

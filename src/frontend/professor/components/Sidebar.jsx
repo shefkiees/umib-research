@@ -18,7 +18,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const reimbursementSubmenu = [
-    { name: "Publikime Shkencore", target: "Rimbursime", reimbursementType: "publication" },
+    { name: "Artikuj Shkencorë", target: "Rimbursime", reimbursementType: "publication" },
     { name: "Konferenca dhe Simpoziume", target: "Rimbursime", reimbursementType: "conference" },
   ];
   const menuMain = [
