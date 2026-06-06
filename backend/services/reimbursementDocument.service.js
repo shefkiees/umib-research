@@ -179,6 +179,21 @@ function getOfficeFields() {
   ];
 }
 
+function fieldHasValue(data, field) {
+  return hasMeaningfulValue(valueOf(data, field));
+}
+
+function optionalField(data, label, field) {
+  return fieldHasValue(data, field) ? [createField(label, field)] : [];
+}
+
+function isDuplicateDoiPublicationLink(data) {
+  const doi = normalizeText(valueOf(data, "doi")).toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "");
+  const link = normalizeText(valueOf(data, "publicationLink")).toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "");
+
+  return Boolean(doi && link && doi === link);
+}
+
 function getPublicationSections(data = {}) {
   const publicationDetailFields = [
     createField("Perkatesia e autorit", "affiliation"),
@@ -186,50 +201,63 @@ function getPublicationSections(data = {}) {
     createField("DOI", "doi"),
     createField("Tipi i publikimit", "publicationType"),
     createField("Publikuar ne", "venue"),
-    createField("Shtepia botuese", "publisher"),
-    createField("Volume", "volume"),
-    createField("Issue", "issue"),
-    createField("Pages", "pages"),
-    createField("ISSN", "issn"),
-    createField("ISBN", "isbn"),
-    createField("Abstrakti", "abstract"),
-    createField("Indeksim ne platformen", "indexingPlatform"),
-    createField("Kategoria e indeksimit", "indexingCategory"),
-    createField("Impact faktori (IF)", "impactFactor"),
-    ...(valueOf(data, "citeScore") ? [createField("CiteScore", "citeScore")] : []),
-    createField("Kuartili", "scopusQuartile"),
-    createField("Data e pranimit", "acceptanceDate"),
+    ...optionalField(data, "Shtepia botuese", "publisher"),
+    ...optionalField(data, "Volume", "volume"),
+    ...optionalField(data, "Issue", "issue"),
+    ...optionalField(data, "Pages", "pages"),
+    ...optionalField(data, "ISSN", "issn"),
+    ...optionalField(data, "ISBN", "isbn"),
+    ...optionalField(data, "Abstrakti", "abstract"),
+    ...optionalField(data, "Indeksim ne platformen", "indexingPlatform"),
+    ...optionalField(data, "Kategoria e indeksimit", "indexingCategory"),
+    ...optionalField(data, "Impact faktori (IF)", "impactFactor"),
+    ...optionalField(data, "CiteScore", "citeScore"),
+    ...optionalField(data, "Kuartili", "scopusQuartile"),
+    ...optionalField(data, "Data e pranimit", "acceptanceDate"),
     createField("Data e publikimit", "publicationDate"),
-    createField("Linku i publikimit", "publicationLink"),
-    createField("Deshmia e regjistrimit ne databazen e UIBM", "uibmDatabaseEvidence"),
+    ...(fieldHasValue(data, "publicationLink") && !isDuplicateDoiPublicationLink(data)
+      ? [createField("Linku i publikimit", "publicationLink")]
+      : []),
+    ...optionalField(data, "Deshmia e regjistrimit ne databazen e UIBM", "uibmDatabaseEvidence"),
   ];
-
-  return [
+  const conferenceFields = [
+    ...optionalField(data, "Detajet e organizimit", "publicationConferenceDetails"),
+    ...optionalField(data, "Linku i konferences", "conferenceLink"),
+    ...optionalField(data, "Vendi i konferences", "conferenceLocation"),
+    ...optionalField(data, "Data", "conferencePresentationDate"),
+  ];
+  const sections = [
     {
       title: "Parashtruesi i kerkeses",
       fields: [
-        ...getCommonApplicantFields(),
+        createField("Emri dhe mbiemri", "applicantName"),
+        createField("Email", "applicantEmail"),
+        createField("Njesia akademike", "applicantFaculty"),
+        ...optionalField(data, "Departamenti", "applicantDepartment"),
+        ...optionalField(data, "Thirrja shkencore", "scientificTitle"),
+        ...optionalField(data, "Thirrja akademike", "academicTitle"),
+        ...optionalField(data, "ORCID iD", "applicantOrcidId"),
         createField("Autor kryesor", "mainAuthor"),
         createField("Autor korrespondent", "correspondingAuthor"),
-        createField("Bashkautoret", "coauthors"),
+        ...optionalField(data, "Bashkautoret", "coauthors"),
       ],
     },
     {
       title: "Detajet e publikimit",
       fields: publicationDetailFields,
     },
-    {
-      title: "Informata per konference/simpozium (nese aplikohet)",
-      fields: [
-        createField("Detajet e organizimit", "publicationConferenceDetails"),
-        createField("Linku i konferences", "conferenceLink"),
-        createField("Vendi i konferences", "conferenceLocation"),
-        createField("Data", "conferencePresentationDate"),
-      ],
-    },
     { title: "Te dhenat bankare", fields: getBankFields() },
     { title: "Plotesohet nga zyra", fields: getOfficeFields() },
   ];
+
+  if (conferenceFields.length) {
+    sections.splice(2, 0, {
+      title: "Informata per konference/simpozium (nese aplikohet)",
+      fields: conferenceFields,
+    });
+  }
+
+  return sections;
 }
 
 function getConferenceSections() {
