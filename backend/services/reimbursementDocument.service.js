@@ -842,12 +842,37 @@ function formatPublicationPdfCoauthors(value) {
   return coauthors.length > 1 ? coauthors.join(", ") : text;
 }
 
-function getPublicationPdfField(field, value) {
+function isConferencePaperPublication(data) {
+  return valueOf(data, "publicationType") === "conference_paper";
+}
+
+function getPublicationPdfSectionTitle(title, data) {
+  if (isConferencePaperPublication(data) && title === "Informata per konference/simpozium (nese aplikohet)") {
+    return "Informata për konferencë/simpozium (nëse aplikohet)";
+  }
+
+  return title;
+}
+
+function getPublicationPdfField(field, value, data) {
   const nextField = { ...field };
   let nextValue = value;
+  const isConferencePaper = isConferencePaperPublication(data);
 
   if (field.field === "affiliation") {
     nextField.label = "Përkatësia institucionale (Affiliation)";
+  }
+
+  if (isConferencePaper && field.field === "publicationTitle") {
+    nextField.label = "Titulli i punimit";
+  }
+
+  if (isConferencePaper && field.field === "venue") {
+    nextField.label = "Emri i konferencës";
+  }
+
+  if (isConferencePaper && field.field === "conferenceLocation") {
+    nextField.label = "Vendi i konferencës";
   }
 
   if (field.field === "publicationType") {
@@ -961,11 +986,11 @@ function addPublicationPdfLongField(pdf, field, value) {
 
 function addPublicationPdfSections(pdf, data) {
   getFormSections(data).forEach((section) => {
-    addPublicationPdfSectionHeader(pdf, section.title);
+    addPublicationPdfSectionHeader(pdf, getPublicationPdfSectionTitle(section.title, data));
 
     section.fields.forEach((field) => {
       const value = getFieldValue(data, field) || EMPTY_VALUE;
-      const pdfField = getPublicationPdfField(field, value);
+      const pdfField = getPublicationPdfField(field, value, data);
 
       if (PUBLICATION_PDF_LONG_FIELDS.has(field.field)) {
         addPublicationPdfLongField(pdf, pdfField.field, pdfField.value);
