@@ -589,17 +589,20 @@ function getPublicationDisplaySections(form) {
         createDisplayField("Indeksimi në platformë", form.indexingPlatform),
         createDisplayField("Kategoria e indeksimit", form.indexingCategory),
         createDisplayField("Impact Factor", form.impactFactor),
+        createDisplayField("CiteScore", form.citeScore),
         createDisplayField("Kuartili", form.scopusQuartile),
       ].filter(Boolean),
     },
   ].filter((section) => section.fields.length);
 }
 
-function getPublicationMetadataDisplaySection(form) {
+function getPublicationMetadataDisplaySection(form, options = {}) {
   const publicationType = normalizePublicationType(form.publicationType);
   const typeLabel = getPublicationTypeLabel(form.publicationType);
   const coauthors = splitCoauthors(form.coauthors);
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
+  const correspondingAuthor = cleanDisplayValue(form.correspondingAuthor || options.correspondingAuthor);
+  const citeScore = cleanDisplayValue(options.citeScore);
   const commonStart = [
     createDisplayField("Titulli i artikullit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
@@ -629,6 +632,7 @@ function getPublicationMetadataDisplaySection(form) {
       fields: [
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
+        createDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("Affiliation", form.affiliation),
         doiField,
@@ -652,12 +656,14 @@ function getPublicationMetadataDisplaySection(form) {
       createDisplayField("ISSN", form.issn),
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
+      createDisplayField("Autori korrespondent", correspondingAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
       createDisplayField("Affiliation", form.affiliation),
       doiField,
       createDisplayField("Indeksimi në platformë", form.indexingPlatform),
       createDisplayField("Kategoria e indeksimit", form.indexingCategory),
       createDisplayField("Impact Factor", form.impactFactor),
+      createDisplayField("CiteScore", citeScore),
       createDisplayField("Kuartili", form.scopusQuartile),
     ].filter(Boolean),
   };
@@ -862,12 +868,20 @@ function getPublicationIndexingFields(publication) {
     || indexing.find((item) => item.impactFactor || item.impact_factor)?.impact_factor
     || "";
   const scopusQuartile = indexing.find((item) => item.quartile)?.quartile || "";
+  const citeScore = indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.citeScore
+    || indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.cite_score
+    || indexing.find((item) => item.citeScore || item.cite_score || item.citescore)?.citescore
+    || publication?.citeScore
+    || publication?.cite_score
+    || publication?.citescore
+    || "";
 
   return {
     indexingPlatform,
     indexingCategory,
     impactFactor,
     scopusQuartile,
+    citeScore,
   };
 }
 
@@ -2774,16 +2788,18 @@ export default function ReimbursementManager({
 
   const renderPublicationAuthors = () => {
     const mainAuthor = cleanDisplayValue(form.mainAuthor);
+    const correspondingAuthor = cleanDisplayValue(form.correspondingAuthor);
     const coauthors = splitCoauthors(form.coauthors);
     const authorSection = {
       title: "Autorët",
       fields: [
         createDisplayField(normalizePublicationType(form.publicationType) === "book" ? "Autori" : "Autori kryesor", mainAuthor),
+        createDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
       ].filter(Boolean),
     };
 
-    if (!mainAuthor && !coauthors.length) {
+    if (!mainAuthor && !correspondingAuthor && !coauthors.length) {
       return null;
     }
 
@@ -2818,7 +2834,13 @@ export default function ReimbursementManager({
   };
 
   const renderPublicationReadOnlyDetails = () => {
-    const metadataSection = getPublicationMetadataDisplaySection(form);
+    const selectedPublication = context.publications.find((publication) => String(publication.id) === String(form.publicationId)) || null;
+    const selectedPublicationAuthors = getPublicationAuthorFields(selectedPublication);
+    const selectedPublicationIndexing = getPublicationIndexingFields(selectedPublication);
+    const metadataSection = getPublicationMetadataDisplaySection(form, {
+      correspondingAuthor: selectedPublicationAuthors.correspondingAuthor,
+      citeScore: selectedPublicationIndexing.citeScore,
+    });
 
     if (form.publicationId && metadataSection.fields.length) {
       return (
@@ -2875,10 +2897,13 @@ export default function ReimbursementManager({
         createDisplayField("ISSN", selectedPublication.issn),
         createDisplayField("ISBN", selectedPublication.isbn),
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
+        createDisplayField("Autori korrespondent", form.correspondingAuthor || authorFields.correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
         createDisplayField("Indeksimi në platformë", indexing.indexingPlatform),
         createDisplayField("Kategoria e indeksimit", indexing.indexingCategory),
+        createDisplayField("Impact Factor", indexing.impactFactor),
+        createDisplayField("CiteScore", indexing.citeScore),
         createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
     };
