@@ -819,6 +819,48 @@ const PUBLICATION_PDF_LONG_FIELDS = new Set([
   "abstract",
 ]);
 
+const PUBLICATION_PDF_TYPE_LABELS = {
+  journal_article: "Artikull shkencor",
+  conference_paper: "Punim konference",
+  book: "Libër",
+  book_chapter: "Kapitull libri",
+};
+
+function formatPublicationPdfCoauthors(value) {
+  const text = normalizeText(value);
+
+  if (!text || text === EMPTY_VALUE) {
+    return text;
+  }
+
+  const coauthors = text
+    .split(/[;,\n\r]+/)
+    .map((item) => item.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, ""))
+    .map(normalizeText)
+    .filter(Boolean);
+
+  return coauthors.length > 1 ? coauthors.join(", ") : text;
+}
+
+function getPublicationPdfField(field, value) {
+  const nextField = { ...field };
+  let nextValue = value;
+
+  if (field.field === "affiliation") {
+    nextField.label = "Përkatësia institucionale (Affiliation)";
+  }
+
+  if (field.field === "publicationType") {
+    nextValue = PUBLICATION_PDF_TYPE_LABELS[value] || value;
+  }
+
+  if (field.field === "coauthors") {
+    nextValue = formatPublicationPdfCoauthors(value);
+  }
+
+  return { field: nextField, value: nextValue };
+}
+
 function getPdfContentWidth(pdf) {
   return pdf.page.width - pdf.page.margins.left - pdf.page.margins.right;
 }
@@ -923,13 +965,14 @@ function addPublicationPdfSections(pdf, data) {
 
     section.fields.forEach((field) => {
       const value = getFieldValue(data, field) || EMPTY_VALUE;
+      const pdfField = getPublicationPdfField(field, value);
 
       if (PUBLICATION_PDF_LONG_FIELDS.has(field.field)) {
-        addPublicationPdfLongField(pdf, field, value);
+        addPublicationPdfLongField(pdf, pdfField.field, pdfField.value);
         return;
       }
 
-      addPublicationPdfCompactField(pdf, field, value);
+      addPublicationPdfCompactField(pdf, pdfField.field, pdfField.value);
     });
   });
 }
