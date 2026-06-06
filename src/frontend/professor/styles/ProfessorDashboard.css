@@ -3496,6 +3496,40 @@ body {
   align-items: start;
 }
 
+.reimbursement-publication-summary {
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-info-row {
+  min-height: 0;
+  border: 0;
+  border-bottom: 1px solid #e7eef7;
+  border-radius: 0;
+  background: transparent;
+  padding: 7px 0;
+  gap: 2px;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-info-row span {
+  font-size: 0.68rem;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-info-row strong,
+.reimbursement-publication-summary .reimbursement-publication-info-row a {
+  font-size: 0.8rem;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-inline-chips {
+  min-height: 0;
+  padding: 2px 0 0;
+}
+
 .reimbursement-conference-publication-summary {
   padding: 10px 12px;
   background: #ffffff;

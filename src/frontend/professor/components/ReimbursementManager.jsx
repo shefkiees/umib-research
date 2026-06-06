@@ -2862,7 +2862,7 @@ export default function ReimbursementManager({
     if (form.publicationId && metadataSection.fields.length) {
       return (
         <>
-          {renderPublicationDisplaySection(metadataSection)}
+          {renderPublicationDisplaySection(metadataSection, "reimbursement-publication-summary")}
           {renderPublicationAbstract()}
         </>
       );
