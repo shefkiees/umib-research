@@ -159,7 +159,7 @@ export const REIMBURSEMENT_SCHEMAS = {
           { field: "acceptanceConfirmation", label: "Konfirmimi i pranimit te punimit", wide: true, placeholder: "URL ose shenim" },
           { field: "authorsAffiliation", label: "Autoret e punimit (affiliation)", wide: true },
           { field: "speakerWithPaperPoster", label: "Foles me kumtese/poster", type: "select", optionsKey: "speakerType" },
-          { field: "chairPanelist", label: "Kryesues/panelist", type: "select", optionsKey: "yesNo" },
+          { field: "chairPanelist", label: "Kryesues/panelist", type: "select", optionsKey: "chairPanelist" },
           { field: "artisticSportEvent", label: "Ngjarje artistike/sportive", type: "select", optionsKey: "yesNo" },
           { field: "eventPublicationLink", label: "Linku i publikimit te ngjarjes", wide: true, placeholder: "https://..." },
         ],

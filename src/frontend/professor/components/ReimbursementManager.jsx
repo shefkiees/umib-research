@@ -142,12 +142,14 @@ const FORM_STEPS = [
 const PARTICIPATION_OPTIONS = ["Prezantim", "Poster", "Pjesemarrje", "Keynote", "Panelist", "Kryesues"];
 const YES_NO_OPTIONS = ["", "Po", "Jo"];
 const SCOPUS_OPTIONS = ["", "Q1", "Q2", "Q3", "Q4", "Jo e indeksuar", "Nuk aplikohet"];
-const SPEAKER_TYPE_OPTIONS = ["", "Kumtese", "Poster", "Jo"];
+const SPEAKER_TYPE_OPTIONS = ["", "Punim i pranuar", "Kumtesë", "Poster", "Folës", "Instruktor", "Jo"];
+const CHAIR_PANELIST_OPTIONS = ["", "Kryesues", "Panelist", "Bord shkencor", "Bord organizativ", "Bord ekzekutiv", "Jo"];
 const FIELD_OPTIONS = {
   participation: PARTICIPATION_OPTIONS,
   yesNo: YES_NO_OPTIONS,
   scopus: SCOPUS_OPTIONS,
   speakerType: SPEAKER_TYPE_OPTIONS,
+  chairPanelist: CHAIR_PANELIST_OPTIONS,
 };
 
 const CONFERENCE_UI_LABELS = {
