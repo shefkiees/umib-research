@@ -2902,6 +2902,7 @@ export default function ReimbursementManager({
         createDisplayField("Titulli i artikullit", selectedPublication.title),
         createDisplayField("Lloji i publikimit", getPublicationTypeLabel(publicationType)),
         createDisplayField("Publikuar në", venue),
+        createDisplayField("Vendi i konferencës", selectedPublication.conferenceLocation || selectedPublication.conference_location),
         createDisplayField("Shtëpia botuese", selectedPublication.publisher),
         createDisplayField("Publikuar më", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year, { format: "date" }),
         createDisplayField("Vëllimi", selectedPublication.volume),
