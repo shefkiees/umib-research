@@ -494,7 +494,6 @@ function createDisplayField(label, value, options = {}) {
 
 function createCompactAuthorDisplayField(label, value) {
   return createDisplayField(label, value, {
-    variant: "compactChip",
     style: {
       alignSelf: "start",
       minHeight: "auto",
@@ -2780,10 +2779,6 @@ export default function ReimbursementManager({
           {field.value.map((item) => (
             <span className="reimbursement-coauthor-chip" key={item}>{item}</span>
           ))}
-        </div>
-      ) : field.variant === "compactChip" ? (
-        <div className="reimbursement-coauthor-list reimbursement-publication-inline-chips">
-          <span className="reimbursement-coauthor-chip">{field.value}</span>
         </div>
       ) : field.href ? (
         <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
