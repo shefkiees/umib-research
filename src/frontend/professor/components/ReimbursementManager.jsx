@@ -631,7 +631,9 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       fields: [
         ...commonStart,
         createDisplayField("Autorët", form.mainAuthor),
+        createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
+        createDisplayField("Affiliation", form.affiliation),
         doiField,
       ].filter(Boolean),
     };
