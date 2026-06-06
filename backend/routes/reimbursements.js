@@ -835,6 +835,18 @@ function publicationToReadOnlyRequestData(publication) {
     .find(Boolean) || normalizeText(publication.indexingCategory || publication.indexing_category);
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
   const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
+  const firstCiteScore = indexing.find((item) => hasMeaningfulValue(item.citeScore || item.cite_score || item.citescore));
+  const citeScore = normalizeText(
+    firstQuartile?.citeScore
+    || firstQuartile?.cite_score
+    || firstQuartile?.citescore
+    || firstCiteScore?.citeScore
+    || firstCiteScore?.cite_score
+    || firstCiteScore?.citescore
+    || publication.citeScore
+    || publication.cite_score
+    || publication.citescore
+  );
   const venue = normalizeText(publication.venue || publication.publishedIn || publication.published_in || publication.journal);
   const evidenceLinks = Array.isArray(publication.evidenceLinks || publication.evidence_links)
     ? (publication.evidenceLinks || publication.evidence_links)
@@ -868,6 +880,7 @@ function publicationToReadOnlyRequestData(publication) {
     indexingCategory,
     impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
     scopusQuartile: normalizeText(firstQuartile?.quartile),
+    ...(citeScore ? { citeScore } : {}),
     publicationIdentifiers: identifiers
       .map((item) => [item.type || item.identifier_type, item.value || item.identifier_value].filter(Boolean).join(": "))
       .filter(Boolean)

@@ -179,7 +179,31 @@ function getOfficeFields() {
   ];
 }
 
-function getPublicationSections() {
+function getPublicationSections(data = {}) {
+  const publicationDetailFields = [
+    createField("Perkatesia e autorit", "affiliation"),
+    createField("Titulli i punimit", "publicationTitle"),
+    createField("DOI", "doi"),
+    createField("Tipi i publikimit", "publicationType"),
+    createField("Publikuar ne", "venue"),
+    createField("Shtepia botuese", "publisher"),
+    createField("Volume", "volume"),
+    createField("Issue", "issue"),
+    createField("Pages", "pages"),
+    createField("ISSN", "issn"),
+    createField("ISBN", "isbn"),
+    createField("Abstrakti", "abstract"),
+    createField("Indeksim ne platformen", "indexingPlatform"),
+    createField("Kategoria e indeksimit", "indexingCategory"),
+    createField("Impact faktori (IF)", "impactFactor"),
+    ...(valueOf(data, "citeScore") ? [createField("CiteScore", "citeScore")] : []),
+    createField("Kuartili", "scopusQuartile"),
+    createField("Data e pranimit", "acceptanceDate"),
+    createField("Data e publikimit", "publicationDate"),
+    createField("Linku i publikimit", "publicationLink"),
+    createField("Deshmia e regjistrimit ne databazen e UIBM", "uibmDatabaseEvidence"),
+  ];
+
   return [
     {
       title: "Parashtruesi i kerkeses",
@@ -192,28 +216,7 @@ function getPublicationSections() {
     },
     {
       title: "Detajet e publikimit",
-      fields: [
-        createField("Perkatesia e autorit", "affiliation"),
-        createField("Titulli i punimit", "publicationTitle"),
-        createField("DOI", "doi"),
-        createField("Tipi i publikimit", "publicationType"),
-        createField("Publikuar ne", "venue"),
-        createField("Shtepia botuese", "publisher"),
-        createField("Volume", "volume"),
-        createField("Issue", "issue"),
-        createField("Pages", "pages"),
-        createField("ISSN", "issn"),
-        createField("ISBN", "isbn"),
-        createField("Abstrakti", "abstract"),
-        createField("Indeksim ne platformen", "indexingPlatform"),
-        createField("Kategoria e indeksimit", "indexingCategory"),
-        createField("Impact faktori (IF)", "impactFactor"),
-        createField("Kuartili", "scopusQuartile"),
-        createField("Data e pranimit", "acceptanceDate"),
-        createField("Data e publikimit", "publicationDate"),
-        createField("Linku i publikimit", "publicationLink"),
-        createField("Deshmia e regjistrimit ne databazen e UIBM", "uibmDatabaseEvidence"),
-      ],
+      fields: publicationDetailFields,
     },
     {
       title: "Informata per konference/simpozium (nese aplikohet)",
@@ -329,7 +332,7 @@ function getFormSections(data) {
     return getProjectSections(data);
   }
 
-  return getPublicationSections();
+  return getPublicationSections(data);
 }
 
 function getFieldValue(data, field) {
@@ -572,6 +575,7 @@ function getTemplateValues(data) {
     indexingPlatform: templateValue(data, "indexingPlatform"),
     indexingCategory: templateValue(data, "indexingCategory"),
     impactFactor: templateValue(data, "impactFactor"),
+    citeScore: templateValue(data, "citeScore"),
     scopusQuartile: templateValue(data, "scopusQuartile"),
     acceptanceDate: templateValue(data, "acceptanceDate"),
     publicationDate: templateValueFrom(data, "publicationDate", "publicationYear"),
