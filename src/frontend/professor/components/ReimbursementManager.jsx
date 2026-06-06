@@ -2895,6 +2895,7 @@ export default function ReimbursementManager({
     const publicationType = selectedPublication.publicationType || selectedPublication.publication_type || "";
     const coauthors = splitCoauthors(form.coParticipant || authorFields.coauthors);
     const doi = cleanDisplayValue(selectedPublication.doi);
+    const affiliationText = cleanDisplayValue(form.affiliation || authorFields.affiliation || form.authorsAffiliation);
     const metadataSection = {
       title: "",
       fields: [
@@ -2911,6 +2912,7 @@ export default function ReimbursementManager({
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
         createCompactAuthorDisplayField("Autori korrespondent", form.correspondingAuthor || authorFields.correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
+        createDisplayField("Affiliation", affiliationText),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
         createDisplayField("Indeksimi në platformë", indexing.indexingPlatform),
         createDisplayField("Kategoria e indeksimit", indexing.indexingCategory),
@@ -2919,19 +2921,12 @@ export default function ReimbursementManager({
         createDisplayField("Kuartili", indexing.scopusQuartile),
       ].filter(Boolean),
     };
-    const affiliationText = cleanDisplayValue(form.authorsAffiliation);
     const abstractText = cleanDisplayValue(form.abstractTitle || selectedPublication.abstract);
     const hasLongAbstract = abstractText.length > 260 || abstractText.split(/\r?\n/).length > 3;
 
     return (
       <>
         {metadataSection.fields.length ? renderPublicationDisplaySection(metadataSection, "reimbursement-conference-publication-summary") : null}
-        <section className="reimbursement-publication-display-card reimbursement-conference-publication-summary reimbursement-publication-affiliation-group reimbursement-wide">
-          <h5>Autoret dhe perkatesia institucionale</h5>
-          <div className={`reimbursement-affiliation-card reimbursement-readonly-display ${affiliationText ? "" : "empty"}`} aria-readonly="true">
-            {affiliationText || "Përkatësia institucionale nuk është e disponueshme për këtë publikim."}
-          </div>
-        </section>
         {abstractText ? (
           <section className="reimbursement-publication-display-card reimbursement-conference-publication-summary reimbursement-publication-abstract-group reimbursement-wide">
             <h5>Abstrakti</h5>
@@ -3007,7 +3002,9 @@ export default function ReimbursementManager({
       ...conferenceDetailFields.filter((fieldConfig) => !CONFERENCE_MANUAL_FIELDS.has(fieldConfig.field)),
     ];
     const paperFields = allPaperParticipationFields.filter((fieldConfig) => CONFERENCE_PAPER_FIELDS.has(fieldConfig.field));
-    const participationFields = allPaperParticipationFields.filter((fieldConfig) => !CONFERENCE_PAPER_FIELDS.has(fieldConfig.field));
+    const participationFields = allPaperParticipationFields
+      .filter((fieldConfig) => !CONFERENCE_PAPER_FIELDS.has(fieldConfig.field))
+      .filter((fieldConfig) => !(form.publicationId && fieldConfig.field === "eventPublicationLink"));
 
     return (
       <div className="reimbursement-form-grid reimbursement-conference-publication-grid">
