@@ -810,6 +810,130 @@ function addPdfSection(pdf, title, fields, data) {
   });
 }
 
+const PUBLICATION_PDF_LONG_FIELDS = new Set([
+  "publicationTitle",
+  "coauthors",
+  "affiliation",
+  "doi",
+  "venue",
+  "abstract",
+]);
+
+function getPdfContentWidth(pdf) {
+  return pdf.page.width - pdf.page.margins.left - pdf.page.margins.right;
+}
+
+function ensurePdfSpace(pdf, height) {
+  const bottom = pdf.page.height - pdf.page.margins.bottom;
+
+  if (pdf.y + height > bottom) {
+    pdf.addPage();
+  }
+}
+
+function addPublicationPdfSectionHeader(pdf, title) {
+  const contentWidth = getPdfContentWidth(pdf);
+  const x = pdf.page.margins.left;
+  const height = 22;
+
+  ensurePdfSpace(pdf, height + 10);
+  pdf.moveDown(0.45);
+  pdf
+    .roundedRect(x, pdf.y, contentWidth, height, 2)
+    .fill("#e8eef6");
+  pdf
+    .fillColor("#153a63")
+    .font("Helvetica-Bold")
+    .fontSize(11.5)
+    .text(title, x + 9, pdf.y + 6, { width: contentWidth - 18 });
+  pdf.y += height + 6;
+}
+
+function addPublicationPdfCompactField(pdf, field, value) {
+  const contentWidth = getPdfContentWidth(pdf);
+  const x = pdf.page.margins.left;
+  const labelWidth = 150;
+  const gap = 12;
+  const valueWidth = contentWidth - labelWidth - gap - 16;
+
+  pdf.font("Helvetica").fontSize(9.5);
+  const valueHeight = pdf.heightOfString(value, { width: valueWidth });
+  const rowHeight = Math.max(24, valueHeight + 12);
+
+  ensurePdfSpace(pdf, rowHeight + 2);
+  const rowTop = pdf.y;
+  const y = pdf.y;
+
+  pdf
+    .moveTo(x, y)
+    .lineTo(x + contentWidth, y)
+    .strokeColor("#d8e0ea")
+    .lineWidth(0.4)
+    .stroke();
+  pdf
+    .fillColor("#1f2937")
+    .font("Helvetica-Bold")
+    .fontSize(9.2)
+    .text(`${field.label}:`, x + 8, y + 7, { width: labelWidth });
+  pdf
+    .fillColor("#374151")
+    .font("Helvetica")
+    .fontSize(9.5)
+    .text(value, x + labelWidth + gap, y + 7, { width: valueWidth });
+
+  pdf.y = rowTop + rowHeight;
+}
+
+function addPublicationPdfLongField(pdf, field, value) {
+  const contentWidth = getPdfContentWidth(pdf);
+  const x = pdf.page.margins.left;
+  const labelHeight = 13;
+  const padding = 8;
+  const valueWidth = contentWidth - (padding * 2);
+
+  pdf.font("Helvetica").fontSize(9.5);
+  const valueHeight = pdf.heightOfString(value, { width: valueWidth });
+  const blockHeight = labelHeight + valueHeight + 18;
+
+  ensurePdfSpace(pdf, blockHeight + 4);
+  const y = pdf.y;
+
+  pdf
+    .roundedRect(x, y, contentWidth, blockHeight, 2)
+    .strokeColor("#d8e0ea")
+    .lineWidth(0.45)
+    .stroke();
+  pdf
+    .fillColor("#1f2937")
+    .font("Helvetica-Bold")
+    .fontSize(9.4)
+    .text(`${field.label}:`, x + padding, y + 7, { width: valueWidth });
+  pdf
+    .fillColor("#374151")
+    .font("Helvetica")
+    .fontSize(9.5)
+    .text(value, x + padding, y + 22, { width: valueWidth, lineGap: 1.5 });
+
+  pdf.y = y + blockHeight + 4;
+}
+
+function addPublicationPdfSections(pdf, data) {
+  getFormSections(data).forEach((section) => {
+    addPublicationPdfSectionHeader(pdf, section.title);
+
+    section.fields.forEach((field) => {
+      const value = getFieldValue(data, field) || EMPTY_VALUE;
+
+      if (PUBLICATION_PDF_LONG_FIELDS.has(field.field)) {
+        addPublicationPdfLongField(pdf, field, value);
+        return;
+      }
+
+      addPublicationPdfCompactField(pdf, field, value);
+    });
+  });
+}
+
 export function buildReimbursementPdf(row) {
   const data = prepareDocumentData(row);
   const title = FORM_TITLES[data.requestType] || "FORMULAR RIMBURSIMI";
@@ -841,9 +965,13 @@ export function buildReimbursementPdf(row) {
       .text(`Numri i dokumentit: ${data.documentNumber || EMPTY_VALUE}`, { align: "center" });
     pdf.moveDown();
 
-    getFormSections(data).forEach((section) => {
-      addPdfSection(pdf, section.title, section.fields, data);
-    });
+    if (data.requestType === "publication") {
+      addPublicationPdfSections(pdf, data);
+    } else {
+      getFormSections(data).forEach((section) => {
+        addPdfSection(pdf, section.title, section.fields, data);
+      });
+    }
 
     pdf.moveDown();
     pdf
