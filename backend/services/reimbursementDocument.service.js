@@ -975,33 +975,34 @@ function addPublicationPdfLongField(pdf, field, value) {
   const contentWidth = getPdfContentWidth(pdf);
   const x = pdf.page.margins.left;
   const labelHeight = 13;
-  const padding = 8;
-  const valueWidth = contentWidth - (padding * 2);
+  const paddingLeft = 8;
+  const valueWidth = contentWidth - 16;
 
   pdf.font("Helvetica").fontSize(9.5);
   const valueHeight = pdf.heightOfString(value, { width: valueWidth });
-  const blockHeight = labelHeight + valueHeight + 18;
+  const rowHeight = labelHeight + valueHeight + 18;
 
-  ensurePdfSpace(pdf, blockHeight + 4);
+  ensurePdfSpace(pdf, rowHeight + 2);
   const y = pdf.y;
 
   pdf
-    .roundedRect(x, y, contentWidth, blockHeight, 2)
+    .moveTo(x, y)
+    .lineTo(x + contentWidth, y)
     .strokeColor("#d8e0ea")
-    .lineWidth(0.45)
+    .lineWidth(0.4)
     .stroke();
   pdf
     .fillColor("#1f2937")
     .font("Helvetica-Bold")
     .fontSize(9.4)
-    .text(`${field.label}:`, x + padding, y + 7, { width: valueWidth });
+    .text(`${field.label}:`, x + paddingLeft, y + 7, { width: valueWidth });
   pdf
     .fillColor("#374151")
     .font("Helvetica")
     .fontSize(9.5)
-    .text(value, x + padding, y + 22, { width: valueWidth, lineGap: 1.5 });
+    .text(value, x + paddingLeft, y + 22, { width: valueWidth, lineGap: 1.5 });
 
-  pdf.y = y + blockHeight + 4;
+  pdf.y = y + rowHeight;
 }
 
 function addPublicationPdfSections(pdf, data) {
