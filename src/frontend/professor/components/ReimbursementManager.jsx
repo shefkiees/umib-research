@@ -2905,6 +2905,7 @@ export default function ReimbursementManager({
         createDisplayField("Publikuar më", normalizeInputDate(selectedPublication.publicationDate || selectedPublication.publication_date) || selectedPublication.publicationYear || selectedPublication.publication_year || selectedPublication.year, { format: "date" }),
         createDisplayField("Vëllimi", selectedPublication.volume),
         createDisplayField("Numri i revistës / Issue", selectedPublication.issue),
+        createDisplayField("Faqet", selectedPublication.pages),
         createDisplayField("ISSN", selectedPublication.issn),
         createDisplayField("ISBN", selectedPublication.isbn),
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
