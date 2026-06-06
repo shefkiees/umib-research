@@ -2976,6 +2976,7 @@ export default function ReimbursementManager({
     const indexing = getPublicationIndexingFields(selectedPublication);
     const venue = selectedPublication.venue || selectedPublication.publishedIn || selectedPublication.published_in || selectedPublication.journal || "";
     const publicationType = selectedPublication.publicationType || selectedPublication.publication_type || "";
+    const showIndexingMetadata = normalizePublicationType(publicationType) === "journal_article";
     const coauthors = splitCoauthors(form.coParticipant || authorFields.coauthors);
     const doi = cleanDisplayValue(selectedPublication.doi);
     const affiliationText = cleanDisplayValue(form.affiliation || authorFields.affiliation || form.authorsAffiliation);
@@ -2998,11 +2999,11 @@ export default function ReimbursementManager({
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("Affiliation", affiliationText),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
-        createDisplayField("Indeksimi në platformë", indexing.indexingPlatform),
-        createDisplayField("Kategoria e indeksimit", indexing.indexingCategory),
-        createDisplayField("Impact Factor", indexing.impactFactor),
-        createDisplayField("CiteScore", indexing.citeScore),
-        createDisplayField("Kuartili", indexing.scopusQuartile),
+        showIndexingMetadata ? createDisplayField("Indeksimi në platformë", indexing.indexingPlatform) : null,
+        showIndexingMetadata ? createDisplayField("Kategoria e indeksimit", indexing.indexingCategory) : null,
+        showIndexingMetadata ? createDisplayField("Impact Factor", indexing.impactFactor) : null,
+        showIndexingMetadata ? createDisplayField("CiteScore", indexing.citeScore) : null,
+        showIndexingMetadata ? createDisplayField("Kuartili", indexing.scopusQuartile) : null,
       ].filter(Boolean),
     };
     const abstractText = cleanDisplayValue(selectedPublication.abstract || form.abstract);
