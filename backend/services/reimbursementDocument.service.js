@@ -152,7 +152,7 @@ function getCommonApplicantFields() {
   return [
     createField("Emri dhe mbiemri", "applicantName"),
     createField("Email", "applicantEmail"),
-    createField("Njesia akademike", "applicantFaculty"),
+    createField("Njësia akademike", "applicantFaculty"),
     createField("Departamenti", "applicantDepartment"),
     createField("Thirrja shkencore", "scientificTitle"),
     createField("Thirrja akademike", "academicTitle"),
@@ -174,7 +174,7 @@ function getBankFields() {
 function getOfficeFields() {
   return [
     createField("Numri i dokumentit", "documentNumber"),
-    createField("Data e dorezimit", "submittedAt"),
+    createField("Data e dorëzimit", "submittedAt"),
     createField("Statusi aktual", "status"),
   ];
 }
@@ -232,7 +232,7 @@ function getPublicationSections(data = {}) {
       fields: [
         createField("Emri dhe mbiemri", "applicantName"),
         createField("Email", "applicantEmail"),
-        createField("Njesia akademike", "applicantFaculty"),
+        createField("Njësia akademike", "applicantFaculty"),
         ...optionalField(data, "Departamenti", "applicantDepartment"),
         ...optionalField(data, "Thirrja shkencore", "scientificTitle"),
         ...optionalField(data, "Thirrja akademike", "academicTitle"),
@@ -246,8 +246,8 @@ function getPublicationSections(data = {}) {
       title: "Detajet e publikimit",
       fields: publicationDetailFields,
     },
-    { title: "Te dhenat bankare", fields: getBankFields() },
-    { title: "Plotesohet nga zyra", fields: getOfficeFields() },
+    { title: "Të dhënat bankare", fields: getBankFields() },
+    { title: "Plotësohet nga zyra", fields: getOfficeFields() },
   ];
 
   if (conferenceFields.length) {
@@ -287,8 +287,8 @@ function getConferenceSections() {
         createField("Linku i publikimit te ngjarjes", "eventPublicationLink"),
       ],
     },
-    { title: "Te dhenat bankare", fields: getBankFields() },
-    { title: "Plotesohet nga zyra", fields: getOfficeFields() },
+    { title: "Të dhënat bankare", fields: getBankFields() },
+    { title: "Plotësohet nga zyra", fields: getOfficeFields() },
   ];
 }
 
@@ -347,7 +347,7 @@ function getProjectSections(data) {
         createField("Shuma e kerkuar per rimbursim", "amount"),
       ],
     },
-    { title: "Plotesohet nga zyra", fields: getOfficeFields() },
+    { title: "Plotësohet nga zyra", fields: getOfficeFields() },
   ];
 }
 
@@ -754,7 +754,7 @@ export async function buildReimbursementDocxWithMetadata(row) {
   });
 
   children.push(
-    createDocxParagraph("Nenshkrimi i aplikuesit", { bold: true, before: 260 }),
+    createDocxParagraph("Nënshkrimi i aplikuesit", { bold: true, before: 260 }),
     createDocxParagraph("__________________________", { before: 80 })
   );
 
@@ -1045,7 +1045,7 @@ export function buildReimbursementPdf(row) {
     pdf
       .font("Helvetica-Bold")
       .fillColor("#111827")
-      .text("Nenshkrimi i aplikuesit");
+      .text("Nënshkrimi i aplikuesit");
     pdf.moveDown(0.4);
     pdf.text("__________________________");
 
