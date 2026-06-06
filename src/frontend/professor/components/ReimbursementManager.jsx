@@ -487,7 +487,19 @@ function createDisplayField(label, value, options = {}) {
     label,
     value: cleanValue,
     href: options.href || "",
+    variant: options.variant || "",
+    style: options.style || undefined,
   };
+}
+
+function createCompactAuthorDisplayField(label, value) {
+  return createDisplayField(label, value, {
+    variant: "compactChip",
+    style: {
+      alignSelf: "start",
+      minHeight: "auto",
+    },
+  });
 }
 
 function createChipDisplayField(label, values) {
@@ -632,7 +644,7 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       fields: [
         ...commonStart,
         createDisplayField("Autori kryesor", form.mainAuthor),
-        createDisplayField("Autori korrespondent", correspondingAuthor),
+        createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("Affiliation", form.affiliation),
         doiField,
@@ -656,7 +668,7 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createDisplayField("ISSN", form.issn),
       createDisplayField("ISBN", form.isbn),
       createDisplayField("Autori kryesor", form.mainAuthor),
-      createDisplayField("Autori korrespondent", correspondingAuthor),
+      createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
       createDisplayField("Affiliation", form.affiliation),
       doiField,
@@ -2761,13 +2773,17 @@ export default function ReimbursementManager({
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
   const renderPublicationDisplayField = (field) => (
-    <div className="reimbursement-publication-info-row" key={`${field.label}-${field.value}`}>
+    <div className="reimbursement-publication-info-row" style={field.style} key={`${field.label}-${field.value}`}>
       <span>{field.label}</span>
       {field.variant === "chips" ? (
         <div className="reimbursement-coauthor-list reimbursement-publication-inline-chips">
           {field.value.map((item) => (
             <span className="reimbursement-coauthor-chip" key={item}>{item}</span>
           ))}
+        </div>
+      ) : field.variant === "compactChip" ? (
+        <div className="reimbursement-coauthor-list reimbursement-publication-inline-chips">
+          <span className="reimbursement-coauthor-chip">{field.value}</span>
         </div>
       ) : field.href ? (
         <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
@@ -2794,7 +2810,7 @@ export default function ReimbursementManager({
       title: "Autorët",
       fields: [
         createDisplayField(normalizePublicationType(form.publicationType) === "book" ? "Autori" : "Autori kryesor", mainAuthor),
-        createDisplayField("Autori korrespondent", correspondingAuthor),
+        createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
       ].filter(Boolean),
     };
@@ -2897,7 +2913,7 @@ export default function ReimbursementManager({
         createDisplayField("ISSN", selectedPublication.issn),
         createDisplayField("ISBN", selectedPublication.isbn),
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
-        createDisplayField("Autori korrespondent", form.correspondingAuthor || authorFields.correspondingAuthor),
+        createCompactAuthorDisplayField("Autori korrespondent", form.correspondingAuthor || authorFields.correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),
         createDisplayField("DOI", doi, doi ? { href: `https://doi.org/${doi}` } : {}),
         createDisplayField("Indeksimi në platformë", indexing.indexingPlatform),
