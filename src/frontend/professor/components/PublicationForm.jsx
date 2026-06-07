@@ -324,6 +324,7 @@ export function publicationToDraft(publication = {}) {
     indexedUrl: item.indexedUrl || item.indexed_url || "",
   })) : hasIndexing && (publication.quartile || publication.impactFactor || publication.impact_factor) ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: publication.impactFactor || publication.impact_factor || "", impact_factor: publication.impact_factor || publication.impactFactor || "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
   const primaryIndexing = getSelectedIndexingItem(indexing, publication.quartile);
+  const impactFactorIndexing = indexing.find((item) => item?.impactFactor || item?.impact_factor) || {};
   const displayablePrimaryQuartile = isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "";
 
   return {
@@ -360,7 +361,8 @@ export function publicationToDraft(publication = {}) {
     quartileSource: hasIndexing ? normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source) : "manual",
     quartileVerificationStatus: hasIndexing ? publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty") : "empty",
     sjr: hasIndexing ? publication.sjr || primaryIndexing.sjr || "" : "",
-    impactFactor: hasIndexing ? publication.impactFactor || publication.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "",
+    impactFactor: hasIndexing ? publication.impactFactor || publication.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || "" : "",
+    impact_factor: hasIndexing ? publication.impact_factor || publication.impactFactor || primaryIndexing.impact_factor || primaryIndexing.impactFactor || impactFactorIndexing.impact_factor || impactFactorIndexing.impactFactor || "" : "",
     citeScore: normalizeCiteScoreForDisplay(
       hasIndexing ? publication.citeScore || publication.cite_score || getIndexingCiteScore(primaryIndexing) : "",
       { verifiedZero: normalizeBoolean(publication.citeScoreVerified ?? publication.cite_score_verified ?? primaryIndexing.citeScoreVerified ?? primaryIndexing.cite_score_verified) }

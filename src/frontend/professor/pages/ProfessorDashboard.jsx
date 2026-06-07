@@ -279,6 +279,7 @@ const mapPublicationRow = (row = {}) => {
   const indexing = hasIndexing && Array.isArray(row.indexing) ? row.indexing : [];
   const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
   const selectedVerifiedIndexing = indexing.find((item) => normalizeLooseBoolean(item?.quartileVerified ?? item?.quartile_verified)) || selectedIndexing;
+  const impactFactorIndexing = indexing.find((item) => item?.impactFactor || item?.impact_factor) || {};
 
   return {
     id: row.id || row.doi || row.title,
@@ -317,8 +318,8 @@ const mapPublicationRow = (row = {}) => {
     indexingVerified: hasIndexing && normalizeLooseBoolean(row.indexingVerified ?? row.indexing_verified),
     indexingSource: hasIndexing ? row.indexingSource || row.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual" : "manual",
     sjr: hasIndexing ? row.sjr || selectedIndexing.sjr || "" : "",
-    impactFactor: hasIndexing ? row.impactFactor || row.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "",
-    impact_factor: hasIndexing ? row.impactFactor || row.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "",
+    impactFactor: hasIndexing ? row.impactFactor || row.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || "" : "",
+    impact_factor: hasIndexing ? row.impact_factor || row.impactFactor || selectedIndexing.impact_factor || selectedIndexing.impactFactor || impactFactorIndexing.impact_factor || impactFactorIndexing.impactFactor || "" : "",
     citeScore: hasIndexing ? row.citeScore || row.cite_score || getIndexingCiteScore(selectedIndexing) : "",
     quartileVerified: hasIndexing && normalizeLooseBoolean(row.quartileVerified ?? row.quartile_verified ?? selectedVerifiedIndexing.quartileVerified ?? selectedVerifiedIndexing.quartile_verified),
     quartileSource: hasIndexing ? row.quartileSource || row.quartile_source || selectedIndexing.quartileSource || selectedIndexing.quartile_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual" : "manual",

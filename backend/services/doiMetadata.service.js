@@ -198,6 +198,19 @@ function normalizeImpactFactorValue(value) {
   return Number.isFinite(numericValue) && numericValue > 0 ? normalized : "";
 }
 
+function isImpactFactorLabel(value) {
+  const type = normalizeComparableText(value);
+
+  return Boolean(type)
+    && (
+      type.includes("impact factor")
+      || type.includes("impactfactor")
+      || /\bjif\b/.test(type)
+      || type === "if"
+    )
+    && !type.includes("5 year");
+}
+
 function normalizeCiteScoreValue(value, { allowZero = false } = {}) {
   const normalized = normalizeMetricValue(value);
 
@@ -339,6 +352,16 @@ function getCachedIndexing(metadata = {}) {
         }))
         .filter((item) => item.source || item.category || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl)
     : [];
+}
+
+function getImpactFactorIndexing(indexing = []) {
+  return (Array.isArray(indexing) ? indexing : [])
+    .find((item) => normalizeImpactFactorValue(item?.impactFactor || item?.impact_factor)) || {};
+}
+
+function getIndexingImpactFactor(indexing = []) {
+  const item = getImpactFactorIndexing(indexing);
+  return normalizeImpactFactorValue(item.impactFactor || item.impact_factor);
 }
 
 function toArray(value) {
@@ -1006,10 +1029,11 @@ function buildMetadataFieldSources(metadata = {}) {
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const publicationType = normalizeMetadataPublicationType(metadata.type);
   const firstIndexing = indexing.find((item) => item?.source || item?.category || item?.quartile || item?.impactFactor || item?.impact_factor || item?.sjr || item?.citeScore || item?.cite_score) || {};
-  const firstImpactFactor = firstIndexing.impactFactor || firstIndexing.impact_factor || "";
+  const impactFactorIndexing = firstIndexing.impactFactor || firstIndexing.impact_factor ? firstIndexing : getImpactFactorIndexing(indexing);
+  const firstImpactFactor = normalizeImpactFactorValue(metadata.impactFactor || metadata.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor);
   const firstSjr = firstIndexing.sjr || "";
   const firstCiteScore = firstIndexing.citeScore || firstIndexing.cite_score || firstIndexing.citescore || "";
-  const indexingFieldSource = metadata.indexingVerified || metadata.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified
+  const indexingFieldSource = metadata.indexingVerified || metadata.indexing_verified || firstIndexing.indexingVerified || firstIndexing.indexing_verified || impactFactorIndexing.indexingVerified || impactFactorIndexing.indexing_verified
     ? "lookup"
     : "manual";
   const quartileFieldSource = metadata.quartileVerified || metadata.quartile_verified || firstIndexing.quartileVerified || firstIndexing.quartile_verified
@@ -3524,9 +3548,16 @@ function parseJournalRankIndicators(html) {
   while ((rowMatch = rowPattern.exec(String(html || "")))) {
     const cells = [...rowMatch[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
       .map((cell) => decodeHtmlEntities(cell[1].replace(/<[^>]+>/g, " ")));
-    const type = normalizeComparableText(cells[0]);
-    const value = normalizeMetricValue(cells[1]);
-    const year = normalizeYear(cells[2]);
+    const typeCell = cells.find((cell) => {
+      const type = normalizeComparableText(cell);
+      return type.includes("citescore") || type === "sjr" || type.includes("scimago") || isImpactFactorLabel(cell);
+    }) || "";
+    const type = normalizeComparableText(typeCell);
+    const year = normalizeYear(cells.find((cell) => normalizeYear(cell)));
+    const value = normalizeMetricValue(cells.find((cell) => {
+      const normalized = normalizeMetricValue(cell);
+      return normalized && normalizeYear(cell) !== Number(normalized) && normalizeComparableText(cell) !== type;
+    }));
 
     if (!type || !value || !year) {
       continue;
@@ -3539,7 +3570,7 @@ function parseJournalRankIndicators(html) {
       current.cite_score = current.citeScore;
     } else if (type === "sjr" || type.includes("scimago")) {
       current.sjr = value;
-    } else if ((type.includes("impact factor") || /\bjif\b/.test(type)) && !type.includes("5 year")) {
+    } else if (isImpactFactorLabel(typeCell)) {
       current.impactFactor = normalizeImpactFactorValue(value);
       current.impact_factor = current.impactFactor;
     }
@@ -4203,6 +4234,8 @@ async function enrichMetadataIndexing(metadata = {}) {
       sjr: "",
       citeScore: "",
       cite_score: "",
+      impactFactor: "",
+      impact_factor: "",
       citeScoreVerified: false,
       cite_score_verified: false,
     });
@@ -4223,7 +4256,8 @@ async function enrichMetadataIndexing(metadata = {}) {
   const quartileVerified = Boolean(hasSelectedQuartile && quartileStatus === "verified");
   const quartileHistorical = Boolean(hasSelectedQuartile && quartileStatus === "historical");
   const quartile = hasSelectedQuartile ? normalizeQuartile(selectedQuartile.quartile) : "";
-  const firstIndexing = selectedQuartile || indexing.find((item) => item?.indexingVerified || item?.source || item?.quartile || item?.category || item?.sjr || item?.citeScore) || {};
+  const firstIndexing = selectedQuartile || indexing.find((item) => item?.indexingVerified || item?.source || item?.quartile || item?.category || item?.sjr || item?.citeScore || item?.impactFactor || item?.impact_factor) || {};
+  const impactFactor = normalizeImpactFactorValue(firstIndexing.impactFactor || firstIndexing.impact_factor || getIndexingImpactFactor(indexing));
   const indexingVerified = Boolean(firstIndexing.indexingVerified || firstIndexing.indexing_verified);
   const indexingSource = indexingVerified || hasSelectedQuartile
     ? normalizeIndexingSourceKey(firstIndexing.indexingSource || firstIndexing.indexing_source || firstIndexing.sourceKey || firstIndexing.source_key || firstIndexing.source)
@@ -4269,6 +4303,8 @@ async function enrichMetadataIndexing(metadata = {}) {
     sjr: firstIndexing.sjr || "",
     citeScore: firstIndexing.citeScore || firstIndexing.cite_score || "",
     cite_score: firstIndexing.citeScore || firstIndexing.cite_score || "",
+    impactFactor,
+    impact_factor: impactFactor,
     citeScoreVerified: Boolean(firstIndexing.citeScoreVerified || firstIndexing.cite_score_verified),
     cite_score_verified: Boolean(firstIndexing.citeScoreVerified || firstIndexing.cite_score_verified),
     indexing,

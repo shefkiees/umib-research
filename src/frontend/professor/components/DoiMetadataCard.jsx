@@ -87,6 +87,10 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
   const quartile = Array.isArray(metadata.indexing)
     ? metadata.indexing.find((item) => item?.quartile)?.quartile
     : "";
+  const impactFactorIndexing = Array.isArray(metadata.indexing)
+    ? metadata.indexing.find((item) => item?.impactFactor || item?.impact_factor) || {}
+    : {};
+  const impactFactor = metadata.impactFactor || metadata.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || "";
   const canToggleAbstract = cleanAbstract.length > 280;
 
   const cardStyle = {
@@ -235,6 +239,7 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
         {showBookChapterFields && bookSeriesTitle ? renderField(t("professor.dashboard.publicationForm.bookSeriesTitle"), bookSeriesTitle) : null}
         {showBookChapterFields && edition ? renderField(t("professor.dashboard.publicationForm.edition"), edition) : null}
         {showQuartile ? renderField(t("professor.dashboard.publicationForm.quartile"), quartile) : null}
+        {showQuartile && impactFactor ? renderField(t("professor.dashboard.publicationForm.impactFactor"), impactFactor) : null}
         {renderLinkField(t("professor.doi.link"), metadata.source_url, metadata.source_url)}
       </div>
 

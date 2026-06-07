@@ -1155,8 +1155,9 @@ function mapPublication(row) {
     ? normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore)
     : "";
   const selectedSjr = supportsPublicationIndexing(publicationType) ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
+  const impactFactorIndexing = indexing.find((item) => normalizeImpactFactorValue(item.impactFactor || item.impact_factor)) || {};
   const selectedImpactFactor = supportsPublicationIndexing(publicationType)
-    ? normalizeImpactFactorValue(row.impact_factor || row.impactFactor || selectedIndexing.impactFactor || selectedIndexing.impact_factor)
+    ? normalizeImpactFactorValue(row.impact_factor || row.impactFactor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor)
     : "";
   const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
     && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
