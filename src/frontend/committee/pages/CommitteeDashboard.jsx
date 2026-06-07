@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, BarChart3, Bell, CheckCircle2, CircleUserRound, Clock3, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, CheckCircle2, CircleUserRound, Clock3, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
