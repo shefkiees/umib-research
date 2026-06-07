@@ -644,6 +644,8 @@ create table if not exists reimbursement_attachments (
   created_at timestamptz not null default now()
 );
 
+alter table reimbursement_attachments add column if not exists document_type text;
+
 create index if not exists reimbursement_attachments_reimbursement_idx
 on reimbursement_attachments (reimbursement_id, created_at);
 

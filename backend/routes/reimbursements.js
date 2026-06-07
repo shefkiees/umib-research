@@ -84,6 +84,15 @@ const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "image/png",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+const ALLOWED_ATTACHMENT_DOCUMENT_TYPES = new Set([
+  "article_pdf",
+  "uibm_database_evidence",
+  "acceptance_letter",
+  "conference_program",
+  "presentation_evidence",
+  "financial_document",
+  "other",
+]);
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
 const RETIRED_REASON_FIELD = "pur" + "pose";
@@ -1177,6 +1186,8 @@ function normalizeAttachments(value) {
     filename: item.filename || "",
     mimeType: item.mimeType || item.mime_type || "",
     sizeBytes: Number(item.sizeBytes || item.size_bytes || 0),
+    documentType: item.documentType || item.document_type || null,
+    document_type: item.documentType || item.document_type || null,
     uploadedBy: item.uploadedBy || item.uploaded_by || null,
     createdAt: item.createdAt || item.created_at || null,
     downloadUrl: item.id ? `/api/reimbursements/${item.reimbursementId || item.reimbursement_id}/attachments/${item.id}` : "",
@@ -1253,6 +1264,8 @@ function buildHistorySelect(whereClause) {
                          'filename', a.filename,
                          'mimeType', a.mime_type,
                          'sizeBytes', a.size_bytes,
+                         'documentType', a.document_type,
+                         'document_type', a.document_type,
                          'uploadedBy', a.uploaded_by,
                          'createdAt', a.created_at
                        )
@@ -1773,9 +1786,14 @@ function parseAttachmentFile(file) {
   const filename = normalizeText(file?.filename).replace(/[\\/]/g, "-");
   const mimeType = normalizeText(file?.mimeType || file?.type);
   const base64 = normalizeText(file?.base64).replace(/^data:[^;]+;base64,/, "");
+  const documentType = normalizeText(file?.documentType || file?.document_type);
 
   if (!filename) {
     return { error: "Emri i fajllit mungon." };
+  }
+
+  if (documentType && !ALLOWED_ATTACHMENT_DOCUMENT_TYPES.has(documentType)) {
+    return { error: `Tipi i dokumentit ${documentType} nuk eshte valid.` };
   }
 
   if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType)) {
@@ -1792,7 +1810,7 @@ function parseAttachmentFile(file) {
     return { error: `Fajlli ${filename} duhet te jete deri ne 10MB.` };
   }
 
-  return { filename, mimeType, content, sizeBytes: content.length };
+  return { filename, mimeType, content, sizeBytes: content.length, documentType: documentType || null };
 }
 
 router.get("/context", requireAuthenticatedUser, async (req, res) => {
@@ -2618,9 +2636,9 @@ router.post("/:id/attachments", requireAuthenticatedUser, async (req, res) => {
     for (const file of parsedFiles) {
       await client.query(
         `insert into reimbursement_attachments
-         (reimbursement_id, uploaded_by, filename, mime_type, size_bytes, content)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [current.id, req.user.id, file.filename, file.mimeType, file.sizeBytes, file.content]
+         (reimbursement_id, uploaded_by, filename, mime_type, size_bytes, content, document_type)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [current.id, req.user.id, file.filename, file.mimeType, file.sizeBytes, file.content, file.documentType]
       );
     }
 
