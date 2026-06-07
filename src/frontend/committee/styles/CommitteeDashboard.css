@@ -1370,6 +1370,119 @@
 	color: #17324f;
 }
 
+.committee-decisions-section {
+	display: grid;
+	gap: 18px;
+}
+
+.committee-decisions-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.committee-decisions-head .committee-api-chip {
+	display: inline-flex;
+	align-items: center;
+	cursor: default;
+	white-space: nowrap;
+}
+
+.committee-decision-summary {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.committee-decision-summary article {
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #f8fbff;
+	padding: 14px 16px;
+}
+
+.committee-decision-summary span {
+	display: block;
+	color: #64748b;
+	font-size: 0.78rem;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.committee-decision-summary strong {
+	display: block;
+	margin-top: 5px;
+	color: #12233a;
+	font-size: 1.35rem;
+	line-height: 1;
+}
+
+.committee-decisions-table {
+	min-width: 1040px;
+}
+
+.committee-decisions-table td:last-child {
+	color: #64748b;
+	font-weight: 700;
+}
+
+.committee-decision-source,
+.committee-decision-status {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	font-size: 0.78rem;
+	font-weight: 800;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+.committee-decision-source {
+	min-height: 28px;
+	padding: 0 10px;
+	background: #eef5ff;
+	color: #1f4f84;
+	border: 1px solid #d7e5f7;
+}
+
+.committee-decision-status {
+	min-height: 30px;
+	padding: 0 11px;
+	border: 1px solid transparent;
+}
+
+.committee-decision-status.is-neutral {
+	background: #f1f5f9;
+	color: #475569;
+	border-color: #dbe4ef;
+}
+
+.committee-decision-status.is-info {
+	background: #eaf4ff;
+	color: #1f5f99;
+	border-color: #c9def6;
+}
+
+.committee-decision-status.is-ok {
+	background: #e4f6ec;
+	color: #167347;
+	border-color: #bce6cf;
+}
+
+.committee-decision-status.is-warning {
+	background: #fff4dc;
+	color: #9a6700;
+	border-color: #f5d79b;
+}
+
+.committee-decision-status.is-danger {
+	background: #fde8e8;
+	color: #b42318;
+	border-color: #f5b5b0;
+}
+
 .committee-metadata-drawer-backdrop {
 	position: fixed;
 	inset: 0;
@@ -3060,6 +3173,10 @@
 
 	.committee-summary-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.committee-decision-summary {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	.committee-notifications-summary {

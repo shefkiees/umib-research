@@ -27,12 +27,6 @@ const facultyStatistics = [
   { faculty: "FED", label: "Fakulteti i Edukimit", department: "Fakulteti i Edukimit", publikime: 16, projekte: 5, rimbursime: 5 },
 ];
 
-const conferenceRows = [
-  { id: "CF-032", event: "IEEE BalkanCom", unit: "FIMC", status: "Konfirmuar" },
-  { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
-  { id: "CF-018", event: "Legal Innovation Summit", unit: "FJ", status: "Konfirmuar" },
-];
-
 const navLabels = ["Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
 
 const publicationStatusLabels = {
@@ -42,6 +36,18 @@ const publicationStatusLabels = {
   needs_correction: "Korrigjim",
   approved: "Aprovuar",
   rejected: "Refuzuar",
+};
+
+const reimbursementStatusLabels = {
+  draft: "Draft",
+  submitted: "Dorezuar",
+  received: "Pranuar",
+  in_review: "Ne shqyrtim",
+  needs_correction: "Kthyer per korrigjim",
+  committee_approved: "Aprovuar nga komisioni",
+  approved: "Aprovuar",
+  rejected: "Refuzuar",
+  paid: "Paguar",
 };
 
 const publicationTypeLabels = {
@@ -177,6 +183,35 @@ function formatDate(value) {
     month: "short",
     day: "2-digit",
   });
+}
+
+function getDateTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function getDecisionStatusClass(status) {
+  if (["approved", "committee_approved", "ok", "paid"].includes(status)) {
+    return "is-ok";
+  }
+
+  if (["rejected"].includes(status)) {
+    return "is-danger";
+  }
+
+  if (["needs_correction", "correction"].includes(status)) {
+    return "is-warning";
+  }
+
+  if (["received", "in_review"].includes(status)) {
+    return "is-info";
+  }
+
+  return "is-neutral";
 }
 
 function normalizeForSearch(value) {
@@ -472,6 +507,7 @@ export default function CommitteeDashboard() {
   const [activePage, setActivePage] = useState("Dorëzimet në Pritje");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [reviewRequests, setReviewRequests] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
   const [metadataPublications, setMetadataPublications] = useState([]);
@@ -592,7 +628,7 @@ export default function CommitteeDashboard() {
       setPendingSubmissionsError("");
 
       try {
-        const response = await fetch(apiUrl("/reimbursements?scope=review"), {
+        const response = await fetch(apiUrl("/reimbursements?scope=all"), {
           credentials: "include",
         });
 
@@ -608,10 +644,12 @@ export default function CommitteeDashboard() {
         const rows = Array.isArray(data) ? data : [];
 
         if (isMounted) {
+          setReviewRequests(rows);
           setPendingSubmissions(rows.filter((item) => item.status === "submitted"));
         }
       } catch (error) {
         if (isMounted) {
+          setReviewRequests([]);
           setPendingSubmissions([]);
           setPendingSubmissionsError(error.message || "Dorëzimet në pritje nuk u ngarkuan.");
         }
@@ -700,16 +738,6 @@ export default function CommitteeDashboard() {
     });
   }, [normalizedQuery, pendingSubmissions]);
 
-  const filteredConferences = useMemo(() => {
-    if (!normalizedQuery) {
-      return conferenceRows;
-    }
-
-    return conferenceRows.filter((item) =>
-      `${item.id} ${item.event} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
-    );
-  }, [normalizedQuery]);
-
   const filteredMetadataPublications = useMemo(() => {
     const filteredByReview = metadataPublications.filter((item) => {
       const review = metadataReviews[item.id] || createInitialReview(item);
@@ -758,6 +786,72 @@ export default function CommitteeDashboard() {
     missingUibm: metadataPublications.filter((item) => !hasUibmAffiliation(item)).length,
   }), [metadataPublications, metadataReviews]);
 
+  const committeeDecisionRows = useMemo(() => {
+    const reimbursementRows = reviewRequests
+      .filter((item) => item.status && item.status !== "submitted")
+      .map((item) => ({
+        id: item.documentNumber || item.id,
+        title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
+        category: item.requestTypeLabel || "Rimbursim",
+        actor: item.owner?.name || item.owner?.email || "-",
+        unit: item.owner?.faculty || item.owner?.department || "-",
+        status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
+        statusKey: item.status,
+        date: item.updatedAt || item.submittedAt || item.createdAt,
+        source: "Rimbursim",
+      }));
+
+    const metadataRows = metadataPublications
+      .map((item) => {
+        const review = metadataReviews[item.id] || createInitialReview(item);
+        const statusConfig = getReviewStatusConfig(review.status);
+        const authors = getPublicationAuthors(item)
+          .map((author) => getAuthorName(author))
+          .filter(Boolean)
+          .join(", ");
+
+        return {
+          id: item.id,
+          title: item.title || item.doi || "Publikim pa titull",
+          category: getPublicationTypeLabel(item.publicationType || item.publication_type),
+          actor: authors || "-",
+          unit: item.venue || item.publisher || "-",
+          status: statusConfig.label,
+          statusKey: review.status,
+          date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
+          source: "Metadata",
+        };
+      })
+      .filter((item) => item.statusKey !== "unchecked");
+
+    const rows = [...reimbursementRows, ...metadataRows].sort((first, second) =>
+      getDateTimestamp(second.date) - getDateTimestamp(first.date)
+    );
+
+    if (!normalizedQuery) {
+      return rows;
+    }
+
+    return rows.filter((item) =>
+      normalizeForSearch([
+        item.id,
+        item.title,
+        item.category,
+        item.actor,
+        item.unit,
+        item.status,
+        item.source,
+      ].filter(Boolean).join(" ")).includes(normalizedQuery)
+    );
+  }, [metadataPublications, metadataReviews, normalizedQuery, reviewRequests]);
+
+  const decisionSummary = useMemo(() => ({
+    total: committeeDecisionRows.length,
+    inReview: committeeDecisionRows.filter((item) => ["received", "in_review"].includes(item.statusKey)).length,
+    corrections: committeeDecisionRows.filter((item) => ["needs_correction", "correction"].includes(item.statusKey)).length,
+    completed: committeeDecisionRows.filter((item) => ["approved", "committee_approved", "ok", "paid", "rejected"].includes(item.statusKey)).length,
+  }), [committeeDecisionRows]);
+
   const getReviewForPublication = (publication) =>
     metadataReviews[publication.id] || createInitialReview(publication);
 
@@ -765,6 +859,16 @@ export default function CommitteeDashboard() {
     if (!updatedRequest?.id) {
       return;
     }
+
+    setReviewRequests((prev) => {
+      const exists = prev.some((item) => item.id === updatedRequest.id);
+
+      if (!exists) {
+        return [updatedRequest, ...prev];
+      }
+
+      return prev.map((item) => (item.id === updatedRequest.id ? updatedRequest : item));
+    });
 
     setPendingSubmissions((prev) => {
       if (updatedRequest.status !== "submitted") {
@@ -1040,6 +1144,7 @@ export default function CommitteeDashboard() {
                   <th>Njësia akademike</th>
                   <th>Data e dorëzimit</th>
                   <th>Statusi</th>
+                  <th>Veprimi</th>
                 </tr>
               </thead>
               <tbody>
@@ -1051,6 +1156,11 @@ export default function CommitteeDashboard() {
                     <td>{row.owner?.faculty || row.owner?.department || "-"}</td>
                     <td>{formatDate(row.submittedAt || row.createdAt)}</td>
                     <td>{row.statusLabel || row.status || "-"}</td>
+                    <td>
+                      <button type="button" className="committee-details-btn" onClick={() => setActivePage("Shqyrtimi")}>
+                        Shqyrto
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1389,6 +1499,81 @@ export default function CommitteeDashboard() {
     </section>
   );
 
+  const renderDecisions = () => (
+    <section className="committee-page-card committee-stats-only-card committee-decisions-section">
+      <div className="committee-page-head committee-decisions-head">
+        <div>
+          <h3>Vendimet e komisionit</h3>
+          <p>Statuset reale nga rimbursimet dhe kontrolli i metadata-s se publikimeve.</p>
+        </div>
+        <span className="committee-api-chip">Te dhena reale</span>
+      </div>
+
+      <div className="committee-decision-summary">
+        <article>
+          <span>Gjithsej</span>
+          <strong>{decisionSummary.total}</strong>
+        </article>
+        <article>
+          <span>Ne shqyrtim</span>
+          <strong>{decisionSummary.inReview}</strong>
+        </article>
+        <article>
+          <span>Korrigjime</span>
+          <strong>{decisionSummary.corrections}</strong>
+        </article>
+        <article>
+          <span>Te mbyllura</span>
+          <strong>{decisionSummary.completed}</strong>
+        </article>
+      </div>
+
+      <div className="committee-table-wrap">
+        <table className="committee-table committee-decisions-table">
+          <thead>
+            <tr>
+              <th>Burimi</th>
+              <th>Rasti</th>
+              <th>Aplikanti / autoret</th>
+              <th>Njesia / burimi akademik</th>
+              <th>Statusi</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {committeeDecisionRows.map((row) => (
+              <tr key={`${row.source}-${row.id}`}>
+                <td>
+                  <span className="committee-decision-source">{row.source}</span>
+                  <span className="committee-metadata-muted">{row.category}</span>
+                </td>
+                <td>
+                  <strong className="committee-metadata-title">{row.title}</strong>
+                  <span className="committee-metadata-muted">{row.id}</span>
+                </td>
+                <td>{row.actor}</td>
+                <td>{row.unit}</td>
+                <td>
+                  <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
+                    {row.status}
+                  </span>
+                </td>
+                <td>{formatDate(row.date)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {committeeDecisionRows.length === 0 ? (
+        <div className="committee-metadata-empty">
+          <strong>Nuk ka vendime per filtrin aktual.</strong>
+          <span>Vendimet shfaqen sapo komisioni pranon, shqyrton, kerkon korrigjim ose verifikon metadata.</span>
+        </div>
+      ) : null}
+    </section>
+  );
+
   const renderStatistics = () => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-stats-head">
@@ -1487,18 +1672,8 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Vendimet") {
-    resultCount = filteredConferences.length;
-    content = renderSimpleTable(
-      "Vendimet",
-      "Vendimet e komisionit për dorëzimet akademike.",
-      [
-        { key: "id", label: "ID" },
-        { key: "event", label: "Vendimi" },
-        { key: "unit", label: "Njesia" },
-        { key: "status", label: "Statusi" },
-      ],
-      filteredConferences
-    );
+    resultCount = committeeDecisionRows.length;
+    content = renderDecisions();
   }
 
   if (activePage === "Auditimi") {
