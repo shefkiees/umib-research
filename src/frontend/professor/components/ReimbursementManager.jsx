@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, UserRound, Wallet } from "lucide-react";
+import { CheckCircle2, Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, UserRound, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -52,45 +52,45 @@ const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
     {
       id: "article_pdf",
-      label: "Artikulli / Punimi PDF",
-      description: "Ngarko versionin PDF te artikullit ose punimit.",
+      label: "Punimi shkencor (PDF)",
+      description: "Ngarkoni versionin PDF të punimit shkencor.",
     },
     {
       id: "uibm_database_evidence",
-      label: "Deshmia e regjistrimit ne databazen UIBM",
-      description: "Ngarko deshmine qe punimi eshte regjistruar ne databazen UIBM.",
+      label: "Dëshmia e regjistrimit në databazën e UIBM",
+      description: "Ngarkoni dëshminë që punimi është regjistruar në databazën e UIBM.",
     },
     {
       id: "other",
-      label: "Dokument tjeter",
-      description: "Ngarko dokumente shtese qe mbeshtesin kerkesen.",
+      label: "Dokument tjetër",
+      description: "Ngarkoni dokumente shtesë që mbështesin kërkesën.",
     },
   ],
   conference: [
     {
       id: "acceptance_letter",
-      label: "Acceptance Letter / Konfirmimi i pranimit",
-      description: "Ngarko letren ose konfirmimin e pranimit.",
+      label: "Letra e pranimit (Acceptance Letter)",
+      description: "Ngarkoni letrën ose konfirmimin zyrtar të pranimit.",
     },
     {
       id: "conference_program",
-      label: "Programi i konferences",
-      description: "Ngarko programin zyrtar te konferences ose simpoziumit.",
+      label: "Programi i konferencës",
+      description: "Ngarkoni programin zyrtar të konferencës ose simpoziumit.",
     },
     {
       id: "presentation_evidence",
-      label: "Deshmia e prezantimit / pjesemarrjes",
-      description: "Ngarko deshmi per prezantim, poster ose pjesemarrje.",
+      label: "Dëshmia e prezantimit / pjesëmarrjes",
+      description: "Ngarkoni dëshmi për prezantim, poster ose pjesëmarrje.",
     },
     {
       id: "financial_document",
-      label: "Dokumente financiare / fatura",
-      description: "Ngarko faturat ose deshmite financiare per rimbursim.",
+      label: "Dokumentacioni financiar",
+      description: "Ngarkoni faturat ose dëshmitë financiare për rimbursim.",
     },
     {
       id: "other",
-      label: "Dokument tjeter",
-      description: "Ngarko dokumente shtese qe mbeshtesin kerkesen.",
+      label: "Dokument tjetër",
+      description: "Ngarkoni dokumente shtesë që mbështesin kërkesën.",
     },
   ],
 };
@@ -3538,6 +3538,7 @@ export default function ReimbursementManager({
       <div className="reimbursement-file-list">
         {files.map((item) => (
           <span key={item.id}>
+            <CheckCircle2 size={13} />
             {item.file.name} {formatBytes(item.file.size) ? `(${formatBytes(item.file.size)})` : ""}
             <button type="button" className="reimbursement-icon-btn" onClick={() => removeSelectedFile(item.id)} aria-label={`Hiq ${item.file.name}`}>
               <Trash2 size={13} />
@@ -3570,16 +3571,33 @@ export default function ReimbursementManager({
 
     return (
       <div className="reimbursement-upload-box">
-        <p>{r.fileTypes}</p>
-        <p>Maksimum {MAX_SELECTED_ATTACHMENTS} file gjithsej.</p>
+        <div className="reimbursement-upload-summary">
+          <div>
+            <span>Dokumentet e lejuara</span>
+            <strong>PDF, JPG, PNG, DOCX</strong>
+          </div>
+          <div>
+            <span>Maksimumi</span>
+            <strong>{MAX_SELECTED_ATTACHMENTS} dokumente gjithsej</strong>
+          </div>
+        </div>
+        <div className={`reimbursement-document-grid reimbursement-document-grid--${selectedType}`}>
         {documentTypes.map((documentType) => {
           const filesForType = selectedFiles.filter((item) => item.documentType === documentType.id);
+          const CategoryIcon = selectedType === "conference" ? UserRound : FileText;
 
           return (
-            <div className="reimbursement-field reimbursement-wide" key={documentType.id}>
-              <label className="reimbursement-upload-label">
-                <span>{documentType.label}</span>
-                <small>{documentType.description}</small>
+            <div className={`reimbursement-document-card reimbursement-document-card--${selectedType}`} key={documentType.id}>
+              <div className="reimbursement-document-card-main">
+                <span className="reimbursement-document-icon">
+                  <CategoryIcon size={18} />
+                </span>
+                <div>
+                  <strong>{documentType.label}</strong>
+                  <p>{documentType.description}</p>
+                </div>
+              </div>
+              <label className="reimbursement-upload-label reimbursement-upload-label--button">
                 <input
                   type="file"
                   multiple
@@ -3587,11 +3605,16 @@ export default function ReimbursementManager({
                   onChange={(event) => handleFileChange(documentType.id, event)}
                   disabled={selectedFiles.length >= MAX_SELECTED_ATTACHMENTS}
                 />
+                <span className="reimbursement-upload-action">
+                  <Upload size={14} />
+                  Ngarko dokument
+                </span>
               </label>
               {renderSelectedFileList(filesForType)}
             </div>
           );
         })}
+        </div>
       </div>
     );
   };

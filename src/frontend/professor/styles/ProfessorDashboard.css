@@ -4346,20 +4346,21 @@ body {
 
 .reimbursement-upload-box {
   grid-column: 1 / -1;
-  border: 1px dashed #cbd8e8;
+  border: 1px solid #d9e7f7;
   border-radius: 12px;
-  background: #f8fbff;
-  padding: 12px;
+  background: #f7fbff;
+  padding: 14px;
   display: grid;
-  gap: 8px;
+  gap: 14px;
 }
 
 .reimbursement-upload-label {
-  display: grid;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
   color: #17324f;
   font-size: 0.82rem;
   font-weight: 900;
+  cursor: pointer;
 }
 
 .reimbursement-upload-label input {
@@ -4367,6 +4368,133 @@ body {
   border-radius: 10px;
   background: #ffffff;
   padding: 8px;
+}
+
+.reimbursement-upload-label--button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reimbursement-upload-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid #bcd5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #174a7b;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.reimbursement-upload-label--button:hover .reimbursement-upload-action {
+  border-color: #73a6d9;
+  background: #eef7ff;
+  color: #123c66;
+}
+
+.reimbursement-upload-label--button input:disabled + .reimbursement-upload-action {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.reimbursement-upload-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reimbursement-upload-summary div {
+  border: 1px solid #dbe9f8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+  display: grid;
+  gap: 3px;
+}
+
+.reimbursement-upload-summary span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reimbursement-upload-summary strong {
+  color: #17324f;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.reimbursement-document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reimbursement-document-card {
+  border: 1px solid #d6e6f6;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.reimbursement-document-card--publication {
+  background: #f7fbff;
+  border-color: #cfe2f7;
+}
+
+.reimbursement-document-card--conference {
+  background: #f6fbff;
+  border-color: #c9e1f2;
+}
+
+.reimbursement-document-card-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.reimbursement-document-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #e8f3ff;
+  color: #245f96;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reimbursement-document-card--conference .reimbursement-document-icon {
+  background: #e8f6ff;
+  color: #1f6f93;
+}
+
+.reimbursement-document-card-main strong {
+  display: block;
+  color: #17324f;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.reimbursement-document-card-main p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .reimbursement-upload-box p,
@@ -4381,6 +4509,55 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+}
+
+.reimbursement-file-list span {
+  border: 1px solid #cfe2f7;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #174a7b;
+  min-height: 30px;
+  padding: 0 6px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  max-width: 100%;
+}
+
+.reimbursement-file-list .reimbursement-icon-btn {
+  border: 0;
+  background: #eef4fb;
+  color: #446079;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.reimbursement-file-list .reimbursement-icon-btn:hover {
+  background: #dbeafe;
+  color: #174a7b;
+}
+
+@media (max-width: 720px) {
+  .reimbursement-upload-summary,
+  .reimbursement-document-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reimbursement-document-card {
+    padding: 11px;
+  }
+
+  .reimbursement-file-list span {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .reimbursement-attachment-list {
