@@ -666,6 +666,158 @@ function appendTemplateLabelValues(xml, values, labelMap) {
   return { xml: nextXml, replacements };
 }
 
+function getPlainXmlText(xml) {
+  return normalizeText(
+    xml
+      .replace(/<w:tab\s*\/>/g, " ")
+      .replace(/<w:br\s*\/>/g, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+  );
+}
+
+function createTemplateValueRun(value) {
+  const safeValue = escapeXml(value).replace(/[\r\n]+/g, "; ");
+
+  return `<w:r><w:t xml:space="preserve">${safeValue}</w:t></w:r>`;
+}
+
+function cellHasText(cellXml) {
+  return getPlainXmlText(cellXml) !== "";
+}
+
+function insertValueInTemplateCell(cellXml, value) {
+  const withoutNoWrap = cellXml.replace(/<w:noWrap\s*\/>/g, "");
+  const valueRun = createTemplateValueRun(value);
+
+  if (/<w:p\b[\s\S]*?<\/w:p>/.test(withoutNoWrap)) {
+    return withoutNoWrap.replace(/(<w:p\b[\s\S]*?)(<\/w:p>)/, `$1${valueRun}$2`);
+  }
+
+  return withoutNoWrap.replace("</w:tc>", `<w:p>${valueRun}</w:p></w:tc>`);
+}
+
+function templateRowHasConferenceHeader(rowXml) {
+  return getPlainXmlText(rowXml).toUpperCase().includes("INFORMATA NËSE PUNIMI ËSHTË PREZANTUAR NË KONFERENCË");
+}
+
+function templateRowStartsBankSection(rowXml) {
+  return getPlainXmlText(rowXml).toUpperCase().includes("TË DHËNAT BANKARE");
+}
+
+function shouldHidePublicationConferenceTemplateSection(data) {
+  if (data.requestType !== "publication" || valueOf(data, "publicationType") !== "journal_article") {
+    return false;
+  }
+
+  return ![
+    "publicationConferenceDetails",
+    "conferenceLink",
+    "conferenceLocation",
+    "conferencePresentationDate",
+  ].some((field) => hasMeaningfulValue(valueOf(data, field)));
+}
+
+function removeEmptyPublicationConferenceTemplateSection(xml, data) {
+  if (!shouldHidePublicationConferenceTemplateSection(data)) {
+    return { xml, replacements: 0 };
+  }
+
+  let replacements = 0;
+  let removingConferenceRows = false;
+  const nextXml = xml.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (rowXml) => {
+    if (templateRowHasConferenceHeader(rowXml)) {
+      removingConferenceRows = true;
+      replacements += 1;
+      return "";
+    }
+
+    if (removingConferenceRows) {
+      if (templateRowStartsBankSection(rowXml)) {
+        removingConferenceRows = false;
+        return rowXml;
+      }
+
+      replacements += 1;
+      return "";
+    }
+
+    return rowXml;
+  });
+
+  return { xml: nextXml, replacements };
+}
+
+function rowTextMatchesTemplateLabel(rowText, label) {
+  const comparableRowText = rowText.toUpperCase();
+  const comparableLabel = normalizeText(label).toUpperCase();
+
+  if (comparableRowText.includes(comparableLabel)) {
+    return true;
+  }
+
+  return comparableLabel.startsWith("SCOPUS (Q1-Q")
+    && comparableRowText.includes("SCOPUS (Q1-Q4)");
+}
+
+function insertValueNearTemplateLabel(rowXml, label, value) {
+  const cells = rowXml.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) || [];
+
+  if (!cells.length) {
+    return { rowXml, replaced: false };
+  }
+
+  const matchingCellIndex = cells.findIndex((cellXml) => rowTextMatchesTemplateLabel(getPlainXmlText(cellXml), label));
+
+  if (matchingCellIndex === -1) {
+    return { rowXml, replaced: false };
+  }
+
+  const nextCellIndex = matchingCellIndex + 1;
+
+  if (nextCellIndex < cells.length && !cellHasText(cells[nextCellIndex])) {
+    const nextCells = [...cells];
+    nextCells[nextCellIndex] = insertValueInTemplateCell(cells[nextCellIndex], value);
+    let cellIndex = 0;
+    const nextRowXml = rowXml.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, () => nextCells[cellIndex++]);
+
+    return { rowXml: nextRowXml, replaced: true };
+  }
+
+  const nextCells = [...cells];
+  nextCells[matchingCellIndex] = insertValueInTemplateCell(cells[matchingCellIndex], value);
+  let cellIndex = 0;
+  const nextRowXml = rowXml.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, () => nextCells[cellIndex++]);
+
+  return { rowXml: nextRowXml, replaced: true };
+}
+
+function appendPublicationTemplateLabelValues(xml, values, labelMap, data) {
+  const conferenceResult = removeEmptyPublicationConferenceTemplateSection(xml, data);
+  let replacements = conferenceResult.replacements;
+  let nextXml = conferenceResult.xml;
+
+  Object.entries(labelMap).forEach(([label, key]) => {
+    const value = values[key];
+
+    if (!hasMeaningfulValue(value) || value === EMPTY_VALUE) {
+      return;
+    }
+
+    nextXml = nextXml.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (rowXml) => {
+      const result = insertValueNearTemplateLabel(rowXml, label, value);
+
+      if (result.replaced) {
+        replacements += 1;
+      }
+
+      return result.rowXml;
+    });
+  });
+
+  return { xml: nextXml, replacements };
+}
+
 async function buildTemplateDocx(data) {
   const templatePath = path.join(TEMPLATE_DIR, `${getTypeCode(data.requestType)}.docx`);
 
@@ -691,7 +843,9 @@ async function buildTemplateDocx(data) {
 
       const originalXml = await file.async("string");
       const markerResult = replaceTemplateMarkers(originalXml, values);
-      const labelResult = appendTemplateLabelValues(markerResult.xml, values, labelMap);
+      const labelResult = data.requestType === "publication"
+        ? appendPublicationTemplateLabelValues(markerResult.xml, values, labelMap, data)
+        : appendTemplateLabelValues(markerResult.xml, values, labelMap);
       replacementCount += markerResult.replacements + labelResult.replacements;
 
       if (markerResult.replacements || labelResult.replacements) {
