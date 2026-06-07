@@ -628,6 +628,24 @@ function templateValueFrom(data, ...fields) {
     .find(Boolean) || EMPTY_VALUE;
 }
 
+function capitalizeFirstLetter(value) {
+  const text = normalizeText(value);
+
+  return text ? `${text.charAt(0).toLocaleUpperCase("sq-AL")}${text.slice(1)}` : "";
+}
+
+function formatTemplateCoauthors(value) {
+  return normalizeText(value)
+    .split(/[;\n\r]+/)
+    .map(normalizeText)
+    .filter(Boolean)
+    .join(", ");
+}
+
+function normalizeTemplatePublicationLink(value) {
+  return normalizeText(value).replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "https://doi.org/");
+}
+
 function getTemplateValues(data) {
   const baseValues = {
     documentNumber: data.documentNumber || "",
@@ -713,7 +731,7 @@ function getTemplateValues(data) {
     ...baseValues,
     mainAuthor: templateValue(data, "mainAuthor"),
     correspondingAuthor: templateValue(data, "correspondingAuthor"),
-    coauthors: templateValue(data, "coauthors"),
+    coauthors: formatTemplateCoauthors(templateValue(data, "coauthors")) || EMPTY_VALUE,
     affiliation: templateValue(data, "affiliation"),
     publicationTitle: templateValue(data, "publicationTitle"),
     doi: templateValue(data, "doi"),
@@ -732,10 +750,10 @@ function getTemplateValues(data) {
     impactFactor: templateValue(data, "impactFactor"),
     citeScore: templateValue(data, "citeScore"),
     scopusQuartile: templateValue(data, "scopusQuartile"),
-    amountInWords: formatAmountInWords(data) || EMPTY_VALUE,
+    amountInWords: capitalizeFirstLetter(formatAmountInWords(data)) || EMPTY_VALUE,
     acceptanceDate: templateValue(data, "acceptanceDate"),
     publicationDate: templateValueFrom(data, "publicationDate", "publicationYear"),
-    publicationLink: templateValue(data, "publicationLink"),
+    publicationLink: normalizeTemplatePublicationLink(templateValue(data, "publicationLink")) || EMPTY_VALUE,
     uibmDatabaseEvidence: templateValue(data, "uibmDatabaseEvidence"),
     publicationConferenceDetails: templateValue(data, "publicationConferenceDetails"),
     conferenceLink: templateValue(data, "conferenceLink"),
@@ -804,8 +822,8 @@ function getPlainXmlText(xml) {
   );
 }
 
-function createTemplateValueRun(value) {
-  const safeValue = escapeXml(value).replace(/[\r\n]+/g, "; ");
+function createTemplateValueRun(value, options = {}) {
+  const safeValue = `${options.leadingSpace ? " " : ""}${escapeXml(value).replace(/[\r\n]+/g, "; ")}`;
 
   return `<w:r><w:t xml:space="preserve">${safeValue}</w:t></w:r>`;
 }
@@ -831,7 +849,7 @@ function replaceTemplateCellText(cellXml, value) {
 
 function insertValueInTemplateCell(cellXml, value) {
   const withoutNoWrap = cellXml.replace(/<w:noWrap\s*\/>/g, "");
-  const valueRun = createTemplateValueRun(value);
+  const valueRun = createTemplateValueRun(value, { leadingSpace: cellHasText(withoutNoWrap) });
 
   if (/<w:p\b[\s\S]*?<\/w:p>/.test(withoutNoWrap)) {
     return withoutNoWrap.replace(/(<w:p\b[\s\S]*?)(<\/w:p>)/, `$1${valueRun}$2`);
