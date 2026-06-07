@@ -1676,6 +1676,20 @@ body {
   text-align: center;
 }
 
+.publication-save-alert-overlay--success {
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(1px);
+}
+
+.publication-save-alert--success {
+  width: min(388px, calc(100vw - 48px));
+  border-color: #d7e2ef;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.18);
+}
+
 .publication-save-alert p {
   margin: 0;
   padding: 24px 22px 18px;
@@ -1683,6 +1697,11 @@ body {
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.35;
+}
+
+.publication-save-alert--success p {
+  padding: 24px 24px 20px;
+  color: #0f172a;
 }
 
 .publication-save-alert button {
@@ -1697,10 +1716,22 @@ body {
   cursor: pointer;
 }
 
+.publication-save-alert--success button {
+  min-height: 48px;
+  border-top-color: #e2e8f0;
+  background: #f8fafc;
+  color: #1d4ed8;
+}
+
 .publication-save-alert button:hover,
 .publication-save-alert button:focus-visible {
   background: rgba(255, 255, 255, 0.06);
   outline: none;
+}
+
+.publication-save-alert--success button:hover,
+.publication-save-alert--success button:focus-visible {
+  background: #eef4ff;
 }
 
 /* ===== GENERIC CARD ===== */

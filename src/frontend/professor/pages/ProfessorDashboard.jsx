@@ -3095,8 +3095,8 @@ export default function ProfessorDashboard() {
       ) : null}
 
       {publicationSuccessToast ? (
-        <div className="publication-save-alert-overlay" role="dialog" aria-modal="true" aria-live="polite">
-          <div className="publication-save-alert">
+        <div className="publication-save-alert-overlay publication-save-alert-overlay--success" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="publication-save-alert publication-save-alert--success">
             <p>{publicationSuccessToast}</p>
             <button type="button" onClick={() => setPublicationSuccessToast("")}>
               Mbyll
