@@ -682,8 +682,23 @@ function createTemplateValueRun(value) {
   return `<w:r><w:t xml:space="preserve">${safeValue}</w:t></w:r>`;
 }
 
+function createTemplateTextRun(value) {
+  return `<w:r><w:t xml:space="preserve">${escapeXml(value)}</w:t></w:r>`;
+}
+
 function cellHasText(cellXml) {
   return getPlainXmlText(cellXml) !== "";
+}
+
+function replaceTemplateCellText(cellXml, value) {
+  const textRun = createTemplateTextRun(value);
+  const paragraphRegex = /(<w:p\b[^>]*>(?:<w:pPr>[\s\S]*?<\/w:pPr>)?)[\s\S]*?(<\/w:p>)/;
+
+  if (paragraphRegex.test(cellXml)) {
+    return cellXml.replace(paragraphRegex, `$1${textRun}$2`);
+  }
+
+  return cellXml.replace("</w:tc>", `<w:p>${textRun}</w:p></w:tc>`);
 }
 
 function insertValueInTemplateCell(cellXml, value) {
@@ -760,6 +775,28 @@ function rowTextMatchesTemplateLabel(rowText, label) {
     && comparableRowText.includes("SCOPUS (Q1-Q4)");
 }
 
+function getPublicationTemplateLabelOverride(label) {
+  const comparableLabel = normalizeText(label).toUpperCase();
+
+  if (comparableLabel.includes("AFFILATION")) {
+    return "Përkatësia institucionale (Affiliation):";
+  }
+
+  if (comparableLabel.includes("INDEKSIM I ") || comparableLabel.includes("INDEKSIMI ")) {
+    return "Indeksimi në platformë:";
+  }
+
+  if (comparableLabel.startsWith("SCOPUS (Q1-Q") || comparableLabel.includes("KUARTILI")) {
+    return "Kuartili:";
+  }
+
+  if (comparableLabel.includes("DATA E PUBLIKIMIT")) {
+    return "Publikuar më:";
+  }
+
+  return "";
+}
+
 function insertValueNearTemplateLabel(rowXml, label, value) {
   const cells = rowXml.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) || [];
 
@@ -774,18 +811,22 @@ function insertValueNearTemplateLabel(rowXml, label, value) {
   }
 
   const nextCellIndex = matchingCellIndex + 1;
+  const labelOverride = getPublicationTemplateLabelOverride(label);
+  const nextCells = [...cells];
 
-  if (nextCellIndex < cells.length && !cellHasText(cells[nextCellIndex])) {
-    const nextCells = [...cells];
-    nextCells[nextCellIndex] = insertValueInTemplateCell(cells[nextCellIndex], value);
+  if (labelOverride) {
+    nextCells[matchingCellIndex] = replaceTemplateCellText(nextCells[matchingCellIndex], labelOverride);
+  }
+
+  if (nextCellIndex < nextCells.length && !cellHasText(nextCells[nextCellIndex])) {
+    nextCells[nextCellIndex] = insertValueInTemplateCell(nextCells[nextCellIndex], value);
     let cellIndex = 0;
     const nextRowXml = rowXml.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, () => nextCells[cellIndex++]);
 
     return { rowXml: nextRowXml, replaced: true };
   }
 
-  const nextCells = [...cells];
-  nextCells[matchingCellIndex] = insertValueInTemplateCell(cells[matchingCellIndex], value);
+  nextCells[matchingCellIndex] = insertValueInTemplateCell(nextCells[matchingCellIndex], value);
   let cellIndex = 0;
   const nextRowXml = rowXml.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, () => nextCells[cellIndex++]);
 
