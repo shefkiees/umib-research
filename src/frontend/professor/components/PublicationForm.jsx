@@ -44,6 +44,8 @@ export const createEmptyPublicationDraft = () => ({
   editors: [],
   bookSeriesTitle: "",
   edition: "",
+  proceedingsTitle: "",
+  eventDate: "",
   publicationDate: "",
   publicationYear: "",
   doi: "",
@@ -51,6 +53,8 @@ export const createEmptyPublicationDraft = () => ({
   volume: "",
   issue: "",
   pages: "",
+  pageStart: "",
+  pageEnd: "",
   issn: "",
   isbn: "",
   authorAffiliation: "",
@@ -292,8 +296,8 @@ export function publicationToDraft(publication = {}) {
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const hasIndexing = supportsQuartile(publicationType);
   const isBookPublication = isBookPublicationType(publicationType);
-  const hideJournalSpecificFields = isConferencePaperType(publicationType) || isBookPublication;
-  const hideVolumeField = isConferencePaperType(publicationType) || (isBookPublication && !isBookChapter);
+  const hideJournalSpecificFields = isBookPublication;
+  const hideVolumeField = isBookPublication && !isBookChapter;
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = hasIndexing && Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
@@ -332,6 +336,8 @@ export function publicationToDraft(publication = {}) {
     editors: Array.isArray(publication.editors) ? publication.editors : [],
     bookSeriesTitle: publication.bookSeriesTitle || publication.book_series_title || publication.seriesTitle || publication.series_title || "",
     edition: publication.edition || "",
+    proceedingsTitle: publication.proceedingsTitle || publication.proceedings_title || "",
+    eventDate: publication.eventDate || publication.event_date || "",
     publicationDate: isBookPublication && !isBookChapter ? "" : (publication.publicationDate || publication.publication_date || "").slice(0, 10),
     publicationYear: isBookPublication && !isBookChapter ? "" : publication.publicationYear || publication.publication_year || publication.year || "",
     doi: publication.doi || "",
@@ -339,6 +345,8 @@ export function publicationToDraft(publication = {}) {
     volume: hideVolumeField ? "" : publication.volume || "",
     issue: hideJournalSpecificFields ? "" : publication.issue || "",
     pages: publication.pages || "",
+    pageStart: publication.pageStart || publication.page_start || publication.pagesStart || publication.pages_start || "",
+    pageEnd: publication.pageEnd || publication.page_end || publication.pagesEnd || publication.pages_end || "",
     issn: hideJournalSpecificFields ? "" : publication.issn || "",
     isbn: publication.isbn || "",
     authorAffiliation: "",
@@ -453,11 +461,6 @@ function formatContributorList(value = []) {
 
 function getConferencePaperReset() {
   return {
-    publisher: "",
-    volume: "",
-    issue: "",
-    issn: "",
-    isbn: "",
     indexingPlatform: "",
     indexingCategory: "",
     indexingVerified: false,
@@ -634,17 +637,21 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     editors: Array.isArray(metadata.editors) ? metadata.editors : [],
     bookSeriesTitle: metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || metadata.raw_json?.book_series_title || metadata.raw_json?.series_title || "",
     edition: metadata.edition || metadata.raw_json?.edition || "",
+    proceedingsTitle: isConferencePaper ? metadata.proceedingsTitle || metadata.proceedings_title || metadata.raw_json?.proceedings_title || "" : "",
+    eventDate: isConferencePaper ? metadata.eventDate || metadata.event_date || metadata.raw_json?.event_date || "" : "",
     publicationDate: (!isBookPublication || isBookChapter) && /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
     publicationYear: isBookPublication && !isBookChapter ? "" : metadata.year || "",
     doi: metadata.doi || "",
     sourceUrl: metadata.source_url || "",
-    volume: (isConferencePaper || (isBookPublication && !isBookChapter)) ? "" : metadata.volume || "",
-    issue: (isConferencePaper || isBookPublication) ? "" : metadata.issue || "",
+    volume: isBookPublication && !isBookChapter ? "" : metadata.volume || "",
+    issue: isBookPublication ? "" : metadata.issue || "",
     pages: metadata.pages || "",
-    issn: (isConferencePaper || isBookPublication) ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
-    isbn: isConferencePaper ? "" : metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
+    pageStart: isConferencePaper ? metadata.pageStart || metadata.page_start || metadata.pagesStart || metadata.pages_start || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start || "" : "",
+    pageEnd: isConferencePaper ? metadata.pageEnd || metadata.page_end || metadata.pagesEnd || metadata.pages_end || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end || "" : "",
+    issn: isBookPublication ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
+    isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
     authorAffiliation: "",
     indexingPlatform,
     indexingCategory,
@@ -715,19 +722,33 @@ const PublicationForm = ({
   const isBookPublication = isBookPublicationType(value.publicationType);
   const isBookChapter = isBookChapterPublication(value.publicationType, value.publicationSubtype || value.publication_subtype);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
-  const showPublisherField = !isConferencePaper;
+  const showPublisherField = isConferencePaper ? hasValue("publisher") : true;
+  const showConferenceDoiField = isConferencePaper && hasValue("doi");
+  const showConferenceSourceUrlField = isConferencePaper && hasValue("sourceUrl");
   const showPublishedDateField = !isBookPublication || isBookChapter;
-  const showVolumeField = !isConferencePaper && (!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"));
-  const showIssueField = !isConferencePaper && !isBookPublication;
+  const showVolumeField = isConferencePaper
+    ? hasValue("volume")
+    : (!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"));
+  const showIssueField = isConferencePaper ? hasValue("issue") : !isBookPublication;
   const showIndexingFields = supportsQuartile(value.publicationType);
-  const showIdentifierField = isBookPublication || (!isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn")));
-  const showIssnInput = !isConferencePaper && !isBookPublication && (!isDoiImported || hasValue("issn"));
-  const showIsbnInput = isBookPublication || !isDoiImported || hasValue("isbn");
+  const showIdentifierField = isConferencePaper
+    ? hasValue("issn") || hasValue("isbn")
+    : isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("isbn"));
+  const showIssnInput = isConferencePaper
+    ? hasValue("issn")
+    : !isBookPublication && (!isDoiImported || hasValue("issn"));
+  const showIsbnInput = isConferencePaper
+    ? hasValue("isbn")
+    : isBookPublication || !isDoiImported || hasValue("isbn");
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const editorsValue = formatContributorList(value.editors || value.editor);
   const bookSeriesTitleValue = value.bookSeriesTitle || value.book_series_title || value.seriesTitle || value.series_title || "";
   const editionValue = value.edition || "";
+  const proceedingsTitleValue = value.proceedingsTitle || value.proceedings_title || "";
+  const eventDateValue = value.eventDate || value.event_date || "";
+  const showConferenceProceedingsTitle = isConferencePaper && Boolean(String(proceedingsTitleValue || "").trim());
+  const showConferenceEventDate = isConferencePaper && Boolean(String(eventDateValue || "").trim());
   const showBookChapterEditors = isBookChapter && Boolean(editorsValue);
   const showBookChapterSeriesTitle = isBookChapter && Boolean(String(bookSeriesTitleValue || "").trim());
   const showBookChapterEdition = isBookChapter && Boolean(String(editionValue || "").trim());
@@ -1135,10 +1156,34 @@ const PublicationForm = ({
             />
           </label>
         ) : null}
+        {showConferenceDoiField ? (
+          <label className="prof-form-field">
+            <span>DOI</span>
+            <input value={value.doi || ""} onChange={updateField("doi")} readOnly={isFieldLocked("doi")} />
+          </label>
+        ) : null}
+        {showConferenceSourceUrlField ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.sourceUrl")}</span>
+            <input value={value.sourceUrl || ""} onChange={updateField("sourceUrl")} readOnly={isFieldLocked("sourceUrl")} />
+          </label>
+        ) : null}
         {showPublisherField ? (
           <label className="prof-form-field">
             <span>{t("professor.dashboard.publicationForm.publisher")}</span>
             <input value={value.publisher} onChange={updateField("publisher")} readOnly={isFieldLocked("publisher")} />
+          </label>
+        ) : null}
+        {showConferenceProceedingsTitle ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.proceedingsTitle")}</span>
+            <input value={proceedingsTitleValue} readOnly aria-readonly="true" />
+          </label>
+        ) : null}
+        {showConferenceEventDate ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.eventDate")}</span>
+            <input value={formatPublishedValue(eventDateValue, "")} readOnly aria-readonly="true" />
           </label>
         ) : null}
         {showBookChapterEditors ? (
@@ -1231,7 +1276,7 @@ const PublicationForm = ({
         ) : null}
         {showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
-            <span>{isConferencePaper || isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>
+            <span>{isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>
             <div className="publication-identifier-inputs">
               {showIssnInput ? (
                 <input

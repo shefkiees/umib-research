@@ -216,6 +216,178 @@ function getBookChapterEditionFromRaw(raw = {}) {
   return values.map(normalizeText).find(Boolean) || "";
 }
 
+function normalizeTitleValues(value) {
+  const values = Array.isArray(value) ? value : [value];
+
+  return values.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [normalizeText(item)];
+    }
+
+    return [
+      item.title,
+      item.name,
+      item.display_name,
+      item.displayName,
+      item.value,
+    ].map(normalizeText);
+  }).filter(Boolean);
+}
+
+function getConferenceProceedingsTitleFromRaw(raw = {}, conferenceName = "") {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}, raw._openalex || {}];
+  const conferenceKey = normalizeComparableName(conferenceName);
+  const values = sources.flatMap((source) => [
+    source.proceedingsTitle,
+    source.proceedings_title,
+    source["proceedings-title"],
+    source.proceedings?.title,
+    source.proceedings?.name,
+    source.proceedings?.display_name,
+    source.proceedings?.displayName,
+    source.source_title,
+    source.sourceTitle,
+    source["source-title"],
+    source.book_title,
+    source.bookTitle,
+    source["book-title"],
+    source.volume_title,
+    source.volumeTitle,
+    source["volume-title"],
+    source.container_title,
+    source.containerTitle,
+    source["container-title"],
+  ]).flatMap(normalizeTitleValues);
+  const uniqueValues = [...new Map(values.map((value) => [normalizeComparableName(value), value])).values()]
+    .filter(Boolean);
+
+  return uniqueValues.find((value) => normalizeComparableName(value) && normalizeComparableName(value) !== conferenceKey)
+    || uniqueValues[0]
+    || "";
+}
+
+function getDatePartsFromRaw(value) {
+  if (Array.isArray(value)) {
+    return value.map(Number).filter((part) => Number.isInteger(part));
+  }
+
+  if (value && typeof value === "object") {
+    const dateParts = value["date-parts"]?.[0];
+
+    if (Array.isArray(dateParts)) {
+      return dateParts.map(Number).filter((part) => Number.isInteger(part));
+    }
+
+    return getDatePartsFromRaw(value.date || value.start || value.end || value.startDate || value.start_date || value.endDate || value.end_date);
+  }
+
+  const text = normalizeText(value);
+  const isoMatch = text.match(/^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$/);
+  const dayMonthYearMatch = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+
+  if (isoMatch) {
+    return [
+      Number(isoMatch[1]),
+      isoMatch[2] ? Number(isoMatch[2]) : undefined,
+      isoMatch[3] ? Number(isoMatch[3]) : undefined,
+    ].filter((part) => Number.isInteger(part));
+  }
+
+  if (dayMonthYearMatch) {
+    return [Number(dayMonthYearMatch[3]), Number(dayMonthYearMatch[2]), Number(dayMonthYearMatch[1])];
+  }
+
+  return [];
+}
+
+function formatRawDateParts(parts = []) {
+  const year = normalizeYear(parts[0]);
+
+  if (!year) {
+    return "";
+  }
+
+  if (Number.isInteger(parts[1]) && parts[1] >= 1 && parts[1] <= 12 && Number.isInteger(parts[2]) && parts[2] >= 1 && parts[2] <= 31) {
+    return `${year}-${String(parts[1]).padStart(2, "0")}-${String(parts[2]).padStart(2, "0")}`;
+  }
+
+  if (Number.isInteger(parts[1]) && parts[1] >= 1 && parts[1] <= 12) {
+    return `${year}-${String(parts[1]).padStart(2, "0")}`;
+  }
+
+  return String(year);
+}
+
+function getConferenceEventDateFromRaw(raw = {}) {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}, raw._publisher_html_metadata || {}];
+  const candidates = sources.flatMap((source) => [
+    source.eventDate,
+    source.event_date,
+    source["event-date"],
+    source.event?.date,
+    source.event?.dates,
+    source.event?.start,
+    source.event?.end,
+    source.event?.startDate,
+    source.event?.start_date,
+    source.event?.endDate,
+    source.event?.end_date,
+    source.conference?.date,
+    source.conference?.start,
+    source.conference?.end,
+  ]);
+
+  for (const candidate of candidates) {
+    const formatted = formatRawDateParts(getDatePartsFromRaw(candidate)) || normalizeText(candidate);
+
+    if (formatted) {
+      return formatted;
+    }
+  }
+
+  return "";
+}
+
+function parsePageRange(value) {
+  const text = normalizeText(value);
+
+  if (!text) {
+    return { pageStart: "", pageEnd: "", pagesStart: "", pagesEnd: "", pages_start: "", pages_end: "" };
+  }
+
+  const match = text.match(/([A-Za-z]?\d+)\s*(?:-|--|–|—|to)\s*([A-Za-z]?\d+)/i)
+    || text.match(/^([A-Za-z]?\d+)$/);
+  const pageStart = match?.[1] || "";
+  const pageEnd = match?.[2] || pageStart;
+
+  return {
+    pageStart,
+    pageEnd,
+    pagesStart: pageStart,
+    pagesEnd: pageEnd,
+    pages_start: pageStart,
+    pages_end: pageEnd,
+  };
+}
+
+function getConferencePageRangeFromRaw(raw = {}, pages = "") {
+  const pageStart = normalizeText(raw.pageStart || raw.pagesStart || raw.page_start || raw.pages_start);
+  const pageEnd = normalizeText(raw.pageEnd || raw.pagesEnd || raw.page_end || raw.pages_end);
+
+  if (pageStart || pageEnd) {
+    return {
+      pageStart,
+      pageEnd: pageEnd || pageStart,
+      pagesStart: pageStart,
+      pagesEnd: pageEnd || pageStart,
+      pages_start: pageStart,
+      pages_end: pageEnd || pageStart,
+    };
+  }
+
+  return parsePageRange(pages || raw.page || raw.pages);
+}
+
 function normalizeOptionalDate(value) {
   const text = normalizeText(value);
 
@@ -537,10 +709,14 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     volume: createFieldSource(values.volume, baseSource),
     issue: createFieldSource(values.issue, baseSource),
     pages: createFieldSource(values.pages, baseSource),
+    pageStart: createFieldSource(values.pageStart || values.pagesStart || values.page_start || values.pages_start, baseSource),
+    pageEnd: createFieldSource(values.pageEnd || values.pagesEnd || values.page_end || values.pages_end, baseSource),
     issn: createFieldSource(values.issn, baseSource),
     isbn: createFieldSource(values.isbn, baseSource),
     abstract: createFieldSource(values.abstract, baseSource),
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
+    proceedingsTitle: createFieldSource(values.proceedingsTitle || values.proceedings_title, baseSource),
+    eventDate: createFieldSource(values.eventDate || values.event_date, baseSource),
     indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || selectedIndexing.source, indexingSource),
     indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || selectedIndexing.category, indexingSource),
     quartile: createFieldSource(values.quartile || selectedIndexing.quartile, quartileSource),
@@ -920,8 +1096,9 @@ function mapPublication(row) {
   const publicationSubtype = getPublicationSubtypeFromRaw(metadataRaw);
   const isBookPublication = publicationType === "book";
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
-  const hideJournalSpecificFields = publicationType === "conference_paper" || isBookPublication;
-  const hideVolumeField = publicationType === "conference_paper" || (isBookPublication && !isBookChapter);
+  const isConferencePaper = publicationType === "conference_paper";
+  const hideJournalSpecificFields = isBookPublication;
+  const hideVolumeField = isBookPublication && !isBookChapter;
   const indexing = supportsPublicationIndexing(publicationType) ? getArrayField(row, "indexing").map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
@@ -962,6 +1139,9 @@ function mapPublication(row) {
   const bookChapterEditors = isBookChapter ? getBookChapterEditorsFromRaw(metadataRaw) : [];
   const bookChapterSeriesTitle = isBookChapter ? getBookChapterSeriesTitleFromRaw(metadataRaw) : "";
   const bookChapterEdition = isBookChapter ? getBookChapterEditionFromRaw(metadataRaw) : "";
+  const conferenceProceedingsTitle = isConferencePaper ? getConferenceProceedingsTitleFromRaw(metadataRaw, row.venue || row.container_title || "") : "";
+  const conferenceEventDate = isConferencePaper ? getConferenceEventDateFromRaw(metadataRaw) : "";
+  const conferencePageRange = isConferencePaper ? getConferencePageRangeFromRaw(metadataRaw, row.pages) : {};
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
@@ -977,9 +1157,13 @@ function mapPublication(row) {
     volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: nullableConferenceText(publicationType, row.pages),
+    pageStart: conferencePageRange.pageStart || "",
+    pageEnd: conferencePageRange.pageEnd || "",
     issn: hideJournalSpecificFields ? "" : nullableConferenceText(publicationType, row.issn),
     isbn: nullableConferenceText(publicationType, row.isbn),
     authorAffiliation,
+    proceedingsTitle: conferenceProceedingsTitle,
+    eventDate: conferenceEventDate,
     indexingPlatform,
     indexingCategory,
     indexingVerified,
@@ -1014,6 +1198,10 @@ function mapPublication(row) {
     seriesTitle: bookChapterSeriesTitle,
     series_title: bookChapterSeriesTitle,
     edition: bookChapterEdition,
+    proceedingsTitle: conferenceProceedingsTitle,
+    proceedings_title: conferenceProceedingsTitle,
+    eventDate: conferenceEventDate,
+    event_date: conferenceEventDate,
     publicationDate: isBookPublication && !isBookChapter ? null : row.publication_date || null,
     publication_date: isBookPublication && !isBookChapter ? null : row.publication_date || null,
     publicationYear: isBookPublication && !isBookChapter ? "" : row.publication_year || row.year || "",
@@ -1024,6 +1212,14 @@ function mapPublication(row) {
     volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: row.pages || "",
+    pageStart: conferencePageRange.pageStart || "",
+    page_start: conferencePageRange.pageStart || "",
+    pagesStart: conferencePageRange.pagesStart || "",
+    pages_start: conferencePageRange.pages_start || "",
+    pageEnd: conferencePageRange.pageEnd || "",
+    page_end: conferencePageRange.pageEnd || "",
+    pagesEnd: conferencePageRange.pagesEnd || "",
+    pages_end: conferencePageRange.pages_end || "",
     issn: hideJournalSpecificFields ? "" : row.issn || "",
     isbn: row.isbn || "",
     authorAffiliation,
@@ -1622,6 +1818,13 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const editors = Array.isArray(metadata.editors) && metadata.editors.length ? metadata.editors : getBookChapterEditorsFromRaw(raw);
   const bookSeriesTitle = metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || getBookChapterSeriesTitleFromRaw(raw);
   const edition = metadata.edition || getBookChapterEditionFromRaw(raw);
+  const proceedingsTitle = publicationType === "conference_paper"
+    ? metadata.proceedingsTitle || metadata.proceedings_title || getConferenceProceedingsTitleFromRaw(raw, metadata.conferenceName || metadata.conference_name || metadata.container_title)
+    : "";
+  const eventDate = publicationType === "conference_paper"
+    ? metadata.eventDate || metadata.event_date || getConferenceEventDateFromRaw(raw)
+    : "";
+  const pageRange = publicationType === "conference_paper" ? getConferencePageRangeFromRaw(raw, metadata.pages) : {};
 
   return {
     doi: metadata.doi || "",
@@ -1642,6 +1845,10 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     seriesTitle: bookSeriesTitle,
     series_title: bookSeriesTitle,
     edition,
+    proceedingsTitle,
+    proceedings_title: proceedingsTitle,
+    eventDate,
+    event_date: eventDate,
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
@@ -1650,6 +1857,14 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     volume: metadata.volume || "",
     issue: metadata.issue || "",
     pages: nullableConferenceText(publicationType, metadata.pages),
+    pageStart: pageRange.pageStart || "",
+    page_start: pageRange.pageStart || "",
+    pagesStart: pageRange.pagesStart || "",
+    pages_start: pageRange.pages_start || "",
+    pageEnd: pageRange.pageEnd || "",
+    page_end: pageRange.pageEnd || "",
+    pagesEnd: pageRange.pagesEnd || "",
+    pages_end: pageRange.pages_end || "",
     issn: nullableConferenceText(publicationType, issn),
     isbn: nullableConferenceText(publicationType, isbn),
     authorAffiliation: null,
