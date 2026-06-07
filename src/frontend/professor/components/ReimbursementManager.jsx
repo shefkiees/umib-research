@@ -46,6 +46,58 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "image/png",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
+const MAX_SELECTED_ATTACHMENTS = 5;
+
+const REIMBURSEMENT_DOCUMENT_TYPES = {
+  publication: [
+    {
+      id: "article_pdf",
+      label: "Artikulli / Punimi PDF",
+      description: "Ngarko versionin PDF te artikullit ose punimit.",
+    },
+    {
+      id: "uibm_database_evidence",
+      label: "Deshmia e regjistrimit ne databazen UIBM",
+      description: "Ngarko deshmine qe punimi eshte regjistruar ne databazen UIBM.",
+    },
+    {
+      id: "other",
+      label: "Dokument tjeter",
+      description: "Ngarko dokumente shtese qe mbeshtesin kerkesen.",
+    },
+  ],
+  conference: [
+    {
+      id: "acceptance_letter",
+      label: "Acceptance Letter / Konfirmimi i pranimit",
+      description: "Ngarko letren ose konfirmimin e pranimit.",
+    },
+    {
+      id: "conference_program",
+      label: "Programi i konferences",
+      description: "Ngarko programin zyrtar te konferences ose simpoziumit.",
+    },
+    {
+      id: "presentation_evidence",
+      label: "Deshmia e prezantimit / pjesemarrjes",
+      description: "Ngarko deshmi per prezantim, poster ose pjesemarrje.",
+    },
+    {
+      id: "financial_document",
+      label: "Dokumente financiare / fatura",
+      description: "Ngarko faturat ose deshmite financiare per rimbursim.",
+    },
+    {
+      id: "other",
+      label: "Dokument tjeter",
+      description: "Ngarko dokumente shtese qe mbeshtesin kerkesen.",
+    },
+  ],
+};
+
+const DOCUMENT_TYPE_LABELS = Object.values(REIMBURSEMENT_DOCUMENT_TYPES)
+  .flat()
+  .reduce((labels, item) => ({ ...labels, [item.id]: item.label }), {});
 
 const KOSOVO_BANKS = [
   { name: "Banka Kombetare Tregtare Kosove", swift: "NCBAXKPR", ibanCodes: ["1701", "17"], logoSrc: "/bank-logos/bkt.svg" },
@@ -2269,11 +2321,12 @@ export default function ReimbursementManager({
     }
 
     const files = await Promise.all(
-      selectedFiles.map(async (file) => ({
-        filename: file.name,
-        mimeType: file.type,
-        size: file.size,
-        base64: await readFileAsBase64(file),
+      selectedFiles.map(async (item) => ({
+        filename: item.file.name,
+        mimeType: item.file.type,
+        size: item.file.size,
+        base64: await readFileAsBase64(item.file),
+        documentType: item.documentType || null,
       }))
     );
     const response = await fetch(apiUrl(`/reimbursements/${requestId}/attachments`), {
@@ -2517,15 +2570,33 @@ export default function ReimbursementManager({
     }
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = (documentType, event) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter((file) => ALLOWED_ATTACHMENT_TYPES.includes(file.type));
+    const remainingSlots = Math.max(MAX_SELECTED_ATTACHMENTS - selectedFiles.length, 0);
 
     if (validFiles.length !== files.length) {
       setError("Lejohen vetem PDF, JPG, PNG dhe DOCX.");
+    } else if (validFiles.length > remainingSlots) {
+      setError(`Maksimum ${MAX_SELECTED_ATTACHMENTS} file gjithsej.`);
     }
 
-    setSelectedFiles(validFiles.slice(0, 5));
+    setSelectedFiles((currentFiles) => {
+      const remainingSlots = Math.max(MAX_SELECTED_ATTACHMENTS - currentFiles.length, 0);
+      const nextFiles = validFiles.slice(0, remainingSlots).map((file, index) => ({
+        id: `${documentType || "attachment"}-${file.name}-${file.size}-${file.lastModified}-${Date.now()}-${index}`,
+        file,
+        documentType: documentType || null,
+      }));
+
+      return [...currentFiles, ...nextFiles];
+    });
+
+    event.target.value = "";
+  };
+
+  const removeSelectedFile = (fileId) => {
+    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item.id !== fileId));
   };
 
   const handleEditRequest = (request) => {
@@ -3458,30 +3529,72 @@ export default function ReimbursementManager({
     </div>
   );
 
-  const renderAttachmentUpload = () => (
-    <div className="reimbursement-upload-box">
-      <label className="reimbursement-upload-label">
-        <span>{r.uploadFiles}</span>
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={handleFileChange}
-        />
-      </label>
-      {selectedFiles.length ? (
-        <div className="reimbursement-file-list">
-          {selectedFiles.map((file) => (
-            <span key={`${file.name}-${file.size}`}>
-              {file.name} {formatBytes(file.size) ? `(${formatBytes(file.size)})` : ""}
-            </span>
-          ))}
+  const renderSelectedFileList = (files) => {
+    if (!files.length) {
+      return null;
+    }
+
+    return (
+      <div className="reimbursement-file-list">
+        {files.map((item) => (
+          <span key={item.id}>
+            {item.file.name} {formatBytes(item.file.size) ? `(${formatBytes(item.file.size)})` : ""}
+            <button type="button" className="reimbursement-icon-btn" onClick={() => removeSelectedFile(item.id)} aria-label={`Hiq ${item.file.name}`}>
+              <Trash2 size={13} />
+            </button>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const renderAttachmentUpload = () => {
+    const documentTypes = REIMBURSEMENT_DOCUMENT_TYPES[selectedType] || [];
+
+    if (!documentTypes.length) {
+      return (
+        <div className="reimbursement-upload-box">
+          <label className="reimbursement-upload-label">
+            <span>{r.uploadFiles}</span>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(event) => handleFileChange(null, event)}
+            />
+          </label>
+          {selectedFiles.length ? renderSelectedFileList(selectedFiles) : <p>{r.fileTypes}</p>}
         </div>
-      ) : (
+      );
+    }
+
+    return (
+      <div className="reimbursement-upload-box">
         <p>{r.fileTypes}</p>
-      )}
-    </div>
-  );
+        <p>Maksimum {MAX_SELECTED_ATTACHMENTS} file gjithsej.</p>
+        {documentTypes.map((documentType) => {
+          const filesForType = selectedFiles.filter((item) => item.documentType === documentType.id);
+
+          return (
+            <div className="reimbursement-field reimbursement-wide" key={documentType.id}>
+              <label className="reimbursement-upload-label">
+                <span>{documentType.label}</span>
+                <small>{documentType.description}</small>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => handleFileChange(documentType.id, event)}
+                  disabled={selectedFiles.length >= MAX_SELECTED_ATTACHMENTS}
+                />
+              </label>
+              {renderSelectedFileList(filesForType)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderStatusTimeline = (history = []) => {
     if (!history.length) {
@@ -3523,7 +3636,9 @@ export default function ReimbursementManager({
             disabled={downloadingDocument === `${request.id}-${attachment.id}`}
           >
             <Download size={14} />
-            {downloadingDocument === `${request.id}-${attachment.id}` ? r.downloading : attachment.filename}
+            {downloadingDocument === `${request.id}-${attachment.id}`
+              ? r.downloading
+              : `${DOCUMENT_TYPE_LABELS[attachment.documentType || attachment.document_type] || "Pa kategori"}: ${attachment.filename}`}
           </button>
         ))}
       </div>
