@@ -4,11 +4,9 @@ export const adminEn = {
   pages: {
     "Përdoruesit": "Users",
     Rolet: "Roles",
-    "Rivendosja e qasjes": "Access recovery",
     "Historiku i veprimeve": "Activity history",
     Njoftimet: "Notifications",
     Statistikat: "Statistics",
-    Integrimet: "Integrations",
     "Gjendja e sistemit": "System status",
     Revistat: "Journals",
     "Shqyrtimi i publikimeve": "Publication review",
@@ -29,7 +27,6 @@ export const adminEn = {
     notifications: "Notifications",
     editProfile: "Edit profile",
     settings: "Settings",
-    integrations: "Integrations",
     logout: "Sign out",
   },
   users: {
@@ -130,10 +127,5 @@ export const adminEn = {
     users: "Users",
     actions: "Actions",
     loadError: "Statistics could not be loaded.",
-  },
-  integrations: {
-    title: "Integrations",
-    description: "Monitor connections with external academic and institutional services.",
-    empty: "No integration data available.",
   },
 };

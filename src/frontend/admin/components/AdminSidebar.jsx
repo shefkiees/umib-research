@@ -6,11 +6,7 @@ import {
 
   ClipboardList, 
 
-  KeyRound, 
-
   BarChart3,
-
-  Plug,
 
 } from "lucide-react"; 
 
@@ -24,13 +20,9 @@ const mainItems = [
 
   { label: "Përdoruesit", route: "Përdoruesit", icon: Users }, 
 
-  { label: "Rivendosja e qasjes", route: "Rivendosja e qasjes", icon: KeyRound }, 
-
   { label: "Historiku i veprimeve", route: "Historiku i veprimeve", icon: ClipboardList }, 
 
   { label: "Statistikat", route: "Statistikat", icon: BarChart3 }, 
-
-  { label: "Integrimet", route: "Integrimet", icon: Plug }, 
 
 ]; 
 

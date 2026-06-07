@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { ArrowRight, RotateCcw, Trash2, X, User, Settings, Link2, Bell, Users } from "lucide-react";
+import { ArrowRight, RotateCcw, Trash2, X, User, Settings, Bell, Users } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
 
@@ -10,7 +10,6 @@ import AdminTopbar from "../components/AdminTopbar";
 
 import {
     AdminAnalyticsSection,
-    AdminIntegrationsSection,
     AdminNotificationsSection,
     AdminSettingsSection,
 } from "../components/AdminFeatureSections";
@@ -48,38 +47,8 @@ const auditActionOptions = [
     { value: "admin.access.forbidden", label: "Tentim qasjeje pa leje" },
     { value: "admin.user.role_update", label: "Ndryshim roli" },
     { value: "admin.user.status_update", label: "Ndryshim statusi" },
-    { value: "admin.access_reset.status_update", label: "Ndryshim qasjeje" },
 
 ];
-
-const accessResetStatusLabels = {
-    pending: "Ne pritje",
-    in_progress: "Ne trajtim",
-    completed: "Perfunduar",
-    rejected: "Refuzuar",
-};
-
-const accessResetStatusClasses = {
-    pending: "admin-chip admin-chip--neutral",
-    in_progress: "admin-chip admin-chip--commission",
-    completed: "admin-chip admin-chip--active",
-    rejected: "admin-chip admin-chip--inactive",
-};
-
-const formatAccessResetDate = (value) => {
-    if (!value) return "-";
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return String(value);
-    }
-
-    return date.toLocaleString("sq-AL", {
-        dateStyle: "short",
-        timeStyle: "short",
-    });
-};
 
 
 
@@ -201,12 +170,6 @@ export default function AdminDashboard() {
     const [activePage, setActivePage] = useState("Përdoruesit");
 
     const [searchQuery, setSearchQuery] = useState("");
-
-    const [accessResetRequests, setAccessResetRequests] = useState([]);
-
-    const [isAccessResetLoading, setIsAccessResetLoading] = useState(false);
-
-    const [accessResetError, setAccessResetError] = useState("");
 
     const [auditLogs, setAuditLogs] = useState([]);
 
@@ -351,60 +314,6 @@ export default function AdminDashboard() {
 
         let isMounted = true;
 
-        const loadAccessResetRequests = async () => {
-
-            setIsAccessResetLoading(true);
-
-            setAccessResetError("");
-
-            try {
-
-                const response = await fetch(apiUrl("/admin/access-reset-requests"), {
-                    credentials: "include",
-                });
-
-                if (!response.ok) {
-                    throw new Error("access_reset_requests_failed");
-                }
-
-                const data = await response.json();
-
-                if (isMounted) {
-                    setAccessResetRequests(Array.isArray(data.requests) ? data.requests : []);
-                }
-
-            } catch (error) {
-
-                console.error("Access reset requests load failed:", error);
-
-                if (isMounted) {
-                    setAccessResetRequests([]);
-                    setAccessResetError("Kërkesat për rivendosje qasjeje nuk u ngarkuan.");
-                }
-
-            } finally {
-
-                if (isMounted) {
-                    setIsAccessResetLoading(false);
-                }
-
-            }
-
-        };
-
-        loadAccessResetRequests();
-
-        return () => {
-            isMounted = false;
-        };
-
-    }, []);
-
-
-    useEffect(() => {
-
-        let isMounted = true;
-
         const loadAuditLogs = async () => {
 
             setIsAuditLoading(true);
@@ -493,9 +402,8 @@ export default function AdminDashboard() {
         const normalizedValue = rawValue.toLowerCase();
         const roleLabel = adminText.users?.roles?.[normalizedValue] || ROLE_LABELS[normalizedValue];
         const statusLabel = adminText.users?.statuses?.[normalizedValue] || STATUS_LABELS[normalizedValue];
-        const accessResetLabel = accessResetStatusLabels[normalizedValue];
 
-        return roleLabel || statusLabel || accessResetLabel || rawValue;
+        return roleLabel || statusLabel || rawValue;
     }, [adminText]);
 
     const getAuditSearchText = useCallback((item) => {
@@ -540,17 +448,6 @@ export default function AdminDashboard() {
     const visibleAuditLogs = filteredAuditLogs.slice(0, auditVisibleCount);
 
     const hasMoreAuditLogs = filteredAuditLogs.length > visibleAuditLogs.length;
-    const filteredAccessResetRequests = useMemo(() => {
-
-        if (!normalizedQuery) return accessResetRequests;
-
-        return accessResetRequests.filter((item) =>
-
-            `${item.id} ${item.email} ${item.status} ${item.user?.name || ""} ${item.user?.role || ""} ${item.user?.faculty || ""}`.toLowerCase().includes(normalizedQuery)
-
-        );
-
-    }, [accessResetRequests, normalizedQuery]);
 
 
 
@@ -662,7 +559,6 @@ export default function AdminDashboard() {
         { id: "Njoftime", label: adminText.profileMenu.notifications, icon: Bell },
         { id: "Ndrysho profilin", label: adminText.profileMenu.editProfile, icon: User },
         { id: "Cilësimet", label: adminText.profileMenu.settings, icon: Settings },
-        { id: "Integrime", label: adminText.profileMenu.integrations, icon: Link2 },
         { id: "Logout", label: adminText.profileMenu.logout, icon: ArrowRight, tone: "danger" },
     ];
 
@@ -772,16 +668,6 @@ export default function AdminDashboard() {
 
         }
 
-        if (actionId === "Integrime") {
-
-            setActivePage("Integrimet");
-
-            return;
-
-        }
-
-
-
         if (actionId === "Logout") {
 
             localStorage.removeItem("authToken");
@@ -884,43 +770,6 @@ export default function AdminDashboard() {
 
     };
 
-
-    const updateAccessResetStatus = async (requestId, status) => {
-
-        try {
-
-            const response = await fetch(apiUrl(`/admin/access-reset-requests/${requestId}`), {
-                method: "PATCH",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ status }),
-            });
-
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                throw new Error(data.message || "access_reset_request_update_failed");
-            }
-
-            setAccessResetRequests((prev) =>
-                prev.map((item) =>
-                    item.id === requestId
-                        ? { ...item, ...data.request, user: item.user }
-                        : item
-                )
-            );
-            setAuditRefreshKey((prev) => prev + 1);
-
-        } catch (error) {
-
-            console.error("Access reset request update failed:", error);
-            setAccessResetError("Statusi i kërkesës nuk u përditësua.");
-
-        }
-
-    };
     const renderAuditLogs = () => (
 
         <section className="admin-page-card admin-stats-only-card admin-audit-section">
@@ -1296,135 +1145,9 @@ export default function AdminDashboard() {
         </section>
 
     );
-    const renderAccessResetRequests = () => (
-
-        <section className="admin-page-card admin-stats-only-card">
-
-            <div className="admin-page-head">
-
-                <div>
-
-                    <h3>Rivendosja e qasjes</h3>
-
-                    <p>Kërkesat e ardhura për rivendosje qasjeje trajtohen manualisht nga administratori ose IT.</p>
-
-                </div>
-
-                <div className="admin-page-figure">{filteredAccessResetRequests.length} kërkesa</div>
-
-            </div>
-
-            {accessResetError ? <p className="admin-inline-error" role="alert">{accessResetError}</p> : null}
-
-            {isAccessResetLoading ? (
-
-                <p className="admin-empty">Duke ngarkuar kërkesat...</p>
-
-            ) : (
-
-                <div className="admin-table-wrap">
-
-                    <table className="admin-table admin-table-with-badges">
-
-                        <thead>
-
-                            <tr>
-
-                                <th>Email</th>
-
-                                <th>Perdoruesi</th>
-
-                                <th>Roli</th>
-
-                                <th>Data</th>
-
-                                <th>Statusi</th>
-
-                                <th>Veprimet</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            {filteredAccessResetRequests.map((item) => (
-
-                                <tr key={item.id}>
-
-                                    <td>{item.email}</td>
-
-                                    <td>{item.user?.name || "-"}</td>
-
-                                    <td>{item.user?.role || "-"}</td>
-
-                                    <td>{formatAccessResetDate(item.requestedAt)}</td>
-
-                                    <td>
-
-                                        <span className={accessResetStatusClasses[item.status] || "admin-chip admin-chip--neutral"}>
-
-                                            {accessResetStatusLabels[item.status] || item.status}
-
-                                        </span>
-
-                                    </td>
-
-                                    <td>
-
-                                        <div className="admin-actions-row">
-
-                                            <button
-                                                type="button"
-                                                className="admin-small-btn"
-                                                onClick={() => updateAccessResetStatus(item.id, "in_progress")}
-                                                disabled={item.status === "in_progress" || item.status === "completed"}
-                                            >
-                                                Ne trajtim
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                className="admin-small-btn"
-                                                onClick={() => updateAccessResetStatus(item.id, "completed")}
-                                                disabled={item.status === "completed"}
-                                            >
-                                                Perfunduar
-                                            </button>
-
-                                        </div>
-
-                                    </td>
-
-                                </tr>
-
-                            ))}
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            )}
-
-            {!isAccessResetLoading && filteredAccessResetRequests.length === 0 ? <p className="admin-empty">Nuk ka kërkesa për rivendosje qasjeje.</p> : null}
-
-        </section>
-
-    );
     let resultCount = filteredUsers.length;
 
     let content = renderUsersTable();
-    if (activePage === "Rivendosja e qasjes") {
-
-        resultCount = filteredAccessResetRequests.length;
-
-        content = renderAccessResetRequests();
-
-    }
-
-
 
     if (activePage === "Historiku i veprimeve") {
 
@@ -1447,14 +1170,6 @@ export default function AdminDashboard() {
         resultCount = 0;
 
         content = <AdminAnalyticsSection />;
-
-    }
-
-    if (activePage === "Integrimet") {
-
-        resultCount = 0;
-
-        content = <AdminIntegrationsSection />;
 
     }
 

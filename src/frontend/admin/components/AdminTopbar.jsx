@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"; 
 
-import { Bell, Search, User, Settings, Link2, ArrowRight } from "lucide-react"; 
+import { Bell, Search, User, Settings, ArrowRight } from "lucide-react";
 
 import { apiUrl } from "../../utils/api";
 

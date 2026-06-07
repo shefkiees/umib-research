@@ -8,7 +8,6 @@ import { syncMissingSupabaseAuthUsers } from "../services/supabaseAuthSync.servi
 import { getRequestIp, writeAuditLog } from "../services/auditLog.service.js";
 
 const router = express.Router();
-const ACCESS_RESET_STATUSES = new Set(["pending", "in_progress", "completed", "rejected"]);
 const USER_ROLES = new Set(["admin", "committee", "professor", "prorector"]);
 const USER_STATUSES = new Set(["active", "inactive", "suspended"]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -47,7 +46,6 @@ const AUDIT_ACTION_LABELS = {
   "admin.access.forbidden": "Tentim qasjeje pa leje",
   "admin.user.role_update": "Ndryshim roli",
   "admin.user.status_update": "Ndryshim statusi",
-  "admin.access_reset.status_update": "Ndryshim konfigurimi qasjeje",
 };
 
 function mapAuditLog(row) {
@@ -494,153 +492,6 @@ router.patch("/users/:id/status", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/access-reset-requests", requireAdmin, async (req, res) => {
-  try {
-    const result = await db.query(
-      `select arr.id,
-              arr.user_id,
-              arr.requested_email,
-              arr.status,
-              arr.requester_ip,
-              arr.handled_by,
-              arr.handled_at,
-              arr.notes,
-              arr.requested_at,
-              arr.updated_at,
-              u.full_name,
-              u.role,
-              u.faculty,
-              handler.full_name as handled_by_name
-       from access_reset_requests arr
-       left join users u on u.id = arr.user_id
-       left join users handler on handler.id = arr.handled_by
-       order by arr.requested_at desc
-       limit 100`
-    );
-
-    res.json({
-      requests: result.rows.map((row) => ({
-        id: row.id,
-        userId: row.user_id,
-        email: row.requested_email,
-        status: row.status,
-        requesterIp: row.requester_ip,
-        requestedAt: row.requested_at,
-        updatedAt: row.updated_at,
-        handledAt: row.handled_at,
-        handledBy: row.handled_by,
-        handledByName: row.handled_by_name,
-        notes: row.notes || "",
-        user: row.user_id
-          ? {
-              id: row.user_id,
-              name: row.full_name || row.requested_email,
-              role: row.role || "",
-              faculty: row.faculty || "",
-            }
-          : null,
-      })),
-    });
-  } catch (error) {
-    console.error("GET /api/admin/access-reset-requests failed:", error);
-    res.status(500).json({
-      error: "access_reset_requests_failed",
-      message: "Kerkesat nuk u ngarkuan.",
-    });
-  }
-});
-
-router.patch("/access-reset-requests/:id", requireAdmin, async (req, res) => {
-  try {
-    const requestId = Number.parseInt(req.params.id, 10);
-    const status = String(req.body?.status || "").trim();
-    const notes = typeof req.body?.notes === "string" ? req.body.notes.trim() : null;
-
-    if (!Number.isInteger(requestId) || requestId <= 0) {
-      res.status(400).json({ error: "invalid_request_id", message: "Kerkesa nuk eshte valide." });
-      return;
-    }
-
-    if (!ACCESS_RESET_STATUSES.has(status)) {
-      res.status(400).json({ error: "invalid_status", message: "Statusi nuk eshte valid." });
-      return;
-    }
-
-    const currentResult = await db.query(
-      `select id, status
-       from access_reset_requests
-       where id = $1
-       limit 1`,
-      [requestId]
-    );
-
-    if (currentResult.rowCount === 0) {
-      res.status(404).json({ error: "not_found", message: "Kerkesa nuk u gjet." });
-      return;
-    }
-
-    const previousStatus = currentResult.rows[0].status;
-
-    const result = await db.query(
-      `update access_reset_requests
-       set status = $2,
-           notes = coalesce($3, notes),
-           handled_by = case when $2 in ('completed', 'rejected') then $4 else handled_by end,
-           handled_at = case when $2 in ('completed', 'rejected') then now() else handled_at end,
-           updated_at = now()
-       where id = $1
-       returning id, user_id, requested_email, status, requester_ip, handled_by, handled_at, notes, requested_at, updated_at`,
-      [requestId, status, notes, req.user.id]
-    );
-
-    if (result.rowCount === 0) {
-      res.status(404).json({ error: "not_found", message: "Kerkesa nuk u gjet." });
-      return;
-    }
-
-    const row = result.rows[0];
-    await writeAuditLog({
-      actor: req.user,
-      action: "admin.access_reset.status_update",
-      entityType: "access_reset_request",
-      entityId: row.id,
-      oldValue: previousStatus,
-      newValue: row.status,
-      ipAddress: getRequestIp(req),
-      metadata: {
-        target: {
-          id: row.user_id || "",
-          email: row.requested_email,
-          name: row.requested_email,
-        },
-        previousStatus,
-        status: row.status,
-      },
-    });
-
-    res.json({
-      request: {
-        id: row.id,
-        userId: row.user_id,
-        email: row.requested_email,
-        status: row.status,
-        requesterIp: row.requester_ip,
-        handledBy: row.handled_by,
-        handledAt: row.handled_at,
-        notes: row.notes || "",
-        requestedAt: row.requested_at,
-        updatedAt: row.updated_at,
-      },
-    });
-  } catch (error) {
-    console.error("PATCH /api/admin/access-reset-requests/:id failed:", error);
-    res.status(500).json({
-      error: "access_reset_request_update_failed",
-      message: "Kerkesa nuk u perditesua.",
-    });
-  }
-});
-
 router.get("/notifications", requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
@@ -852,33 +703,6 @@ router.get("/analytics", requireAdmin, async (req, res) => {
   }
 });
 
-async function checkExternalService({ url, headers, configured = true }) {
-  if (!configured) {
-    return { status: "Nuk ka të dhëna", checkedAt: null };
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  const checkedAt = new Date().toISOString();
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "UMIBRes/1.0",
-        ...(headers || {}),
-      },
-      signal: controller.signal,
-    });
-
-    return { status: response.ok ? "Aktiv" : "Problem", checkedAt };
-  } catch (error) {
-    return { status: "Problem", checkedAt };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function checkStorageStatus() {
   const configuredPath = process.env.FILE_STORAGE_PATH || process.env.UPLOAD_DIR || process.env.STORAGE_PATH || "";
 
@@ -912,54 +736,6 @@ async function checkStorageStatus() {
     };
   }
 }
-
-router.get("/integrations/status", requireAdmin, async (req, res) => {
-  const [orcid, crossref, scopus] = await Promise.all([
-    checkExternalService({
-      url: "https://pub.orcid.org/v3.0/0000-0002-1825-0097/person",
-      headers: { Accept: "application/json" },
-    }),
-    checkExternalService({
-      url: "https://api.crossref.org/works?rows=0",
-    }),
-    checkExternalService({
-      url: "https://api.elsevier.com/content/serial/title?count=1",
-      configured: Boolean(process.env.SCOPUS_API_KEY || process.env.ELSEVIER_API_KEY),
-      headers: {
-        "X-ELS-APIKey": process.env.SCOPUS_API_KEY || process.env.ELSEVIER_API_KEY || "",
-        ...(process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN
-          ? { "X-ELS-Insttoken": process.env.SCOPUS_INST_TOKEN || process.env.ELSEVIER_INST_TOKEN }
-          : {}),
-      },
-    }),
-  ]);
-
-  const integrations = [
-    {
-      id: "orcid",
-      name: "ORCID",
-      status: orcid.status,
-      description: "Importimi dhe verifikimi i profilit të hulumtuesit",
-      checkedAt: orcid.checkedAt,
-    },
-    {
-      id: "crossref",
-      name: "CrossRef",
-      status: crossref.status,
-      description: "Verifikimi i DOI dhe marrja e metadatave",
-      checkedAt: crossref.checkedAt,
-    },
-    {
-      id: "scopus-wos",
-      name: "Scopus / WoS",
-      status: scopus.status,
-      description: "Metrikat, citimet dhe klasifikimi i revistave",
-      checkedAt: scopus.checkedAt,
-    },
-  ];
-
-  res.json({ integrations });
-});
 
 router.get("/system-status", requireAdmin, async (req, res) => {
   const apiStartedAt = Date.now();

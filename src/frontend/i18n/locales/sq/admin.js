@@ -4,11 +4,9 @@ export const adminSq = {
   pages: {
     "Përdoruesit": "Përdoruesit",
     Rolet: "Rolet",
-    "Rivendosja e qasjes": "Rivendosja e qasjes",
     "Historiku i veprimeve": "Historiku i veprimeve",
     Njoftimet: "Njoftimet",
     Statistikat: "Statistikat",
-    Integrimet: "Integrimet",
     "Gjendja e sistemit": "Gjendja e sistemit",
     Revistat: "Revistat",
     "Shqyrtimi i publikimeve": "Shqyrtimi i publikimeve",
@@ -29,7 +27,6 @@ export const adminSq = {
     notifications: "Njoftime",
     editProfile: "Ndrysho profilin",
     settings: "Cilësimet",
-    integrations: "Integrime",
     logout: "Dil",
   },
   users: {
@@ -130,10 +127,5 @@ export const adminSq = {
     users: "Përdorues",
     actions: "Veprime",
     loadError: "Statistikat nuk u ngarkuan.",
-  },
-  integrations: {
-    title: "Integrimet",
-    description: "Monitoro lidhjet me shërbimet e jashtme akademike dhe institucionale.",
-    empty: "Nuk ka të dhëna për integrimet.",
   },
 };
