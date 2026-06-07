@@ -28,6 +28,12 @@ const normalizeAnalyticsRows = (items, key, fallbackLabel) =>
     }))
     .filter((item) => item.count > 0);
 
+const normalizeSearchValue = (value) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
 const hasReadableCategoryName = (value) => {
   const label = String(value || "").trim();
   if (!label) return false;
@@ -241,7 +247,7 @@ export function AdminNotificationsSection({ onNotificationsChange } = {}) {
   );
 }
 
-export function AdminAnalyticsSection() {
+export function AdminAnalyticsSection({ searchQuery = "" } = {}) {
   const { language, t } = useLanguage();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -267,6 +273,44 @@ export function AdminAnalyticsSection() {
   const usersByDepartment = normalizeInstitutionRows(data?.usersByDepartment, "department", "Pa departament", "Departament i paqartë");
   const adminActivity = normalizeAnalyticsRows(data?.adminActivity, "adminName", "Admin")
     .map((item) => ({ ...item, label: formatPersonName(item.label) }));
+  const normalizedQuery = normalizeSearchValue(searchQuery);
+  const isSearching = Boolean(normalizedQuery);
+  const matchesSearch = (...values) =>
+    !isSearching || normalizeSearchValue(values.filter(Boolean).join(" ")).includes(normalizedQuery);
+  const filterRows = (rows, ...fields) =>
+    isSearching
+      ? rows.filter((item) => matchesSearch(...fields.map((field) => (typeof field === "function" ? field(item) : field))))
+      : rows;
+  const statCards = [
+    { id: "total", label: t("admin.analytics.totalUsers"), value: summary.total },
+    { id: "active", label: t("admin.analytics.activeUsers"), value: summary.active },
+    { id: "inactive", label: t("admin.analytics.inactiveUsers"), value: summary.inactive },
+  ];
+  const visibleStatCards = statCards.filter((item) => matchesSearch(item.label, item.value));
+  const usersByRoleTitle = t("admin.analytics.usersByRole");
+  const usersByFacultyTitle = t("admin.analytics.usersByFaculty");
+  const usersByFacultyDescription = t("admin.analytics.usersByFacultyDescription");
+  const usersByDepartmentTitle = t("admin.analytics.usersByDepartment");
+  const mostActiveUsersTitle = t("admin.analytics.mostActiveUsers");
+  const mostActiveUsersDescription = t("admin.analytics.mostActiveUsersDescription");
+  const roleTitleMatches = matchesSearch(usersByRoleTitle);
+  const facultyTitleMatches = matchesSearch(usersByFacultyTitle, usersByFacultyDescription);
+  const departmentTitleMatches = matchesSearch(usersByDepartmentTitle);
+  const activityTitleMatches = matchesSearch(mostActiveUsersTitle, mostActiveUsersDescription);
+  const visibleUsersByRole = roleTitleMatches ? usersByRole : filterRows(usersByRole, (item) => item.role, (item) => item.count);
+  const visibleUsersByFaculty = facultyTitleMatches ? usersByFaculty : filterRows(usersByFaculty, (item) => item.label, (item) => item.count);
+  const visibleUsersByDepartment = departmentTitleMatches ? usersByDepartment : filterRows(usersByDepartment, (item) => item.label, (item) => item.count);
+  const visibleAdminActivity = activityTitleMatches ? adminActivity : filterRows(adminActivity, (item) => item.label, (item) => item.count);
+  const showRoleChart = !isSearching || roleTitleMatches || visibleUsersByRole.length > 0;
+  const showFacultyChart = !isSearching || facultyTitleMatches || visibleUsersByFaculty.length > 0;
+  const showDepartmentChart = !isSearching || departmentTitleMatches || visibleUsersByDepartment.length > 0;
+  const showActivityChart = !isSearching || activityTitleMatches || visibleAdminActivity.length > 0;
+  const hasSearchResults =
+    visibleStatCards.length > 0 ||
+    showRoleChart ||
+    showFacultyChart ||
+    showDepartmentChart ||
+    showActivityChart;
 
   return (
     <section className="admin-page-card admin-feature-section">
@@ -277,37 +321,43 @@ export function AdminAnalyticsSection() {
       </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
 
-      <div className="admin-feature-cards admin-operational-stats">
-        <article><span>{t("admin.analytics.totalUsers")}</span><strong>{summary.total}</strong></article>
-        <article><span>{t("admin.analytics.activeUsers")}</span><strong>{summary.active}</strong></article>
-        <article><span>{t("admin.analytics.inactiveUsers")}</span><strong>{summary.inactive}</strong></article>
-      </div>
+      {visibleStatCards.length > 0 ? (
+        <div className="admin-feature-cards admin-operational-stats">
+          {visibleStatCards.map((item) => (
+            <article key={item.id}><span>{item.label}</span><strong>{item.value}</strong></article>
+          ))}
+        </div>
+      ) : null}
 
+      {hasSearchResults ? (
       <div className="admin-analytics-grid">
-        <ChartCard title={t("admin.analytics.usersByRole")}>
+        {showRoleChart ? (
+        <ChartCard title={usersByRoleTitle}>
           <ResponsiveContainer width="100%" height={270}>
             <PieChart margin={{ top: 30, right: 58, bottom: 10, left: 58 }}>
               <Pie
-                data={usersByRole}
+                data={visibleUsersByRole}
                 dataKey="count"
                 nameKey="role"
                 outerRadius={68}
                 labelLine={false}
                 label={RolePieLabel}
               >
-                {usersByRole.map((entry, index) => <Cell key={entry.role} fill={COLORS[index % COLORS.length]} />)}
+                {visibleUsersByRole.map((entry, index) => <Cell key={entry.role} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={tooltipFormatter} /><Legend />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
+        ) : null}
+        {showFacultyChart ? (
         <ChartCard
-          title={t("admin.analytics.usersByFaculty")}
-          description={t("admin.analytics.usersByFacultyDescription")}
+          title={usersByFacultyTitle}
+          description={usersByFacultyDescription}
           className="admin-chart-card--clean admin-faculty-card"
         >
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={usersByFaculty} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="30%">
+            <BarChart data={visibleUsersByFaculty} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="30%">
               <CartesianGrid vertical={false} stroke="#edf2f7" strokeDasharray="3 3" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
@@ -316,21 +366,25 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title={t("admin.analytics.usersByDepartment")}>
+        ) : null}
+        {showDepartmentChart ? (
+        <ChartCard title={usersByDepartmentTitle}>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={usersByDepartment}>
+            <BarChart data={visibleUsersByDepartment}>
               <XAxis dataKey="label" /><YAxis allowDecimals={false} /><Tooltip formatter={tooltipFormatter} /><Legend />
               <Bar name={t("admin.analytics.users")} dataKey="count" fill="#2e7d32" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
+        ) : null}
+        {showActivityChart ? (
         <ChartCard
-          title={t("admin.analytics.mostActiveUsers")}
-          description={t("admin.analytics.mostActiveUsersDescription")}
+          title={mostActiveUsersTitle}
+          description={mostActiveUsersDescription}
           className="admin-chart-card--premium admin-activity-card"
         >
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={adminActivity} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="28%">
+            <BarChart data={visibleAdminActivity} margin={{ top: 12, right: 12, bottom: 4, left: 0 }} barCategoryGap="28%">
               <CartesianGrid vertical={false} stroke="#eef2f7" strokeDasharray="3 3" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
@@ -339,7 +393,11 @@ export function AdminAnalyticsSection() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
+        ) : null}
       </div>
+      ) : (
+        <EmptyState text={t("admin.users.noResults")} />
+      )}
     </section>
   );
 }

@@ -1169,7 +1169,7 @@ export default function AdminDashboard() {
 
         resultCount = 0;
 
-        content = <AdminAnalyticsSection />;
+        content = <AdminAnalyticsSection searchQuery={searchQuery} />;
 
     }
 
