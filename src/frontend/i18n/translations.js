@@ -477,7 +477,7 @@ export const translations = {
           doiLookupAria: "DOI për kërkim automatik",
           doiLookupDescription: "Shkruani DOI-n për të marrë automatikisht të dhënat, ose shtoni artikullin manualisht.",
           addManually: "Shto manualisht",
-          doiHint: "Vëmendje: DOI është një identifikues unik dhe i qëndrueshëm që i caktohet një publikimi shkencor.",
+          doiHint: "Vëmendje: DOI është një identifikues unik dhe i qëndrueshëm që i caktohet një artikulli shkencor.",
           getMetadata: "Shto artikullin",
           doiRequired: "Shënoni DOI për t’i marrë metadatat, ose vazhdoni manualisht.",
           doiLoadFailed: "Metadatat për DOI nuk mund të ngarkohen. Mund të vazhdoni manualisht.",
