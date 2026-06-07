@@ -2245,7 +2245,7 @@ export default function ProfessorDashboard() {
       {
         label: t("professor.dashboard.totalConferencesCard"),
         value: summary.conferencesTotal,
-        change: t("professor.dashboard.upcomingCount", { count: summary.upcomingConferences }),
+        change: "",
         icon: <CalendarDays size={22} />,
       },
       {
@@ -2273,7 +2273,7 @@ export default function ProfessorDashboard() {
                 <div>
                   <span className="prof-stat-title">{stat.label}</span>
                   <h3>{isStatisticsLoading ? "..." : stat.value}</h3>
-                  <p className="prof-stat-change">{stat.change}</p>
+                  {stat.change ? <p className="prof-stat-change">{stat.change}</p> : null}
                 </div>
                 <div className="prof-stat-icon">{stat.icon}</div>
               </div>
@@ -2285,7 +2285,6 @@ export default function ProfessorDashboard() {
           <div className="prof-card-header">
             <div>
               <h3>{t("professor.dashboard.academicStatistics")}</h3>
-              <p>{t("professor.dashboard.academicStatisticsDescription")}</p>
             </div>
             <div className="prof-filter-wrap">
               <label htmlFor="prof-period-filter">{t("professor.dashboard.period")}</label>
