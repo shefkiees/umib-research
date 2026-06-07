@@ -336,6 +336,7 @@ export const translations = {
     },
     topbar: {
       searchPlaceholder: "Kërko artikuj, konferenca ose kërkesa...",
+      searchPageShortcut: "Hap faqen dhe kërko me tekstin aktual",
       statisticsSearchPlaceholder: "Kerko statistikat sipas muajit...",
       notificationsAriaLabel: "Njoftime",
       notificationsTitle: "Njoftimet",
@@ -857,6 +858,7 @@ export const translations = {
     },
     topbar: {
       searchPlaceholder: "Search publications, conferences, or requests...",
+      searchPageShortcut: "Open the page and search with the current text",
       statisticsSearchPlaceholder: "Search statistics by month...",
       notificationsAriaLabel: "Notifications",
       notificationsTitle: "Notifications",

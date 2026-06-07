@@ -95,6 +95,13 @@ export default function TopBar({
                   onSearchChange(event.target.value);
                 }
               }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && searchResults.length && typeof onSearchResultSelect === "function") {
+                  event.preventDefault();
+                  setIsSearchOpen(false);
+                  onSearchResultSelect(searchResults[0]);
+                }
+              }}
             />
           </label>
 

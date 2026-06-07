@@ -1155,19 +1155,55 @@ export default function ProfessorDashboard() {
   }, [filteredPublications, publicationSort]);
 
   const publicationSearchResults = useMemo(() => {
-    if (activePage !== "Lista e Publikimeve" || !normalizedQuery) {
+    if (activePage === "Statistika" || !normalizedQuery) {
       return [];
     }
 
-    return sortedPublications.slice(0, 6).map((row) => ({
+    const publicationResults = sortedPublications.slice(0, 5).map((row) => ({
       id: row.id,
       title: row.title,
-      meta: [formatPublicationAuthorSummary(row.authors), row.year].filter(Boolean).join(" | "),
+      meta: [
+        t("navigation.publicationList"),
+        formatPublicationAuthorSummary(row.authors),
+        row.year,
+      ].filter(Boolean).join(" | "),
       publication: row,
     }));
-  }, [activePage, normalizedQuery, sortedPublications]);
+
+    const pageResults = [
+      {
+        id: "search-publications-page",
+        title: t("navigation.publicationList"),
+        meta: t("topbar.searchPageShortcut"),
+        page: "Lista e Publikimeve",
+      },
+      {
+        id: "search-conferences-page",
+        title: t("navigation.conferences"),
+        meta: t("topbar.searchPageShortcut"),
+        page: "Konferenca",
+      },
+      {
+        id: "search-reimbursements-page",
+        title: t("navigation.reimbursements"),
+        meta: t("topbar.searchPageShortcut"),
+        page: "Rimbursime",
+      },
+    ].filter((item) => item.page !== activePage);
+
+    return [...publicationResults, ...pageResults].slice(0, 8);
+  }, [activePage, normalizedQuery, sortedPublications, t]);
 
   const openPublicationSearchResult = (item) => {
+    if (item?.page) {
+      setActivePage(item.page);
+      setFocusedPublicationId("");
+      if (item.page === "Lista e Publikimeve") {
+        setPublicationsPage(1);
+      }
+      return;
+    }
+
     const publication = item?.publication;
 
     if (!publication) {
