@@ -682,6 +682,95 @@ function normalizeTitleArray(value) {
     .filter(Boolean));
 }
 
+function normalizeContributor(value = {}) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    const fullName = normalizeText(value);
+    return fullName ? { fullName, full_name: fullName, givenName: "", given_name: "", familyName: "", family_name: "", orcid: "" } : null;
+  }
+
+  const givenName = normalizeText(value.givenName || value.given_name || value.given);
+  const familyName = normalizeText(value.familyName || value.family_name || value.family);
+  const fullName = normalizeText(
+    value.fullName
+    || value.full_name
+    || value.name
+    || value.literal
+    || [givenName, familyName].filter(Boolean).join(" ")
+  );
+  const rawIdentifiers = [
+    value.ORCID,
+    value.orcid,
+    value.nameIdentifier,
+    value.name_identifier,
+    ...(Array.isArray(value.nameIdentifiers) ? value.nameIdentifiers.map((item) => item?.nameIdentifier || item?.name_identifier || item?.value) : []),
+    ...(Array.isArray(value.name_identifiers) ? value.name_identifiers.map((item) => item?.nameIdentifier || item?.name_identifier || item?.value) : []),
+  ];
+  const orcid = normalizeOrcid(rawIdentifiers
+    .map((item) => (item && typeof item === "object" ? item.nameIdentifier || item.name_identifier || item.value : item))
+    .find((item) => normalizeText(item)));
+
+  return fullName || givenName || familyName || orcid ? {
+    fullName: fullName || [givenName, familyName].filter(Boolean).join(" "),
+    full_name: fullName || [givenName, familyName].filter(Boolean).join(" "),
+    givenName,
+    given_name: givenName,
+    familyName,
+    family_name: familyName,
+    orcid,
+  } : null;
+}
+
+function uniqueContributors(values = []) {
+  const seen = new Set();
+  const contributors = [];
+
+  for (const value of values) {
+    const contributor = normalizeContributor(value);
+    const key = normalizeComparableText(contributor?.orcid || contributor?.fullName || contributor?.full_name);
+
+    if (contributor && key && !seen.has(key)) {
+      seen.add(key);
+      contributors.push(contributor);
+    }
+  }
+
+  return contributors;
+}
+
+function getBookChapterEditors(data = {}) {
+  const raw = data.raw_json || data;
+  const sources = [data, raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}];
+  const values = sources.flatMap((source) => [
+    source.editor,
+    source.editors,
+    source.book_editor,
+    source.bookEditor,
+    source.book_editors,
+    source.bookEditors,
+    source["book-editor"],
+    source["book-editors"],
+  ]).flatMap((value) => (Array.isArray(value) ? value : [value]));
+
+  return uniqueContributors(values);
+}
+
+function getBookChapterEdition(data = {}) {
+  const raw = data.raw_json || data;
+  const sources = [data, raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}];
+  const values = sources.flatMap((source) => [
+    source.edition,
+    source.editionNumber,
+    source.edition_number,
+    source["edition-number"],
+  ]);
+
+  return firstTextValue(values);
+}
+
 function parsePageRange(value) {
   const text = normalizeText(value);
 
@@ -771,10 +860,16 @@ function normalizeBookChapterMetadata(metadata = {}) {
   }
 
   const titleFields = getBookChapterTitleFields(metadata, metadata.title);
-  const bookTitle = titleFields.bookTitle || metadata.book_title || metadata.bookTitle || "";
-  const seriesTitle = titleFields.seriesTitle || metadata.series_title || metadata.seriesTitle || "";
+  const bookTitle = titleFields.bookTitle || metadata.book_title || metadata.bookTitle || metadata.container_title || "";
+  const seriesTitle = titleFields.seriesTitle || metadata.series_title || metadata.seriesTitle || metadata.book_series_title || metadata.bookSeriesTitle || "";
   const chapterTitle = normalizeText(metadata.chapter_title || metadata.chapterTitle || metadata.title) || null;
   const pageRange = parsePageRange(metadata.pages);
+  const editors = uniqueContributors([
+    ...(Array.isArray(metadata.editors) ? metadata.editors : []),
+    ...(Array.isArray(metadata.editor) ? metadata.editor : [metadata.editor]),
+    ...getBookChapterEditors(metadata),
+  ]);
+  const edition = normalizeText(metadata.edition) || getBookChapterEdition(metadata);
 
   return {
     ...metadata,
@@ -786,6 +881,11 @@ function normalizeBookChapterMetadata(metadata = {}) {
     book_title: bookTitle || null,
     seriesTitle: seriesTitle || null,
     series_title: seriesTitle || null,
+    bookSeriesTitle: seriesTitle || null,
+    book_series_title: seriesTitle || null,
+    editors,
+    editor: editors,
+    edition: edition || "",
     publicationSubtype: "book_chapter",
     publication_subtype: "book_chapter",
     sourceType: metadata.sourceType || metadata.source_type || metadata.raw_json?.type || metadata.raw_json?._crossref?.type || metadata.raw_json?._doi_org?.type || "",
@@ -796,6 +896,9 @@ function normalizeBookChapterMetadata(metadata = {}) {
       chapter_title: chapterTitle,
       book_title: bookTitle || null,
       series_title: seriesTitle || null,
+      book_series_title: seriesTitle || null,
+      editors,
+      edition: edition || "",
       publication_subtype: "book_chapter",
       pages_start: pageRange.pages_start,
       pages_end: pageRange.pages_end,
@@ -1348,6 +1451,17 @@ function mergeMetadata(primary, fallback) {
     ? preferText(primary.chapter_title || primary.chapterTitle || primary.title, fallback.chapter_title || fallback.chapterTitle || fallback.title)
     : "";
   const mergedPageRange = parsePageRange(preferText(primary.pages, fallback.pages));
+  const mergedEditors = mergedIsBookChapter
+    ? uniqueContributors([
+      ...(Array.isArray(primary.editors) ? primary.editors : []),
+      ...(Array.isArray(fallback.editors) ? fallback.editors : []),
+      ...getBookChapterEditors(primary),
+      ...getBookChapterEditors(fallback),
+    ])
+    : [];
+  const mergedEdition = mergedIsBookChapter
+    ? preferText(primary.edition, fallback.edition) || getBookChapterEdition(primary) || getBookChapterEdition(fallback)
+    : "";
 
   const mergedMetadata = {
     ...primary,
@@ -1358,8 +1472,13 @@ function mergeMetadata(primary, fallback) {
     book_title: mergedBookTitle,
     seriesTitle: mergedSeriesTitle,
     series_title: mergedSeriesTitle,
+    bookSeriesTitle: mergedSeriesTitle,
+    book_series_title: mergedSeriesTitle,
     chapterTitle: mergedChapterTitle,
     chapter_title: mergedChapterTitle,
+    editors: mergedEditors,
+    editor: mergedEditors,
+    edition: mergedEdition,
     publicationSubtype: mergedIsBookChapter ? "book_chapter" : primary.publicationSubtype || primary.publication_subtype || fallback.publicationSubtype || fallback.publication_subtype || "",
     publication_subtype: mergedIsBookChapter ? "book_chapter" : primary.publicationSubtype || primary.publication_subtype || fallback.publicationSubtype || fallback.publication_subtype || "",
     conferenceName: mergedConferenceName,
@@ -1390,6 +1509,9 @@ function mergeMetadata(primary, fallback) {
         chapter_title: mergedChapterTitle,
         book_title: mergedBookTitle,
         series_title: mergedSeriesTitle,
+        book_series_title: mergedSeriesTitle,
+        editors: mergedEditors,
+        edition: mergedEdition,
         publication_subtype: "book_chapter",
         pages_start: mergedPageRange.pages_start,
         pages_end: mergedPageRange.pages_end,
@@ -2292,6 +2414,8 @@ function mapMetadata(data, doi) {
   const type = normalizeMetadataPublicationType(data.type);
   const isBookChapter = isBookChapterMetadata(data);
   const bookChapterTitles = isBookChapter ? getBookChapterTitleFields(data, title) : {};
+  const bookChapterEditors = isBookChapter ? getBookChapterEditors(data) : [];
+  const bookChapterEdition = isBookChapter ? getBookChapterEdition(data) : "";
   const pageRange = parsePageRange(data.page);
   const conferenceName = normalizeConferenceName(data);
   const containerTitle = type === "conference_paper"
@@ -2351,6 +2475,11 @@ function mapMetadata(data, doi) {
     book_title: isBookChapter ? bookChapterTitles.bookTitle || null : "",
     seriesTitle: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
     series_title: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
+    bookSeriesTitle: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
+    book_series_title: isBookChapter ? bookChapterTitles.seriesTitle || null : "",
+    editors: isBookChapter ? bookChapterEditors : [],
+    editor: isBookChapter ? bookChapterEditors : [],
+    edition: isBookChapter ? bookChapterEdition : "",
     publicationSubtype: isBookChapter ? "book_chapter" : "",
     publication_subtype: isBookChapter ? "book_chapter" : "",
     sourceType: normalizeText(data.type),
@@ -2363,6 +2492,9 @@ function mapMetadata(data, doi) {
         chapter_title: normalizeText(title) || null,
         book_title: bookChapterTitles.bookTitle || null,
         series_title: bookChapterTitles.seriesTitle || null,
+        book_series_title: bookChapterTitles.seriesTitle || null,
+        editors: bookChapterEditors,
+        edition: bookChapterEdition,
         publication_subtype: "book_chapter",
         pages_start: pageRange.pages_start,
         pages_end: pageRange.pages_end,

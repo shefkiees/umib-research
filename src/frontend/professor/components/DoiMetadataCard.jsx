@@ -16,6 +16,36 @@ function isJournalMetadataType(value) {
   return normalized === "article_journal" || normalized === "journal_article";
 }
 
+function isBookChapterMetadata(metadata = {}) {
+  const normalized = String(
+    metadata.publicationSubtype
+    || metadata.publication_subtype
+    || metadata.raw_json?.publication_subtype
+    || metadata.raw_json?._crossref?.type
+    || metadata.raw_json?._doi_org?.type
+    || metadata.raw_json?._openalex?.type_crossref
+    || metadata.type
+    || ""
+  ).toLowerCase().replace(/[-\s]+/g, "_");
+
+  return normalized === "book_chapter" || normalized === "chapter";
+}
+
+function formatContributorList(value = []) {
+  const contributors = Array.isArray(value) ? value : [value];
+
+  return contributors
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return String(item || "").trim();
+      }
+
+      return String(item.fullName || item.full_name || item.name || [item.givenName || item.given_name || item.given, item.familyName || item.family_name || item.family].filter(Boolean).join(" ")).trim();
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
 const DoiMetadataCard = ({ metadata, actions = null }) => {
   const { t } = useLanguage();
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
@@ -24,6 +54,10 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
   const doiUrl = metadata.doi ? `https://doi.org/${metadata.doi}` : "";
   const publishedDate = metadata.published_date || metadata.year || "";
   const showQuartile = isJournalMetadataType(metadata.type);
+  const showBookChapterFields = isBookChapterMetadata(metadata);
+  const editors = formatContributorList(metadata.editors || metadata.editor);
+  const bookSeriesTitle = metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || "";
+  const edition = metadata.edition || "";
   const quartile = Array.isArray(metadata.indexing)
     ? metadata.indexing.find((item) => item?.quartile)?.quartile
     : "";
@@ -163,6 +197,9 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
         {renderField(t("professor.doi.publisher"), metadata.publisher)}
         {renderField(t("professor.doi.publishedDate"), publishedDate)}
         {renderField(t("professor.doi.publicationType"), metadata.type || "-")}
+        {showBookChapterFields && editors ? renderField(t("professor.dashboard.publicationForm.editors"), editors) : null}
+        {showBookChapterFields && bookSeriesTitle ? renderField(t("professor.dashboard.publicationForm.bookSeriesTitle"), bookSeriesTitle) : null}
+        {showBookChapterFields && edition ? renderField(t("professor.dashboard.publicationForm.edition"), edition) : null}
         {showQuartile ? renderField(t("professor.dashboard.publicationForm.quartile"), quartile) : null}
         {renderLinkField(t("professor.doi.link"), metadata.source_url, metadata.source_url)}
       </div>

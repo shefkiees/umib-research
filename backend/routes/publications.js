@@ -112,6 +112,110 @@ function normalizeAuthorAffiliation(value) {
   return normalizeText(value?.name || value?.affiliation || value?.institution || value?.organization || value?.display_name || value?.displayName || value);
 }
 
+function normalizeContributor(value = {}) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    const fullName = normalizeText(value);
+    return fullName ? { fullName, full_name: fullName, givenName: "", given_name: "", familyName: "", family_name: "", orcid: "" } : null;
+  }
+
+  const givenName = normalizeText(value.givenName || value.given_name || value.given);
+  const familyName = normalizeText(value.familyName || value.family_name || value.family);
+  const fullName = normalizeText(
+    value.fullName
+    || value.full_name
+    || value.name
+    || value.literal
+    || [givenName, familyName].filter(Boolean).join(" ")
+  );
+  const rawIdentifiers = [
+    value.ORCID,
+    value.orcid,
+    value.nameIdentifier,
+    value.name_identifier,
+    ...(Array.isArray(value.nameIdentifiers) ? value.nameIdentifiers.map((item) => item?.nameIdentifier || item?.name_identifier || item?.value) : []),
+    ...(Array.isArray(value.name_identifiers) ? value.name_identifiers.map((item) => item?.nameIdentifier || item?.name_identifier || item?.value) : []),
+  ];
+  const orcid = normalizeOrcid(rawIdentifiers
+    .map((item) => (item && typeof item === "object" ? item.nameIdentifier || item.name_identifier || item.value : item))
+    .find((item) => normalizeText(item)));
+  const resolvedFullName = fullName || [givenName, familyName].filter(Boolean).join(" ");
+
+  return resolvedFullName || orcid ? {
+    fullName: resolvedFullName,
+    full_name: resolvedFullName,
+    givenName,
+    given_name: givenName,
+    familyName,
+    family_name: familyName,
+    orcid,
+  } : null;
+}
+
+function uniqueContributors(values = []) {
+  const seen = new Set();
+  const contributors = [];
+
+  for (const value of values) {
+    const contributor = normalizeContributor(value);
+    const key = normalizeText(contributor?.orcid || contributor?.fullName || contributor?.full_name).toLowerCase();
+
+    if (contributor && key && !seen.has(key)) {
+      seen.add(key);
+      contributors.push(contributor);
+    }
+  }
+
+  return contributors;
+}
+
+function getBookChapterEditorsFromRaw(raw = {}) {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}];
+  const values = sources.flatMap((source) => [
+    source.editors,
+    source.editor,
+    source.bookEditors,
+    source.book_editors,
+    source.bookEditor,
+    source.book_editor,
+    source["book-editors"],
+    source["book-editor"],
+  ]).flatMap((value) => (Array.isArray(value) ? value : [value]));
+
+  return uniqueContributors(values);
+}
+
+function getBookChapterSeriesTitleFromRaw(raw = {}) {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}];
+  const values = sources.flatMap((source) => [
+    source.book_series_title,
+    source.bookSeriesTitle,
+    source.series_title,
+    source.seriesTitle,
+    source["series-title"],
+    source.collection_title,
+    source.collectionTitle,
+    source["collection-title"],
+  ]);
+
+  return values.map(normalizeText).find(Boolean) || "";
+}
+
+function getBookChapterEditionFromRaw(raw = {}) {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}];
+  const values = sources.flatMap((source) => [
+    source.edition,
+    source.editionNumber,
+    source.edition_number,
+    source["edition-number"],
+  ]);
+
+  return values.map(normalizeText).find(Boolean) || "";
+}
+
 function normalizeOptionalDate(value) {
   const text = normalizeText(value);
 
@@ -159,6 +263,41 @@ function normalizePublicationType(value) {
   };
 
   return typeMap[normalized] || normalized;
+}
+
+function normalizePublicationSubtype(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
+
+  if (normalized === "book_chapter" || normalized === "chapter") {
+    return "book_chapter";
+  }
+
+  return "";
+}
+
+function getPublicationSubtypeFromRaw(raw = {}) {
+  return normalizePublicationSubtype(
+    raw.publication_subtype
+    || raw.publicationSubtype
+    || raw.subtype
+    || raw.type
+    || raw._crossref?.publication_subtype
+    || raw._crossref?.publicationSubtype
+    || raw._crossref?.subtype
+    || raw._crossref?.type
+    || raw._doi_org?.publication_subtype
+    || raw._doi_org?.publicationSubtype
+    || raw._doi_org?.subtype
+    || raw._doi_org?.type
+    || raw._openalex?.publication_subtype
+    || raw._openalex?.publicationSubtype
+    || raw._openalex?.type
+    || raw._openalex?.type_crossref
+  );
+}
+
+function isBookChapterPublication(publicationType, publicationSubtype) {
+  return publicationType === "book" && normalizePublicationSubtype(publicationSubtype) === "book_chapter";
 }
 
 function supportsPublicationIndexing(publicationType) {
@@ -386,8 +525,12 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     authors: createFieldSource((Array.isArray(values.authors) ? values.authors : []).map((author) => author?.fullName || author?.full_name || author?.name).filter(Boolean), baseSource),
     authorAffiliation: createFieldSource(null, baseSource),
     publicationType: createFieldSource(values.publicationType || values.publication_type, baseSource),
+    publicationSubtype: createFieldSource(values.publicationSubtype || values.publication_subtype, baseSource),
     venue: createFieldSource(values.venue || values.publishedIn || values.published_in || values.journal, baseSource),
     publisher: createFieldSource(values.publisher, baseSource),
+    editors: createFieldSource(Array.isArray(values.editors) ? values.editors.map((editor) => editor?.fullName || editor?.full_name || editor?.name).filter(Boolean) : [], baseSource),
+    bookSeriesTitle: createFieldSource(values.bookSeriesTitle || values.book_series_title || values.seriesTitle || values.series_title, baseSource),
+    edition: createFieldSource(values.edition, baseSource),
     publicationDate: createFieldSource(values.publicationDate || values.publication_date, baseSource),
     publicationYear: createFieldSource(values.publicationYear || values.publication_year || values.year, baseSource),
     sourceUrl: createFieldSource(values.sourceUrl || values.source_url, baseSource),
@@ -522,8 +665,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const doi = normalizeDoi(body.doi);
   const title = normalizeText(body.title);
   const publicationType = normalizePublicationType(body.publicationType || body.publication_type);
+  const publicationSubtype = normalizePublicationSubtype(body.publicationSubtype || body.publication_subtype);
   const canIndexPublication = supportsPublicationIndexing(publicationType);
   const isBookPublication = publicationType === "book";
+  const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const publicationYear = normalizeYear(body.publicationYear ?? body.publication_year);
   const publicationDate = normalizeOptionalDate(body.publicationDate || body.publication_date);
   const status = normalizeText(body.status || "draft");
@@ -700,13 +845,14 @@ function normalizePublicationPayload(body = {}, options = {}) {
       title,
       abstract: nullableConferenceAbstract(publicationType, body.abstract),
       publicationType,
+      publicationSubtype,
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
       conferenceLocation: publicationType === "conference_paper" ? normalizeText(body.conferenceLocation ?? body.conference_location) : "",
       publisher: normalizeText(body.publisher),
-      publicationDate: isBookPublication ? null : publicationDate,
-      publicationYear: isBookPublication ? null : publicationYear,
+      publicationDate: isBookPublication && !isBookChapter ? null : publicationDate,
+      publicationYear: isBookPublication && !isBookChapter ? null : publicationYear,
       sourceUrl,
-      volume: isBookPublication ? "" : normalizeText(body.volume),
+      volume: isBookPublication && !isBookChapter ? "" : normalizeText(body.volume),
       issue: isBookPublication ? "" : normalizeText(body.issue),
       pages: nullableConferenceText(publicationType, body.pages),
       issn: isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
@@ -769,9 +915,13 @@ function mapPublication(row) {
     ? getArrayField(row, "evidence_links")
     : getArrayField(row, "attachments");
   const authors = getPublicationAuthors(row);
+  const metadataRaw = row.metadata_raw_json && typeof row.metadata_raw_json === "object" ? row.metadata_raw_json : {};
   const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
+  const publicationSubtype = getPublicationSubtypeFromRaw(metadataRaw);
   const isBookPublication = publicationType === "book";
+  const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const hideJournalSpecificFields = publicationType === "conference_paper" || isBookPublication;
+  const hideVolumeField = publicationType === "conference_paper" || (isBookPublication && !isBookChapter);
   const indexing = supportsPublicationIndexing(publicationType) ? getArrayField(row, "indexing").map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
@@ -809,6 +959,9 @@ function mapPublication(row) {
   const selectedSjr = supportsPublicationIndexing(publicationType) ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
   const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
     && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
+  const bookChapterEditors = isBookChapter ? getBookChapterEditorsFromRaw(metadataRaw) : [];
+  const bookChapterSeriesTitle = isBookChapter ? getBookChapterSeriesTitleFromRaw(metadataRaw) : "";
+  const bookChapterEdition = isBookChapter ? getBookChapterEditionFromRaw(metadataRaw) : "";
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
@@ -817,10 +970,11 @@ function mapPublication(row) {
     venue: row.venue || "",
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
-    publicationDate: isBookPublication ? null : row.publication_date || null,
-    publicationYear: isBookPublication ? "" : row.publication_year || row.year || "",
+    publicationSubtype,
+    publicationDate: isBookPublication && !isBookChapter ? null : row.publication_date || null,
+    publicationYear: isBookPublication && !isBookChapter ? "" : row.publication_year || row.year || "",
     sourceUrl: row.source_url || "",
-    volume: hideJournalSpecificFields ? "" : row.volume || "",
+    volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: nullableConferenceText(publicationType, row.pages),
     issn: hideJournalSpecificFields ? "" : nullableConferenceText(publicationType, row.issn),
@@ -845,20 +999,29 @@ function mapPublication(row) {
     abstract: normalizeAbstractText(row.abstract),
     publicationType,
     publication_type: publicationType,
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     venue: row.venue || "",
     publishedIn: row.venue || "",
     published_in: row.venue || "",
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
     conference_location: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
-    publicationDate: isBookPublication ? null : row.publication_date || null,
-    publication_date: isBookPublication ? null : row.publication_date || null,
-    publicationYear: isBookPublication ? "" : row.publication_year || row.year || "",
-    publication_year: isBookPublication ? "" : row.publication_year || row.year || "",
+    editors: bookChapterEditors,
+    editor: bookChapterEditors,
+    bookSeriesTitle: bookChapterSeriesTitle,
+    book_series_title: bookChapterSeriesTitle,
+    seriesTitle: bookChapterSeriesTitle,
+    series_title: bookChapterSeriesTitle,
+    edition: bookChapterEdition,
+    publicationDate: isBookPublication && !isBookChapter ? null : row.publication_date || null,
+    publication_date: isBookPublication && !isBookChapter ? null : row.publication_date || null,
+    publicationYear: isBookPublication && !isBookChapter ? "" : row.publication_year || row.year || "",
+    publication_year: isBookPublication && !isBookChapter ? "" : row.publication_year || row.year || "",
     doi: row.doi || "",
     sourceUrl: row.source_url || "",
     source_url: row.source_url || "",
-    volume: hideJournalSpecificFields ? "" : row.volume || "",
+    volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: row.pages || "",
     issn: hideJournalSpecificFields ? "" : row.issn || "",
@@ -976,7 +1139,7 @@ const PUBLICATION_SELECT_SQL = `
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
-  m.type as metadata_type, m.authors as metadata_authors,
+  m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
   coalesce((
     select jsonb_agg(jsonb_build_object(
       'full_name', pa.full_name,
@@ -1049,7 +1212,8 @@ const LEGACY_PUBLICATION_SELECT_SQL = `
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
   '[]'::jsonb as review_history,
-  m.container_title, m.publisher, m.year, m.type as metadata_type, m.authors as metadata_authors, m.source_url
+  m.container_title, m.publisher, m.year, m.type as metadata_type, m.authors as metadata_authors, m.source_url,
+  m.raw_json as metadata_raw_json
 `;
 
 let unifiedPublicationSchemaCache = null;
@@ -1452,18 +1616,32 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
   const publicationType = normalizePublicationType(metadata.type);
+  const publicationSubtype = normalizePublicationSubtype(metadata.publicationSubtype || metadata.publication_subtype || getPublicationSubtypeFromRaw(raw));
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const metadataAuthors = Array.isArray(metadata.authors) ? metadata.authors : [];
+  const editors = Array.isArray(metadata.editors) && metadata.editors.length ? metadata.editors : getBookChapterEditorsFromRaw(raw);
+  const bookSeriesTitle = metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || getBookChapterSeriesTitleFromRaw(raw);
+  const edition = metadata.edition || getBookChapterEditionFromRaw(raw);
+
   return {
     doi: metadata.doi || "",
     title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
     abstract: nullableConferenceAbstract(publicationType, metadata.abstract),
     publicationType,
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     venue: publicationType === "book"
       ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
       : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
+    editors,
+    editor: editors,
+    bookSeriesTitle,
+    book_series_title: bookSeriesTitle,
+    seriesTitle: bookSeriesTitle,
+    series_title: bookSeriesTitle,
+    edition,
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",

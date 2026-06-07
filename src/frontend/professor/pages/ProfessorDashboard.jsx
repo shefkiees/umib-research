@@ -162,6 +162,15 @@ const supportsPublicationIndexing = (publicationType) => publicationType === "jo
 
 const isBookPublicationType = (publicationType) => publicationType === "book";
 
+const normalizePublicationSubtype = (value) => {
+  const normalized = String(value || "").toLowerCase().replace(/[-\s]+/g, "_");
+
+  return normalized === "book_chapter" || normalized === "chapter" ? "book_chapter" : "";
+};
+
+const isBookChapterPublication = (publicationType, publicationSubtype) =>
+  isBookPublicationType(publicationType) && normalizePublicationSubtype(publicationSubtype) === "book_chapter";
+
 const hidesJournalFields = (publicationType) => publicationType === "conference_paper" || publicationType === "book";
 
 const formatDate = (value) => {
@@ -262,8 +271,11 @@ const getDisplayableQuartile = (row = {}) =>
 
 const mapPublicationRow = (row = {}) => {
   const publicationType = row.publicationType || row.publication_type || "";
+  const publicationSubtype = normalizePublicationSubtype(row.publicationSubtype || row.publication_subtype);
+  const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const hasIndexing = supportsPublicationIndexing(publicationType);
   const hideJournalSpecificFields = hidesJournalFields(publicationType);
+  const hideVolumeField = publicationType === "conference_paper" || (isBookPublicationType(publicationType) && !isBookChapter);
   const indexing = hasIndexing && Array.isArray(row.indexing) ? row.indexing : [];
   const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
   const selectedVerifiedIndexing = indexing.find((item) => normalizeLooseBoolean(item?.quartileVerified ?? item?.quartile_verified)) || selectedIndexing;
@@ -274,18 +286,23 @@ const mapPublicationRow = (row = {}) => {
     title: row.title || "Pa titull",
     abstract: row.abstract || "",
     publicationType,
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     journal: row.venue || row.publisher || "Pa reviste/konference",
     venue: row.venue || "",
     publishedIn: row.publishedIn || row.published_in || row.venue || "",
     conferenceLocation: row.conferenceLocation || row.conference_location || "",
     conference_location: row.conferenceLocation || row.conference_location || "",
     publisher: row.publisher || "",
-    publicationDate: isBookPublicationType(publicationType) ? "" : row.publicationDate || row.publication_date || "",
-    year: isBookPublicationType(publicationType) ? "" : row.publicationYear || row.publication_year || "",
-    publicationYear: isBookPublicationType(publicationType) ? "" : row.publicationYear || row.publication_year || "",
+    editors: Array.isArray(row.editors) ? row.editors : [],
+    bookSeriesTitle: row.bookSeriesTitle || row.book_series_title || row.seriesTitle || row.series_title || "",
+    edition: row.edition || "",
+    publicationDate: isBookPublicationType(publicationType) && !isBookChapter ? "" : row.publicationDate || row.publication_date || "",
+    year: isBookPublicationType(publicationType) && !isBookChapter ? "" : row.publicationYear || row.publication_year || "",
+    publicationYear: isBookPublicationType(publicationType) && !isBookChapter ? "" : row.publicationYear || row.publication_year || "",
     status: row.status || "draft",
     sourceUrl: row.sourceUrl || row.source_url || "",
-    volume: hideJournalSpecificFields ? "" : row.volume || "",
+    volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
     pages: row.pages || "",
     issn: hideJournalSpecificFields ? "" : row.issn || "",
@@ -1165,15 +1182,17 @@ export default function ProfessorDashboard() {
     const payload = { ...draft };
     const authors = Array.isArray(draft.authors) ? draft.authors : [];
     const publicationType = draft.publicationType || draft.publication_type;
+    const publicationSubtype = normalizePublicationSubtype(draft.publicationSubtype || draft.publication_subtype);
     const isConferencePaper = publicationType === "conference_paper";
     const isBookPublication = isBookPublicationType(publicationType);
+    const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
     const supportsIndexing = supportsPublicationIndexing(publicationType);
     const draftIndexing = supportsIndexing && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = null;
     const indexingPlatform = supportsIndexing ? draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "" : "";
     const indexingCategory = supportsIndexing ? draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "" : "";
-    const publicationDate = isBookPublication ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
+    const publicationDate = isBookPublication && !isBookChapter ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
     const quartile = supportsIndexing ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
     const sjr = supportsIndexing ? draft.sjr || selectedIndexing.sjr || "" : "";
     const citeScore = supportsIndexing ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
@@ -1235,14 +1254,16 @@ export default function ProfessorDashboard() {
       venue: publishedIn,
       publishedIn,
       published_in: publishedIn,
+      publicationSubtype,
+      publication_subtype: publicationSubtype,
       conferenceLocation: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
       conference_location: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
       publisher: draft.publisher || "",
       publicationDate,
       publication_date: publicationDate,
-      publicationYear: isBookPublication ? "" : draft.publicationYear || draft.publication_year || "",
-      publication_year: isBookPublication ? "" : draft.publicationYear || draft.publication_year || "",
-      volume: (isConferencePaper || isBookPublication) ? "" : draft.volume || "",
+      publicationYear: isBookPublication && !isBookChapter ? "" : draft.publicationYear || draft.publication_year || "",
+      publication_year: isBookPublication && !isBookChapter ? "" : draft.publicationYear || draft.publication_year || "",
+      volume: (isConferencePaper || (isBookPublication && !isBookChapter)) ? "" : draft.volume || "",
       issue: (isConferencePaper || isBookPublication) ? "" : draft.issue || "",
       issn: (isConferencePaper || isBookPublication) ? "" : draft.issn || "",
       isbn: isConferencePaper ? "" : draft.isbn || "",

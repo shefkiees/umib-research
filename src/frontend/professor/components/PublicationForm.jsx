@@ -37,9 +37,13 @@ export const createEmptyPublicationDraft = () => ({
   title: "",
   abstract: "",
   publicationType: "",
+  publicationSubtype: "",
   venue: "",
   conferenceLocation: "",
   publisher: "",
+  editors: [],
+  bookSeriesTitle: "",
+  edition: "",
   publicationDate: "",
   publicationYear: "",
   doi: "",
@@ -284,9 +288,12 @@ function getIndexingCiteScore(item = {}) {
 
 export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
+  const publicationSubtype = getMetadataPublicationSubtype(publication);
+  const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const hasIndexing = supportsQuartile(publicationType);
   const isBookPublication = isBookPublicationType(publicationType);
   const hideJournalSpecificFields = isConferencePaperType(publicationType) || isBookPublication;
+  const hideVolumeField = isConferencePaperType(publicationType) || (isBookPublication && !isBookChapter);
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
   const indexing = hasIndexing && Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
@@ -317,14 +324,19 @@ export function publicationToDraft(publication = {}) {
     title: publication.title || "",
     abstract: publication.abstract || "",
     publicationType,
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     venue: publication.venue || publication.journal || "",
     conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
-    publicationDate: isBookPublication ? "" : (publication.publicationDate || publication.publication_date || "").slice(0, 10),
-    publicationYear: isBookPublication ? "" : publication.publicationYear || publication.publication_year || publication.year || "",
+    editors: Array.isArray(publication.editors) ? publication.editors : [],
+    bookSeriesTitle: publication.bookSeriesTitle || publication.book_series_title || publication.seriesTitle || publication.series_title || "",
+    edition: publication.edition || "",
+    publicationDate: isBookPublication && !isBookChapter ? "" : (publication.publicationDate || publication.publication_date || "").slice(0, 10),
+    publicationYear: isBookPublication && !isBookChapter ? "" : publication.publicationYear || publication.publication_year || publication.year || "",
     doi: publication.doi || "",
     sourceUrl: publication.sourceUrl || publication.source_url || "",
-    volume: hideJournalSpecificFields ? "" : publication.volume || "",
+    volume: hideVolumeField ? "" : publication.volume || "",
     issue: hideJournalSpecificFields ? "" : publication.issue || "",
     pages: publication.pages || "",
     issn: hideJournalSpecificFields ? "" : publication.issn || "",
@@ -393,6 +405,50 @@ function isConferencePaperType(value) {
 
 function isBookPublicationType(value) {
   return normalizeDoiType(value) === "book" || value === "book";
+}
+
+function normalizePublicationSubtype(value) {
+  const normalized = String(value || "").toLowerCase().replace(/[-\s]+/g, "_");
+
+  return normalized === "book_chapter" || normalized === "chapter" ? "book_chapter" : "";
+}
+
+function isBookChapterPublication(publicationType, publicationSubtype) {
+  return isBookPublicationType(publicationType) && normalizePublicationSubtype(publicationSubtype) === "book_chapter";
+}
+
+function getMetadataPublicationSubtype(value = {}) {
+  return normalizePublicationSubtype(
+    value.publicationSubtype
+    || value.publication_subtype
+    || value.raw_json?.publication_subtype
+    || value.raw_json?.publicationSubtype
+    || value.raw_json?._crossref?.publication_subtype
+    || value.raw_json?._crossref?.publicationSubtype
+    || value.raw_json?._crossref?.type
+    || value.raw_json?._doi_org?.publication_subtype
+    || value.raw_json?._doi_org?.publicationSubtype
+    || value.raw_json?._doi_org?.type
+    || value.raw_json?._openalex?.publication_subtype
+    || value.raw_json?._openalex?.publicationSubtype
+    || value.raw_json?._openalex?.type_crossref
+    || value.raw_json?._openalex?.type
+  );
+}
+
+function formatContributorList(value = []) {
+  const contributors = Array.isArray(value) ? value : [value];
+
+  return contributors
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return String(item || "").trim();
+      }
+
+      return String(item.fullName || item.full_name || item.name || [item.givenName || item.given_name || item.given, item.familyName || item.family_name || item.family].filter(Boolean).join(" ")).trim();
+    })
+    .filter(Boolean)
+    .join(", ");
 }
 
 function getConferencePaperReset() {
@@ -535,8 +591,10 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
 function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
   const publicationType = normalizeDoiType(metadata.type);
+  const publicationSubtype = getMetadataPublicationSubtype(metadata);
   const isConferencePaper = publicationType === "conference_paper";
   const isBookPublication = publicationType === "book";
+  const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
   const selectedQuartileIndexing = getSelectedIndexingItem(indexing, metadata.quartile);
   const selectedQuartileStatus = String(metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "").toLowerCase();
@@ -566,18 +624,23 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
     abstract: metadata.abstract || "",
     publicationType,
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     venue: publicationType === "book"
       ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
       : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
     conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
-    publicationDate: !isBookPublication && /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
+    editors: Array.isArray(metadata.editors) ? metadata.editors : [],
+    bookSeriesTitle: metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || metadata.raw_json?.book_series_title || metadata.raw_json?.series_title || "",
+    edition: metadata.edition || metadata.raw_json?.edition || "",
+    publicationDate: (!isBookPublication || isBookChapter) && /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
-    publicationYear: isBookPublication ? "" : metadata.year || "",
+    publicationYear: isBookPublication && !isBookChapter ? "" : metadata.year || "",
     doi: metadata.doi || "",
     sourceUrl: metadata.source_url || "",
-    volume: (isConferencePaper || isBookPublication) ? "" : metadata.volume || "",
+    volume: (isConferencePaper || (isBookPublication && !isBookChapter)) ? "" : metadata.volume || "",
     issue: (isConferencePaper || isBookPublication) ? "" : metadata.issue || "",
     pages: metadata.pages || "",
     issn: (isConferencePaper || isBookPublication) ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
@@ -650,10 +713,11 @@ const PublicationForm = ({
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const isConferencePaper = isConferencePaperType(value.publicationType);
   const isBookPublication = isBookPublicationType(value.publicationType);
+  const isBookChapter = isBookChapterPublication(value.publicationType, value.publicationSubtype || value.publication_subtype);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showPublisherField = !isConferencePaper;
-  const showPublishedDateField = !isBookPublication;
-  const showVolumeField = !isConferencePaper && !isBookPublication && (!isDoiImported || hasValue("volume"));
+  const showPublishedDateField = !isBookPublication || isBookChapter;
+  const showVolumeField = !isConferencePaper && (!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"));
   const showIssueField = !isConferencePaper && !isBookPublication;
   const showIndexingFields = supportsQuartile(value.publicationType);
   const showIdentifierField = isBookPublication || (!isConferencePaper && (!isDoiImported || hasValue("issn") || hasValue("isbn")));
@@ -661,6 +725,12 @@ const PublicationForm = ({
   const showIsbnInput = isBookPublication || !isDoiImported || hasValue("isbn");
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
+  const editorsValue = formatContributorList(value.editors || value.editor);
+  const bookSeriesTitleValue = value.bookSeriesTitle || value.book_series_title || value.seriesTitle || value.series_title || "";
+  const editionValue = value.edition || "";
+  const showBookChapterEditors = isBookChapter && Boolean(editorsValue);
+  const showBookChapterSeriesTitle = isBookChapter && Boolean(String(bookSeriesTitleValue || "").trim());
+  const showBookChapterEdition = isBookChapter && Boolean(String(editionValue || "").trim());
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
   const indexingItems = Array.isArray(value.indexing) ? value.indexing : [];
@@ -1069,6 +1139,24 @@ const PublicationForm = ({
           <label className="prof-form-field">
             <span>{t("professor.dashboard.publicationForm.publisher")}</span>
             <input value={value.publisher} onChange={updateField("publisher")} readOnly={isFieldLocked("publisher")} />
+          </label>
+        ) : null}
+        {showBookChapterEditors ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.editors")}</span>
+            <input value={editorsValue} readOnly aria-readonly="true" />
+          </label>
+        ) : null}
+        {showBookChapterSeriesTitle ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.bookSeriesTitle")}</span>
+            <input value={bookSeriesTitleValue} readOnly aria-readonly="true" />
+          </label>
+        ) : null}
+        {showBookChapterEdition ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.edition")}</span>
+            <input value={editionValue} readOnly aria-readonly="true" />
           </label>
         ) : null}
         {showPublishedDateField ? (
