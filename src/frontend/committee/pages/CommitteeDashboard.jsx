@@ -89,7 +89,7 @@ const metadataReviewFilterOptions = [
   { value: "correction", label: "Kërkon korrigjim" },
 ];
 
-const metadataChecklistItems = [
+const standardMetadataChecklistItems = [
   { key: "doiOk", label: "DOI OK" },
   { key: "titleMatches", label: "Titulli përputhet me dokumentin" },
   { key: "venueOk", label: "Journal / Konferenca OK" },
@@ -98,7 +98,51 @@ const metadataChecklistItems = [
   { key: "documentsOk", label: "Dokumentet OK" },
 ];
 
+const journalArticleMetadataChecklistItems = [
+  { key: "doiOk", category: "Identifikimi", label: "DOI / link burimor", hint: "DOI ose linku burimor hap artikullin e sakte." },
+  { key: "titleMatches", category: "Identifikimi", label: "Titulli perputhet", hint: "Titulli ne sistem perputhet me DOI-ne ose dokumentin." },
+  { key: "journalNameOk", category: "Revista", label: "Emri i revistes", hint: "Revista eshte e shenuar qarte dhe perputhet me burimin." },
+  { key: "publisherOk", category: "Revista", label: "Botuesi / publisher", hint: "Botuesi eshte i shenuar kur merret nga DOI ose dokumenti." },
+  { key: "publicationDateOk", category: "Revista", label: "Viti / data e publikimit", hint: "Viti ose data e publikimit eshte e verifikueshme." },
+  { key: "authorsOk", category: "Autoret", label: "Autoret dhe bashkautoret", hint: "Lista e autoreve eshte e plote dhe e lexueshme." },
+  { key: "uibmOk", category: "Autoret", label: "Affiliation UIBM", hint: "Se paku nje autor lidhet me Universitetin Isa Boletini ne Mitrovice." },
+  { key: "issnOk", category: "Bibliografia", label: "ISSN / eISSN", hint: "ISSN ose eISSN eshte i regjistruar kur ekziston ne metadata." },
+  { key: "volumeIssuePagesOk", category: "Bibliografia", label: "Volume / issue / faqe", hint: "Te dhenat bibliografike jane te shenuara kur ekzistojne." },
+  { key: "abstractOk", category: "Bibliografia", label: "Abstrakti", hint: "Abstrakti eshte i pranishem kur ofrohet nga burimi." },
+  { key: "indexingOk", category: "Indeksimi", label: "Indeksimi i kontrolluar", hint: "Burimi i indeksimit eshte kontrolluar per artikullin." },
+  { key: "quartileMetricsOk", category: "Indeksimi", label: "Quartile / SJR / CiteScore / Impakt", hint: "Metrikat ruhen vetem kur ekzistojne nga burim i besueshem." },
+  { key: "documentsOk", category: "Dokumenti", label: "Dokumenti / linku hapet", hint: "Dokumenti ose linku mbeshtetes hapet per verifikim." },
+];
+
+const conferenceMetadataChecklistItems = [
+  { key: "doiOk", category: "Identifikimi", label: "DOI / link i verifikueshem", hint: "DOI ose linku burimor hap materialin perkates." },
+  { key: "titleMatches", category: "Identifikimi", label: "Emri i punimit / abstraktit", hint: "Titulli ne sistem perputhet me dokumentin." },
+  { key: "form2Ok", category: "Aplikimi", label: "Formulari 2", hint: "Formulari 2 eshte i bashkangjitur." },
+  { key: "abstractPresentationOk", category: "Aplikimi", label: "Prezantimi / abstrakti", hint: "Abstrakti ose prezantimi eshte i verifikueshem." },
+  { key: "eventNameOk", category: "Ngjarja shkencore", label: "Emri i konferences", hint: "Emri i ngjarjes shkencore eshte i shenuar qarte." },
+  { key: "eventDateOk", category: "Ngjarja shkencore", label: "Data dhe vendi i ngjarjes", hint: "Data, periudha ose lokacioni jane te verifikueshme." },
+  { key: "presentationPurposeOk", category: "Ngjarja shkencore", label: "Qellimi i pjesemarrjes", hint: "Roli si prezantues, foles ose instruktor eshte i qarte." },
+  { key: "programEvidenceOk", category: "Deshmite shkencore", label: "Programi i ngjarjes", hint: "Ekziston deshmi per programin e konferences." },
+  { key: "acceptanceDocumentOk", category: "Deshmite shkencore", label: "Pranimi i punimit / abstraktit", hint: "Dokumenti i pranimit eshte i bashkangjitur." },
+  { key: "invitationLetterOk", category: "Deshmite shkencore", label: "Letra e fteses / pranimit", hint: "Letra e fteses ose pranimit per prezantim ekziston." },
+  { key: "uibmOk", category: "Deshmite shkencore", label: "Affiliation UIBM", hint: "Punimi lidhet me Universitetin Isa Boletini ne Mitrovice." },
+  { key: "speakerInvitationOk", category: "Arsyetimi institucional", label: "Ftesa si foles / instruktor", hint: "Dokumenti e lidh kandidatin me rolin e folesit ose instruktorit." },
+  { key: "benefitLetterOk", category: "Arsyetimi institucional", label: "Letra e perfitimit shkencor", hint: "Dekani ose shefi i departamentit e arsyeton perfitimin per UIBM." },
+  { key: "deadlineOk", category: "Arsyetimi institucional", label: "Afati 1 muaj para ngjarjes", hint: "Kerkesa ne ZBN eshte dorezuar brenda afatit." },
+  { key: "travelTicketsOk", category: "Shpenzimet", label: "Biletat e udhetimit", hint: "Biletat e udhetimit jane te bashkangjitura." },
+  { key: "ticketInvoicesOk", category: "Shpenzimet", label: "Faturat e biletave", hint: "Faturat per biletat jane te dokumentuara." },
+  { key: "accommodationInvoiceOk", category: "Shpenzimet", label: "Fatura e akomodimit", hint: "Akomodimi eshte i dokumentuar me fature." },
+  { key: "registrationInvoiceOk", category: "Shpenzimet", label: "Fatura e regjistrimit", hint: "Pagesa e regjistrimit te ngjarjes shkencore eshte e dokumentuar." },
+];
+
 const correctionExamples = [
+  "Mungon emri i revistes ose nuk perputhet me DOI.",
+  "Mungon ISSN/eISSN ose te dhenat bibliografike.",
+  "Mungon verifikimi i indeksimit / metrikave te revistes.",
+  "Mungon Formulari 2 ose abstrakti/prezantimi.",
+  "Mungon programi ose pranimi i punimit/abstraktit.",
+  "Mungon letra e perfitimit shkencor per UIBM.",
+  "Mungojne faturat ose dokumentet e shpenzimeve.",
   "Mungon perkatesia institucionale UIBM",
   "DOI nuk përputhet me titullin",
   "Journal nuk është i saktë",
@@ -176,26 +220,195 @@ function getPublicationStatusLabel(value) {
   return publicationStatusLabels[value] || value || "-";
 }
 
-function getPublicationDocumentUrl(publication) {
+function getPublicationType(publication = {}) {
+  return publication.publicationType || publication.publication_type || "";
+}
+
+function isConferencePublication(publication = {}) {
+  return getPublicationType(publication) === "conference_paper";
+}
+
+function isJournalArticlePublication(publication = {}) {
+  return getPublicationType(publication) === "journal_article";
+}
+
+function getMetadataChecklistItems(publication = {}) {
+  if (isConferencePublication(publication)) {
+    return conferenceMetadataChecklistItems;
+  }
+
+  if (isJournalArticlePublication(publication)) {
+    return journalArticleMetadataChecklistItems;
+  }
+
+  return standardMetadataChecklistItems;
+}
+
+function getChecklistTypeLabel(publication = {}) {
+  if (isConferencePublication(publication)) {
+    return "Checklist konferenca";
+  }
+
+  if (isJournalArticlePublication(publication)) {
+    return "Checklist artikull reviste";
+  }
+
+  return "Checklist standard";
+}
+
+function getPublicationEvidenceItems(publication = {}) {
   const evidence = Array.isArray(publication?.evidenceLinks) && publication.evidenceLinks.length
     ? publication.evidenceLinks
     : publication?.attachments || [];
+  return Array.isArray(evidence) ? evidence : [];
+}
+
+function getPublicationEvidenceText(publication = {}) {
+  return getPublicationEvidenceItems(publication)
+    .map((item) => [
+      item?.label,
+      item?.fileType,
+      item?.file_type,
+      item?.name,
+      item?.fileName,
+      item?.file_name,
+      item?.url,
+      item?.fileUrl,
+      item?.file_url,
+    ].filter(Boolean).join(" "))
+    .join(" ");
+}
+
+function getPublicationIndexingItems(publication = {}) {
+  return Array.isArray(publication.indexing) ? publication.indexing : [];
+}
+
+function hasIndexingEvidence(publication = {}) {
+  return Boolean(
+    publication.indexingPlatform
+    || publication.indexing_platform
+    || publication.indexingVerified
+    || publication.indexing_verified
+    || getPublicationIndexingItems(publication).some((item) =>
+      item?.source
+      || item?.platform
+      || item?.category
+      || item?.quartile
+      || item?.sjr
+      || item?.citeScore
+      || item?.cite_score
+      || item?.impactFactor
+      || item?.impact_factor
+    )
+  );
+}
+
+function hasJournalMetricEvidence(publication = {}) {
+  return Boolean(
+    publication.quartile
+    || publication.sjr
+    || publication.citeScore
+    || publication.cite_score
+    || publication.impactFactor
+    || publication.impact_factor
+    || getPublicationIndexingItems(publication).some((item) =>
+      item?.quartile
+      || item?.sjr
+      || item?.citeScore
+      || item?.cite_score
+      || item?.impactFactor
+      || item?.impact_factor
+    )
+  );
+}
+
+function evidenceMatches(publication, patterns = []) {
+  const evidenceText = normalizeForSearch(getPublicationEvidenceText(publication));
+  return patterns.some((pattern) => normalizeForSearch(pattern).split("|").some((part) => part && evidenceText.includes(part)));
+}
+
+function getPublicationDocumentUrl(publication) {
+  const evidence = getPublicationEvidenceItems(publication);
   const firstDocument = evidence.find((item) => item?.url || item?.fileUrl || item?.file_url);
 
   return firstDocument?.url || firstDocument?.fileUrl || firstDocument?.file_url || publication?.sourceUrl || publication?.source_url || "";
 }
 
-function createDefaultChecklist(publication) {
-  const authors = getPublicationAuthors(publication);
+function getConferenceEventValue(publication = {}) {
+  return publication.eventDate
+    || publication.event_date
+    || publication.conferenceLocation
+    || publication.conference_location
+    || publication.publicationDate
+    || publication.publication_date
+    || "";
+}
 
-  return {
-    doiOk: Boolean(publication?.doi),
-    titleMatches: false,
-    venueOk: Boolean(publication?.venue || publication?.publisher),
-    authorsOk: authors.length > 0,
-    uibmOk: hasUibmAffiliation(publication),
-    documentsOk: Boolean(getPublicationDocumentUrl(publication)),
-  };
+function inferChecklistValue(publication, key) {
+  const hasDocument = Boolean(getPublicationDocumentUrl(publication));
+
+  switch (key) {
+    case "doiOk":
+      return Boolean(publication?.doi || publication?.sourceUrl || publication?.source_url);
+    case "venueOk":
+    case "eventNameOk":
+      return Boolean(publication?.venue || publication?.publishedIn || publication?.published_in || publication?.publisher);
+    case "journalNameOk":
+      return Boolean(publication?.venue || publication?.publishedIn || publication?.published_in);
+    case "publisherOk":
+      return Boolean(publication?.publisher);
+    case "publicationDateOk":
+      return Boolean(publication?.publicationYear || publication?.publication_year || publication?.publicationDate || publication?.publication_date || publication?.year);
+    case "eventDateOk":
+      return Boolean(getConferenceEventValue(publication));
+    case "authorsOk":
+      return getPublicationAuthors(publication).length > 0;
+    case "uibmOk":
+      return hasUibmAffiliation(publication);
+    case "documentsOk":
+      return hasDocument;
+    case "issnOk":
+      return Boolean(publication?.issn || publication?.eissn || publication?.eIssn);
+    case "volumeIssuePagesOk":
+      return Boolean(publication?.volume || publication?.issue || publication?.pages || publication?.pageStart || publication?.page_start || publication?.pageEnd || publication?.page_end);
+    case "abstractOk":
+      return Boolean(publication?.abstract);
+    case "indexingOk":
+      return hasIndexingEvidence(publication);
+    case "quartileMetricsOk":
+      return hasJournalMetricEvidence(publication);
+    case "abstractPresentationOk":
+      return Boolean(publication?.abstract) || evidenceMatches(publication, ["abstrakt|abstract|prezantim|presentation"]);
+    case "form2Ok":
+      return evidenceMatches(publication, ["formulari 2|form 2|f2"]);
+    case "programEvidenceOk":
+      return evidenceMatches(publication, ["program"]);
+    case "acceptanceDocumentOk":
+      return evidenceMatches(publication, ["pranim|acceptance|accepted"]);
+    case "invitationLetterOk":
+      return evidenceMatches(publication, ["ftes|invitation|invite"]);
+    case "speakerInvitationOk":
+      return evidenceMatches(publication, ["foles|speaker|instruktor|instructor"]);
+    case "benefitLetterOk":
+      return evidenceMatches(publication, ["perfitim|benefit|dekan|department|departament"]);
+    case "travelTicketsOk":
+      return evidenceMatches(publication, ["bilet|ticket"]);
+    case "ticketInvoicesOk":
+      return evidenceMatches(publication, ["fature bilete|ticket invoice|invoice ticket"]);
+    case "accommodationInvoiceOk":
+      return evidenceMatches(publication, ["akomod|hotel|accommodation"]);
+    case "registrationInvoiceOk":
+      return evidenceMatches(publication, ["regjistrim|registration|fee"]);
+    default:
+      return false;
+  }
+}
+
+function createDefaultChecklist(publication) {
+  return getMetadataChecklistItems(publication).reduce((checklist, item) => ({
+    ...checklist,
+    [item.key]: inferChecklistValue(publication, item.key),
+  }), {});
 }
 
 function createInitialReview(publication) {
@@ -229,12 +442,13 @@ function mapMetadataReviewFromPublication(publication) {
 
 function getReviewCompleteness(review, publication) {
   const checklist = review?.checklist || createDefaultChecklist(publication);
-  const checkedCount = metadataChecklistItems.filter((item) => checklist[item.key]).length;
+  const checklistItems = getMetadataChecklistItems(publication);
+  const checkedCount = checklistItems.filter((item) => checklist[item.key]).length;
 
   return {
     checkedCount,
-    total: metadataChecklistItems.length,
-    isComplete: checkedCount === metadataChecklistItems.length,
+    total: checklistItems.length,
+    isComplete: checkedCount === checklistItems.length,
   };
 }
 
@@ -656,7 +870,7 @@ export default function CommitteeDashboard() {
   };
 
   const markMetadataOk = async (publication) => {
-    const checklist = metadataChecklistItems.reduce((items, item) => ({
+    const checklist = getMetadataChecklistItems(publication).reduce((items, item) => ({
       ...items,
       [item.key]: true,
     }), {});
@@ -953,6 +1167,7 @@ export default function CommitteeDashboard() {
                         <ReviewIcon size={14} />
                         {reviewStatus.label}
                       </span>
+                      <span className="committee-metadata-muted">{getChecklistTypeLabel(item)}</span>
                       <span className="committee-metadata-muted">{completeness.checkedCount}/{completeness.total} checklist</span>
                     </td>
                     <td>
@@ -993,7 +1208,15 @@ export default function CommitteeDashboard() {
         const selectedCompleteness = getReviewCompleteness(selectedReview, selectedMetadataPublication);
         const selectedDocumentUrl = getPublicationDocumentUrl(selectedMetadataPublication);
         const selectedAuthors = getPublicationAuthors(selectedMetadataPublication);
-        const failedChecklistItems = metadataChecklistItems.filter((checkItem) => !selectedReview.checklist?.[checkItem.key]);
+        const selectedChecklistItems = getMetadataChecklistItems(selectedMetadataPublication);
+        const groupedChecklistItems = selectedChecklistItems.reduce((groups, item) => {
+          const category = item.category || "Kontrolli baze";
+          return {
+            ...groups,
+            [category]: [...(groups[category] || []), item],
+          };
+        }, {});
+        const failedChecklistItems = selectedChecklistItems.filter((checkItem) => !selectedReview.checklist?.[checkItem.key]);
         const visibleHistory = (selectedReview.history || [])
           .filter((entry, index, history) => {
             const previous = history[index - 1];
@@ -1019,6 +1242,7 @@ export default function CommitteeDashboard() {
               <div className="committee-review-quick-summary">
                 <span>Statusi: <strong>{getPublicationStatusLabel(selectedMetadataPublication.status)}</strong></span>
                 <span>Checklist: <strong>{selectedCompleteness.checkedCount}/{selectedCompleteness.total}</strong></span>
+                <span>Tipi: <strong>{getChecklistTypeLabel(selectedMetadataPublication)}</strong></span>
                 <span>UIBM: <strong className={hasUibmAffiliation(selectedMetadataPublication) ? "is-ok" : "is-warning"}>
                   {hasUibmAffiliation(selectedMetadataPublication) ? "OK" : "Mungon"}
                 </strong></span>
@@ -1031,17 +1255,30 @@ export default function CommitteeDashboard() {
                     {selectedCompleteness.isComplete ? "Gati per aprovim" : "Ne kontroll"}
                   </span>
                 </div>
-                <div className="committee-checklist-grid">
-                  {metadataChecklistItems.map((checkItem) => (
-                    <label key={checkItem.key} className={`committee-check-item ${selectedReview.checklist?.[checkItem.key] ? "is-checked" : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(selectedReview.checklist?.[checkItem.key])}
-                        onChange={() => toggleChecklistItem(selectedMetadataPublication, checkItem.key)}
-                      />
-                      <span className="committee-checkmark"><CheckCircle2 size={14} /></span>
-                      <span>{checkItem.label}</span>
-                    </label>
+                <div className="committee-checklist-groups">
+                  {Object.entries(groupedChecklistItems).map(([category, items]) => (
+                    <div key={category} className="committee-checklist-group">
+                      <div className="committee-checklist-category">
+                        <strong>{category}</strong>
+                        <span>{items.filter((checkItem) => selectedReview.checklist?.[checkItem.key]).length}/{items.length}</span>
+                      </div>
+                      <div className="committee-checklist-grid">
+                        {items.map((checkItem) => (
+                          <label key={checkItem.key} className={`committee-check-item ${selectedReview.checklist?.[checkItem.key] ? "is-checked" : ""}`}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selectedReview.checklist?.[checkItem.key])}
+                              onChange={() => toggleChecklistItem(selectedMetadataPublication, checkItem.key)}
+                            />
+                            <span className="committee-checkmark"><CheckCircle2 size={14} /></span>
+                            <span className="committee-check-copy">
+                              <strong>{checkItem.label}</strong>
+                              {checkItem.hint ? <small>{checkItem.hint}</small> : null}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
                 {failedChecklistItems.length ? (

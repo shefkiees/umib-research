@@ -1669,9 +1669,46 @@
 	gap: 6px 16px;
 }
 
-.committee-check-item {
+.committee-checklist-groups {
+	display: grid;
+	gap: 14px;
+}
+
+.committee-checklist-group {
+	border: 1px solid #e5edf6;
+	border-radius: 12px;
+	background: #fbfdff;
+	padding: 12px;
+}
+
+.committee-checklist-category {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 8px;
+	color: #17324f;
+}
+
+.committee-checklist-category strong {
+	font-size: 0.86rem;
+	font-weight: 900;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.committee-checklist-category span {
+	border-radius: 999px;
+	background: #eef5ff;
+	color: #1f4f84;
+	padding: 4px 9px;
+	font-size: 0.76rem;
+	font-weight: 900;
+}
+
+.committee-check-item {
+	display: flex;
+	align-items: flex-start;
 	gap: 10px;
 	border: none;
 	border-radius: 8px;
@@ -1720,6 +1757,25 @@
 	background: #167347;
 	border-color: #167347;
 	color: #ffffff;
+}
+
+.committee-check-copy {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.committee-check-copy strong {
+	color: #17324f;
+	font-size: 0.88rem;
+	line-height: 1.25;
+}
+
+.committee-check-copy small {
+	color: #64748b;
+	font-size: 0.76rem;
+	line-height: 1.35;
+	font-weight: 650;
 }
 
 .committee-compare-grid {

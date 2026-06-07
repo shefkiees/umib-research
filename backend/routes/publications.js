@@ -35,6 +35,37 @@ const STATUS_LABELS = {
   approved: "Aprovuar",
   rejected: "Refuzuar",
 };
+const METADATA_REVIEW_CHECKLIST_LABELS = {
+  doiOk: "DOI / link i verifikueshem",
+  titleMatches: "Titulli perputhet me dokumentin",
+  venueOk: "Journal / Konferenca OK",
+  journalNameOk: "Emri i revistes",
+  publisherOk: "Botuesi / publisher",
+  publicationDateOk: "Viti / data e publikimit",
+  authorsOk: "Autoret OK",
+  uibmOk: "Affiliation UIBM",
+  documentsOk: "Dokumentet mbeshtetese",
+  issnOk: "ISSN / eISSN",
+  volumeIssuePagesOk: "Volume / issue / faqe",
+  abstractOk: "Abstrakti",
+  indexingOk: "Indeksimi i kontrolluar",
+  quartileMetricsOk: "Quartile / SJR / CiteScore / Impakt",
+  form2Ok: "Formulari 2",
+  abstractPresentationOk: "Prezantimi / abstrakti",
+  eventNameOk: "Emri i konferences",
+  eventDateOk: "Data dhe vendi i ngjarjes",
+  presentationPurposeOk: "Qellimi i pjesemarrjes",
+  programEvidenceOk: "Programi i ngjarjes",
+  acceptanceDocumentOk: "Pranimi i punimit / abstraktit",
+  invitationLetterOk: "Letra e fteses / pranimit",
+  speakerInvitationOk: "Ftesa si foles / instruktor",
+  benefitLetterOk: "Letra e perfitimit shkencor",
+  deadlineOk: "Afati 1 muaj para ngjarjes",
+  travelTicketsOk: "Biletat e udhetimit",
+  ticketInvoicesOk: "Faturat e biletave",
+  accommodationInvoiceOk: "Fatura e akomodimit",
+  registrationInvoiceOk: "Fatura e regjistrimit",
+};
 const MAX_LIMIT = 50;
 const DOI_IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const DOI_IMPORT_RATE_LIMIT_MAX = 20;
@@ -1725,28 +1756,23 @@ function getPublicationSqlErrorDetails(error) {
 function normalizeMetadataReviewChecklist(value = {}) {
   const checklist = value && typeof value === "object" && !Array.isArray(value) ? value : {};
 
-  return {
-    doiOk: Boolean(checklist.doiOk ?? checklist.doi_ok),
-    titleMatches: Boolean(checklist.titleMatches ?? checklist.title_matches),
-    venueOk: Boolean(checklist.venueOk ?? checklist.venue_ok),
-    authorsOk: Boolean(checklist.authorsOk ?? checklist.authors_ok),
-    uibmOk: Boolean(checklist.uibmOk ?? checklist.uibm_ok),
-    documentsOk: Boolean(checklist.documentsOk ?? checklist.documents_ok),
-  };
+  return Object.keys(METADATA_REVIEW_CHECKLIST_LABELS).reduce((items, key) => {
+    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+    if (!Object.prototype.hasOwnProperty.call(checklist, key) && !Object.prototype.hasOwnProperty.call(checklist, snakeKey)) {
+      return items;
+    }
+
+    return {
+      ...items,
+      [key]: Boolean(checklist[key] ?? checklist[snakeKey]),
+    };
+  }, {});
 }
 
 function getMetadataReviewIssueLabels(checklist = {}) {
-  const labels = {
-    doiOk: "DOI OK",
-    titleMatches: "Titulli perputhet me dokumentin",
-    venueOk: "Journal / Konferenca OK",
-    authorsOk: "Autoret OK",
-    uibmOk: "Perkatesia institucionale UIBM OK",
-    documentsOk: "Dokumentet OK",
-  };
-
-  return Object.entries(labels)
-    .filter(([key]) => !checklist[key])
+  return Object.entries(METADATA_REVIEW_CHECKLIST_LABELS)
+    .filter(([key]) => Object.prototype.hasOwnProperty.call(checklist, key) && !checklist[key])
     .map(([, label]) => label);
 }
 
