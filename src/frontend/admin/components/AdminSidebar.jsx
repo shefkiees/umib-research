@@ -18,11 +18,11 @@ import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [ 
 
+  { label: "Statistikat", route: "Statistikat", icon: BarChart3 },
+
   { label: "Përdoruesit", route: "Përdoruesit", icon: Users }, 
 
   { label: "Historiku i veprimeve", route: "Historiku i veprimeve", icon: ClipboardList }, 
-
-  { label: "Statistikat", route: "Statistikat", icon: BarChart3 }, 
 
 ]; 
 
