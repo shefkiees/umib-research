@@ -314,11 +314,6 @@ export function AdminAnalyticsSection({ searchQuery = "" } = {}) {
 
   return (
     <section className="admin-page-card admin-feature-section">
-      <div className="admin-page-head">
-        <div>
-          <h3>{t("admin.analytics.title")}</h3>
-        </div>
-      </div>
       {error ? <p className="admin-inline-error">{error}</p> : null}
 
       {visibleStatCards.length > 0 ? (
