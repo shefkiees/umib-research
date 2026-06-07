@@ -82,6 +82,133 @@ function formatDate(value) {
   return date.toISOString().slice(0, 10);
 }
 
+const ALBANIAN_ONES = [
+  "",
+  "një",
+  "dy",
+  "tre",
+  "katër",
+  "pesë",
+  "gjashtë",
+  "shtatë",
+  "tetë",
+  "nëntë",
+];
+const ALBANIAN_TEENS = {
+  10: "dhjetë",
+  11: "njëmbëdhjetë",
+  12: "dymbëdhjetë",
+  13: "trembëdhjetë",
+  14: "katërmbëdhjetë",
+  15: "pesëmbëdhjetë",
+  16: "gjashtëmbëdhjetë",
+  17: "shtatëmbëdhjetë",
+  18: "tetëmbëdhjetë",
+  19: "nëntëmbëdhjetë",
+};
+const ALBANIAN_TENS = {
+  20: "njëzet",
+  30: "tridhjetë",
+  40: "dyzet",
+  50: "pesëdhjetë",
+  60: "gjashtëdhjetë",
+  70: "shtatëdhjetë",
+  80: "tetëdhjetë",
+  90: "nëntëdhjetë",
+};
+
+function formatAlbanianNumberUnderThousand(number) {
+  const normalizedNumber = Math.trunc(Math.abs(number));
+
+  if (normalizedNumber === 0) {
+    return "zero";
+  }
+
+  if (normalizedNumber < 10) {
+    return ALBANIAN_ONES[normalizedNumber];
+  }
+
+  if (normalizedNumber < 20) {
+    return ALBANIAN_TEENS[normalizedNumber];
+  }
+
+  if (normalizedNumber < 100) {
+    const tens = Math.trunc(normalizedNumber / 10) * 10;
+    const ones = normalizedNumber % 10;
+
+    return ones ? `${ALBANIAN_TENS[tens]} e ${ALBANIAN_ONES[ones]}` : ALBANIAN_TENS[tens];
+  }
+
+  const hundreds = Math.trunc(normalizedNumber / 100);
+  const remainder = normalizedNumber % 100;
+  const hundredText = hundreds === 1 ? "njëqind" : `${ALBANIAN_ONES[hundreds]}qind`;
+
+  return remainder ? `${hundredText} e ${formatAlbanianNumberUnderThousand(remainder)}` : hundredText;
+}
+
+function formatAlbanianNumber(number) {
+  const normalizedNumber = Math.trunc(Math.abs(number));
+
+  if (normalizedNumber < 1000) {
+    return formatAlbanianNumberUnderThousand(normalizedNumber);
+  }
+
+  if (normalizedNumber < 1000000) {
+    const thousands = Math.trunc(normalizedNumber / 1000);
+    const remainder = normalizedNumber % 1000;
+    const thousandsText = thousands === 1
+      ? "një mijë"
+      : `${formatAlbanianNumberUnderThousand(thousands)} mijë`;
+
+    return remainder ? `${thousandsText} e ${formatAlbanianNumberUnderThousand(remainder)}` : thousandsText;
+  }
+
+  return String(normalizedNumber);
+}
+
+function parseAmountParts(value) {
+  const text = normalizeText(value).replace(/\s+/g, "").replace(",", ".");
+  const amount = Number(text);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return null;
+  }
+
+  const centsTotal = Math.round(amount * 100);
+
+  return {
+    whole: Math.trunc(centsTotal / 100),
+    cents: centsTotal % 100,
+  };
+}
+
+function getCurrencyWords(currency) {
+  const normalizedCurrency = normalizeText(currency).toUpperCase();
+
+  if (normalizedCurrency === "EUR" || normalizedCurrency === "EURO") {
+    return { major: "euro", minor: "cent" };
+  }
+
+  return { major: normalizedCurrency || "EUR", minor: "cent" };
+}
+
+function formatAmountInWords(data) {
+  const amountParts = parseAmountParts(data.amount || data.requestData?.amount);
+
+  if (!amountParts) {
+    return "";
+  }
+
+  const currencyWords = getCurrencyWords(data.currency || data.requestData?.currency);
+  const wholeText = `${formatAlbanianNumber(amountParts.whole)} ${currencyWords.major}`;
+
+  if (!amountParts.cents) {
+    return wholeText;
+  }
+
+  return `${wholeText} e ${formatAlbanianNumber(amountParts.cents)} ${currencyWords.minor}`;
+}
+
 function valueOf(data, field) {
   if (field === "amount") {
     return data.amount ? `${data.amount} ${data.currency || "EUR"}` : "";
@@ -605,6 +732,7 @@ function getTemplateValues(data) {
     impactFactor: templateValue(data, "impactFactor"),
     citeScore: templateValue(data, "citeScore"),
     scopusQuartile: templateValue(data, "scopusQuartile"),
+    amountInWords: formatAmountInWords(data) || EMPTY_VALUE,
     acceptanceDate: templateValue(data, "acceptanceDate"),
     publicationDate: templateValueFrom(data, "publicationDate", "publicationYear"),
     publicationLink: templateValue(data, "publicationLink"),
