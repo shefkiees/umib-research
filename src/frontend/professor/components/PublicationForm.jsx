@@ -723,8 +723,6 @@ const PublicationForm = ({
   const isBookChapter = isBookChapterPublication(value.publicationType, value.publicationSubtype || value.publication_subtype);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showPublisherField = isConferencePaper ? hasValue("publisher") : true;
-  const showConferenceDoiField = isConferencePaper && hasValue("doi");
-  const showConferenceSourceUrlField = isConferencePaper && hasValue("sourceUrl");
   const showPublishedDateField = !isBookPublication || isBookChapter;
   const showVolumeField = isConferencePaper
     ? hasValue("volume")
@@ -1154,18 +1152,6 @@ const PublicationForm = ({
               required
               readOnly={isFieldLocked("conferenceLocation")}
             />
-          </label>
-        ) : null}
-        {showConferenceDoiField ? (
-          <label className="prof-form-field">
-            <span>DOI</span>
-            <input value={value.doi || ""} onChange={updateField("doi")} readOnly={isFieldLocked("doi")} />
-          </label>
-        ) : null}
-        {showConferenceSourceUrlField ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.sourceUrl")}</span>
-            <input value={value.sourceUrl || ""} onChange={updateField("sourceUrl")} readOnly={isFieldLocked("sourceUrl")} />
           </label>
         ) : null}
         {showPublisherField ? (
