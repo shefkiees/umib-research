@@ -23,7 +23,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -666,6 +665,13 @@ const shouldShowLocalizedProfileBankDraftName = (bankName = "", detectedBank = n
 
 const STATISTIC_METRIC_KEYS = ["publikime", "citime", "konferenca", "rimbursime"];
 
+const STATISTICS_CHART_COLORS = {
+  publikime: "#153a63",
+  citime: "#2f6fa9",
+  konferenca: "#78a9d8",
+  rimbursime: "#caa24c",
+};
+
 const DEFAULT_PROFESSOR_SYSTEM_PREFERENCES = {
   emailNotifications: true,
 };
@@ -677,6 +683,28 @@ const hasStatisticMetricData = (rows = []) =>
   rows.some((row) =>
     STATISTIC_METRIC_KEYS.some((key) => Number(row[key] || 0) > 0)
   );
+
+const StatisticsTooltip = ({ active, payload, label }) => {
+  if (!active || !Array.isArray(payload) || !payload.length) {
+    return null;
+  }
+
+  const visiblePayload = payload.filter((item) => Number(item.value || 0) > 0);
+  const items = visiblePayload.length ? visiblePayload : payload;
+
+  return (
+    <div className="prof-stat-chart-tooltip">
+      <strong>{label}</strong>
+      {items.map((item) => (
+        <span key={item.dataKey} className="prof-stat-chart-tooltip-row">
+          <span className="prof-stat-chart-tooltip-dot" style={{ backgroundColor: item.color }} />
+          <span>{item.name}</span>
+          <b>{item.value}</b>
+        </span>
+      ))}
+    </div>
+  );
+};
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -2257,6 +2285,12 @@ export default function ProfessorDashboard() {
         icon: <Wallet size={22} />,
       },
     ];
+    const chartSeries = [
+      { key: "publikime", label: t("professor.dashboard.publications"), color: STATISTICS_CHART_COLORS.publikime },
+      { key: "citime", label: t("professor.dashboard.citations"), color: STATISTICS_CHART_COLORS.citime },
+      { key: "konferenca", label: t("professor.dashboard.conferences"), color: STATISTICS_CHART_COLORS.konferenca },
+      { key: "rimbursime", label: t("professor.dashboard.reimbursements"), color: STATISTICS_CHART_COLORS.rimbursime },
+    ];
 
     return (
       <div className="prof-statistics-layout">
@@ -2283,8 +2317,16 @@ export default function ProfessorDashboard() {
 
         <article className="prof-card prof-stat-chart-card">
           <div className="prof-card-header">
-            <div>
+            <div className="prof-stat-chart-heading">
               <h3>{t("professor.dashboard.academicStatistics")}</h3>
+              <div className="prof-stat-chart-legend" role="list">
+                {chartSeries.map((item) => (
+                  <span key={item.key} className="prof-stat-chart-legend-item" role="listitem">
+                    <span style={{ backgroundColor: item.color }} />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="prof-filter-wrap">
               <label htmlFor="prof-period-filter">{t("professor.dashboard.period")}</label>
@@ -2318,16 +2360,29 @@ export default function ProfessorDashboard() {
           ) : hasFilteredStatisticsChartData ? (
             <div className="prof-stat-chart-wrap">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredStatisticsChartData} barGap={10}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="publikime" name={t("professor.dashboard.publications")} radius={[8, 8, 0, 0]} fill="#153a63" />
-                  <Bar dataKey="citime" name={t("professor.dashboard.citations")} radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-                  <Bar dataKey="konferenca" name={t("professor.dashboard.conferences")} radius={[8, 8, 0, 0]} fill="#7aa7d3" />
-                  <Bar dataKey="rimbursime" name={t("professor.dashboard.reimbursements")} radius={[8, 8, 0, 0]} fill="#c9a24f" />
+                <BarChart
+                  data={filteredStatisticsChartData}
+                  barCategoryGap="38%"
+                  barGap={4}
+                  margin={{ top: 12, right: 18, left: -8, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="4 6" vertical={false} stroke="#d9e4ef" />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={12} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={34} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(21, 58, 99, 0.06)", radius: 12 }}
+                    content={<StatisticsTooltip />}
+                  />
+                  {chartSeries.map((item) => (
+                    <Bar
+                      key={item.key}
+                      dataKey={item.key}
+                      name={item.label}
+                      radius={[7, 7, 0, 0]}
+                      fill={item.color}
+                      maxBarSize={18}
+                    />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
