@@ -262,7 +262,6 @@ export function AdminAnalyticsSection() {
     prorector: t("admin.users.roles.prorector"),
   };
   const summary = data?.userSummary || { total: 0, active: 0, inactive: 0, suspended: 0 };
-  const access = data?.accessAttempts || { total: 0, unauthenticated: 0, forbidden: 0 };
   const usersByRole = (data?.usersByRole || []).map((item) => ({ ...item, role: roleLabels[item.role] || item.role || "Pa rol" }));
   const usersByFaculty = normalizeInstitutionRows(data?.usersByFaculty, "faculty", "Pa fakultet", "Fakultet i paqartë");
   const usersByDepartment = normalizeInstitutionRows(data?.usersByDepartment, "department", "Pa departament", "Departament i paqartë");
@@ -282,8 +281,6 @@ export function AdminAnalyticsSection() {
         <article><span>{t("admin.analytics.totalUsers")}</span><strong>{summary.total}</strong></article>
         <article><span>{t("admin.analytics.activeUsers")}</span><strong>{summary.active}</strong></article>
         <article><span>{t("admin.analytics.inactiveUsers")}</span><strong>{summary.inactive}</strong></article>
-        <article><span>{t("admin.analytics.suspendedUsers")}</span><strong>{summary.suspended}</strong></article>
-        <article><span>{t("admin.analytics.unauthorizedAttempts")}</span><strong>{access.total}</strong><p>{t("admin.analytics.unauthenticated")}: {access.unauthenticated} • {t("admin.analytics.forbidden")}: {access.forbidden}</p></article>
       </div>
 
       <div className="admin-analytics-grid">
