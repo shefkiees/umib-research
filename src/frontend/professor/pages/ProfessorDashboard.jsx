@@ -259,8 +259,8 @@ const getSelectedIndexingItem = (indexing = [], fallbackQuartile = "") => {
 
   return quartileMatches
     .sort((first, second) => getIndexingYear(second) - getIndexingYear(first))
-    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
-    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
+    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore || item?.impactFactor || item?.impact_factor)
+    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore || item?.impactFactor || item?.impact_factor)
     || {};
 };
 
@@ -317,6 +317,8 @@ const mapPublicationRow = (row = {}) => {
     indexingVerified: hasIndexing && normalizeLooseBoolean(row.indexingVerified ?? row.indexing_verified),
     indexingSource: hasIndexing ? row.indexingSource || row.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual" : "manual",
     sjr: hasIndexing ? row.sjr || selectedIndexing.sjr || "" : "",
+    impactFactor: hasIndexing ? row.impactFactor || row.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "",
+    impact_factor: hasIndexing ? row.impactFactor || row.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "",
     citeScore: hasIndexing ? row.citeScore || row.cite_score || getIndexingCiteScore(selectedIndexing) : "",
     quartileVerified: hasIndexing && normalizeLooseBoolean(row.quartileVerified ?? row.quartile_verified ?? selectedVerifiedIndexing.quartileVerified ?? selectedVerifiedIndexing.quartile_verified),
     quartileSource: hasIndexing ? row.quartileSource || row.quartile_source || selectedIndexing.quartileSource || selectedIndexing.quartile_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual" : "manual",
@@ -1240,6 +1242,7 @@ export default function ProfessorDashboard() {
     const quartile = supportsIndexing ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
     const sjr = supportsIndexing ? draft.sjr || selectedIndexing.sjr || "" : "";
     const citeScore = supportsIndexing ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
+    const impactFactor = supportsIndexing ? draft.impactFactor || draft.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "";
     const quartileVerificationStatus = supportsIndexing ? draft.quartileVerificationStatus || draft.quartile_verification_status || selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status || (quartile ? "manual" : "empty") : "empty";
     const normalizedQuartileVerificationStatus = String(quartileVerificationStatus || "").toLowerCase();
     const quartileVerified = supportsIndexing && normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified);
@@ -1280,10 +1283,10 @@ export default function ProfessorDashboard() {
     });
     const indexing = draftIndexing.length
       ? draftIndexing.map((item, index) => index === 0
-        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, quartileVerified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource: item.quartileSource || item.quartile_source || quartileSource, quartile_source: item.quartileSource || item.quartile_source || quartileSource, quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore }
+        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, quartileVerified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource: item.quartileSource || item.quartile_source || quartileSource, quartile_source: item.quartileSource || item.quartile_source || quartileSource, quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore, impactFactor: item.impactFactor || item.impact_factor || impactFactor, impact_factor: item.impact_factor || item.impactFactor || impactFactor }
         : item)
-      : indexingPlatform || indexingCategory || quartile || sjr || citeScore
-        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore }]
+      : indexingPlatform || indexingCategory || quartile || sjr || citeScore || impactFactor
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore, impactFactor, impact_factor: impactFactor }]
         : [];
 
     delete payload.attachments;
@@ -1342,6 +1345,8 @@ export default function ProfessorDashboard() {
       sjr,
       citeScore,
       cite_score: citeScore,
+      impactFactor,
+      impact_factor: impactFactor,
     };
   };
 

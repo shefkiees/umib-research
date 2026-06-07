@@ -54,6 +54,20 @@ function normalizeText(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeImpactFactorValue(value) {
+  const text = normalizeText(value);
+  const match = text.match(/\b\d+(?:[.,]\d+)?\b/);
+
+  if (!match) {
+    return "";
+  }
+
+  const normalized = match[0].replace(",", ".");
+  const numericValue = Number(normalized);
+
+  return Number.isFinite(numericValue) && numericValue > 0 ? normalized : "";
+}
+
 function normalizeNullableText(value) {
   const normalized = normalizeText(value);
   return normalized || null;
@@ -588,7 +602,7 @@ function normalizeIndexing(value) {
       source_key: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
       category: normalizeText(item.category),
       quartile: normalizeQuartile(item.quartile),
-      impactFactor: normalizeText(item.impact_factor || item.impactFactor),
+      impactFactor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor),
       sjr: normalizeText(item.sjr),
       citeScore: normalizeText(item.cite_score || item.citeScore || item.citescore),
       indexedUrl: normalizeUrl(item.indexed_url || item.indexedUrl),
@@ -722,7 +736,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     quartile: createFieldSource(values.quartile || selectedIndexing.quartile, quartileSource),
     sjr: createFieldSource(values.sjr || selectedIndexing.sjr, indexingSource),
     citeScore: createFieldSource(values.citeScore || values.cite_score || selectedIndexing.citeScore || selectedIndexing.cite_score, indexingSource),
-    impactFactor: createFieldSource(selectedIndexing.impactFactor || selectedIndexing.impact_factor, indexingSource),
+    impactFactor: createFieldSource(values.impactFactor || values.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor, indexingSource),
   };
 }
 
@@ -780,8 +794,8 @@ function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
 
   return quartileMatches
     .sort((first, second) => getIndexingYear(second) - getIndexingYear(first))
-    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score)
-    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score)
+    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.impactFactor || item?.impact_factor)
+    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.impactFactor || item?.impact_factor)
     || {};
 }
 
@@ -833,7 +847,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
     || Object.prototype.hasOwnProperty.call(body, "indexingPlatform")
     || Object.prototype.hasOwnProperty.call(body, "indexing_platform")
     || Object.prototype.hasOwnProperty.call(body, "indexingCategory")
-    || Object.prototype.hasOwnProperty.call(body, "indexing_category");
+    || Object.prototype.hasOwnProperty.call(body, "indexing_category")
+    || Object.prototype.hasOwnProperty.call(body, "impactFactor")
+    || Object.prototype.hasOwnProperty.call(body, "impact_factor");
   const hasEvidenceLinksInput =
     Object.prototype.hasOwnProperty.call(body, "evidenceLinks")
     || Object.prototype.hasOwnProperty.call(body, "evidence_links")
@@ -909,10 +925,11 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
+  const bodyImpactFactor = canIndexPublication ? normalizeImpactFactorValue(body.impactFactor || body.impact_factor) : "";
   const rawIndexing = canIndexPublication
     ? Array.isArray(body.indexing) && body.indexing.length
       ? body.indexing
-      : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category)
+      : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category || bodyImpactFactor)
         ? [{
             source: body.indexingPlatform || body.indexing_platform || body.indexingSource || body.indexing_source,
             sourceKey: body.indexingSource || body.indexing_source,
@@ -923,6 +940,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
             quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"),
             sjr: body.sjr,
             citeScore: body.citeScore || body.cite_score || body.citescore,
+            impactFactor: bodyImpactFactor,
           }]
         : Array.isArray(body.indexing)
           ? body.indexing
@@ -950,6 +968,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
     || normalizeQuartile(body.quartile)
     || normalizeText(body.sjr)
     || normalizeText(body.citeScore || body.cite_score || body.citescore)
+    || bodyImpactFactor
     || indexingVerified
     || indexing?.some((item) =>
       item.category
@@ -1007,10 +1026,12 @@ function normalizePublicationPayload(body = {}, options = {}) {
             quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile || body.quartile ? "manual" : "empty"),
             quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
             quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
+            impactFactor: normalizeImpactFactorValue(item.impactFactor || item.impact_factor || bodyImpactFactor),
+            impact_factor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor || bodyImpactFactor),
           }
         : item)
       : hasIndexingClaim || indexingPlatform
-        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: "", sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: bodyImpactFactor, impact_factor: bodyImpactFactor, sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
         : []
     : undefined;
 
@@ -1114,8 +1135,8 @@ function mapPublication(row) {
     quartile_verification_status: item.quartile_verification_status || item.quartileVerificationStatus || (item.quartile ? "manual" : "empty"),
     quartileSelectionReason: item.quartile_selection_reason || item.quartileSelectionReason || "",
     quartile_selection_reason: item.quartile_selection_reason || item.quartileSelectionReason || "",
-    impactFactor: item.impact_factor || item.impactFactor || "",
-    impact_factor: item.impact_factor || item.impactFactor || "",
+    impactFactor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor),
+    impact_factor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor),
     sjr: item.sjr || "",
     citeScore: item.cite_score || item.citeScore || item.citescore || "",
     cite_score: item.cite_score || item.citeScore || item.citescore || "",
@@ -1134,6 +1155,9 @@ function mapPublication(row) {
     ? normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore)
     : "";
   const selectedSjr = supportsPublicationIndexing(publicationType) ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
+  const selectedImpactFactor = supportsPublicationIndexing(publicationType)
+    ? normalizeImpactFactorValue(row.impact_factor || row.impactFactor || selectedIndexing.impactFactor || selectedIndexing.impact_factor)
+    : "";
   const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
     && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
   const bookChapterEditors = isBookChapter ? getBookChapterEditorsFromRaw(metadataRaw) : [];
@@ -1173,6 +1197,7 @@ function mapPublication(row) {
     quartile: selectedQuartile,
     sjr: selectedSjr,
     citeScore: selectedCiteScore,
+    impactFactor: selectedImpactFactor,
   }, row.metadata_source || "manual");
 
   return {
@@ -1235,6 +1260,8 @@ function mapPublication(row) {
     indexing_source: indexingSource,
     quartile: selectedQuartile,
     sjr: selectedSjr,
+    impactFactor: selectedImpactFactor,
+    impact_factor: selectedImpactFactor,
     citeScore: selectedCiteScore,
     cite_score: selectedCiteScore,
     citescore: selectedCiteScore,

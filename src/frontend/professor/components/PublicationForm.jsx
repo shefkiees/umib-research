@@ -66,6 +66,8 @@ export const createEmptyPublicationDraft = () => ({
   quartileVerificationStatus: "empty",
   sjr: "",
   citeScore: "",
+  impactFactor: "",
+  impact_factor: "",
   indexingVerified: false,
   indexingSource: "manual",
   status: "draft",
@@ -281,8 +283,8 @@ function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
 
   return quartileMatches
     .sort((first, second) => getIndexingYear(second) - getIndexingYear(first))
-    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
-    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore)
+    .find((item) => item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore || item?.impactFactor || item?.impact_factor)
+    || items.find((item) => item?.source || item?.category || item?.quartile || item?.sjr || item?.citeScore || item?.cite_score || item?.citescore || item?.impactFactor || item?.impact_factor)
     || {};
 }
 
@@ -314,12 +316,13 @@ export function publicationToDraft(publication = {}) {
     quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
     quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
     impactFactor: item.impactFactor || item.impact_factor || "",
+    impact_factor: item.impact_factor || item.impactFactor || "",
     sjr: item.sjr || "",
     citeScore: normalizeCiteScoreForDisplay(item.citeScore || item.cite_score || item.citescore, { verifiedZero: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified) }),
     citeScoreVerified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
     cite_score_verified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
     indexedUrl: item.indexedUrl || item.indexed_url || "",
-  })) : hasIndexing && publication.quartile ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
+  })) : hasIndexing && (publication.quartile || publication.impactFactor || publication.impact_factor) ? [{ source: "", platform: "", sourceKey: "manual", category: "", quartile: normalizeQuartile(publication.quartile), impactFactor: publication.impactFactor || publication.impact_factor || "", impact_factor: publication.impact_factor || publication.impactFactor || "", sjr: "", citeScore: "", indexedUrl: "" }] : [];
   const primaryIndexing = getSelectedIndexingItem(indexing, publication.quartile);
   const displayablePrimaryQuartile = isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "";
 
@@ -357,6 +360,7 @@ export function publicationToDraft(publication = {}) {
     quartileSource: hasIndexing ? normalizeIndexingSource(publication.quartileSource || publication.quartile_source || primaryIndexing.quartileSource || primaryIndexing.quartile_source || primaryIndexing.sourceKey || primaryIndexing.source_key || primaryIndexing.source) : "manual",
     quartileVerificationStatus: hasIndexing ? publication.quartileVerificationStatus || publication.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (publication.quartile || primaryIndexing.quartile ? "manual" : "empty") : "empty",
     sjr: hasIndexing ? publication.sjr || primaryIndexing.sjr || "" : "",
+    impactFactor: hasIndexing ? publication.impactFactor || publication.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "",
     citeScore: normalizeCiteScoreForDisplay(
       hasIndexing ? publication.citeScore || publication.cite_score || getIndexingCiteScore(primaryIndexing) : "",
       { verifiedZero: normalizeBoolean(publication.citeScoreVerified ?? publication.cite_score_verified ?? primaryIndexing.citeScoreVerified ?? primaryIndexing.cite_score_verified) }
@@ -472,6 +476,8 @@ function getConferencePaperReset() {
     quartileVerificationStatus: "empty",
     sjr: "",
     citeScore: "",
+    impactFactor: "",
+    impact_factor: "",
     indexing: [],
   };
 }
@@ -495,6 +501,8 @@ function getBookPublicationReset() {
     quartileVerificationStatus: "empty",
     sjr: "",
     citeScore: "",
+    impactFactor: "",
+    impact_factor: "",
     indexing: [],
   };
 }
@@ -621,6 +629,12 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     metadata.citeScore || metadata.cite_score || getIndexingCiteScore(citeScoreIndexing),
     { verifiedZero: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified ?? citeScoreIndexing.citeScoreVerified ?? citeScoreIndexing.cite_score_verified) }
   ) : "";
+  const impactFactorIndexing = selectedQuartileIndexing?.impactFactor || selectedQuartileIndexing?.impact_factor
+    ? selectedQuartileIndexing
+    : indexing.find((item) => item?.impactFactor || item?.impact_factor) || {};
+  const impactFactor = supportsQuartile(publicationType)
+    ? metadata.impactFactor || metadata.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || ""
+    : "";
   const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, 0));
 
   return {
@@ -661,6 +675,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     quartileSource,
     quartileVerificationStatus,
     sjr,
+    impactFactor,
     citeScore,
     indexingVerified,
     indexingSource: indexingVerified ? indexingSource : "manual",
@@ -679,14 +694,15 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
       quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile ? "manual_required" : "empty"),
       quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
       quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
-      impactFactor: item.impactFactor || item.impact_factor || "",
+      impactFactor: item.impactFactor || item.impact_factor || (index === 0 ? impactFactor : ""),
+      impact_factor: item.impact_factor || item.impactFactor || (index === 0 ? impactFactor : ""),
       sjr: item.sjr || (index === 0 ? sjr : ""),
       citeScore: normalizeCiteScoreForDisplay(item.citeScore || item.cite_score || item.citescore || (index === 0 ? citeScore : ""), { verifiedZero: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified ?? metadata.citeScoreVerified ?? metadata.cite_score_verified) }),
       citeScoreVerified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
       cite_score_verified: normalizeBoolean(item.citeScoreVerified ?? item.cite_score_verified),
       indexedUrl: item.indexedUrl || item.indexed_url || "",
-    })) : indexingPlatform || indexingCategory || quartile || sjr || citeScore
-      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, impactFactor: "", sjr, citeScore, citeScoreVerified: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), cite_score_verified: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), indexedUrl: "" }]
+    })) : indexingPlatform || indexingCategory || quartile || sjr || citeScore || impactFactor
+      ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, impactFactor, impact_factor: impactFactor, sjr, citeScore, citeScoreVerified: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), cite_score_verified: normalizeBoolean(metadata.citeScoreVerified ?? metadata.cite_score_verified), indexedUrl: "" }]
       : [],
     metadataSource: "doi",
     metadataVerified: true,
@@ -770,6 +786,7 @@ const PublicationForm = ({
     || normalizeQuartile(displayableQuartile)
     || String(value.sjr || primaryIndexing.sjr || "").trim()
     || String(value.citeScore || getIndexingCiteScore(primaryIndexing)).trim()
+    || String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()
     || normalizeBoolean(value.indexingVerified ?? value.indexing_verified)
   );
 
@@ -872,6 +889,7 @@ const PublicationForm = ({
     const nextQuartile = field === "quartile" ? normalizeQuartile(nextValue) : normalizeQuartile(displayableQuartile || "");
     const nextSjr = field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "";
     const nextCiteScore = field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(primaryIndexing);
+    const nextImpactFactor = field === "impactFactor" ? nextValue : value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "";
     const nextQuartileStatus = field === "quartile" && nextQuartile
       ? "manual"
       : primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
@@ -892,6 +910,8 @@ const PublicationForm = ({
       quartile_selection_reason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
       sjr: nextSjr,
       citeScore: nextCiteScore,
+      impactFactor: nextImpactFactor,
+      impact_factor: nextImpactFactor,
     };
     const nextIndexing = nextFirstIndexing.source || nextFirstIndexing.category || nextFirstIndexing.quartile || nextFirstIndexing.sjr || nextFirstIndexing.citeScore || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
       ? [nextFirstIndexing, ...restIndexing]
@@ -906,6 +926,8 @@ const PublicationForm = ({
       quartileVerificationStatus: nextQuartileStatus,
       sjr: nextSjr,
       citeScore: nextCiteScore,
+      impactFactor: nextImpactFactor,
+      impact_factor: nextImpactFactor,
       indexing: nextIndexing,
       indexingVerified: false,
       indexingSource: "manual",
@@ -1256,6 +1278,14 @@ const PublicationForm = ({
                 value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
                 onChange={updateIndexingField("citeScore")}
                 readOnly={isFieldLocked("citeScore")}
+              />
+            </label>
+            <label className="prof-form-field">
+              <span>{t("professor.dashboard.publicationForm.impactFactor")}</span>
+              <input
+                value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
+                onChange={updateIndexingField("impactFactor")}
+                readOnly={isFieldLocked("impactFactor")}
               />
             </label>
           </>

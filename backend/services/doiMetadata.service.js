@@ -186,6 +186,18 @@ function normalizeMetricValue(value) {
   return match ? match[0].replace(",", ".") : "";
 }
 
+function normalizeImpactFactorValue(value) {
+  const normalized = normalizeMetricValue(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const numericValue = Number(normalized);
+
+  return Number.isFinite(numericValue) && numericValue > 0 ? normalized : "";
+}
+
 function normalizeCiteScoreValue(value, { allowZero = false } = {}) {
   const normalized = normalizeMetricValue(value);
 
@@ -267,8 +279,8 @@ function createIndexingResult({
     citescore: normalizedCiteScore,
     citeScoreVerified: Boolean(citeScoreVerified && normalizedCiteScore),
     cite_score_verified: Boolean(citeScoreVerified && normalizedCiteScore),
-    impactFactor: normalizeText(impactFactor),
-    impact_factor: normalizeText(impactFactor),
+    impactFactor: normalizeImpactFactorValue(impactFactor),
+    impact_factor: normalizeImpactFactorValue(impactFactor),
     indexedUrl: normalizeText(indexedUrl),
     indexed_url: normalizeText(indexedUrl),
     year: normalizeYear(year),
@@ -301,7 +313,7 @@ function getCachedIndexing(metadata = {}) {
           source_key: normalizeIndexingSourceKey(item?.sourceKey || item?.source_key || item?.indexingSource || item?.indexing_source || item?.source),
           category: normalizeText(item?.category),
           quartile: normalizeQuartile(item?.quartile),
-          impactFactor: normalizeText(item?.impactFactor || item?.impact_factor),
+          impactFactor: normalizeImpactFactorValue(item?.impactFactor || item?.impact_factor),
           sjr: normalizeMetricValue(item?.sjr),
           citeScore: normalizeCiteScoreValue(item?.citeScore || item?.cite_score || item?.citescore, { allowZero: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified) }),
           cite_score: normalizeCiteScoreValue(item?.citeScore || item?.cite_score || item?.citescore, { allowZero: Boolean(item?.citeScoreVerified ?? item?.cite_score_verified) }),
@@ -3527,6 +3539,9 @@ function parseJournalRankIndicators(html) {
       current.cite_score = current.citeScore;
     } else if (type === "sjr" || type.includes("scimago")) {
       current.sjr = value;
+    } else if ((type.includes("impact factor") || /\bjif\b/.test(type)) && !type.includes("5 year")) {
+      current.impactFactor = normalizeImpactFactorValue(value);
+      current.impact_factor = current.impactFactor;
     }
 
     indicatorsByYear.set(year, current);
