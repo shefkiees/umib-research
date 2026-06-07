@@ -23,7 +23,15 @@ function getProfileName(user) {
 
 function getProfileInitial(name, email) {
   const source = name || email || "A";
-  return source.trim().charAt(0).toUpperCase();
+  const initials = source
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "A";
 }
 
 function getRoleLabel(role) {
