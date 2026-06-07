@@ -18,16 +18,7 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const facultyStatistics = [
-  { faculty: "FG", label: "Fakulteti i Gjeoshkencave", department: "Fakulteti i Gjeoshkencave", publikime: 22, projekte: 8, rimbursime: 6 },
-  { faculty: "FTU", label: "Fakulteti i Teknologjisë Ushqimore", department: "Fakulteti i Teknologjisë Ushqimore", publikime: 18, projekte: 6, rimbursime: 5 },
-  { faculty: "FIMC", label: "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike", department: "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike", publikime: 26, projekte: 10, rimbursime: 7 },
-  { faculty: "FJ", label: "Fakulteti Juridik", department: "Fakulteti Juridik", publikime: 14, projekte: 5, rimbursime: 4 },
-  { faculty: "FE", label: "Fakulteti Ekonomik", department: "Fakulteti Ekonomik", publikime: 20, projekte: 7, rimbursime: 6 },
-  { faculty: "FED", label: "Fakulteti i Edukimit", department: "Fakulteti i Edukimit", publikime: 16, projekte: 5, rimbursime: 5 },
-];
-
-const navLabels = ["Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
+const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
 
 const publicationStatusLabels = {
   draft: "Draft",
@@ -148,6 +139,8 @@ const correctionExamples = [
   "Mungon Formulari 2 ose abstrakti/prezantimi.",
   "Mungon programi ose pranimi i punimit/abstraktit.",
   "Mungon letra e perfitimit shkencor per UIBM.",
+  "Mungon deshmia e dorezimit ne ZBN ose afati 1 muaj para ngjarjes.",
+  "Mungon data/vendi i ngjarjes shkencore ose qellimi i pjesemarrjes.",
   "Mungojne faturat ose dokumentet e shpenzimeve.",
   "Mungon perkatesia institucionale UIBM",
   "DOI nuk përputhet me titullin",
@@ -212,6 +205,45 @@ function getDecisionStatusClass(status) {
   }
 
   return "is-neutral";
+}
+
+function getShortUnitLabel(value) {
+  const text = String(value || "Pa njësi").trim();
+  const knownUnits = [
+    { pattern: /mekanike|kompjuterike|fimc/i, label: "FIMC" },
+    { pattern: /teknologj.*ushqimore|ftu/i, label: "FTU" },
+    { pattern: /gjeoshkenc|fg/i, label: "FG" },
+    { pattern: /juridik|fj/i, label: "FJ" },
+    { pattern: /ekonomik|fe/i, label: "FE" },
+    { pattern: /edukim|fed/i, label: "FED" },
+  ];
+  const match = knownUnits.find((unit) => unit.pattern.test(text));
+
+  if (match) {
+    return match.label;
+  }
+
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 5)
+    .toUpperCase() || "N/A";
+}
+
+function getRequestUnit(request = {}) {
+  return request.owner?.faculty || request.owner?.department || "Pa njësi";
+}
+
+function getPublicationUnit(publication = {}) {
+  const uibmAuthor = getPublicationAuthors(publication).find((author) => hasUibmAffiliation({ authors: [author] }));
+
+  return uibmAuthor?.affiliation || publication.venue || publication.publisher || "Pa njësi";
+}
+
+function getRequestType(request = {}) {
+  return request.requestType || request.requestData?.requestType || "";
 }
 
 function normalizeForSearch(value) {
@@ -385,6 +417,8 @@ function inferChecklistValue(publication, key) {
   switch (key) {
     case "doiOk":
       return Boolean(publication?.doi || publication?.sourceUrl || publication?.source_url);
+    case "titleMatches":
+      return Boolean(publication?.title);
     case "venueOk":
     case "eventNameOk":
       return Boolean(publication?.venue || publication?.publishedIn || publication?.published_in || publication?.publisher);
@@ -396,6 +430,8 @@ function inferChecklistValue(publication, key) {
       return Boolean(publication?.publicationYear || publication?.publication_year || publication?.publicationDate || publication?.publication_date || publication?.year);
     case "eventDateOk":
       return Boolean(getConferenceEventValue(publication));
+    case "presentationPurposeOk":
+      return Boolean(publication?.presentationPurpose || publication?.presentation_purpose) || evidenceMatches(publication, ["qellim|purpose|prezantuese|presenter|prezantues"]);
     case "authorsOk":
       return getPublicationAuthors(publication).length > 0;
     case "uibmOk":
@@ -425,7 +461,9 @@ function inferChecklistValue(publication, key) {
     case "speakerInvitationOk":
       return evidenceMatches(publication, ["foles|speaker|instruktor|instructor"]);
     case "benefitLetterOk":
-      return evidenceMatches(publication, ["perfitim|benefit|dekan|department|departament"]);
+      return evidenceMatches(publication, ["perfitim|benefit|dekan|department|departament|shef"]);
+    case "deadlineOk":
+      return evidenceMatches(publication, ["zbn|afat|deadline|1 muaj|one month|60 dite|60 days"]);
     case "travelTicketsOk":
       return evidenceMatches(publication, ["bilet|ticket"]);
     case "ticketInvoicesOk":
@@ -453,6 +491,117 @@ function createInitialReview(publication) {
     comment: "",
     history: [],
   };
+}
+
+function getChecklistEvidenceText(publication = {}, key) {
+  const sourceUrl = publication.sourceUrl || publication.source_url || "";
+  const documentCount = getPublicationEvidenceItems(publication).length;
+  const conferenceEvent = getConferenceEventValue(publication);
+  const authors = getPublicationAuthors(publication);
+
+  switch (key) {
+    case "doiOk":
+      if (publication.doi) return `DOI: ${publication.doi}`;
+      if (sourceUrl) return "Link burimor i regjistruar";
+      return "Mungon DOI ose linku burimor";
+    case "titleMatches":
+      return publication.title ? "Titulli është i regjistruar" : "Mungon titulli";
+    case "venueOk":
+    case "eventNameOk":
+      return publication.venue || publication.publishedIn || publication.published_in
+        ? `Burimi: ${publication.venue || publication.publishedIn || publication.published_in}`
+        : "Mungon emri i journal/konferencës";
+    case "journalNameOk":
+      return publication.venue || publication.publishedIn || publication.published_in
+        ? `Revista: ${publication.venue || publication.publishedIn || publication.published_in}`
+        : "Mungon emri i revistës";
+    case "publisherOk":
+      return publication.publisher ? `Publisher: ${publication.publisher}` : "Publisher mungon";
+    case "publicationDateOk":
+      return publication.publicationYear || publication.publication_year || publication.publicationDate || publication.publication_date || publication.year
+        ? `Data/viti: ${publication.publicationYear || publication.publication_year || formatDate(publication.publicationDate || publication.publication_date) || publication.year}`
+        : "Mungon viti/data";
+    case "eventDateOk":
+      return conferenceEvent ? `Data/vendi: ${conferenceEvent}` : "Mungon data ose vendi i ngjarjes";
+    case "presentationPurposeOk":
+      return inferChecklistValue(publication, key) ? "Qëllimi/roli u gjet në metadata ose dokumente" : "Mungon qëllimi i pjesëmarrjes";
+    case "authorsOk":
+      return authors.length ? `${authors.length} autorë të regjistruar` : "Mungojnë autorët";
+    case "uibmOk":
+      return hasUibmAffiliation(publication) ? "Affiliation UIBM u gjet" : "Mungon affiliation UIBM";
+    case "documentsOk":
+      return documentCount ? `${documentCount} dokument/e mbështetëse` : "Mungon dokument mbështetës";
+    case "issnOk":
+      return publication.issn || publication.eissn || publication.eIssn ? `ISSN/eISSN: ${publication.issn || publication.eissn || publication.eIssn}` : "Mungon ISSN/eISSN";
+    case "volumeIssuePagesOk":
+      return publication.volume || publication.issue || publication.pages || publication.pageStart || publication.page_start || publication.pageEnd || publication.page_end
+        ? [publication.volume ? `Vol. ${publication.volume}` : "", publication.issue ? `Issue ${publication.issue}` : "", publication.pages || publication.pageStart || publication.page_start ? `Faqe ${publication.pages || [publication.pageStart || publication.page_start, publication.pageEnd || publication.page_end].filter(Boolean).join("-")}` : ""].filter(Boolean).join(" | ")
+        : "Mungojnë volume/issue/faqe";
+    case "abstractOk":
+    case "abstractPresentationOk":
+      return publication.abstract ? "Abstrakti është i regjistruar" : inferChecklistValue(publication, key) ? "Dëshmi për abstrakt/prezantim u gjet në dokumente" : "Mungon abstrakti/prezantimi";
+    case "indexingOk":
+      return hasIndexingEvidence(publication) ? "Indeksimi ka të dhëna" : "Mungon dëshmia e indeksimit";
+    case "quartileMetricsOk":
+      return hasJournalMetricEvidence(publication) ? "Metrikat janë të regjistruara" : "Mungojnë quartile/SJR/CiteScore/Impakt";
+    case "form2Ok":
+      return inferChecklistValue(publication, key) ? "Formulari 2 u gjet në dokumente" : "Mungon Formulari 2";
+    case "programEvidenceOk":
+      return inferChecklistValue(publication, key) ? "Programi u gjet në dokumente" : "Mungon programi i ngjarjes";
+    case "acceptanceDocumentOk":
+      return inferChecklistValue(publication, key) ? "Pranimi u gjet në dokumente" : "Mungon dokumenti i pranimit";
+    case "invitationLetterOk":
+      return inferChecklistValue(publication, key) ? "Ftesa/pranimi për prezantim u gjet" : "Mungon ftesa ose pranimi";
+    case "speakerInvitationOk":
+      return inferChecklistValue(publication, key) ? "Roli folës/instruktor u gjet" : "Mungon dëshmia për rolin";
+    case "benefitLetterOk":
+      return inferChecklistValue(publication, key) ? "Letra e përfitimit u gjet" : "Mungon letra e përfitimit shkencor";
+    case "deadlineOk":
+      return inferChecklistValue(publication, key) ? "Afati/ZBN u gjet në dokumente" : "Mungon dëshmia për afatin/ZBN";
+    case "travelTicketsOk":
+      return inferChecklistValue(publication, key) ? "Biletat u gjetën" : "Mungojnë biletat";
+    case "ticketInvoicesOk":
+      return inferChecklistValue(publication, key) ? "Faturat e biletave u gjetën" : "Mungojnë faturat e biletave";
+    case "accommodationInvoiceOk":
+      return inferChecklistValue(publication, key) ? "Fatura e akomodimit u gjet" : "Mungon fatura e akomodimit";
+    case "registrationInvoiceOk":
+      return inferChecklistValue(publication, key) ? "Fatura e regjistrimit u gjet" : "Mungon fatura e regjistrimit";
+    default:
+      return inferChecklistValue(publication, key) ? "U gjet në metadata/dokumente" : "Nuk u gjet automatikisht";
+  }
+}
+
+function getMetadataReviewInsights(publication = {}, review = createInitialReview(publication)) {
+  const checklistItems = getMetadataChecklistItems(publication);
+  const checklist = review?.checklist || createDefaultChecklist(publication);
+  const autoChecklist = createDefaultChecklist(publication);
+  const checkedItems = checklistItems.filter((item) => checklist[item.key]);
+  const autoDetectedItems = checklistItems.filter((item) => autoChecklist[item.key]);
+  const missingItems = checklistItems.filter((item) => !checklist[item.key]);
+  const total = checklistItems.length || 1;
+  const score = Math.round((checkedItems.length / total) * 100);
+  const autoScore = Math.round((autoDetectedItems.length / total) * 100);
+
+  return {
+    score,
+    autoScore,
+    checked: checkedItems.length,
+    autoDetected: autoDetectedItems.length,
+    missing: missingItems.length,
+    total: checklistItems.length,
+    missingItems,
+    isReady: missingItems.length === 0,
+  };
+}
+
+function buildMetadataCorrectionComment(publication, review) {
+  const insights = getMetadataReviewInsights(publication, review);
+
+  if (!insights.missingItems.length) {
+    return "";
+  }
+
+  return `Ju lutem plotësoni/korrigjoni këto pika: ${insights.missingItems.map((item) => item.label).join(", ")}.`;
 }
 
 function mapMetadataReviewFromPublication(publication) {
@@ -504,7 +653,7 @@ function formatReviewDate(value) {
 
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState("Dorëzimet në Pritje");
+  const [activePage, setActivePage] = useState("Përmbledhje");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [reviewRequests, setReviewRequests] = useState([]);
@@ -540,35 +689,7 @@ export default function CommitteeDashboard() {
     unit: "Komision",
   });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      category: "Raporte",
-      title: "Raporti mujor u gjenerua",
-      description: "Raporti per fakultetet u finalizua dhe eshte gati per verifikim nga komisioni.",
-      text: "U gjenerua raporti mujor i fakulteteve",
-      isRead: false,
-      createdAt: "Sot, 09:30",
-    },
-    {
-      id: 2,
-      category: "Metadata",
-      title: "Metadata u perditesua",
-      description: "Te dhenat e FShMN u sinkronizuan nga sistemi qendror.",
-      text: "Te dhenat e FShMN u perditesuan",
-      isRead: false,
-      createdAt: "Sot, 08:12",
-    },
-    {
-      id: 3,
-      category: "Eksport",
-      title: "Eksporti i statistikave u kompletua",
-      description: "Skedari CSV i statistikave mujore u ruajt ne arkive.",
-      text: "Eksporti i statistikave u kompletua",
-      isRead: true,
-      createdAt: "Dje, 17:05",
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   const normalizedQuery = normalizeForSearch(searchQuery.trim());
 
@@ -608,17 +729,6 @@ export default function CommitteeDashboard() {
       isMounted = false;
     };
   }, [navigate]);
-
-  const filteredFacultyStats = useMemo(() => {
-    if (!normalizedQuery) {
-      return facultyStatistics;
-    }
-
-    return facultyStatistics.filter((item) => {
-      const row = `${item.faculty} ${item.department} ${item.publikime} ${item.projekte} ${item.rimbursime}`.toLowerCase();
-      return row.includes(normalizedQuery);
-    });
-  }, [normalizedQuery]);
 
   useEffect(() => {
     let isMounted = true;
@@ -786,6 +896,73 @@ export default function CommitteeDashboard() {
     missingUibm: metadataPublications.filter((item) => !hasUibmAffiliation(item)).length,
   }), [metadataPublications, metadataReviews]);
 
+  const committeeUnitStats = useMemo(() => {
+    const unitMap = new Map();
+
+    const ensureUnit = (unitName) => {
+      const department = unitName || "Pa njësi";
+      const key = normalizeForSearch(department) || "pa-njesi";
+
+      if (!unitMap.has(key)) {
+        unitMap.set(key, {
+          faculty: getShortUnitLabel(department),
+          department,
+          publikime: 0,
+          projekte: 0,
+          rimbursime: 0,
+          korrigjime: 0,
+        });
+      }
+
+      return unitMap.get(key);
+    };
+
+    reviewRequests.forEach((request) => {
+      const unit = ensureUnit(getRequestUnit(request));
+      unit.rimbursime += 1;
+
+      if (getRequestType(request) === "project") {
+        unit.projekte += 1;
+      }
+
+      if (request.status === "needs_correction") {
+        unit.korrigjime += 1;
+      }
+    });
+
+    metadataPublications.forEach((publication) => {
+      const unit = ensureUnit(getPublicationUnit(publication));
+      const review = metadataReviews[publication.id] || createInitialReview(publication);
+
+      unit.publikime += 1;
+
+      if (review.status === "correction") {
+        unit.korrigjime += 1;
+      }
+    });
+
+    return Array.from(unitMap.values()).sort((first, second) =>
+      (second.publikime + second.rimbursime + second.projekte) - (first.publikime + first.rimbursime + first.projekte)
+    );
+  }, [metadataPublications, metadataReviews, reviewRequests]);
+
+  const filteredFacultyStats = useMemo(() => {
+    if (!normalizedQuery) {
+      return committeeUnitStats;
+    }
+
+    return committeeUnitStats.filter((item) =>
+      normalizeForSearch([
+        item.faculty,
+        item.department,
+        item.publikime,
+        item.projekte,
+        item.rimbursime,
+        item.korrigjime,
+      ].join(" ")).includes(normalizedQuery)
+    );
+  }, [committeeUnitStats, normalizedQuery]);
+
   const committeeDecisionRows = useMemo(() => {
     const reimbursementRows = reviewRequests
       .filter((item) => item.status && item.status !== "submitted")
@@ -852,8 +1029,180 @@ export default function CommitteeDashboard() {
     completed: committeeDecisionRows.filter((item) => ["approved", "committee_approved", "ok", "paid", "rejected"].includes(item.statusKey)).length,
   }), [committeeDecisionRows]);
 
+  const dashboardSummary = useMemo(() => ({
+    pending: pendingSubmissions.length,
+    inReview: reviewRequests.filter((item) => ["received", "in_review"].includes(item.status)).length,
+    corrections: reviewRequests.filter((item) => item.status === "needs_correction").length
+      + metadataPublications.filter((item) => (metadataReviews[item.id] || createInitialReview(item)).status === "correction").length,
+    metadataIssues: metadataPublications.filter((item) => {
+      const review = metadataReviews[item.id] || createInitialReview(item);
+      const completeness = getReviewCompleteness(review, item);
+      return !item.doi || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
+    }).length,
+  }), [metadataPublications, metadataReviews, pendingSubmissions.length, reviewRequests]);
+
+  const recentDashboardRows = useMemo(() => {
+    const activeRequests = reviewRequests
+      .filter((item) => ["submitted", "received", "in_review", "needs_correction"].includes(item.status))
+      .map((item) => ({
+        id: item.documentNumber || item.id,
+        title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
+        type: item.requestTypeLabel || "Rimbursim",
+        owner: item.owner?.name || item.owner?.email || "-",
+        status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
+        statusKey: item.status,
+        date: item.updatedAt || item.submittedAt || item.createdAt,
+      }));
+
+    const metadataIssues = metadataPublications
+      .filter((item) => {
+        const review = metadataReviews[item.id] || createInitialReview(item);
+        const completeness = getReviewCompleteness(review, item);
+        return !item.doi || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
+      })
+      .map((item) => {
+        const review = metadataReviews[item.id] || createInitialReview(item);
+        const statusConfig = getReviewStatusConfig(review.status);
+
+        return {
+          id: item.id,
+          title: item.title || item.doi || "Publikim pa titull",
+          type: getPublicationTypeLabel(item.publicationType || item.publication_type),
+          owner: getPublicationAuthors(item).map((author) => getAuthorName(author)).filter(Boolean).join(", ") || "-",
+          status: statusConfig.label,
+          statusKey: review.status,
+          date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
+        };
+      });
+
+    return [...activeRequests, ...metadataIssues]
+      .sort((first, second) => getDateTimestamp(second.date) - getDateTimestamp(first.date))
+      .slice(0, 6);
+  }, [metadataPublications, metadataReviews, reviewRequests]);
+
+  const generatedNotifications = useMemo(() => {
+    const rows = [];
+
+    if (pendingSubmissions.length > 0) {
+      rows.push({
+        id: "pending-submissions",
+        category: "Dorëzime",
+        title: `${pendingSubmissions.length} dorëzime në pritje`,
+        description: "Ka kërkesa të reja që presin veprim nga komisioni.",
+        createdAt: "Tani",
+      });
+    }
+
+    if (dashboardSummary.metadataIssues > 0) {
+      rows.push({
+        id: "metadata-issues",
+        category: "Metadata",
+        title: `${dashboardSummary.metadataIssues} publikime kërkojnë kontroll`,
+        description: "Kontrollo DOI, affiliation, dokumente dhe checklist para vendimit.",
+        createdAt: "Tani",
+      });
+    }
+
+    if (dashboardSummary.corrections > 0) {
+      rows.push({
+        id: "corrections",
+        category: "Korrigjime",
+        title: `${dashboardSummary.corrections} raste me korrigjim`,
+        description: "Rastet e kthyera për korrigjim mbeten të dukshme në workflow.",
+        createdAt: "Tani",
+      });
+    }
+
+    return rows;
+  }, [dashboardSummary.corrections, dashboardSummary.metadataIssues, pendingSubmissions.length]);
+
+  useEffect(() => {
+    setNotifications((prev) =>
+      generatedNotifications.map((item) => {
+        const previous = prev.find((notification) => notification.id === item.id);
+
+        return {
+          ...item,
+          text: item.title,
+          isRead: previous?.isRead || false,
+        };
+      })
+    );
+  }, [generatedNotifications]);
+
   const getReviewForPublication = (publication) =>
     metadataReviews[publication.id] || createInitialReview(publication);
+
+  const auditRows = useMemo(() => {
+    const reimbursementRows = reviewRequests.flatMap((request) => {
+      const history = Array.isArray(request.statusHistory) && request.statusHistory.length
+        ? request.statusHistory
+        : [{
+            id: `${request.id}-${request.status || "current"}`,
+            status: request.status,
+            statusLabel: request.statusLabel || reimbursementStatusLabels[request.status] || request.status,
+            actorName: request.owner?.name || request.owner?.email || "Sistemi",
+            actorRoleLabel: "Rimbursim",
+            createdAt: request.updatedAt || request.submittedAt || request.createdAt,
+            note: "",
+          }];
+
+      return history.map((entry) => ({
+        id: `reimbursement-${request.id}-${entry.id || entry.status}-${entry.createdAt || ""}`,
+        source: "Rimbursim",
+        title: request.title || request.requestTypeLabel || request.documentNumber || request.id,
+        status: entry.statusLabel || reimbursementStatusLabels[entry.status] || entry.status || "-",
+        statusKey: entry.status || request.status,
+        actor: [entry.actorRoleLabel || entry.actorRole, entry.actorName].filter(Boolean).join(" / ") || "-",
+        note: entry.note || "",
+        date: entry.createdAt || request.updatedAt || request.createdAt,
+      }));
+    });
+
+    const metadataRows = metadataPublications.flatMap((publication) => {
+      const review = getReviewForPublication(publication);
+      const history = Array.isArray(review.history) && review.history.length
+        ? review.history
+        : review.status !== "unchecked"
+          ? [{
+              id: `${publication.id}-${review.status}`,
+              status: review.status,
+              statusLabel: getReviewStatusConfig(review.status).label,
+              actor: "Komisioni",
+              comment: review.comment,
+              createdAt: publication.updatedAt || publication.updated_at || publication.createdAt || publication.created_at,
+            }]
+          : [];
+
+      return history.map((entry) => ({
+        id: `metadata-${publication.id}-${entry.id || entry.status}-${entry.createdAt || ""}`,
+        source: "Metadata",
+        title: publication.title || publication.doi || publication.id,
+        status: entry.statusLabel || getReviewStatusConfig(entry.status).label,
+        statusKey: entry.status,
+        actor: entry.actor || "Komisioni",
+        note: entry.comment || "",
+        date: entry.createdAt || publication.updatedAt || publication.updated_at,
+      }));
+    });
+
+    const rows = [...reimbursementRows, ...metadataRows]
+      .sort((first, second) => getDateTimestamp(second.date) - getDateTimestamp(first.date));
+
+    if (!normalizedQuery) {
+      return rows;
+    }
+
+    return rows.filter((item) =>
+      normalizeForSearch([
+        item.source,
+        item.title,
+        item.status,
+        item.actor,
+        item.note,
+      ].join(" ")).includes(normalizedQuery)
+    );
+  }, [getReviewForPublication, metadataPublications, normalizedQuery, reviewRequests]);
 
   const syncPendingSubmissionStatus = (updatedRequest) => {
     if (!updatedRequest?.id) {
@@ -926,6 +1275,42 @@ export default function CommitteeDashboard() {
     setCorrectionError("");
   };
 
+  const autoFillMetadataChecklist = (publication) => {
+    const autoChecklist = createDefaultChecklist(publication);
+
+    saveMetadataReview(publication, (current) => {
+      const nextChecklist = getMetadataChecklistItems(publication).reduce((items, item) => ({
+        ...items,
+        [item.key]: Boolean(current.checklist?.[item.key] || autoChecklist[item.key]),
+      }), {});
+
+      return {
+        checklist: nextChecklist,
+        status: current.status === "unchecked" ? "in_review" : current.status,
+        history: [
+          {
+            id: `${Date.now()}-autofill`,
+            actor: committeeProfile.name || committeeProfile.email || "Komisioni",
+            status: current.status === "unchecked" ? "in_review" : current.status,
+            statusLabel: "Auto plotësim",
+            comment: "Checklist u plotësua nga metadata dhe dokumentet e gjetura.",
+            createdAt: new Date().toISOString(),
+          },
+          ...(current.history || []),
+        ],
+      };
+    });
+    setCorrectionError("");
+  };
+
+  const fillSuggestedCorrectionComment = (publication) => {
+    const review = getReviewForPublication(publication);
+    const comment = buildMetadataCorrectionComment(publication, review);
+
+    setCorrectionComment(comment);
+    setCorrectionError("");
+  };
+
   const openMetadataDrawer = (publication, mode = "details") => {
     setSelectedMetadataPublication(publication);
     setMetadataDrawerMode(mode);
@@ -974,17 +1359,21 @@ export default function CommitteeDashboard() {
   };
 
   const markMetadataOk = async (publication) => {
-    const checklist = getMetadataChecklistItems(publication).reduce((items, item) => ({
-      ...items,
-      [item.key]: true,
-    }), {});
+    const review = getReviewForPublication(publication);
+    const completeness = getReviewCompleteness(review, publication);
+
+    if (!completeness.isComplete) {
+      setCorrectionError("Checklist nuk është i plotë. Plotëso pikat që mungojnë ose kërko korrigjim.");
+      setCorrectionComment((current) => current || buildMetadataCorrectionComment(publication, review));
+      return;
+    }
 
     try {
       setCorrectionError("");
       await sendMetadataReview(publication, {
         status: "ok",
         comment: "Metadata u verifikua si e plote.",
-        checklist,
+        checklist: review.checklist || createDefaultChecklist(publication),
       });
     } catch (error) {
       setCorrectionError(error.message || "Metadata nuk u ruajt.");
@@ -992,7 +1381,8 @@ export default function CommitteeDashboard() {
   };
 
   const requestMetadataCorrection = async (publication) => {
-    const comment = correctionComment.trim();
+    const review = getReviewForPublication(publication);
+    const comment = correctionComment.trim() || buildMetadataCorrectionComment(publication, review);
 
     if (!comment) {
       setCorrectionError("Komenti eshte i detyrueshem per korrigjim.");
@@ -1000,12 +1390,12 @@ export default function CommitteeDashboard() {
     }
 
     try {
-      const review = getReviewForPublication(publication);
       await sendMetadataReview(publication, {
         status: "correction",
         comment,
         checklist: review.checklist || createDefaultChecklist(publication),
       });
+      setCorrectionComment(comment);
       setCorrectionError("");
     } catch (error) {
       setCorrectionError(error.message || "Korrigjimi nuk u dergua te profesori.");
@@ -1085,9 +1475,10 @@ export default function CommitteeDashboard() {
         acc.publikime += item.publikime;
         acc.projekte += item.projekte;
         acc.rimbursime += item.rimbursime;
+        acc.korrigjime += item.korrigjime;
         return acc;
       },
-      { publikime: 0, projekte: 0, rimbursime: 0 }
+      { publikime: 0, projekte: 0, rimbursime: 0, korrigjime: 0 }
     );
   }, [filteredFacultyStats]);
 
@@ -1119,6 +1510,99 @@ export default function CommitteeDashboard() {
       </div>
       {rows.length === 0 ? <p className="committee-empty">Nuk ka rezultate per kerkimin aktual.</p> : null}
     </section>
+  );
+
+  const renderOverview = () => (
+    <div className="committee-overview">
+      <section className="committee-overview-hero">
+        <div>
+          <span className="committee-hero-tag">Komisioni</span>
+          <h2>Përmbledhje operative</h2>
+          <p>Gjendja aktuale e dorëzimeve, metadata-s, vendimeve dhe rasteve që kërkojnë veprim.</p>
+        </div>
+        <div className="committee-overview-actions">
+          <button type="button" className="committee-primary-btn" onClick={() => setActivePage("Shqyrtimi")}>
+            <FileText size={18} />
+            Shqyrto kërkesat
+          </button>
+          <button type="button" className="committee-secondary-btn" onClick={() => setActivePage("Metadata")}>
+            <Database size={18} />
+            Kontrollo metadata
+          </button>
+        </div>
+      </section>
+
+      <section className="committee-overview-stats">
+        <button type="button" onClick={() => setActivePage("Dorëzimet në Pritje")}>
+          <span>Dorëzime në pritje</span>
+          <strong>{dashboardSummary.pending}</strong>
+          <small>Kërkojnë pranim nga komisioni</small>
+        </button>
+        <button type="button" onClick={() => setActivePage("Shqyrtimi")}>
+          <span>Në shqyrtim</span>
+          <strong>{dashboardSummary.inReview}</strong>
+          <small>Raste aktive në workflow</small>
+        </button>
+        <button type="button" onClick={() => setActivePage("Metadata")}>
+          <span>Metadata me vëmendje</span>
+          <strong>{dashboardSummary.metadataIssues}</strong>
+          <small>DOI, UIBM ose checklist</small>
+        </button>
+        <button type="button" onClick={() => setActivePage("Vendimet")}>
+          <span>Korrigjime</span>
+          <strong>{dashboardSummary.corrections}</strong>
+          <small>Të kthyera për plotësim</small>
+        </button>
+      </section>
+
+      <section className="committee-overview-grid">
+        <article className="committee-page-card committee-overview-chart">
+          <div className="committee-page-head">
+            <h3>Ngarkesa sipas njësive</h3>
+            <p>Publikime, projekte dhe rimbursime nga të dhënat aktuale.</p>
+          </div>
+          {filteredFacultyStats.length ? (
+            <ResponsiveContainer width="100%" height={270}>
+              <BarChart data={filteredFacultyStats.slice(0, 8)} barGap={8} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
+                <Legend wrapperStyle={{ paddingTop: "14px" }} />
+                <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
+                <Bar dataKey="projekte" name="Projekte" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
+                <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="committee-empty">Nuk ka ende të dhëna për raportim.</p>
+          )}
+        </article>
+
+        <article className="committee-page-card committee-overview-queue">
+          <div className="committee-page-head">
+            <h3>Rastet prioritare</h3>
+            <p>Rastet më të fundit që kërkojnë kontroll ose vendim.</p>
+          </div>
+          <div className="committee-priority-list">
+            {recentDashboardRows.map((row) => (
+              <div key={`${row.type}-${row.id}`} className="committee-priority-row">
+                <div>
+                  <strong>{row.title}</strong>
+                  <span>{[row.type, row.owner].filter(Boolean).join(" • ")}</span>
+                </div>
+                <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
+                  {row.status}
+                </span>
+              </div>
+            ))}
+          </div>
+          {recentDashboardRows.length === 0 ? (
+            <p className="committee-empty">Nuk ka raste urgjente për momentin.</p>
+          ) : null}
+        </article>
+      </section>
+    </div>
   );
 
   const renderPendingSubmissions = () => (
@@ -1241,6 +1725,7 @@ export default function CommitteeDashboard() {
                 const reviewStatus = getReviewStatusConfig(review.status);
                 const ReviewIcon = reviewStatus.Icon;
                 const completeness = getReviewCompleteness(review, item);
+                const insights = getMetadataReviewInsights(item, review);
                 const documentUrl = getPublicationDocumentUrl(item);
 
                 return (
@@ -1279,6 +1764,9 @@ export default function CommitteeDashboard() {
                       </span>
                       <span className="committee-metadata-muted">{getChecklistTypeLabel(item)}</span>
                       <span className="committee-metadata-muted">{completeness.checkedCount}/{completeness.total} checklist</span>
+                      <span className={`committee-readiness-chip ${insights.isReady ? "is-ready" : "is-missing"}`}>
+                        {insights.score}% gati
+                      </span>
                     </td>
                     <td>
                       <div className="committee-metadata-actions">
@@ -1316,6 +1804,7 @@ export default function CommitteeDashboard() {
         const selectedStatus = getReviewStatusConfig(selectedReview.status);
         const SelectedIcon = selectedStatus.Icon;
         const selectedCompleteness = getReviewCompleteness(selectedReview, selectedMetadataPublication);
+        const selectedInsights = getMetadataReviewInsights(selectedMetadataPublication, selectedReview);
         const selectedDocumentUrl = getPublicationDocumentUrl(selectedMetadataPublication);
         const selectedAuthors = getPublicationAuthors(selectedMetadataPublication);
         const selectedChecklistItems = getMetadataChecklistItems(selectedMetadataPublication);
@@ -1358,6 +1847,29 @@ export default function CommitteeDashboard() {
                 </strong></span>
               </div>
 
+              <section className="committee-ai-review-card">
+                <div className="committee-ai-score">
+                  <strong>{selectedInsights.score}%</strong>
+                  <span>{selectedInsights.isReady ? "Gati për verifikim" : "Kërkon plotësim"}</span>
+                </div>
+                <div className="committee-ai-progress" aria-hidden="true">
+                  <span style={{ width: `${selectedInsights.score}%` }} />
+                </div>
+                <div className="committee-ai-metrics">
+                  <span>Auto: <strong>{selectedInsights.autoDetected}/{selectedInsights.total}</strong></span>
+                  <span>Mungojnë: <strong>{selectedInsights.missing}</strong></span>
+                  <span>Checklist: <strong>{selectedInsights.checked}/{selectedInsights.total}</strong></span>
+                </div>
+                <div className="committee-ai-actions">
+                  <button type="button" onClick={() => autoFillMetadataChecklist(selectedMetadataPublication)}>
+                    Auto plotëso
+                  </button>
+                  <button type="button" onClick={() => fillSuggestedCorrectionComment(selectedMetadataPublication)} disabled={selectedInsights.missing === 0}>
+                    Sugjero korrigjim
+                  </button>
+                </div>
+              </section>
+
               <section className="committee-review-panel">
                 <div className="committee-review-panel-head">
                   <h5>Checklist e Verifikimit</h5>
@@ -1373,20 +1885,27 @@ export default function CommitteeDashboard() {
                         <span>{items.filter((checkItem) => selectedReview.checklist?.[checkItem.key]).length}/{items.length}</span>
                       </div>
                       <div className="committee-checklist-grid">
-                        {items.map((checkItem) => (
-                          <label key={checkItem.key} className={`committee-check-item ${selectedReview.checklist?.[checkItem.key] ? "is-checked" : ""}`}>
-                            <input
-                              type="checkbox"
-                              checked={Boolean(selectedReview.checklist?.[checkItem.key])}
-                              onChange={() => toggleChecklistItem(selectedMetadataPublication, checkItem.key)}
-                            />
-                            <span className="committee-checkmark"><CheckCircle2 size={14} /></span>
-                            <span className="committee-check-copy">
-                              <strong>{checkItem.label}</strong>
-                              {checkItem.hint ? <small>{checkItem.hint}</small> : null}
-                            </span>
-                          </label>
-                        ))}
+                        {items.map((checkItem) => {
+                          const isChecked = Boolean(selectedReview.checklist?.[checkItem.key]);
+                          const isAutoDetected = inferChecklistValue(selectedMetadataPublication, checkItem.key);
+
+                          return (
+                            <label key={checkItem.key} className={`committee-check-item ${isChecked ? "is-checked" : ""}`}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleChecklistItem(selectedMetadataPublication, checkItem.key)}
+                              />
+                              <span className="committee-checkmark"><CheckCircle2 size={14} /></span>
+                              <span className="committee-check-copy">
+                                <strong>{checkItem.label}</strong>
+                                <small className={isAutoDetected ? "is-detected" : "is-missing"}>
+                                  {getChecklistEvidenceText(selectedMetadataPublication, checkItem.key)}
+                                </small>
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1399,7 +1918,12 @@ export default function CommitteeDashboard() {
               </section>
 
               <section className="committee-review-panel committee-correction-panel">
-                <h5>Koment per korrigjim</h5>
+                <div className="committee-correction-head">
+                  <h5>Koment per korrigjim</h5>
+                  <button type="button" onClick={() => fillSuggestedCorrectionComment(selectedMetadataPublication)} disabled={selectedInsights.missing === 0}>
+                    Nga mungesat
+                  </button>
+                </div>
                 <textarea
                   value={correctionComment}
                   onChange={(event) => {
@@ -1429,8 +1953,12 @@ export default function CommitteeDashboard() {
                   <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
                   <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
                   <div><dt>Vendi i konferences</dt><dd>{selectedMetadataPublication.conferenceLocation || selectedMetadataPublication.conference_location || "-"}</dd></div>
+                  <div><dt>Data/vendi i ngjarjes</dt><dd>{getConferenceEventValue(selectedMetadataPublication) || "-"}</dd></div>
+                  <div><dt>Qëllimi / roli</dt><dd>{selectedMetadataPublication.presentationPurpose || selectedMetadataPublication.presentation_purpose || "-"}</dd></div>
                   <div><dt>Publisher</dt><dd>{selectedMetadataPublication.publisher || "-"}</dd></div>
                   <div><dt>Viti</dt><dd>{selectedMetadataPublication.publicationYear || selectedMetadataPublication.publication_year || formatDate(selectedMetadataPublication.publicationDate || selectedMetadataPublication.publication_date)}</dd></div>
+                  <div><dt>Link burimor</dt><dd>{selectedMetadataPublication.sourceUrl || selectedMetadataPublication.source_url || "-"}</dd></div>
+                  <div><dt>Dokumente</dt><dd>{getPublicationEvidenceItems(selectedMetadataPublication).length}</dd></div>
                   <div><dt>Burimi</dt><dd>{selectedMetadataPublication.metadataSource || selectedMetadataPublication.metadata_source || "manual"}</dd></div>
                   <div><dt>Metadata</dt><dd>{getMetadataStatus(selectedMetadataPublication)}</dd></div>
                   <div><dt>Autoret</dt><dd>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ") || "-"}</dd></div>
@@ -1574,6 +2102,60 @@ export default function CommitteeDashboard() {
     </section>
   );
 
+  const renderAudit = () => (
+    <section className="committee-page-card committee-stats-only-card committee-audit-section">
+      <div className="committee-page-head committee-decisions-head">
+        <div>
+          <h3>Auditimi i komisionit</h3>
+          <p>Historiku i veprimeve nga rimbursimet dhe kontrolli i metadata-s.</p>
+        </div>
+        <span className="committee-api-chip">Historik real</span>
+      </div>
+
+      <div className="committee-table-wrap">
+        <table className="committee-table committee-audit-table">
+          <thead>
+            <tr>
+              <th>Burimi</th>
+              <th>Rasti</th>
+              <th>Veprimi</th>
+              <th>Aktori</th>
+              <th>Komenti</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {auditRows.map((row) => (
+              <tr key={row.id}>
+                <td>
+                  <span className="committee-decision-source">{row.source}</span>
+                </td>
+                <td>
+                  <strong className="committee-metadata-title">{row.title}</strong>
+                </td>
+                <td>
+                  <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
+                    {row.status}
+                  </span>
+                </td>
+                <td>{row.actor}</td>
+                <td>{row.note || "-"}</td>
+                <td>{formatReviewDate(row.date)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {auditRows.length === 0 ? (
+        <div className="committee-metadata-empty">
+          <strong>Nuk ka historik për filtrin aktual.</strong>
+          <span>Veprimet shfaqen pasi komisioni pranon, shqyrton, aprovon ose kërkon korrigjim.</span>
+        </div>
+      ) : null}
+    </section>
+  );
+
   const renderStatistics = () => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-stats-head">
@@ -1582,28 +2164,31 @@ export default function CommitteeDashboard() {
             <BarChart3 size={20} />
           </span>
           <div>
-            <h3>Statistika per Fakultete dhe Departamente</h3>
-            <p>Pamje krahasuese e publikimeve, projekteve dhe rimbursimeve sipas njesive akademike.</p>
+            <h3>Raporte sipas njësive akademike</h3>
+            <p>Pamje krahasuese nga publikimet, projektet, rimbursimet dhe korrigjimet aktuale.</p>
           </div>
         </div>
-        <button className="committee-api-chip" type="button">
-          API Ready
-        </button>
+        <span className="committee-api-chip">Të dhëna reale</span>
       </div>
 
       <div className="committee-chart-wrap">
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={filteredFacultyStats} barGap={8} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-            <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
-            <YAxis tickLine={false} axisLine={false} />
-            <Tooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
-            <Legend wrapperStyle={{ paddingTop: "20px" }} />
-            <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-            <Bar dataKey="projekte" name="Projekte" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-            <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#7aa7d3" />
-          </BarChart>
-        </ResponsiveContainer>
+        {filteredFacultyStats.length ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={filteredFacultyStats} barGap={8} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+              <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
+              <YAxis tickLine={false} axisLine={false} />
+              <Tooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
+              <Legend wrapperStyle={{ paddingTop: "20px" }} />
+              <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
+              <Bar dataKey="projekte" name="Projekte" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
+              <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
+              <Bar dataKey="korrigjime" name="Korrigjime" radius={[8, 8, 0, 0]} fill="#b45309" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="committee-empty">Nuk ka ende të dhëna për raportim.</p>
+        )}
       </div>
 
       <div className="committee-summary-grid">
@@ -1619,6 +2204,10 @@ export default function CommitteeDashboard() {
           <span>Rimbursime</span>
           <strong>{totals.rimbursime}</strong>
         </article>
+        <article className="committee-summary-card">
+          <span>Korrigjime</span>
+          <strong>{totals.korrigjime}</strong>
+        </article>
       </div>
 
       <div className="committee-table-wrap committee-dept-table-wrap">
@@ -1630,6 +2219,7 @@ export default function CommitteeDashboard() {
               <th>Publikime</th>
               <th>Projekte</th>
               <th>Rimbursime</th>
+              <th>Korrigjime</th>
             </tr>
           </thead>
           <tbody>
@@ -1640,16 +2230,24 @@ export default function CommitteeDashboard() {
                 <td>{item.publikime}</td>
                 <td>{item.projekte}</td>
                 <td>{item.rimbursime}</td>
+                <td>{item.korrigjime}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {filteredFacultyStats.length === 0 ? <p className="committee-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
     </section>
   );
 
-  let resultCount = filteredPendingSubmissions.length;
-  let content = renderPendingSubmissions();
+  let resultCount = recentDashboardRows.length;
+  let content = renderOverview();
+
+  if (activePage === "Dorëzimet në Pritje") {
+    resultCount = filteredPendingSubmissions.length;
+    content = renderPendingSubmissions();
+  }
+
   if (activePage === "Shqyrtimi") {
     resultCount = 0;
     content = (
@@ -1677,31 +2275,13 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Auditimi") {
-    resultCount = 0;
-    content = (
-      <ReimbursementReviewPanel
-        role="committee"
-        scope="review"
-        searchQuery={searchQuery}
-        title="Auditimi i rimbursimeve"
-        description="Historiku institucional i kerkesave qe jane ne fazen e komisionit."
-        onStatusUpdated={syncPendingSubmissionStatus}
-      />
-    );
+    resultCount = auditRows.length;
+    content = renderAudit();
   }
 
   if (activePage === "Raporte") {
-    resultCount = 0;
-    content = (
-      <ReimbursementReviewPanel
-        role="committee"
-        scope="review"
-        searchQuery={searchQuery}
-        title="Raporte te rimbursimeve"
-        description="Statistikat dhe lista reale e kerkesave financiare qe i takojne fazes se komisionit."
-        onStatusUpdated={syncPendingSubmissionStatus}
-      />
-    );
+    resultCount = filteredFacultyStats.length;
+    content = renderStatistics();
   }
 
   if (activePage === "Njoftime") {
@@ -1744,7 +2324,7 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Settings") {
-    content = <CommitteeSettings onBack={() => setActivePage("Dorëzimet në Pritje")} />;
+    content = <CommitteeSettings onBack={() => setActivePage("Përmbledhje")} />;
   }
 
   return (
