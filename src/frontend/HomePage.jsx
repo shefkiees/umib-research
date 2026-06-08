@@ -123,6 +123,25 @@ export default function HomePage() {
     let isMounted = true;
 
     const loadCommunityData = async () => {
+      const communityPayload = await readOptionalJson("/auth/community");
+      const communityUsers = getResponseList(communityPayload, "users");
+
+      if (communityUsers.length) {
+        if (!isMounted) {
+          return;
+        }
+
+        setCommunityData({
+          users: communityUsers,
+          analytics: communityPayload?.analytics,
+          publications: [],
+          conferences: [],
+          publicationTotal: toNumber(communityPayload?.publicationTotal || communityUsers.reduce((total, user) => total + toNumber(user.publicationCount || user.publicationsTotal), 0)),
+          conferenceTotal: toNumber(communityPayload?.conferenceTotal || communityUsers.reduce((total, user) => total + toNumber(user.conferenceCount || user.conferencesTotal), 0)),
+        });
+        return;
+      }
+
       const [usersPayload, analyticsPayload, reviewPublicationsPayload, ownPublicationsPayload, conferencesPayload] = await Promise.all([
         readOptionalJson("/admin/users"),
         readOptionalJson("/admin/analytics"),

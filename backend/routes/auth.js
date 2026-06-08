@@ -23,6 +23,24 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const PROFILE_PHOTO_MAX_LENGTH = 180000;
 const PROFILE_PHOTO_DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp);base64,[a-z0-9+/=]+$/i;
+const SYSTEM_INSTITUTION = "Universiteti \"Isa Boletini\" Mitrovicë";
+const CITATION_COUNT_SQL = `
+  case
+    when coalesce(
+      m.raw_json->>'is-referenced-by-count',
+      m.raw_json#>>'{message,is-referenced-by-count}',
+      m.raw_json->>'citationCount',
+      m.raw_json->>'citation_count'
+    ) ~ '^[0-9]+$'
+    then coalesce(
+      m.raw_json->>'is-referenced-by-count',
+      m.raw_json#>>'{message,is-referenced-by-count}',
+      m.raw_json->>'citationCount',
+      m.raw_json->>'citation_count'
+    )::int
+    else null
+  end
+`;
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -250,6 +268,43 @@ function mapUserRowToProfile(row) {
   };
 }
 
+function mapCommunityProfessorRow(row) {
+  const profileOverrides = row.profile_overrides && typeof row.profile_overrides === "object"
+    ? row.profile_overrides
+    : {};
+  const orcidEducations = Array.isArray(row.orcid_educations) ? row.orcid_educations : [];
+  const orcidEmployments = Array.isArray(row.orcid_employments) ? row.orcid_employments : [];
+  const overrideSchool = String(profileOverrides.school || "").trim();
+  const overrideAffiliation = String(profileOverrides.currentAffiliation || profileOverrides.current_affiliation || "").trim();
+  const profilePhotoUrl = String(profileOverrides.profilePhotoUrl || profileOverrides.profile_photo_url || "").trim();
+  const institution = overrideAffiliation
+    || orcidEmployments[0]?.organization
+    || overrideSchool
+    || orcidEducations[0]?.organization
+    || SYSTEM_INSTITUTION;
+
+  return {
+    id: row.id,
+    email: row.email || "",
+    name: row.full_name || row.email || "",
+    role: row.role || "professor",
+    status: row.status || "active",
+    faculty: row.faculty || "",
+    department: row.department || "",
+    institution,
+    currentAffiliation: institution,
+    fieldOfStudy: row.scientific_title || row.academic_title || row.department || row.faculty || "",
+    profilePhotoUrl,
+    avatarUrl: profilePhotoUrl,
+    publicationCount: Number(row.publications_total || 0),
+    publicationsTotal: Number(row.publications_total || 0),
+    conferenceCount: Number(row.conferences_total || 0),
+    conferencesTotal: Number(row.conferences_total || 0),
+    citationCount: Number(row.citations_total || 0),
+    citationsTotal: Number(row.citations_total || 0),
+  };
+}
+
 function mapBankAccountRow(row = {}) {
   return {
     id: row.id,
@@ -352,6 +407,72 @@ async function ensureDefaultBankAccount(client, userId) {
     [userId]
   );
 }
+
+router.get("/community", async (req, res) => {
+  try {
+    const result = await db.query(
+      `select
+         u.id,
+         u.email,
+         u.full_name,
+         u.role,
+         u.status,
+         u.academic_title,
+         u.scientific_title,
+         u.faculty,
+         u.department,
+         u.profile_overrides,
+         u.orcid_educations,
+         u.orcid_employments,
+         coalesce(pub.publications_total, 0)::int as publications_total,
+         coalesce(pub.citations_total, 0)::int as citations_total,
+         coalesce(conf.conferences_total, 0)::int as conferences_total
+       from users u
+       left join lateral (
+         select
+           count(*)::int as publications_total,
+           coalesce(sum(${CITATION_COUNT_SQL}), 0)::int as citations_total
+         from publications p
+         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+         where p.owner_id = u.id
+       ) pub on true
+       left join lateral (
+         select count(*)::int as conferences_total
+         from conferences c
+         where c.created_by = u.id
+       ) conf on true
+       where lower(coalesce(u.role, '')) in ('professor', 'profesor')
+         and coalesce(u.status, 'active') = 'active'
+       order by
+         (coalesce(pub.publications_total, 0) + coalesce(conf.conferences_total, 0) + coalesce(pub.citations_total, 0)) desc,
+         u.full_name asc nulls last,
+         u.email asc
+       limit 24`
+    );
+
+    const users = result.rows.map(mapCommunityProfessorRow);
+    const faculties = new Set(users.map((user) => user.faculty).filter(Boolean));
+    const institutions = new Set(users.map((user) => user.institution).filter(Boolean));
+
+    res.json({
+      users,
+      analytics: {
+        userSummary: { total: users.length },
+      },
+      publicationTotal: users.reduce((total, user) => total + user.publicationCount, 0),
+      conferenceTotal: users.reduce((total, user) => total + user.conferenceCount, 0),
+      citationsTotal: users.reduce((total, user) => total + user.citationCount, 0),
+      institutionTotal: institutions.size,
+      facultyTotal: faculties.size,
+    });
+  } catch (error) {
+    console.error("GET /api/auth/community failed:", error);
+    res.status(500).json({
+      error: "community_load_failed",
+      message: "Komuniteti akademik nuk u ngarkua.",
+    });
+  }
+});
 
 router.get("/me", async (req, res) => {
   try {
