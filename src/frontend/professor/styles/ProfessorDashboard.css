@@ -596,6 +596,10 @@ body {
   overflow: visible;
 }
 
+.prof-content:has(.reimbursement-flow) {
+  flex: 0 0 auto;
+}
+
 .prof-notification-wrap {
   position: relative;
 }
@@ -3187,7 +3191,8 @@ body {
   display: grid;
   gap: 16px;
   align-content: start;
-  min-height: 100%;
+  height: auto;
+  min-height: 0;
 }
 
 .reimbursement-flow-card,
@@ -4079,9 +4084,7 @@ body {
 }
 
 .reimbursement-action-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 8;
+  position: static;
   border: 1px solid #dce7f2;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.96);
@@ -4774,10 +4777,6 @@ body {
   .reimbursement-card-main {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .reimbursement-action-bar {
-    bottom: 10px;
   }
 
   .reimbursement-action-feedback,
