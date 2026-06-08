@@ -425,47 +425,124 @@
     box-shadow: 0 20px 58px rgba(16, 24, 40, 0.08);
 }
 .umib-homepage-root .representation-head {
-    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: 30px;
 }
 .umib-homepage-root .representation-head h2 {
+    margin-top: 12px;
+    margin-bottom: 10px;
     font-size: 2rem;
 }
-.umib-homepage-root .faculty-progress-list {
+.umib-homepage-root .representation-head p {
+    max-width: 700px;
+    margin: 0;
+    color: var(--text-light);
+    font-size: 0.98rem;
+    line-height: 1.62;
+}
+.umib-homepage-root .faculty-chart-summary {
+    display: flex;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+.umib-homepage-root .faculty-chart-summary span {
+    min-width: 112px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 12px 14px;
+    color: var(--text-light);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.umib-homepage-root .faculty-chart-summary strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--navy);
+    font-size: 1.45rem;
+    line-height: 1;
+}
+.umib-homepage-root .faculty-chart {
     display: grid;
+    gap: 14px;
+}
+.umib-homepage-root .faculty-chart-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 74px;
+    align-items: center;
     gap: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    padding: 16px;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
-.umib-homepage-root .faculty-progress-row {
+.umib-homepage-root .faculty-chart-row:hover {
+    transform: translateY(-3px);
+    border-color: rgba(140, 118, 62, 0.38);
+    box-shadow: 0 16px 34px rgba(16, 24, 40, 0.08);
+}
+.umib-homepage-root .faculty-chart-rank {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: rgba(26, 43, 73, 0.07);
+    color: var(--navy);
     display: grid;
-    gap: 9px;
+    place-items: center;
+    font-size: 0.78rem;
+    font-weight: 900;
 }
-.umib-homepage-root .faculty-progress-row > div:first-child {
+.umib-homepage-root .faculty-chart-content {
+    display: grid;
+    gap: 10px;
+}
+.umib-homepage-root .faculty-chart-meta {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 14px;
 }
-.umib-homepage-root .faculty-progress-row strong {
+.umib-homepage-root .faculty-chart-meta strong {
     color: var(--navy);
-    font-size: 0.98rem;
+    font-size: 1rem;
+    line-height: 1.35;
 }
-.umib-homepage-root .faculty-progress-row span {
+.umib-homepage-root .faculty-chart-meta span {
     color: var(--text-light);
     font-size: 0.86rem;
     font-weight: 700;
     white-space: nowrap;
 }
-.umib-homepage-root .faculty-progress-track {
-    height: 10px;
+.umib-homepage-root .faculty-chart-track {
+    height: 13px;
     border-radius: 999px;
-    background: #edf2f7;
+    background: linear-gradient(90deg, #eef3f8, #f6f8fb);
     overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.72);
 }
-.umib-homepage-root .faculty-progress-track span {
+.umib-homepage-root .faculty-chart-track span {
     display: block;
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, var(--navy), var(--gold));
     transition: width 0.5s ease;
+}
+.umib-homepage-root .faculty-chart-percent {
+    justify-self: end;
+    min-width: 58px;
+    border-radius: 999px;
+    background: rgba(140, 118, 62, 0.1);
+    color: var(--gold);
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 900;
 }
 .umib-homepage-root .institution-card-list {
     display: grid;
@@ -680,14 +757,36 @@
     .umib-homepage-root .representation-panel {
         padding: 24px;
     }
-    .umib-homepage-root .faculty-progress-row > div:first-child,
+    .umib-homepage-root .representation-head {
+        display: grid;
+        gap: 18px;
+    }
+    .umib-homepage-root .faculty-chart-summary {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .umib-homepage-root .faculty-chart-summary span {
+        min-width: 0;
+    }
+    .umib-homepage-root .faculty-chart-row,
     .umib-homepage-root .institution-card {
         grid-template-columns: 1fr;
         align-items: flex-start;
     }
-    .umib-homepage-root .faculty-progress-row > div:first-child {
+    .umib-homepage-root .faculty-chart-rank {
+        width: 36px;
+        height: 36px;
+    }
+    .umib-homepage-root .faculty-chart-meta {
         display: grid;
-        gap: 4px;
+        gap: 5px;
+    }
+    .umib-homepage-root .faculty-chart-meta span {
+        white-space: normal;
+    }
+    .umib-homepage-root .faculty-chart-percent {
+        justify-self: start;
     }
     .umib-homepage-root .institution-card span {
         white-space: normal;
