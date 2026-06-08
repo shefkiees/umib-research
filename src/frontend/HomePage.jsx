@@ -23,6 +23,7 @@ const SYSTEM_INSTITUTION = "Universiteti \"Isa Boletini\" Mitrovicë";
 const ROLE_LABELS = {
   admin: "Administratë akademike",
   committee: "Komision akademik",
+  profesor: "Profesor",
   professor: "Profesor",
   prorector: "Prorektor",
 };
@@ -191,7 +192,9 @@ export default function HomePage() {
       };
     });
 
-    const profileCards = users
+    const professorUsers = users.filter((user) => ["professor", "profesor"].includes(String(user.role || "").trim().toLowerCase()));
+
+    const profileCards = professorUsers
       .slice()
       .sort((first, second) =>
         (second.publicationCount + second.conferenceCount + second.citationCount)
@@ -293,47 +296,47 @@ export default function HomePage() {
             <div className="community-profile-carousel" aria-label="Anetaret e komunitetit akademik">
               <div className="community-profile-track">
                 {communitySliderProfiles.map((profile, index) => (
-                <article className="community-profile-card" key={`${profile.id || profile.email}-${index}`}>
-                  <div className="community-profile-photo">
-                    {profile.avatarUrl ? (
-                      <img src={profile.avatarUrl} alt={profile.name || profile.email} />
-                    ) : (
-                      <span>{getInitials(profile)}</span>
-                    )}
-                  </div>
-                  <div className="community-profile-body">
-                    <div className="community-profile-title">
-                      <div>
-                        <h3>{profile.name || profile.email}</h3>
-                        <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
-                      </div>
-                      <span className="academic-role-badge">{profile.academicRole}</span>
+                  <article className="community-profile-card" key={`${profile.id || profile.email}-${index}`}>
+                    <div className="community-profile-photo">
+                      {profile.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt={profile.name || profile.email} />
+                      ) : (
+                        <span>{getInitials(profile)}</span>
+                      )}
                     </div>
-                    <dl className="community-profile-meta">
-                      <div>
-                        <dt>Institucioni</dt>
-                        <dd>{profile.institution}</dd>
+                    <div className="community-profile-body">
+                      <div className="community-profile-title">
+                        <div>
+                          <h3>{profile.name || profile.email}</h3>
+                          <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
+                        </div>
+                        <span className="academic-role-badge">{profile.academicRole}</span>
                       </div>
-                      <div>
-                        <dt>Fusha e studimit</dt>
-                        <dd>{profile.fieldOfStudy}</dd>
+                      <dl className="community-profile-meta">
+                        <div>
+                          <dt>Institucioni</dt>
+                          <dd>{profile.institution}</dd>
+                        </div>
+                        <div>
+                          <dt>Fusha e studimit</dt>
+                          <dd>{profile.fieldOfStudy}</dd>
+                        </div>
+                      </dl>
+                      <div className="community-profile-stats">
+                        <span><strong>{formatNumber(profile.publicationCount)}</strong> Publikime</span>
+                        <span><strong>{formatNumber(profile.conferenceCount)}</strong> Konferenca</span>
+                        <span><strong>{formatNumber(profile.citationCount)}</strong> Citime</span>
                       </div>
-                    </dl>
-                    <div className="community-profile-stats">
-                      <span><strong>{formatNumber(profile.publicationCount)}</strong> Publikime</span>
-                      <span><strong>{formatNumber(profile.conferenceCount)}</strong> Konferenca</span>
-                      <span><strong>{formatNumber(profile.citationCount)}</strong> Citime</span>
                     </div>
-                  </div>
-                </article>
+                  </article>
                 ))}
               </div>
             </div>
           ) : (
             <div className="community-empty-state">
               <UserRound size={34} />
-              <h3>Profilet e komunitetit shfaqen nga të dhënat ekzistuese të sistemit</h3>
-              <p>Kur të dhënat janë të qasshme për sesionin aktual, këtu paraqiten anëtarët, fakultetet dhe statistikat akademike pa ndryshuar backend-in.</p>
+              <h3>Profilet e profesorëve shfaqen nga të dhënat ekzistuese të sistemit</h3>
+              <p>Kur të dhënat janë të qasshme për sesionin aktual, këtu paraqiten profesorët, fakultetet dhe statistikat akademike pa ndryshuar backend-in.</p>
             </div>
           )}
         </div>
