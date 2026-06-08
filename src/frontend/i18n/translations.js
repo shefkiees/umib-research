@@ -63,7 +63,6 @@ const professorSettings = {
     profileNote:
       "Profili mund të plotësohet dhe përditësohet manualisht. ORCID përdoret vetëm për importimin opsional të të dhënave akademike. Email-i dhe roli lidhen me llogarinë e sistemit dhe nuk mund të ndryshohen këtu.",
     profilePhotoTitle: "Foto e profilit",
-    profilePhotoDescription: "Ngarkoni një foto profesionale. Do të shfaqet në dashboard dhe në Homepage te komuniteti akademik.",
     profilePhotoUpload: "Ngarko foton",
     profilePhotoRemove: "Hiq foton",
     profilePhotoInvalidType: "Ngarkoni vetëm JPG, PNG ose WebP.",
@@ -190,7 +189,6 @@ const professorSettings = {
     profileNote:
       "Name, email, and ORCID iD are pulled automatically from ORCID/account data. Only local profile details are saved here.",
     profilePhotoTitle: "Profile photo",
-    profilePhotoDescription: "Upload a professional photo. It will appear in the dashboard and in the Homepage academic community.",
     profilePhotoUpload: "Upload photo",
     profilePhotoRemove: "Remove photo",
     profilePhotoInvalidType: "Upload only JPG, PNG, or WebP.",

@@ -3275,7 +3275,6 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prof-profile-photo-content">
                   <h4>{settingsText.profilePhotoTitle}</h4>
-                  <p>{settingsText.profilePhotoDescription}</p>
                   <div className="prof-profile-photo-actions">
                     <label className="prof-profile-photo-upload-btn">
                       <Camera size={16} />
