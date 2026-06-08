@@ -252,8 +252,6 @@ export default function HomePage() {
     };
   }, [communityData]);
 
-  const maxFacultyCount = Math.max(...community.faculties.map((faculty) => faculty.count), 1);
-  const totalFacultyMembers = community.faculties.reduce((total, faculty) => total + faculty.count, 0);
   const communitySliderProfiles = community.profileCards.length
     ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
     : [];
@@ -427,53 +425,6 @@ export default function HomePage() {
               <span>Fakultete</span>
               <strong>{formatNumber(community.stats.faculties)}</strong>
             </article>
-          </div>
-        </div>
-      </section>
-
-      {/* REPRESENTATION SECTION */}
-      <section className="representation-section">
-        <div className="container representation-grid representation-grid--single">
-          <div className="representation-panel">
-            <div className="representation-head">
-              <div>
-                <span className="section-kicker">Struktura akademike</span>
-                <h2>Shpërndarja sipas Fakulteteve</h2>
-                <p>Pasqyrë vizuale e përfaqësimit akademik në UMIBRes, bazuar në profilet ekzistuese të sistemit.</p>
-              </div>
-              <div className="faculty-chart-summary" aria-label="Përmbledhje e fakulteteve">
-                <span>
-                  <strong>{formatNumber(community.stats.faculties)}</strong>
-                  Fakultete
-                </span>
-                <span>
-                  <strong>{formatNumber(totalFacultyMembers)}</strong>
-                  Anëtarë
-                </span>
-              </div>
-            </div>
-            <div className="faculty-chart" role="list" aria-label="Shpërndarja e anëtarëve sipas fakulteteve">
-              {community.faculties.slice(0, 6).map((faculty, index) => {
-                const percentage = Math.round((faculty.count / maxFacultyCount) * 100);
-                const memberLabel = faculty.count === 1 ? "1 anëtar" : `${faculty.count} anëtarë`;
-                return (
-                  <article className="faculty-chart-row" key={faculty.label} role="listitem">
-                    <span className="faculty-chart-rank">{String(index + 1).padStart(2, "0")}</span>
-                    <div className="faculty-chart-content">
-                      <div className="faculty-chart-meta">
-                        <strong>{faculty.label}</strong>
-                        <span>{memberLabel}</span>
-                      </div>
-                      <div className="faculty-chart-track" aria-hidden="true">
-                        <span style={{ width: `${percentage}%` }} />
-                      </div>
-                    </div>
-                    <span className="faculty-chart-percent">{percentage}%</span>
-                  </article>
-                );
-              })}
-              {!community.faculties.length ? <p className="community-muted">Fakultetet shfaqen kur të dhënat janë të qasshme.</p> : null}
-            </div>
           </div>
         </div>
       </section>
