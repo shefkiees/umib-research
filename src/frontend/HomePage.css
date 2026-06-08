@@ -161,7 +161,7 @@
 }
 .umib-homepage-root .community-profile-track {
     display: flex;
-    gap: 52px;
+    gap: 60px;
     width: max-content;
     animation: community-carousel 42s linear infinite;
     will-change: transform;
@@ -178,27 +178,41 @@
     animation-range: entry 8% cover 28%;
 }
 .umib-homepage-root .community-profile-card {
-    flex: 0 0 clamp(330px, 30vw, 430px);
+    flex: 0 0 clamp(340px, 30vw, 430px);
     display: grid;
     justify-items: center;
-    padding: 10px 0 12px;
+    position: relative;
+    padding: 12px 18px 14px;
     text-align: center;
     transition: transform 0.25s ease;
+}
+.umib-homepage-root .community-profile-card::before {
+    content: "";
+    position: absolute;
+    top: 76px;
+    left: 50%;
+    width: 1px;
+    height: 58px;
+    background: linear-gradient(180deg, rgba(140, 118, 62, 0), rgba(140, 118, 62, 0.28));
+    transform: translateX(-50%);
+    z-index: 0;
 }
 .umib-homepage-root .community-profile-card:hover {
     transform: translateY(-5px);
 }
 .umib-homepage-root .community-profile-photo {
-    width: 132px;
-    height: 132px;
-    margin: 0 auto 18px;
-    border: 7px solid #ffffff;
+    position: relative;
+    z-index: 1;
+    width: 126px;
+    height: 126px;
+    margin: 0 auto 24px;
+    border: 6px solid #ffffff;
     border-radius: 999px;
-    background: linear-gradient(135deg, #1a2b49 0%, #37577f 62%, #8c763e 100%);
+    background: radial-gradient(circle at 32% 28%, #43648e 0%, #1a2b49 55%, #8c763e 100%);
     display: grid;
     place-items: center;
     overflow: hidden;
-    box-shadow: 0 16px 40px rgba(26, 43, 73, 0.16);
+    box-shadow: 0 14px 34px rgba(26, 43, 73, 0.16), 0 0 0 1px rgba(203, 213, 225, 0.75);
 }
 .umib-homepage-root .community-profile-photo img {
     width: 100%;
@@ -213,112 +227,101 @@
     place-items: center;
     background: transparent;
     color: #ffffff;
-    font-size: 1.86rem;
+    font-size: 1.78rem;
     font-weight: 900;
 }
 .umib-homepage-root .community-profile-body {
     width: 100%;
-    max-width: 370px;
+    max-width: 365px;
     padding: 0;
 }
 .umib-homepage-root .community-profile-title {
     display: grid;
     justify-items: center;
-    gap: 12px;
-    margin-bottom: 22px;
+    gap: 0;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.78);
     text-align: center;
 }
 .umib-homepage-root .community-profile-title h3 {
-    margin: 0 0 7px;
-    color: var(--navy);
-    font-size: 1.34rem;
-    line-height: 1.2;
+    margin: 0 0 8px;
+    color: #17243b;
+    font-size: 1.28rem;
+    line-height: 1.18;
+    font-weight: 850;
 }
 .umib-homepage-root .community-profile-title p {
-    max-width: 335px;
+    max-width: 322px;
     margin: 0;
-    color: #65758a;
+    color: #6c7a8f;
     line-height: 1.45;
-    font-size: 0.96rem;
+    font-size: 0.92rem;
     font-weight: 700;
-}
-.umib-homepage-root .academic-role-badge {
-    width: fit-content;
-    max-width: 100%;
-    min-height: 28px;
-    border-radius: 999px;
-    background: rgba(29, 77, 125, 0.08);
-    border: 1px solid rgba(29, 77, 125, 0.12);
-    color: #1d4d7d;
-    padding: 5px 12px;
-    font-size: 0.72rem;
-    font-weight: 850;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    justify-self: center;
 }
 .umib-homepage-root .community-profile-meta {
     display: grid;
     gap: 0;
-    max-width: 370px;
-    margin: 0 auto 18px;
-    border-top: 1px solid rgba(203, 213, 225, 0.82);
-    border-bottom: 1px solid rgba(203, 213, 225, 0.82);
+    max-width: 365px;
+    margin: 0 auto 20px;
 }
 .umib-homepage-root .community-profile-meta div {
     display: grid;
-    grid-template-columns: 122px minmax(0, 1fr);
-    align-items: start;
-    gap: 14px;
-    padding: 13px 0;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 16px;
+    padding: 12px 0;
     text-align: left;
 }
 .umib-homepage-root .community-profile-meta div + div {
-    border-top: 1px solid rgba(226, 232, 240, 0.92);
+    border-top: 1px solid rgba(226, 232, 240, 0.8);
 }
 .umib-homepage-root .community-profile-meta dt {
-    color: #7b8797;
-    font-size: 0.69rem;
+    color: #7a8697;
+    font-size: 0.67rem;
     font-weight: 800;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin: 2px 0 0;
+    margin: 0;
 }
 .umib-homepage-root .community-profile-meta dd {
     margin: 0;
-    color: #24324a;
+    color: #1f2d43;
     font-weight: 760;
-    line-height: 1.35;
-    font-size: 0.96rem;
+    line-height: 1.38;
+    font-size: 0.94rem;
 }
 .umib-homepage-root .community-profile-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0;
-    max-width: 370px;
+    max-width: 365px;
     margin-inline: auto;
     margin-bottom: 0;
+    padding-top: 16px;
+    border-top: 1px solid rgba(203, 213, 225, 0.78);
 }
 .umib-homepage-root .community-profile-stats span {
-    min-height: 58px;
-    border-right: 1px solid rgba(203, 213, 225, 0.82);
-    color: var(--text-light);
+    min-height: 52px;
+    border-right: 1px solid rgba(203, 213, 225, 0.74);
+    color: #718096;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 2px;
     text-align: center;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 800;
 }
 .umib-homepage-root .community-profile-stats span:last-child {
     border-right: 0;
 }
 .umib-homepage-root .community-profile-stats strong {
-    color: var(--navy);
-    font-size: 1.5rem;
+    color: #17243b;
+    font-size: 1.42rem;
     line-height: 1;
+    font-weight: 850;
 }
 .umib-homepage-root .community-empty-state {
     border: 1px dashed #cbd7e4;
@@ -665,9 +668,14 @@
         width: 104px;
         height: 104px;
     }
+    .umib-homepage-root .community-profile-card::before {
+        top: 60px;
+        height: 48px;
+    }
     .umib-homepage-root .community-profile-meta div {
-        grid-template-columns: 104px minmax(0, 1fr);
-        gap: 10px;
+        grid-template-columns: 1fr;
+        gap: 5px;
+        text-align: center;
     }
     .umib-homepage-root .community-profile-stats strong {
         font-size: 1.3rem;

@@ -309,7 +309,6 @@ export default function HomePage() {
                           <h3>{profile.name || profile.email}</h3>
                           <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
                         </div>
-                        <span className="academic-role-badge">{profile.academicRole}</span>
                       </div>
                       <dl className="community-profile-meta">
                         <div>
