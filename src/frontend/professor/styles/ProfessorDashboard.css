@@ -36,6 +36,18 @@ body {
   overflow: hidden;
 }
 
+.prof-layout:has(.reimbursement-flow) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  align-items: stretch;
+}
+
+.prof-layout:has(.reimbursement-flow) .prof-sidebar,
+.prof-layout:has(.reimbursement-flow) .prof-sidebar-top {
+  min-height: 0;
+}
+
 /* ===== SIDEBAR ===== */
 /* ===== SIDEBAR ===== */
 .prof-sidebar {
@@ -265,6 +277,10 @@ body {
   flex-direction: column;
   min-width: 0;
   overflow-y: auto;
+}
+
+.prof-layout:has(.reimbursement-flow) .prof-main {
+  overflow-y: visible;
 }
 
 /* ===== TOPBAR ===== */
@@ -598,6 +614,7 @@ body {
 
 .prof-content:has(.reimbursement-flow) {
   flex: 0 0 auto;
+  padding-bottom: 0;
 }
 
 .prof-notification-wrap {
