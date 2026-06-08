@@ -606,6 +606,11 @@ body {
   overflow: visible;
 }
 
+.prof-content:has(.reimbursement-flow) {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
 .prof-notification-wrap {
   position: relative;
 }
