@@ -254,6 +254,15 @@ export default function HomePage() {
   const communitySliderProfiles = community.profileCards.length
     ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
     : [];
+  const platformStatItems = [
+    { icon: Users, label: "Përdorues", value: community.stats.users },
+    { icon: BookOpen, label: "Publikime", value: community.stats.publications },
+    { icon: GraduationCap, label: "Konferenca", value: community.stats.conferences },
+    { icon: Award, label: "Citime", value: community.stats.citations },
+    { icon: Building2, label: "Institucione", value: community.stats.institutions },
+    { icon: LibraryBig, label: "Fakultete", value: community.stats.faculties },
+  ];
+  const maxPlatformStatValue = Math.max(...platformStatItems.map((item) => item.value), 1);
 
   return (
     <div className="umib-homepage-root">
@@ -329,16 +338,6 @@ export default function HomePage() {
                           <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
                         </div>
                       </div>
-                      <dl className="community-profile-meta">
-                        <div>
-                          <dt>Institucioni</dt>
-                          <dd>{profile.institution}</dd>
-                        </div>
-                        <div>
-                          <dt>Fusha e studimit</dt>
-                          <dd>{profile.fieldOfStudy}</dd>
-                        </div>
-                      </dl>
                       <div className="community-profile-stats">
                         <span><strong>{formatNumber(profile.publicationCount)}</strong> Publikime</span>
                         <span><strong>{formatNumber(profile.conferenceCount)}</strong> Konferenca</span>
@@ -407,48 +406,34 @@ export default function HomePage() {
       <section className="platform-stats-section" id="platform-stats">
         <div className="container">
           <div className="section-header compact">
-            <span className="section-kicker">Madhësia e platformës</span>
             <h2>Statistikat e Platformës</h2>
             <p className="section-desc">Pasqyrë e komunitetit akademik, publikimeve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
           </div>
           <div className="platform-stats-grid">
-            <article className="platform-stat-card">
-              <Users size={24} />
-              <span>Numri total i përdoruesve</span>
-              <strong>{formatNumber(community.stats.users)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <BookOpen size={24} />
-              <span>Numri total i publikimeve</span>
-              <strong>{formatNumber(community.stats.publications)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <GraduationCap size={24} />
-              <span>Numri total i konferencave</span>
-              <strong>{formatNumber(community.stats.conferences)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <Award size={24} />
-              <span>Numri total i citimeve</span>
-              <strong>{formatNumber(community.stats.citations)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <Building2 size={24} />
-              <span>Numri i institucioneve</span>
-              <strong>{formatNumber(community.stats.institutions)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <LibraryBig size={24} />
-              <span>Numri i fakulteteve</span>
-              <strong>{formatNumber(community.stats.faculties)}</strong>
-            </article>
+            {platformStatItems.map((item) => {
+              const StatIcon = item.icon;
+              const percent = Math.max(8, Math.round((item.value / maxPlatformStatValue) * 100));
+
+              return (
+                <article className="platform-stat-card" key={item.label}>
+                  <div className="platform-stat-head">
+                    <span className="platform-stat-icon"><StatIcon size={21} /></span>
+                    <span>{item.label}</span>
+                  </div>
+                  <strong>{formatNumber(item.value)}</strong>
+                  <div className="platform-stat-chart" aria-hidden="true">
+                    <span style={{ width: `${percent}%` }} />
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* REPRESENTATION SECTION */}
       <section className="representation-section">
-        <div className="container representation-grid">
+        <div className="container representation-grid representation-grid--single">
           <div className="representation-panel">
             <div className="representation-head">
               <span className="section-kicker">Përfaqësimi</span>
@@ -470,26 +455,6 @@ export default function HomePage() {
                 );
               })}
               {!community.faculties.length ? <p className="community-muted">Fakultetet shfaqen kur të dhënat janë të qasshme.</p> : null}
-            </div>
-          </div>
-
-          <div className="representation-panel institution-panel">
-            <div className="representation-head">
-              <span className="section-kicker">Institucionet</span>
-              <h2>Institucionet Kryesore</h2>
-            </div>
-            <div className="institution-card-list">
-              {community.institutions.slice(0, 3).map((institution) => (
-                <article className="institution-card" key={institution.label}>
-                  <Building2 size={24} />
-                  <div>
-                    <h3>{institution.label}</h3>
-                    <p>{institution.count} anëtarë</p>
-                  </div>
-                  <span>{formatNumber(institution.publications)} publikime</span>
-                </article>
-              ))}
-              {!community.institutions.length ? <p className="community-muted">Institucionet shfaqen kur të dhënat janë të qasshme.</p> : null}
             </div>
           </div>
         </div>
