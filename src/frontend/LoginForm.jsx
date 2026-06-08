@@ -1,6 +1,5 @@
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import "./LoginForm.css";
 import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
@@ -18,7 +17,6 @@ const AUTH_ERROR_CODES = new Set([
 
 const LoginForm = () => {
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
   const authErrorKey = AUTH_ERROR_CODES.has(authError) ? authError : "google_login_failed";
@@ -73,15 +71,6 @@ const LoginForm = () => {
               {t("auth.login.domainPrefix")} <strong>@umib.net</strong> {t("auth.login.domainSuffix")}
             </p>
 
-            <button
-              type="button"
-              className="forgot-access-btn"
-              onClick={() => navigate("/auth/reset-password")}
-            >
-              {t("auth.login.forgotAccess").startsWith("[missing:")
-                ? "Keni harruar qasjen?"
-                : t("auth.login.forgotAccess")}
-            </button>
           </div>
         </div>
       </div>
