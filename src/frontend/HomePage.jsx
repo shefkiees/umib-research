@@ -20,6 +20,8 @@ import { apiUrl } from "./utils/api";
 import "./HomePage.css";
 
 const SYSTEM_INSTITUTION = "Universiteti \"Isa Boletini\" Mitrovicë";
+const SCIENTIFIC_WORKS_URL = "https://app.powerbi.com/view?r=eyJrIjoiZTNmOGQwZDItZGRkZS00ZDdkLThlNDEtODQxMzcwZDZmNzA3IiwidCI6ImM1ZjBjNjkyLWYyYjYtNDlmOS1iMGI5LWFlY2E1MDI0ZmY5MSIsImMiOjl9";
+const SCIENTIFIC_CONFERENCES_URL = "https://umib.net/konferenca-shkencore/";
 const ROLE_LABELS = {
   admin: "Administratë akademike",
   committee: "Komision akademik",
@@ -254,6 +256,9 @@ export default function HomePage() {
   const communitySliderProfiles = community.profileCards.length
     ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
     : [];
+  const scrollToSection = (sectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="umib-homepage-root">
@@ -270,14 +275,10 @@ export default function HomePage() {
             <a href="#services">Rreth Portalit</a>
             <a href="#platform-stats">Statistikat</a>
             <a href="#academic-community">Komuniteti</a>
-            <a
-              href="https://app.powerbi.com/view?r=eyJrIjoiZTNmOGQwZDItZGRkZS00ZDdkLThlNDEtODQxMzcwZDZmNzA3IiwidCI6ImM1ZjBjNjkyLWYyYjYtNDlmOS1iMGI5LWFlY2E1MDI0ZmY5MSIsImMiOjl9"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={SCIENTIFIC_WORKS_URL} target="_blank" rel="noopener noreferrer">
               Punime Shkencore
             </a>
-            <a href="https://umib.net/konferenca-shkencore/">Konferenca Shkencore</a>
+            <a href={SCIENTIFIC_CONFERENCES_URL}>Konferenca Shkencore</a>
             <button className="nav-login-btn" onClick={() => navigate("/login")}>
               <Lock size={16} style={{ marginRight: '8px' }} />
               Hyr në Portal
@@ -294,7 +295,45 @@ export default function HomePage() {
             <p>Platformë për menaxhimin dhe organizimin e aktiviteteve kërkimore dhe akademike të stafit të UMIB.</p>
             <div className="hero-actions">
               <button className="btn-gold" onClick={() => navigate("/login")}>Fillo Tani</button>
-              <button className="btn-outline" onClick={() => document.getElementById('platform-stats').scrollIntoView({ behavior: 'smooth' })}>Shiko Statistikat</button>
+              <button className="btn-outline" onClick={() => scrollToSection("platform-stats")}>Shiko Statistikat</button>
+            </div>
+            <div className="hero-kpi-grid" aria-label="Treguesit kryesorë të UMIBRes">
+              <a className="kpi-card" href={SCIENTIFIC_WORKS_URL} target="_blank" rel="noopener noreferrer">
+                <div className="kpi-icon-wrapper">
+                  <BookOpen className="kpi-icon-svg" />
+                </div>
+                <div className="kpi-info">
+                  <span className="kpi-label">Botime Shkencore</span>
+                  <span className="kpi-value">1,240+</span>
+                </div>
+              </a>
+              <button className="kpi-card" type="button" onClick={() => scrollToSection("services")}>
+                <div className="kpi-icon-wrapper">
+                  <FlaskConical className="kpi-icon-svg" />
+                </div>
+                <div className="kpi-info">
+                  <span className="kpi-label">Projekte Aktive</span>
+                  <span className="kpi-value">45</span>
+                </div>
+              </button>
+              <button className="kpi-card" type="button" onClick={() => scrollToSection("academic-community")}>
+                <div className="kpi-icon-wrapper">
+                  <Users className="kpi-icon-svg" />
+                </div>
+                <div className="kpi-info">
+                  <span className="kpi-label">Staf Akademik</span>
+                  <span className="kpi-value">180+</span>
+                </div>
+              </button>
+              <a className="kpi-card" href={SCIENTIFIC_CONFERENCES_URL} target="_blank" rel="noopener noreferrer">
+                <div className="kpi-icon-wrapper">
+                  <Globe className="kpi-icon-svg" />
+                </div>
+                <div className="kpi-info">
+                  <span className="kpi-label">Konferenca Ndërkombëtare</span>
+                  <span className="kpi-value">32</span>
+                </div>
+              </a>
             </div>
           </div>
         </div>
@@ -346,50 +385,6 @@ export default function HomePage() {
               <p>Kur të dhënat janë të qasshme për sesionin aktual, këtu paraqiten profesorët, fakultetet dhe statistikat akademike pa ndryshuar backend-in.</p>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* KPI SECTION */}
-      <section className="kpi-section">
-        <div className="container">
-          <div className="kpi-grid">
-            <div className="kpi-card">
-              <div className="kpi-icon-wrapper">
-                <BookOpen className="kpi-icon-svg" />
-              </div>
-              <div className="kpi-info">
-                <span className="kpi-label">Botime Shkencore</span>
-                <span className="kpi-value">1,240+</span>
-              </div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-icon-wrapper">
-                <FlaskConical className="kpi-icon-svg" />
-              </div>
-              <div className="kpi-info">
-                <span className="kpi-label">Projekte Aktive</span>
-                <span className="kpi-value">45</span>
-              </div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-icon-wrapper">
-                <Users className="kpi-icon-svg" />
-              </div>
-              <div className="kpi-info">
-                <span className="kpi-label">Staf Akademik</span>
-                <span className="kpi-value">180+</span>
-              </div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-icon-wrapper">
-                <Globe className="kpi-icon-svg" />
-              </div>
-              <div className="kpi-info">
-                <span className="kpi-label">Konferenca Ndërkombëtare</span>
-                <span className="kpi-value">32</span>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

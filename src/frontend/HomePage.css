@@ -113,6 +113,15 @@
 }
 .umib-homepage-root .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: white; }
 
+.umib-homepage-root .hero-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    max-width: 1320px;
+    margin: 38px auto 0;
+    text-align: left;
+}
+
 /* Academic Community */
 .umib-homepage-root .academic-community-section {
     padding: 82px 0 72px;
@@ -319,21 +328,23 @@
     line-height: 1.6;
 }
 
-/* KPI Section */
-.umib-homepage-root .kpi-section { margin-top: -40px; position: relative; z-index: 10; }
-.umib-homepage-root .academic-community-section + .kpi-section { margin-top: 0; }
-.umib-homepage-root .kpi-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-    gap: 20px; 
-}
 .umib-homepage-root .kpi-card {
+    width: 100%;
     background: white; padding: 20px; border-radius: 12px; 
     box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
     display: flex; align-items: center; gap: 15px; border: 1px solid #f1f5f9;
     transition: all 0.3s ease;
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
 }
 .umib-homepage-root .kpi-card:hover { transform: translateY(-8px); box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15); border-color: var(--gold); }
+.umib-homepage-root .kpi-card:focus-visible {
+    outline: 3px solid rgba(176, 149, 86, 0.38);
+    outline-offset: 4px;
+}
 .umib-homepage-root .kpi-icon-wrapper { 
     background: #f0f4f8; color: var(--navy); 
     width: 48px; height: 48px; 
@@ -616,6 +627,10 @@
         display: grid;
         align-items: start;
     }
+    .umib-homepage-root .hero-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 760px;
+    }
     .umib-homepage-root .platform-stats-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -628,6 +643,10 @@
     .umib-homepage-root .nav-menu { display: none; }
     .umib-homepage-root .hero-content h1 { font-size: 2.2rem; }
     .umib-homepage-root .hero-actions { flex-direction: column; }
+    .umib-homepage-root .hero-kpi-grid {
+        grid-template-columns: 1fr;
+        margin-top: 28px;
+    }
     .umib-homepage-root .container { padding: 0 22px; }
     .umib-homepage-root .academic-community-section,
     .umib-homepage-root .platform-stats-section {
@@ -673,7 +692,5 @@
     .umib-homepage-root .institution-card span {
         white-space: normal;
     }
-    .umib-homepage-root .kpi-section { margin-top: -30px; }
-    .umib-homepage-root .academic-community-section + .kpi-section { margin-top: 0; }
     .umib-homepage-root .contact-info, .umib-homepage-root .contact-form { padding: 40px 24px; }
 }
