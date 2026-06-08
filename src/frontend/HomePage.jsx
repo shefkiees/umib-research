@@ -254,15 +254,6 @@ export default function HomePage() {
   const communitySliderProfiles = community.profileCards.length
     ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
     : [];
-  const platformStatItems = [
-    { icon: Users, label: "Përdorues", value: community.stats.users },
-    { icon: BookOpen, label: "Publikime", value: community.stats.publications },
-    { icon: GraduationCap, label: "Konferenca", value: community.stats.conferences },
-    { icon: Award, label: "Citime", value: community.stats.citations },
-    { icon: Building2, label: "Institucione", value: community.stats.institutions },
-    { icon: LibraryBig, label: "Fakultete", value: community.stats.faculties },
-  ];
-  const maxPlatformStatValue = Math.max(...platformStatItems.map((item) => item.value), 1);
 
   return (
     <div className="umib-homepage-root">
@@ -410,23 +401,36 @@ export default function HomePage() {
             <p className="section-desc">Pasqyrë e komunitetit akademik, publikimeve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
           </div>
           <div className="platform-stats-grid">
-            {platformStatItems.map((item) => {
-              const StatIcon = item.icon;
-              const percent = Math.max(8, Math.round((item.value / maxPlatformStatValue) * 100));
-
-              return (
-                <article className="platform-stat-card" key={item.label}>
-                  <div className="platform-stat-head">
-                    <span className="platform-stat-icon"><StatIcon size={21} /></span>
-                    <span>{item.label}</span>
-                  </div>
-                  <strong>{formatNumber(item.value)}</strong>
-                  <div className="platform-stat-chart" aria-hidden="true">
-                    <span style={{ width: `${percent}%` }} />
-                  </div>
-                </article>
-              );
-            })}
+            <article className="platform-stat-card">
+              <Users size={24} />
+              <span>Përdorues</span>
+              <strong>{formatNumber(community.stats.users)}</strong>
+            </article>
+            <article className="platform-stat-card">
+              <BookOpen size={24} />
+              <span>Publikime</span>
+              <strong>{formatNumber(community.stats.publications)}</strong>
+            </article>
+            <article className="platform-stat-card">
+              <GraduationCap size={24} />
+              <span>Konferenca</span>
+              <strong>{formatNumber(community.stats.conferences)}</strong>
+            </article>
+            <article className="platform-stat-card">
+              <Award size={24} />
+              <span>Citime</span>
+              <strong>{formatNumber(community.stats.citations)}</strong>
+            </article>
+            <article className="platform-stat-card">
+              <Building2 size={24} />
+              <span>Institucione</span>
+              <strong>{formatNumber(community.stats.institutions)}</strong>
+            </article>
+            <article className="platform-stat-card">
+              <LibraryBig size={24} />
+              <span>Fakultete</span>
+              <strong>{formatNumber(community.stats.faculties)}</strong>
+            </article>
           </div>
         </div>
       </section>
