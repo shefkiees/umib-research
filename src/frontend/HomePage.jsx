@@ -184,7 +184,7 @@ export default function HomePage() {
         ...user,
         institution,
         fieldOfStudy,
-        avatarUrl: user.avatarUrl || user.photoUrl || user.picture || "",
+        avatarUrl: user.profilePhotoUrl || user.profile_photo_url || user.avatarUrl || user.avatar_url || user.photoUrl || user.photo_url || user.picture || "",
         academicRole: ROLE_LABELS[user.role] || user.role || "Anëtar akademik",
         publicationCount: toNumber(user.publicationsTotal || user.publicationCount || publicationCounts.get(user.id)),
         conferenceCount: toNumber(user.conferencesTotal || user.conferenceCount || conferenceCounts.get(user.id)),

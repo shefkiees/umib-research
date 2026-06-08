@@ -39,6 +39,7 @@ export const professorProfile = {
   orcidId: null,
   school: "",
   currentAffiliation: "",
+  profilePhotoUrl: "",
   orcidProfile: {},
   orcidEducations: [],
   orcidEmployments: [],

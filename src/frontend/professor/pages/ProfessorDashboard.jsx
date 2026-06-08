@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   BookOpen,
   CalendarDays,
+  Camera,
   CheckCircle2,
   Link2,
   Pencil,
@@ -74,10 +75,87 @@ const pickOrcidTitle = (items = []) => {
   return pickFirstText(firstItem.roleTitle, firstItem.title, firstItem.position, firstItem.department);
 };
 
+const PROFILE_PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PROFILE_PHOTO_MAX_SOURCE_BYTES = 5 * 1024 * 1024;
+const PROFILE_PHOTO_MAX_DATA_URL_LENGTH = 180000;
+const PROFILE_PHOTO_RENDER_ATTEMPTS = [
+  { size: 280, quality: 0.82 },
+  { size: 220, quality: 0.74 },
+  { size: 180, quality: 0.68 },
+];
+
+function getProfileInitials(profile = {}) {
+  return String(profile.name || profile.email || "P")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("invalid_image"));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function createProfilePhotoDataUrl(file) {
+  if (!file) {
+    return "";
+  }
+
+  if (!PROFILE_PHOTO_ALLOWED_TYPES.has(file.type)) {
+    throw new Error("invalid_type");
+  }
+
+  if (file.size > PROFILE_PHOTO_MAX_SOURCE_BYTES) {
+    throw new Error("too_large");
+  }
+
+  const image = await loadImageFromFile(file);
+  const sourceSize = Math.min(image.naturalWidth || image.width, image.naturalHeight || image.height);
+  const sourceX = Math.max(0, ((image.naturalWidth || image.width) - sourceSize) / 2);
+  const sourceY = Math.max(0, ((image.naturalHeight || image.height) - sourceSize) / 2);
+
+  for (const attempt of PROFILE_PHOTO_RENDER_ATTEMPTS) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    canvas.width = attempt.size;
+    canvas.height = attempt.size;
+
+    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, attempt.size, attempt.size);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", attempt.quality);
+
+    if (dataUrl.length <= PROFILE_PHOTO_MAX_DATA_URL_LENGTH) {
+      return dataUrl;
+    }
+  }
+
+  throw new Error("too_large");
+}
+
 const normalizeProfile = (user = {}) => {
   const orcidEducations = Array.isArray(user.orcidEducations) ? user.orcidEducations : [];
   const orcidEmployments = Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [];
   const education = Array.isArray(user.education) ? user.education : orcidEducations;
+  const profileOverrides = user.profileOverrides || user.profile_overrides || {};
+  const profilePhotoUrl = user.profilePhotoUrl || user.profile_photo_url || user.avatarUrl || user.avatar_url || profileOverrides.profilePhotoUrl || profileOverrides.profile_photo_url || "";
 
   return {
     name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
@@ -92,8 +170,9 @@ const normalizeProfile = (user = {}) => {
     orcidId: user.orcidId || user.orcid_id || null,
     school: user.school || "",
     currentAffiliation: user.currentAffiliation || "",
+    profilePhotoUrl,
     orcidProfile: user.orcidProfile || {},
-    profileOverrides: user.profileOverrides || user.profile_overrides || {},
+    profileOverrides,
     education,
     orcidEducations,
     orcidEmployments,
@@ -733,6 +812,7 @@ export default function ProfessorDashboard() {
   const [profileDraft, setProfileDraft] = useState(professorProfile);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [profilePhotoError, setProfilePhotoError] = useState("");
   const [bankAccounts, setBankAccounts] = useState([]);
   const [isBankAccountsLoading, setIsBankAccountsLoading] = useState(false);
   const [bankAccountsError, setBankAccountsError] = useState("");
@@ -1425,6 +1505,7 @@ export default function ProfessorDashboard() {
     if (normalizedAction === "editprofile" || normalizedAction === "edit-profile") {
       setProfileDraft(profile);
       setProfileError("");
+      setProfilePhotoError("");
       setIsEditProfileOpen(true);
       return;
     }
@@ -1454,6 +1535,51 @@ export default function ProfessorDashboard() {
 
   const handleProfileFieldChange = (field) => (event) => {
     setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const getProfilePhotoErrorMessage = (error) => {
+    const code = error?.message || "";
+
+    if (code === "invalid_type") {
+      return settingsText.profilePhotoInvalidType;
+    }
+
+    if (code === "too_large") {
+      return settingsText.profilePhotoTooLarge;
+    }
+
+    return settingsText.profilePhotoLoadError;
+  };
+
+  const handleProfilePhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setProfilePhotoError("");
+
+    try {
+      const profilePhotoUrl = await createProfilePhotoDataUrl(file);
+
+      setProfileDraft((prev) => ({
+        ...prev,
+        profilePhotoUrl,
+      }));
+    } catch (error) {
+      console.error("Profile photo load failed:", error);
+      setProfilePhotoError(getProfilePhotoErrorMessage(error));
+    }
+  };
+
+  const handleProfilePhotoRemove = () => {
+    setProfilePhotoError("");
+    setProfileDraft((prev) => ({
+      ...prev,
+      profilePhotoUrl: "",
+    }));
   };
 
   const handleProfileEducationFieldChange = (index, field) => (event) => {
@@ -1778,6 +1904,7 @@ export default function ProfessorDashboard() {
           academicTitle: profileDraft.academicTitle,
           scientificTitle: profileDraft.scientificTitle,
           currentAffiliation: profileDraft.currentAffiliation,
+          profilePhotoUrl: profileDraft.profilePhotoUrl || "",
           education: Array.isArray(profileDraft.education) ? profileDraft.education : [],
         }),
       });
@@ -1796,6 +1923,7 @@ export default function ProfessorDashboard() {
 
       setProfile(nextProfile);
       setProfileDraft(nextProfile);
+      setProfilePhotoError("");
       setIsEditProfileOpen(false);
     } catch (error) {
       console.error("Profile save failed:", error);
@@ -3137,6 +3265,37 @@ export default function ProfessorDashboard() {
               <p className="prof-modal-note">
                 {settingsText.profileNote}
               </p>
+              <section className="prof-profile-photo-editor">
+                <div className="prof-profile-photo-preview" aria-hidden="true">
+                  {profileDraft.profilePhotoUrl ? (
+                    <img src={profileDraft.profilePhotoUrl} alt="" />
+                  ) : (
+                    <span>{getProfileInitials(profileDraft)}</span>
+                  )}
+                </div>
+                <div className="prof-profile-photo-content">
+                  <h4>{settingsText.profilePhotoTitle}</h4>
+                  <p>{settingsText.profilePhotoDescription}</p>
+                  <div className="prof-profile-photo-actions">
+                    <label className="prof-profile-photo-upload-btn">
+                      <Camera size={16} />
+                      <span>{settingsText.profilePhotoUpload}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleProfilePhotoChange}
+                      />
+                    </label>
+                    {profileDraft.profilePhotoUrl ? (
+                      <button type="button" className="prof-profile-photo-remove-btn" onClick={handleProfilePhotoRemove}>
+                        <Trash2 size={15} />
+                        <span>{settingsText.profilePhotoRemove}</span>
+                      </button>
+                    ) : null}
+                  </div>
+                  {profilePhotoError ? <p className="prof-profile-photo-error" role="alert">{profilePhotoError}</p> : null}
+                </div>
+              </section>
               <div className="prof-form-grid">
                 <label className="prof-form-field">
                   <span>{settingsText.nameAndSurname}</span>

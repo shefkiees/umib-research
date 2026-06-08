@@ -35,6 +35,7 @@ export default function TopBar({
   const title = activePage || t("navigation.statistics");
   const name = profile?.name || t("professor.profileFallbackName");
   const role = profile?.role || t("professor.profileFallbackRole");
+  const profilePhotoUrl = profile?.profilePhotoUrl || profile?.avatarUrl || "";
   const fallbackMenuItems = [
     { id: "EditProfile", label: t("topbar.menuEditProfile"), icon: User },
     { id: "Settings", label: t("topbar.menuSettings"), icon: Settings },
@@ -209,7 +210,9 @@ export default function TopBar({
               <h4>{name}</h4>
               <span>{role}</span>
             </div>
-            <div className="prof-avatar">{initials}</div>
+            <div className="prof-avatar">
+              {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" /> : initials}
+            </div>
           </button>
 
           {isProfileOpen ? (

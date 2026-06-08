@@ -593,6 +593,7 @@ body {
   font-weight: 800;
   font-size: 1rem;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 /* ===== CONTENT ===== */
@@ -1135,6 +1136,104 @@ body {
   cursor: default;
 }
 
+.prof-profile-photo-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #d8e2ee;
+  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.prof-profile-photo-preview {
+  width: 104px;
+  height: 104px;
+  border: 5px solid #eef4fb;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #153a63 0%, #2f5f97 70%, #8c763e 100%);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 1.55rem;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(21, 58, 99, 0.16);
+}
+
+.prof-profile-photo-preview img,
+.prof-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.prof-profile-photo-content {
+  min-width: 0;
+}
+
+.prof-profile-photo-content h4 {
+  margin: 0 0 5px;
+  color: var(--text-dark);
+  font-size: 0.98rem;
+  font-weight: 850;
+}
+
+.prof-profile-photo-content p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.prof-profile-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.prof-profile-photo-upload-btn,
+.prof-profile-photo-remove-btn {
+  min-height: 38px;
+  border-radius: 10px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.prof-profile-photo-upload-btn {
+  border: 1px solid #c8def5;
+  background: #ffffff;
+  color: #1d4d7a;
+}
+
+.prof-profile-photo-upload-btn input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prof-profile-photo-remove-btn {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.prof-profile-photo-error {
+  margin-top: 10px !important;
+  color: #be123c !important;
+  font-weight: 750;
+}
+
 .publication-identifier-inputs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1521,6 +1620,16 @@ body {
   .prof-profile-edit-modal .prof-form-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .prof-profile-photo-editor {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .prof-profile-photo-actions {
+    justify-content: center;
   }
 
   .prof-education-entry-grid,
@@ -4990,6 +5099,7 @@ body {
   font-weight: 700;
   font-size: 0.95rem;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .prof-popover {

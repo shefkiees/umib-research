@@ -24,6 +24,11 @@ const SYSTEM_SETTINGS_DEFAULTS = {
 };
 
 function mapUser(row) {
+  const profileOverrides = row.profile_overrides && typeof row.profile_overrides === "object"
+    ? row.profile_overrides
+    : {};
+  const profilePhotoUrl = String(profileOverrides.profilePhotoUrl || profileOverrides.profile_photo_url || "").trim();
+
   return {
     id: row.id,
     email: row.email,
@@ -33,6 +38,8 @@ function mapUser(row) {
     faculty: row.faculty || "",
     department: row.department || "",
     office: row.office || "",
+    profilePhotoUrl,
+    avatarUrl: profilePhotoUrl,
     lastLoginAt: row.last_login_at,
     last_login_at: row.last_login_at,
     createdAt: row.created_at,
@@ -212,7 +219,7 @@ router.post("/auth-sync", requireAdmin, async (req, res) => {
 router.get("/users", requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
-      `select id, email, full_name, role, status, faculty, department, office, last_login_at, created_at, updated_at
+      `select id, email, full_name, role, status, faculty, department, office, profile_overrides, last_login_at, created_at, updated_at
        from users
        order by created_at desc, email asc`
     );

@@ -21,6 +21,8 @@ const configuredClientUrl = getAbsoluteUrlEnvValue(process.env.CLIENT_URL);
 const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+const PROFILE_PHOTO_MAX_LENGTH = 180000;
+const PROFILE_PHOTO_DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp);base64,[a-z0-9+/=]+$/i;
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -33,6 +35,22 @@ function normalizeIban(value) {
 function normalizeCurrency(value) {
   const currency = normalizeText(value).toUpperCase();
   return CURRENCY_PATTERN.test(currency) ? currency : "EUR";
+}
+
+function normalizeProfilePhotoUrl(value) {
+  const photoUrl = normalizeText(value);
+
+  if (!photoUrl) {
+    return "";
+  }
+
+  if (photoUrl.length > PROFILE_PHOTO_MAX_LENGTH || !PROFILE_PHOTO_DATA_URL_PATTERN.test(photoUrl)) {
+    const error = new Error("invalid_profile_photo");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return photoUrl;
 }
 
 function getRequestOrigin(req) {
@@ -204,6 +222,7 @@ function mapUserRowToProfile(row) {
   const displayEducation = overrideEducation || orcidEducations;
   const overrideSchool = String(profileOverrides.school || "").trim();
   const overrideAffiliation = String(profileOverrides.currentAffiliation || profileOverrides.current_affiliation || "").trim();
+  const profilePhotoUrl = String(profileOverrides.profilePhotoUrl || profileOverrides.profile_photo_url || "").trim();
 
   return {
     id: row.id,
@@ -220,6 +239,8 @@ function mapUserRowToProfile(row) {
     office: row.office || "",
     school: overrideSchool || orcidEducations[0]?.organization || "",
     currentAffiliation: overrideAffiliation || orcidEmployments[0]?.organization || orcidEducations[0]?.organization || "",
+    profilePhotoUrl,
+    avatarUrl: profilePhotoUrl,
     education: displayEducation,
     profileOverrides,
     orcidProfile: row.orcid_profile || {},
@@ -393,6 +414,11 @@ router.put("/me", async (req, res) => {
     const currentOverrides = currentUser.profile_overrides && typeof currentUser.profile_overrides === "object"
       ? currentUser.profile_overrides
       : {};
+    const hasProfilePhotoField = Object.prototype.hasOwnProperty.call(req.body || {}, "profilePhotoUrl")
+      || Object.prototype.hasOwnProperty.call(req.body || {}, "profile_photo_url");
+    const nextProfilePhotoUrl = hasProfilePhotoField
+      ? normalizeProfilePhotoUrl(req.body?.profilePhotoUrl || req.body?.profile_photo_url)
+      : String(currentOverrides.profilePhotoUrl || currentOverrides.profile_photo_url || "").trim();
     const nextEducation = Array.isArray(req.body?.education)
       ? req.body.education
       : Array.isArray(req.body?.orcidEducations || req.body?.orcid_educations)
@@ -402,6 +428,7 @@ router.put("/me", async (req, res) => {
       ...currentOverrides,
       school: nextSchool,
       currentAffiliation: nextCurrentAffiliation,
+      profilePhotoUrl: nextProfilePhotoUrl,
       education: Array.isArray(nextEducation) ? nextEducation : [],
     };
 
@@ -436,7 +463,10 @@ router.put("/me", async (req, res) => {
     res.json({ user: mapUserRowToProfile(result.rows[0]) });
   } catch (error) {
     console.error("PUT /api/auth/me failed:", error);
-    res.status(500).json({ user: null });
+    res.status(error.statusCode || 500).json({
+      user: null,
+      error: error.message || "profile_save_failed",
+    });
   }
 });
 
