@@ -36,26 +36,6 @@ body {
   overflow: hidden;
 }
 
-.prof-layout:has(.reimbursement-flow) {
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: hidden;
-  align-items: stretch;
-}
-
-.prof-layout:has(.reimbursement-flow) .prof-sidebar {
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.prof-layout:has(.reimbursement-flow) .prof-sidebar-top {
-  min-height: 100%;
-}
-
 /* ===== SIDEBAR ===== */
 /* ===== SIDEBAR ===== */
 .prof-sidebar {
@@ -293,12 +273,6 @@ body {
   height: 100vh;
   min-width: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.prof-layout:has(.reimbursement-flow) .prof-main {
-  height: 100vh;
-  height: 100dvh;
   overflow-y: auto;
 }
 
@@ -629,11 +603,6 @@ body {
   flex: 1 1 auto;
   gap: 12px;
   overflow: visible;
-}
-
-.prof-content:has(.reimbursement-flow) {
-  flex: 1 0 auto;
-  padding-bottom: 14px;
 }
 
 .prof-notification-wrap {
@@ -4482,7 +4451,10 @@ body {
 .reimbursement-document-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .reimbursement-document-card {
@@ -4491,8 +4463,11 @@ body {
   background: #fbfdff;
   padding: 12px;
   display: grid;
+  align-content: start;
   gap: 12px;
+  height: fit-content;
   min-width: 0;
+  max-width: 100%;
 }
 
 .reimbursement-document-card--publication {
@@ -4555,6 +4530,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .reimbursement-file-list span {
@@ -4569,6 +4546,8 @@ body {
   gap: 6px;
   font-weight: 800;
   max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .reimbursement-file-list .reimbursement-icon-btn {
@@ -4624,6 +4603,7 @@ body {
   font-weight: 800;
   cursor: pointer;
   max-width: min(100%, 280px);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4758,12 +4738,6 @@ body {
     overflow: visible;
   }
 
-  .prof-layout:has(.reimbursement-flow) {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-  }
-
   .prof-sidebar {
     width: 100%;
     flex: none;
@@ -4773,21 +4747,7 @@ body {
     overflow: visible;
   }
 
-  .prof-layout:has(.reimbursement-flow) .prof-sidebar {
-    height: auto;
-    min-height: auto;
-  }
-
-  .prof-layout:has(.reimbursement-flow) .prof-sidebar-top {
-    min-height: 0;
-  }
-
   .prof-main {
-    height: auto;
-    overflow: visible;
-  }
-
-  .prof-layout:has(.reimbursement-flow) .prof-main {
     height: auto;
     overflow: visible;
   }
