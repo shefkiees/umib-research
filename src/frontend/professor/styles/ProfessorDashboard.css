@@ -29,6 +29,9 @@ body {
 .prof-layout {
   display: flex;
   height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-light);
   overflow: hidden;
 }
@@ -588,6 +591,7 @@ body {
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 12px;
   overflow: visible;
 }
@@ -3182,6 +3186,8 @@ body {
 .reimbursement-flow {
   display: grid;
   gap: 16px;
+  align-content: start;
+  min-height: 100%;
 }
 
 .reimbursement-flow-card,
@@ -4074,7 +4080,7 @@ body {
 
 .reimbursement-action-bar {
   position: sticky;
-  bottom: 14px;
+  bottom: 0;
   z-index: 8;
   border: 1px solid #dce7f2;
   border-radius: 12px;
@@ -4086,6 +4092,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 2px;
 }
 
 .reimbursement-action-feedback {
