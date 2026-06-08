@@ -303,25 +303,16 @@ export default function HomePage() {
                 </div>
                 <div className="kpi-info">
                   <span className="kpi-label">Botime Shkencore</span>
-                  <span className="kpi-value">1,240+</span>
+                  <span className="kpi-value">{formatNumber(community.stats.publications)}</span>
                 </div>
               </a>
-              <button className="kpi-card" type="button" onClick={() => scrollToSection("services")}>
-                <div className="kpi-icon-wrapper">
-                  <FlaskConical className="kpi-icon-svg" />
-                </div>
-                <div className="kpi-info">
-                  <span className="kpi-label">Projekte Aktive</span>
-                  <span className="kpi-value">45</span>
-                </div>
-              </button>
               <button className="kpi-card" type="button" onClick={() => scrollToSection("academic-community")}>
                 <div className="kpi-icon-wrapper">
                   <Users className="kpi-icon-svg" />
                 </div>
                 <div className="kpi-info">
                   <span className="kpi-label">Staf Akademik</span>
-                  <span className="kpi-value">180+</span>
+                  <span className="kpi-value">{formatNumber(community.stats.users)}</span>
                 </div>
               </button>
               <a className="kpi-card" href={SCIENTIFIC_CONFERENCES_URL} target="_blank" rel="noopener noreferrer">
@@ -329,8 +320,8 @@ export default function HomePage() {
                   <Globe className="kpi-icon-svg" />
                 </div>
                 <div className="kpi-info">
-                  <span className="kpi-label">Konferenca Ndërkombëtare</span>
-                  <span className="kpi-value">32</span>
+                  <span className="kpi-label">Konferenca Shkencore</span>
+                  <span className="kpi-value">{formatNumber(community.stats.conferences)}</span>
                 </div>
               </a>
             </div>
