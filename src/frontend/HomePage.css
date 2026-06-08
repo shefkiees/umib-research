@@ -153,33 +153,22 @@
     font-size: 1.05rem;
     line-height: 1.65;
 }
-.umib-homepage-root .community-head-action,
-.umib-homepage-root .profile-view-btn {
-    border: 1px solid #d6e0ea;
-    border-radius: 8px;
-    background: #ffffff;
-    color: var(--navy);
-    min-height: 44px;
-    padding: 0 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    white-space: nowrap;
+.umib-homepage-root .community-profile-carousel {
+    position: relative;
+    overflow: hidden;
+    padding: 8px 0 14px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
 }
-.umib-homepage-root .community-head-action:hover,
-.umib-homepage-root .profile-view-btn:hover {
-    border-color: var(--gold);
-    color: var(--gold);
-    transform: translateY(-2px);
+.umib-homepage-root .community-profile-track {
+    display: flex;
+    gap: 20px;
+    width: max-content;
+    animation: community-carousel 42s linear infinite;
+    will-change: transform;
 }
-.umib-homepage-root .community-profile-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 22px;
+.umib-homepage-root .community-profile-carousel:hover .community-profile-track {
+    animation-play-state: paused;
 }
 .umib-homepage-root .community-profile-card,
 .umib-homepage-root .platform-stat-card,
@@ -190,10 +179,12 @@
     animation-range: entry 8% cover 28%;
 }
 .umib-homepage-root .community-profile-card {
+    flex: 0 0 clamp(300px, 30vw, 386px);
     border: 1px solid #dfe7ef;
-    border-radius: 8px;
-    background: #ffffff;
+    border-radius: 34px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
     overflow: hidden;
+    padding: 18px;
     box-shadow: 0 16px 42px rgba(16, 24, 40, 0.08);
     transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
@@ -203,10 +194,16 @@
     box-shadow: 0 24px 60px rgba(16, 24, 40, 0.14);
 }
 .umib-homepage-root .community-profile-photo {
-    height: 180px;
+    width: 118px;
+    height: 118px;
+    margin: 0 auto 16px;
+    border: 6px solid #eef4fb;
+    border-radius: 999px;
     background: linear-gradient(135deg, #1a2b49 0%, #37577f 62%, #8c763e 100%);
     display: grid;
     place-items: center;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(26, 43, 73, 0.18);
 }
 .umib-homepage-root .community-profile-photo img {
     width: 100%;
@@ -214,24 +211,24 @@
     object-fit: cover;
 }
 .umib-homepage-root .community-profile-photo span {
-    width: 92px;
-    height: 92px;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: rgba(255,255,255,0.95);
-    color: var(--navy);
+    background: transparent;
+    color: #ffffff;
     font-size: 1.65rem;
     font-weight: 900;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.18);
 }
 .umib-homepage-root .community-profile-body {
-    padding: 22px;
+    padding: 0 4px 4px;
 }
 .umib-homepage-root .community-profile-title {
     display: grid;
     gap: 12px;
     margin-bottom: 18px;
+    text-align: center;
 }
 .umib-homepage-root .community-profile-title h3 {
     margin: 0 0 6px;
@@ -253,6 +250,7 @@
     padding: 6px 10px;
     font-size: 0.76rem;
     font-weight: 850;
+    justify-self: center;
 }
 .umib-homepage-root .community-profile-meta {
     display: grid;
@@ -281,7 +279,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    margin-bottom: 18px;
+    margin-bottom: 0;
 }
 .umib-homepage-root .community-profile-stats span {
     min-height: 58px;
@@ -301,9 +299,6 @@
 .umib-homepage-root .community-profile-stats strong {
     color: var(--navy);
     font-size: 1.1rem;
-}
-.umib-homepage-root .profile-view-btn {
-    width: 100%;
 }
 .umib-homepage-root .community-empty-state {
     border: 1px dashed #cbd7e4;
@@ -506,6 +501,21 @@
     }
 }
 
+@keyframes community-carousel {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .umib-homepage-root .community-profile-track {
+        animation: none;
+    }
+}
+
 /* Features Icons */
 .umib-homepage-root .service-icon-ui {
     background: #f8fafc; color: var(--gold);
@@ -603,9 +613,6 @@
         display: grid;
         align-items: start;
     }
-    .umib-homepage-root .community-profile-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
     .umib-homepage-root .platform-stats-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -628,15 +635,15 @@
     .umib-homepage-root .representation-head h2 {
         font-size: 2rem;
     }
-    .umib-homepage-root .community-profile-grid,
     .umib-homepage-root .platform-stats-grid {
         grid-template-columns: 1fr;
     }
-    .umib-homepage-root .community-profile-stats {
-        grid-template-columns: 1fr;
+    .umib-homepage-root .community-profile-card {
+        flex-basis: min(82vw, 330px);
     }
     .umib-homepage-root .community-profile-photo {
-        height: 160px;
+        width: 104px;
+        height: 104px;
     }
     .umib-homepage-root .representation-section {
         padding-bottom: 78px;

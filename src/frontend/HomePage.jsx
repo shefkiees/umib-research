@@ -229,6 +229,9 @@ export default function HomePage() {
   }, [communityData]);
 
   const maxFacultyCount = Math.max(...community.faculties.map((faculty) => faculty.count), 1);
+  const communitySliderProfiles = community.profileCards.length
+    ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
+    : [];
 
   return (
     <div className="umib-homepage-root">
@@ -284,15 +287,13 @@ export default function HomePage() {
               <h2>Anëtarët e Komunitetit</h2>
               <p>Profile akademike që përfaqësojnë stafin dhe rolet që përdorin UMIBRes për evidencë, raportim dhe bashkëpunim shkencor.</p>
             </div>
-            <button className="community-head-action" type="button" onClick={() => navigate("/login")}>
-              Shiko Profilin <ChevronRight size={17} />
-            </button>
           </div>
 
           {community.profileCards.length ? (
-            <div className="community-profile-grid">
-              {community.profileCards.map((profile) => (
-                <article className="community-profile-card" key={profile.id || profile.email}>
+            <div className="community-profile-carousel" aria-label="Anetaret e komunitetit akademik">
+              <div className="community-profile-track">
+                {communitySliderProfiles.map((profile, index) => (
+                <article className="community-profile-card" key={`${profile.id || profile.email}-${index}`}>
                   <div className="community-profile-photo">
                     {profile.avatarUrl ? (
                       <img src={profile.avatarUrl} alt={profile.name || profile.email} />
@@ -323,12 +324,10 @@ export default function HomePage() {
                       <span><strong>{formatNumber(profile.conferenceCount)}</strong> Konferenca</span>
                       <span><strong>{formatNumber(profile.citationCount)}</strong> Citime</span>
                     </div>
-                    <button type="button" className="profile-view-btn" onClick={() => navigate("/login")}>
-                      Shiko Profilin <ChevronRight size={16} />
-                    </button>
                   </div>
                 </article>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <div className="community-empty-state">
