@@ -462,12 +462,46 @@ export default function HomePage() {
         <div className="container">
           <div className="footer-content">
             <div className="footer-brand">
-              <TransparentLogo src={UMIBLogo} alt="Logo e Fakultetit" className="footer-logo" />
-              <p>Universiteti "Isa Boletini" Mitrovicë<br />Portali i Kërkimit Shkencor</p>
+              <div className="footer-brand-head">
+                <span className="footer-logo-mark">
+                  <TransparentLogo src={UMIBLogo} alt="Logo e Universitetit" className="footer-logo" />
+                </span>
+                <div>
+                  <strong>UMIBRes</strong>
+                  <span>Portali i Kërkimit Shkencor</span>
+                </div>
+              </div>
+              <p>Platformë institucionale për evidentimin, raportimin dhe prezantimin e aktiviteteve kërkimore të stafit akademik të UMIB.</p>
+              <button className="footer-login-btn" type="button" onClick={() => navigate("/login")}>
+                <Lock size={16} />
+                Hyr në Portal
+              </button>
+            </div>
+
+            <div className="footer-columns" aria-label="Linqet e footer-it">
+              <div className="footer-column">
+                <h3>Platforma</h3>
+                <a href="#services"><ChevronRight size={15} /> Rreth Portalit</a>
+                <a href="#platform-stats"><ChevronRight size={15} /> Statistikat</a>
+                <a href="#academic-community"><ChevronRight size={15} /> Komuniteti Akademik</a>
+              </div>
+              <div className="footer-column">
+                <h3>Burime akademike</h3>
+                <a href={SCIENTIFIC_WORKS_URL} target="_blank" rel="noopener noreferrer"><BookOpen size={15} /> Punime Shkencore</a>
+                <a href={SCIENTIFIC_CONFERENCES_URL} target="_blank" rel="noopener noreferrer"><Globe size={15} /> Konferenca Shkencore</a>
+                <button type="button" onClick={() => scrollToSection("platform-stats")}><Users size={15} /> Pasqyra e komunitetit</button>
+              </div>
+              <div className="footer-column footer-institution">
+                <h3>Institucioni</h3>
+                <p><Building2 size={16} /> Universiteti "Isa Boletini" Mitrovicë</p>
+                <p><Globe size={16} /> Mitrovicë, Kosovë</p>
+                <p><Award size={16} /> UMIBRes 2026</p>
+              </div>
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2026 UMIB. Të gjitha të drejtat e rezervuara.</p>
+            <p>&copy; 2026 Universiteti "Isa Boletini" Mitrovicë. Të gjitha të drejtat e rezervuara.</p>
+            <span>UMIBRes · Research Management Portal</span>
           </div>
         </div>
       </footer>

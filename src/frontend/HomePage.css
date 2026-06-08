@@ -495,23 +495,143 @@
 .umib-homepage-root .btn-navy:hover { background: #253b61; }
 
 /* Footer */
-.umib-homepage-root .main-footer { background: #0f172a; color: white; padding: 80px 0 40px; }
-.umib-homepage-root .footer-content { 
-    display: flex; justify-content: space-between; align-items: flex-start;
-    padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 40px;
+.umib-homepage-root .main-footer {
+    background: #101827;
+    color: #ffffff;
+    padding: 72px 0 28px;
+    border-top: 1px solid rgba(140, 118, 62, 0.22);
 }
-.umib-homepage-root .footer-brand p { opacity: 0.6; margin-top: 16px; line-height: 1.6; }
+.umib-homepage-root .footer-content {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.55fr);
+    gap: 70px;
+    padding-bottom: 44px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+}
+.umib-homepage-root .footer-brand {
+    max-width: 430px;
+}
+.umib-homepage-root .footer-brand-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.umib-homepage-root .footer-logo-mark {
+    width: 62px;
+    height: 62px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
 .umib-homepage-root .footer-logo {
-    height: 58px;
-    width: 58px;
+    height: 48px;
+    width: 48px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
 }
-.umib-homepage-root .footer-links { display: flex; gap: 40px; }
-.umib-homepage-root .footer-links a { color: white; text-decoration: none; opacity: 0.7; font-size: 0.95rem; transition: opacity 0.3s; }
-.umib-homepage-root .footer-links a:hover { opacity: 1; }
-.umib-homepage-root .footer-bottom { text-align: center; opacity: 0.4; font-size: 0.85rem; }
+.umib-homepage-root .footer-brand-head strong {
+    display: block;
+    color: #ffffff;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.75rem;
+    line-height: 1;
+}
+.umib-homepage-root .footer-brand-head span {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.umib-homepage-root .footer-brand p {
+    margin: 0 0 22px;
+    color: rgba(255, 255, 255, 0.68);
+    line-height: 1.72;
+}
+.umib-homepage-root .footer-login-btn {
+    min-height: 44px;
+    border: 1px solid rgba(176, 149, 86, 0.58);
+    border-radius: 8px;
+    background: rgba(140, 118, 62, 0.18);
+    color: #ffffff;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+.umib-homepage-root .footer-login-btn:hover {
+    transform: translateY(-2px);
+    background: var(--gold);
+    border-color: var(--gold);
+}
+.umib-homepage-root .footer-columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 34px;
+}
+.umib-homepage-root .footer-column h3 {
+    margin: 0 0 18px;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.umib-homepage-root .footer-column a,
+.umib-homepage-root .footer-column button,
+.umib-homepage-root .footer-column p {
+    min-height: 28px;
+    margin: 0 0 11px;
+    color: rgba(255, 255, 255, 0.66);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-decoration: none;
+}
+.umib-homepage-root .footer-column button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.umib-homepage-root .footer-column a svg,
+.umib-homepage-root .footer-column button svg,
+.umib-homepage-root .footer-column p svg {
+    color: var(--gold-light);
+    flex: 0 0 auto;
+}
+.umib-homepage-root .footer-column a:hover,
+.umib-homepage-root .footer-column button:hover {
+    color: #ffffff;
+}
+.umib-homepage-root .footer-bottom {
+    padding-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 0.84rem;
+}
+.umib-homepage-root .footer-bottom p {
+    margin: 0;
+}
+.umib-homepage-root .footer-bottom span {
+    color: rgba(255, 255, 255, 0.62);
+    font-weight: 700;
+}
 
 @media (max-width: 1024px) {
     .umib-homepage-root .contact-card { grid-template-columns: 1fr; }
@@ -529,6 +649,13 @@
     }
     .umib-homepage-root .platform-stats-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .umib-homepage-root .footer-content {
+        grid-template-columns: 1fr;
+        gap: 38px;
+    }
+    .umib-homepage-root .footer-brand {
+        max-width: 620px;
     }
 }
 
@@ -565,6 +692,17 @@
     }
     .umib-homepage-root .community-profile-stats strong {
         font-size: 1.06rem;
+    }
+    .umib-homepage-root .main-footer {
+        padding-top: 54px;
+    }
+    .umib-homepage-root .footer-columns {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    .umib-homepage-root .footer-bottom {
+        display: grid;
+        justify-items: start;
     }
     .umib-homepage-root .contact-info, .umib-homepage-root .contact-form { padding: 40px 24px; }
 }
