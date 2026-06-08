@@ -286,9 +286,8 @@ export default function HomePage() {
         <div className="container">
           <div className="community-section-head">
             <div>
-              <span className="section-kicker">Komuniteti Akademik</span>
               <h2>Anëtarët e Komunitetit</h2>
-              <p>Profile akademike që përfaqësojnë stafin dhe rolet që përdorin UMIBRes për evidencë, raportim dhe bashkëpunim shkencor.</p>
+              <p>Profile akademike të përdoruesve të UMIBRes për punë dhe bashkëpunim në kërkime</p>
             </div>
           </div>
 
