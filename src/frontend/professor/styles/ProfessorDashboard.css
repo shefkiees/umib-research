@@ -52,6 +52,11 @@ body {
 /* ===== SIDEBAR ===== */
 .prof-sidebar {
   width: 282px;
+  flex: 0 0 282px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
   min-height: 100vh;
   background: linear-gradient(180deg, #eef4fb 0%, #f6f9fd 100%);
   color: var(--text-dark);
@@ -61,6 +66,8 @@ body {
   padding: 24px 18px;
   border-right: 1px solid #e3e8f0;
   box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .prof-sidebar-top {
@@ -275,7 +282,9 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -4734,10 +4743,23 @@ body {
 @media (max-width: 920px) {
   .prof-layout {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .prof-sidebar {
     width: 100%;
+    flex: none;
+    position: static;
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .prof-main {
+    height: auto;
+    overflow: visible;
   }
 
   .prof-topbar {
