@@ -79,11 +79,18 @@ const metadataReviewStatuses = {
 const metadataReviewFilterOptions = [
   { value: "all", label: "Të gjitha" },
   { value: "issues", label: "Me mungesa" },
-  { value: "missing-doi", label: "Pa DOI" },
+  { value: "missing-doi", label: "Pa DOI / link" },
   { value: "missing-uibm", label: "Pa perkatesi institucionale UIBM" },
   { value: "in_review", label: "Në kontroll" },
   { value: "ready", label: "Gati për aprovim" },
   { value: "correction", label: "Kërkon korrigjim" },
+];
+
+const metadataSortOptions = [
+  { value: "priority", label: "Prioriteti" },
+  { value: "newest", label: "Më të rejat" },
+  { value: "ready", label: "Gati për aprovim" },
+  { value: "title", label: "Titulli A-Z" },
 ];
 
 const standardMetadataChecklistItems = [
@@ -246,6 +253,13 @@ function getRequestType(request = {}) {
   return request.requestType || request.requestData?.requestType || "";
 }
 
+function splitMetadataNames(value) {
+  return String(value || "")
+    .split(/;|\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function normalizeForSearch(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -285,6 +299,22 @@ function getPublicationTypeLabel(value) {
 
 function getPublicationStatusLabel(value) {
   return publicationStatusLabels[value] || value || "-";
+}
+
+function getMetadataItemStatusLabel(item = {}) {
+  if (item.statusLabel || item.status_label) {
+    return item.statusLabel || item.status_label;
+  }
+
+  if (item.sourceType === "reimbursement") {
+    return reimbursementStatusLabels[item.status] || item.status || "-";
+  }
+
+  return getPublicationStatusLabel(item.status);
+}
+
+function getMetadataItemTypeLabel(item = {}) {
+  return item.requestTypeLabel || item.request_type_label || getPublicationTypeLabel(item.publicationType || item.publication_type);
 }
 
 function getPublicationType(publication = {}) {
@@ -334,6 +364,9 @@ function getPublicationEvidenceText(publication = {}) {
   return getPublicationEvidenceItems(publication)
     .map((item) => [
       item?.label,
+      item?.description,
+      item?.documentType,
+      item?.document_type,
       item?.fileType,
       item?.file_type,
       item?.name,
@@ -399,6 +432,10 @@ function getPublicationDocumentUrl(publication) {
   const firstDocument = evidence.find((item) => item?.url || item?.fileUrl || item?.file_url);
 
   return firstDocument?.url || firstDocument?.fileUrl || firstDocument?.file_url || publication?.sourceUrl || publication?.source_url || "";
+}
+
+function hasMetadataIdentifier(publication = {}) {
+  return Boolean(publication.doi || publication.sourceUrl || publication.source_url);
 }
 
 function getConferenceEventValue(publication = {}) {
@@ -475,6 +512,181 @@ function inferChecklistValue(publication, key) {
     default:
       return false;
   }
+}
+
+const reimbursementDocumentTypeLabels = {
+  article_pdf: "Punimi shkencor PDF",
+  uibm_database_evidence: "Deshmia e regjistrimit ne databazen UIBM",
+  acceptance_letter: "Letra e pranimit",
+  conference_program: "Programi i konferences",
+  presentation_evidence: "Deshmi prezantimi",
+  financial_document: "Dokument financiar / fature",
+  other: "Dokument tjeter",
+};
+
+function createMetadataEvidenceItem({ label, value, url, documentType, filename }) {
+  const cleanLabel = String(label || "").trim();
+  const cleanValue = String(value || "").trim();
+  const cleanUrl = String(url || "").trim();
+  const safeUrl = /^(https?:\/\/|\/api\/|\/reimbursements\/|\/publications\/)/i.test(cleanUrl) ? cleanUrl : "";
+
+  if (!cleanValue && !safeUrl && !filename) {
+    return null;
+  }
+
+  return {
+    label: cleanLabel || reimbursementDocumentTypeLabels[documentType] || "Dokument",
+    name: filename || cleanValue || cleanLabel || cleanUrl,
+    description: cleanValue,
+    documentType: documentType || null,
+    document_type: documentType || null,
+    url: safeUrl,
+    fileUrl: safeUrl,
+    file_url: safeUrl,
+  };
+}
+
+function mapReimbursementAttachmentToEvidence(request, attachment = {}) {
+  const documentType = attachment.documentType || attachment.document_type || "";
+  const downloadUrl = attachment.downloadUrl || attachment.url || attachment.fileUrl || attachment.file_url
+    || (attachment.id && request.id ? `/api/reimbursements/${request.id}/attachments/${attachment.id}` : "");
+
+  return createMetadataEvidenceItem({
+    label: reimbursementDocumentTypeLabels[documentType] || documentType || attachment.filename || "Dokument mbeshtetes",
+    value: attachment.filename || documentType,
+    url: downloadUrl,
+    documentType,
+    filename: attachment.filename || attachment.fileName || attachment.file_name || "",
+  });
+}
+
+function mapReimbursementToMetadataItem(request = {}) {
+  const requestType = getRequestType(request);
+
+  if (!["publication", "conference"].includes(requestType)) {
+    return null;
+  }
+
+  const data = request.requestData || {};
+  const isConference = requestType === "conference";
+  const ownerName = request.owner?.name || request.owner?.email || data.applicantName || "";
+  const affiliation = data.affiliation
+    || data.authorsAffiliation
+    || data.applicantFaculty
+    || request.owner?.faculty
+    || request.owner?.department
+    || "";
+  const coauthorNames = splitMetadataNames(data.coauthors || data.coParticipant);
+  const authors = [
+    {
+      fullName: data.mainAuthor || data.bankApplicantName || data.applicantName || ownerName,
+      affiliation,
+    },
+    data.correspondingAuthor ? { fullName: data.correspondingAuthor, affiliation } : null,
+    ...coauthorNames.map((name) => ({ fullName: name, affiliation })),
+  ].filter((author) => author?.fullName);
+  const title = isConference
+    ? (data.abstractTitle || data.conferenceTitle || request.title || "Konference / simpozium")
+    : (data.publicationTitle || data.title || request.title || "Artikull shkencor");
+  const venue = isConference
+    ? (data.conferenceTitle || data.eventName || data.organizer || "")
+    : (data.venue || data.journal || data.publishedIn || data.published_in || data.publisher || "");
+  const sourceUrl = data.publicationLink || data.conferenceLink || data.eventPublicationLink || data.sourceUrl || "";
+  const eventValue = isConference
+    ? [data.conferenceDate || data.eventPlaceDate, data.location || data.conferenceLocation].filter(Boolean).join(" / ")
+    : (data.conferencePresentationDate || data.conferenceLocation || "");
+  const presentationPurpose = [
+    data.speakerWithPaperPoster,
+    data.chairPanelist,
+    data.artisticSportEvent,
+    data.participationType,
+  ].filter(Boolean).join(" / ");
+  const formEvidenceLabel = isConference ? "Formulari 2 i rimbursimit" : "Formulari 1 i rimbursimit";
+  const attachments = Array.isArray(request.attachments) ? request.attachments : [];
+  const evidenceLinks = [
+    createMetadataEvidenceItem({ label: formEvidenceLabel, value: `${formEvidenceLabel} PDF`, url: request.downloadUrl, documentType: "generated_pdf" }),
+    createMetadataEvidenceItem({ label: formEvidenceLabel, value: `${formEvidenceLabel} DOCX`, url: request.docxDownloadUrl, documentType: "generated_docx" }),
+    createMetadataEvidenceItem({ label: "DOI ose link i publikimit", value: data.publicationLink || data.doi, url: data.publicationLink, documentType: "publication_link" }),
+    createMetadataEvidenceItem({ label: "Ftesa dhe programi", value: data.invitationProgram, url: data.invitationProgram, documentType: "conference_program" }),
+    createMetadataEvidenceItem({ label: "Abstrakti / prezantimi", value: data.abstract || data.abstractTitle, documentType: "presentation_evidence" }),
+    createMetadataEvidenceItem({ label: "Konfirmimi i pranimit", value: data.acceptanceConfirmation, url: data.acceptanceConfirmation, documentType: "acceptance_letter" }),
+    createMetadataEvidenceItem({ label: "Deshmia e databazes UIBM", value: data.uibmDatabaseEvidence, url: data.uibmDatabaseEvidence, documentType: "uibm_database_evidence" }),
+    ...attachments.map((attachment) => mapReimbursementAttachmentToEvidence(request, attachment)),
+  ].filter(Boolean);
+  const reviewChecklist = request.metadataReviewChecklist || request.metadata_review_checklist
+    || data.metadataReviewChecklist || data.metadata_review_checklist || {};
+  const reviewStatus = request.metadataReviewStatus || request.metadata_review_status
+    || data.metadataReviewStatus || data.metadata_review_status || "unchecked";
+  const reviewComment = request.metadataReviewComment || request.metadata_review_comment
+    || data.metadataReviewComment || data.metadata_review_comment || "";
+  const reviewHistory = request.reviewHistory || request.review_history
+    || data.metadataReviewHistory || data.metadata_review_history || [];
+
+  return {
+    ...data,
+    id: `reimbursement-${request.id}`,
+    sourceType: "reimbursement",
+    sourceLabel: "Rimbursim",
+    reimbursementId: request.id,
+    owner: request.owner,
+    requestType,
+    requestTypeLabel: request.requestTypeLabel || (isConference ? "Konference / Simpozium" : "Artikull shkencor"),
+    title,
+    doi: data.doi || "",
+    venue,
+    publisher: data.publisher || data.organizer || "",
+    publicationType: isConference ? "conference_paper" : (data.publicationType || "journal_article"),
+    publication_type: isConference ? "conference_paper" : (data.publicationType || "journal_article"),
+    publicationDate: data.publicationDate || data.conferenceDate || data.conferencePresentationDate || request.submittedAt || request.createdAt || "",
+    publication_date: data.publicationDate || data.conferenceDate || data.conferencePresentationDate || request.submittedAt || request.createdAt || "",
+    publicationYear: data.publicationYear || "",
+    publication_year: data.publicationYear || "",
+    sourceUrl,
+    source_url: sourceUrl,
+    conferenceLocation: data.conferenceLocation || data.location || eventValue,
+    conference_location: data.conferenceLocation || data.location || eventValue,
+    eventDate: data.conferenceDate || data.conferencePresentationDate || data.eventPlaceDate || "",
+    event_date: data.conferenceDate || data.conferencePresentationDate || data.eventPlaceDate || "",
+    presentationPurpose,
+    presentation_purpose: presentationPurpose,
+    abstract: data.abstract || data.abstractTitle || "",
+    volume: data.volume || "",
+    issue: data.issue || "",
+    pages: data.pages || "",
+    issn: data.issn || "",
+    isbn: data.isbn || "",
+    indexingPlatform: data.indexingPlatform || "",
+    indexingCategory: data.indexingCategory || "",
+    impactFactor: data.impactFactor || "",
+    scopusQuartile: data.scopusQuartile || "",
+    authors,
+    evidenceLinks,
+    attachments: evidenceLinks,
+    status: request.status,
+    statusLabel: request.statusLabel || reimbursementStatusLabels[request.status] || request.status || "",
+    status_label: request.statusLabel || reimbursementStatusLabels[request.status] || request.status || "",
+    metadataSource: "rimbursim",
+    metadata_source: "rimbursim",
+    metadataVerified: false,
+    metadata_verified: false,
+    metadataReviewStatus: reviewStatus,
+    metadata_review_status: reviewStatus,
+    metadataReviewChecklist: reviewChecklist,
+    metadata_review_checklist: reviewChecklist,
+    metadataReviewComment: reviewComment,
+    metadata_review_comment: reviewComment,
+    reviewHistory,
+    review_history: reviewHistory,
+    documentNumber: request.documentNumber || "",
+    amount: request.amount,
+    currency: request.currency,
+    submittedAt: request.submittedAt,
+    submitted_at: request.submittedAt,
+    updatedAt: request.updatedAt,
+    updated_at: request.updatedAt,
+    createdAt: request.createdAt,
+    created_at: request.createdAt,
+  };
 }
 
 function createDefaultChecklist(publication) {
@@ -594,6 +806,38 @@ function getMetadataReviewInsights(publication = {}, review = createInitialRevie
   };
 }
 
+function getMetadataPriorityScore(publication = {}, review = createInitialReview(publication)) {
+  const insights = getMetadataReviewInsights(publication, review);
+  let score = insights.missing * 12;
+
+  if (!hasMetadataIdentifier(publication)) score += 22;
+  if (!hasUibmAffiliation(publication)) score += 22;
+  if (!getPublicationDocumentUrl(publication)) score += 14;
+  if (review.status === "correction") score += 28;
+  if (review.status === "in_review") score += 10;
+  if (review.status === "ok") score -= 60;
+
+  return score;
+}
+
+function getMetadataPriorityLabel(publication = {}, review = createInitialReview(publication)) {
+  const priority = getMetadataPriorityScore(publication, review);
+
+  if (review.status === "ok") {
+    return { label: "Verifikuar", className: "is-low" };
+  }
+
+  if (priority >= 55) {
+    return { label: "Prioritet i lartë", className: "is-high" };
+  }
+
+  if (priority >= 24) {
+    return { label: "Duhet kontroll", className: "is-medium" };
+  }
+
+  return { label: "Afër aprovimit", className: "is-low" };
+}
+
 function buildMetadataCorrectionComment(publication, review) {
   const insights = getMetadataReviewInsights(publication, review);
 
@@ -664,6 +908,7 @@ export default function CommitteeDashboard() {
   const [metadataError, setMetadataError] = useState("");
   const [selectedMetadataPublication, setSelectedMetadataPublication] = useState(null);
   const [metadataReviewFilter, setMetadataReviewFilter] = useState("all");
+  const [metadataSort, setMetadataSort] = useState("priority");
   const [metadataReviews, setMetadataReviews] = useState(() => {
     try {
       return JSON.parse(window.localStorage.getItem(METADATA_REVIEW_STORAGE_KEY) || "{}");
@@ -848,13 +1093,39 @@ export default function CommitteeDashboard() {
     });
   }, [normalizedQuery, pendingSubmissions]);
 
+  const reimbursementMetadataItems = useMemo(() =>
+    reviewRequests
+      .map((request) => mapReimbursementToMetadataItem(request))
+      .filter(Boolean),
+  [reviewRequests]);
+
+  const metadataQueueItems = useMemo(() => [
+    ...metadataPublications.map((publication) => ({
+      ...publication,
+      sourceType: publication.sourceType || "publication",
+      sourceLabel: publication.sourceLabel || "Publikim",
+    })),
+    ...reimbursementMetadataItems,
+  ], [metadataPublications, reimbursementMetadataItems]);
+
+  useEffect(() => {
+    if (!reimbursementMetadataItems.length) {
+      return;
+    }
+
+    setMetadataReviews((prev) => reimbursementMetadataItems.reduce((reviews, item) => ({
+      ...reviews,
+      [item.id]: mapMetadataReviewFromPublication(item),
+    }), prev));
+  }, [reimbursementMetadataItems]);
+
   const filteredMetadataPublications = useMemo(() => {
-    const filteredByReview = metadataPublications.filter((item) => {
-      const review = metadataReviews[item.id] || createInitialReview(item);
+    const filteredByReview = metadataQueueItems.filter((item) => {
+      const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
       const completeness = getReviewCompleteness(review, item);
 
-      if (metadataReviewFilter === "issues") return !item.doi || !hasUibmAffiliation(item) || !completeness.isComplete;
-      if (metadataReviewFilter === "missing-doi") return !item.doi;
+      if (metadataReviewFilter === "issues") return !hasMetadataIdentifier(item) || !hasUibmAffiliation(item) || !completeness.isComplete;
+      if (metadataReviewFilter === "missing-doi") return !hasMetadataIdentifier(item);
       if (metadataReviewFilter === "missing-uibm") return !hasUibmAffiliation(item);
       if (metadataReviewFilter === "in_review") return review.status === "in_review";
       if (metadataReviewFilter === "ready") return review.status === "ok" || completeness.isComplete;
@@ -862,39 +1133,82 @@ export default function CommitteeDashboard() {
       return true;
     });
 
-    if (!normalizedQuery) {
-      return filteredByReview;
-    }
+    const filteredBySearch = normalizedQuery
+      ? filteredByReview.filter((item) => {
+        const authorsText = getPublicationAuthors(item)
+          .map((author) => `${getAuthorName(author)} ${getAuthorAffiliation(author)}`)
+          .join(" ");
+        const row = [
+          item.title,
+          item.doi,
+          item.venue,
+          item.publisher,
+          item.publicationType,
+          item.publication_type,
+          item.requestTypeLabel,
+          item.sourceLabel,
+          item.publicationYear,
+          item.publication_year,
+          item.status,
+          getMetadataItemStatusLabel(item),
+          getMetadataStatus(item),
+          item.owner?.name,
+          item.owner?.email,
+          item.owner?.faculty,
+          authorsText,
+        ].filter(Boolean).join(" ");
 
-    return filteredByReview.filter((item) => {
-      const authorsText = getPublicationAuthors(item)
-        .map((author) => `${getAuthorName(author)} ${getAuthorAffiliation(author)}`)
-        .join(" ");
-      const row = [
-        item.title,
-        item.doi,
-        item.venue,
-        item.publisher,
-        item.publicationType,
-        item.publication_type,
-        item.publicationYear,
-        item.publication_year,
-        item.status,
-        getPublicationStatusLabel(item.status),
-        getMetadataStatus(item),
-        authorsText,
-      ].filter(Boolean).join(" ");
+        return normalizeForSearch(row).includes(normalizedQuery);
+      })
+      : filteredByReview;
 
-      return normalizeForSearch(row).includes(normalizedQuery);
+    return [...filteredBySearch].sort((first, second) => {
+      const firstReview = metadataReviews[first.id] || mapMetadataReviewFromPublication(first);
+      const secondReview = metadataReviews[second.id] || mapMetadataReviewFromPublication(second);
+
+      if (metadataSort === "newest") {
+        return getDateTimestamp(second.updatedAt || second.updated_at || second.createdAt || second.created_at || second.publicationDate || second.publication_date)
+          - getDateTimestamp(first.updatedAt || first.updated_at || first.createdAt || first.created_at || first.publicationDate || first.publication_date);
+      }
+
+      if (metadataSort === "ready") {
+        return getMetadataReviewInsights(second, secondReview).score - getMetadataReviewInsights(first, firstReview).score;
+      }
+
+      if (metadataSort === "title") {
+        return String(first.title || "").localeCompare(String(second.title || ""), "sq");
+      }
+
+      return getMetadataPriorityScore(second, secondReview) - getMetadataPriorityScore(first, firstReview);
     });
-  }, [metadataPublications, metadataReviewFilter, metadataReviews, normalizedQuery]);
+  }, [metadataQueueItems, metadataReviewFilter, metadataReviews, metadataSort, normalizedQuery]);
 
-  const metadataSummary = useMemo(() => ({
-    total: metadataPublications.length,
-    verified: metadataPublications.filter((item) => metadataReviews[item.id]?.status === "ok").length,
-    missingDoi: metadataPublications.filter((item) => !item.doi).length,
-    missingUibm: metadataPublications.filter((item) => !hasUibmAffiliation(item)).length,
-  }), [metadataPublications, metadataReviews]);
+  const metadataSummary = useMemo(() => {
+    const reviewRows = metadataQueueItems.map((item) => {
+      const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
+      const completeness = getReviewCompleteness(review, item);
+      const insights = getMetadataReviewInsights(item, review);
+
+      return { item, review, completeness, insights };
+    });
+    const totalReadiness = reviewRows.reduce((total, row) => total + row.insights.score, 0);
+
+    return {
+      total: metadataQueueItems.length,
+      verified: reviewRows.filter((row) => row.review.status === "ok").length,
+      inReview: reviewRows.filter((row) => row.review.status === "in_review").length,
+      correction: reviewRows.filter((row) => row.review.status === "correction").length,
+      issues: reviewRows.filter((row) => !hasMetadataIdentifier(row.item) || !hasUibmAffiliation(row.item) || !row.completeness.isComplete).length,
+      missingDoi: reviewRows.filter((row) => !hasMetadataIdentifier(row.item)).length,
+      missingUibm: reviewRows.filter((row) => !hasUibmAffiliation(row.item)).length,
+      averageReadiness: reviewRows.length ? Math.round(totalReadiness / reviewRows.length) : 0,
+    };
+  }, [metadataQueueItems, metadataReviews]);
+
+  const metadataQueueHighlight = useMemo(() => filteredMetadataPublications.find((item) => {
+    const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
+    return review.status !== "ok";
+  }) || filteredMetadataPublications[0] || null, [filteredMetadataPublications, metadataReviews]);
 
   const committeeUnitStats = useMemo(() => {
     const unitMap = new Map();
@@ -978,9 +1292,9 @@ export default function CommitteeDashboard() {
         source: "Rimbursim",
       }));
 
-    const metadataRows = metadataPublications
+    const metadataRows = metadataQueueItems
       .map((item) => {
-        const review = metadataReviews[item.id] || createInitialReview(item);
+        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
         const statusConfig = getReviewStatusConfig(review.status);
         const authors = getPublicationAuthors(item)
           .map((author) => getAuthorName(author))
@@ -990,13 +1304,13 @@ export default function CommitteeDashboard() {
         return {
           id: item.id,
           title: item.title || item.doi || "Publikim pa titull",
-          category: getPublicationTypeLabel(item.publicationType || item.publication_type),
-          actor: authors || "-",
+          category: getMetadataItemTypeLabel(item),
+          actor: item.sourceType === "reimbursement" ? (item.owner?.name || item.owner?.email || authors || "-") : (authors || "-"),
           unit: item.venue || item.publisher || "-",
           status: statusConfig.label,
           statusKey: review.status,
           date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
-          source: "Metadata",
+          source: item.sourceType === "reimbursement" ? "Metadata / Rimbursim" : "Metadata",
         };
       })
       .filter((item) => item.statusKey !== "unchecked");
@@ -1020,7 +1334,7 @@ export default function CommitteeDashboard() {
         item.source,
       ].filter(Boolean).join(" ")).includes(normalizedQuery)
     );
-  }, [metadataPublications, metadataReviews, normalizedQuery, reviewRequests]);
+  }, [metadataQueueItems, metadataReviews, normalizedQuery, reviewRequests]);
 
   const decisionSummary = useMemo(() => ({
     total: committeeDecisionRows.length,
@@ -1033,13 +1347,16 @@ export default function CommitteeDashboard() {
     pending: pendingSubmissions.length,
     inReview: reviewRequests.filter((item) => ["received", "in_review"].includes(item.status)).length,
     corrections: reviewRequests.filter((item) => item.status === "needs_correction").length
-      + metadataPublications.filter((item) => (metadataReviews[item.id] || createInitialReview(item)).status === "correction").length,
-    metadataIssues: metadataPublications.filter((item) => {
-      const review = metadataReviews[item.id] || createInitialReview(item);
+      + metadataQueueItems.filter((item) =>
+        item.sourceType !== "reimbursement"
+        && (metadataReviews[item.id] || mapMetadataReviewFromPublication(item)).status === "correction"
+      ).length,
+    metadataIssues: metadataQueueItems.filter((item) => {
+      const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
       const completeness = getReviewCompleteness(review, item);
-      return !item.doi || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
+      return !hasMetadataIdentifier(item) || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
     }).length,
-  }), [metadataPublications, metadataReviews, pendingSubmissions.length, reviewRequests]);
+  }), [metadataQueueItems, metadataReviews, pendingSubmissions.length, reviewRequests]);
 
   const recentDashboardRows = useMemo(() => {
     const activeRequests = reviewRequests
@@ -1054,21 +1371,21 @@ export default function CommitteeDashboard() {
         date: item.updatedAt || item.submittedAt || item.createdAt,
       }));
 
-    const metadataIssues = metadataPublications
+    const metadataIssues = metadataQueueItems
       .filter((item) => {
-        const review = metadataReviews[item.id] || createInitialReview(item);
+        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
         const completeness = getReviewCompleteness(review, item);
-        return !item.doi || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
+        return !hasMetadataIdentifier(item) || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
       })
       .map((item) => {
-        const review = metadataReviews[item.id] || createInitialReview(item);
+        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
         const statusConfig = getReviewStatusConfig(review.status);
 
         return {
           id: item.id,
           title: item.title || item.doi || "Publikim pa titull",
-          type: getPublicationTypeLabel(item.publicationType || item.publication_type),
-          owner: getPublicationAuthors(item).map((author) => getAuthorName(author)).filter(Boolean).join(", ") || "-",
+          type: getMetadataItemTypeLabel(item),
+          owner: item.owner?.name || item.owner?.email || getPublicationAuthors(item).map((author) => getAuthorName(author)).filter(Boolean).join(", ") || "-",
           status: statusConfig.label,
           statusKey: review.status,
           date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
@@ -1078,7 +1395,7 @@ export default function CommitteeDashboard() {
     return [...activeRequests, ...metadataIssues]
       .sort((first, second) => getDateTimestamp(second.date) - getDateTimestamp(first.date))
       .slice(0, 6);
-  }, [metadataPublications, metadataReviews, reviewRequests]);
+  }, [metadataQueueItems, metadataReviews, reviewRequests]);
 
   const generatedNotifications = useMemo(() => {
     const rows = [];
@@ -1097,7 +1414,7 @@ export default function CommitteeDashboard() {
       rows.push({
         id: "metadata-issues",
         category: "Metadata",
-        title: `${dashboardSummary.metadataIssues} publikime kërkojnë kontroll`,
+        title: `${dashboardSummary.metadataIssues} raste kërkojnë kontroll metadata`,
         description: "Kontrollo DOI, affiliation, dokumente dhe checklist para vendimit.",
         createdAt: "Tani",
       });
@@ -1131,7 +1448,7 @@ export default function CommitteeDashboard() {
   }, [generatedNotifications]);
 
   const getReviewForPublication = (publication) =>
-    metadataReviews[publication.id] || createInitialReview(publication);
+    metadataReviews[publication.id] || mapMetadataReviewFromPublication(publication);
 
   const auditRows = useMemo(() => {
     const reimbursementRows = reviewRequests.flatMap((request) => {
@@ -1159,7 +1476,7 @@ export default function CommitteeDashboard() {
       }));
     });
 
-    const metadataRows = metadataPublications.flatMap((publication) => {
+    const metadataRows = metadataQueueItems.flatMap((publication) => {
       const review = getReviewForPublication(publication);
       const history = Array.isArray(review.history) && review.history.length
         ? review.history
@@ -1202,7 +1519,7 @@ export default function CommitteeDashboard() {
         item.note,
       ].join(" ")).includes(normalizedQuery)
     );
-  }, [getReviewForPublication, metadataPublications, normalizedQuery, reviewRequests]);
+  }, [getReviewForPublication, metadataQueueItems, normalizedQuery, reviewRequests]);
 
   const syncPendingSubmissionStatus = (updatedRequest) => {
     if (!updatedRequest?.id) {
@@ -1264,43 +1581,68 @@ export default function CommitteeDashboard() {
     }));
   };
 
+  const persistMetadataReviewDraft = async (publication, review, fallbackComment = "") => {
+    try {
+      await sendMetadataReview(publication, {
+        status: review.status || "in_review",
+        comment: review.comment || fallbackComment || "",
+        checklist: review.checklist || createDefaultChecklist(publication),
+      });
+    } catch (error) {
+      setCorrectionError(error.message || "Ndryshimet e checklist nuk u ruajten ne server.");
+    }
+  };
+
   const toggleChecklistItem = (publication, key) => {
-    saveMetadataReview(publication, (current) => ({
-      checklist: {
-        ...current.checklist,
-        [key]: !current.checklist?.[key],
-      },
-      status: current.status === "unchecked" ? "in_review" : current.status,
-    }));
+    const current = getReviewForPublication(publication);
+    const nextChecklist = {
+      ...current.checklist,
+      [key]: !current.checklist?.[key],
+    };
+    const nextIsComplete = getMetadataChecklistItems(publication).every((item) => nextChecklist[item.key]);
+    const nextStatus = current.status === "unchecked" || (current.status === "ok" && !nextIsComplete)
+      ? "in_review"
+      : current.status;
+    const nextReview = {
+      checklist: nextChecklist,
+      status: nextStatus,
+      comment: current.comment || "",
+      history: current.history || [],
+    };
+
+    saveMetadataReview(publication, nextReview);
     setCorrectionError("");
+    persistMetadataReviewDraft(publication, nextReview);
   };
 
   const autoFillMetadataChecklist = (publication) => {
     const autoChecklist = createDefaultChecklist(publication);
+    const current = getReviewForPublication(publication);
+    const nextChecklist = getMetadataChecklistItems(publication).reduce((items, item) => ({
+      ...items,
+      [item.key]: Boolean(current.checklist?.[item.key] || autoChecklist[item.key]),
+    }), {});
+    const nextStatus = current.status === "unchecked" ? "in_review" : current.status;
+    const nextReview = {
+      checklist: nextChecklist,
+      status: nextStatus,
+      comment: current.comment || "",
+      history: [
+        {
+          id: `${Date.now()}-autofill`,
+          actor: committeeProfile.name || committeeProfile.email || "Komisioni",
+          status: nextStatus,
+          statusLabel: "Auto plotësim",
+          comment: "Checklist u plotësua nga metadata dhe dokumentet e gjetura.",
+          createdAt: new Date().toISOString(),
+        },
+        ...(current.history || []),
+      ],
+    };
 
-    saveMetadataReview(publication, (current) => {
-      const nextChecklist = getMetadataChecklistItems(publication).reduce((items, item) => ({
-        ...items,
-        [item.key]: Boolean(current.checklist?.[item.key] || autoChecklist[item.key]),
-      }), {});
-
-      return {
-        checklist: nextChecklist,
-        status: current.status === "unchecked" ? "in_review" : current.status,
-        history: [
-          {
-            id: `${Date.now()}-autofill`,
-            actor: committeeProfile.name || committeeProfile.email || "Komisioni",
-            status: current.status === "unchecked" ? "in_review" : current.status,
-            statusLabel: "Auto plotësim",
-            comment: "Checklist u plotësua nga metadata dhe dokumentet e gjetura.",
-            createdAt: new Date().toISOString(),
-          },
-          ...(current.history || []),
-        ],
-      };
-    });
+    saveMetadataReview(publication, nextReview);
     setCorrectionError("");
+    persistMetadataReviewDraft(publication, nextReview, "Checklist u plotesua nga metadata dhe dokumentet e gjetura.");
   };
 
   const fillSuggestedCorrectionComment = (publication) => {
@@ -1312,19 +1654,46 @@ export default function CommitteeDashboard() {
   };
 
   const openMetadataDrawer = (publication, mode = "details") => {
+    const currentReview = getReviewForPublication(publication);
+
     setSelectedMetadataPublication(publication);
     setMetadataDrawerMode(mode);
-    setCorrectionComment(getReviewForPublication(publication).comment || "");
+    setCorrectionComment(currentReview.comment || "");
     setCorrectionError("");
 
-    if (getReviewForPublication(publication).status === "unchecked") {
+    if (currentReview.status === "unchecked") {
       addMetadataHistory(publication, "in_review", "Kontrolli i metadata-s u hap nga Komisioni.");
+      persistMetadataReviewDraft(publication, {
+        ...currentReview,
+        status: "in_review",
+        checklist: currentReview.checklist || createDefaultChecklist(publication),
+      }, "Kontrolli i metadata-s u hap nga Komisioni.");
     }
   };
 
   const syncMetadataReviewResponse = (publication, data) => {
-    const updatedPublication = data?.data || publication;
+    const updatedPublication = publication.sourceType === "reimbursement"
+      ? (mapReimbursementToMetadataItem(data?.data) || publication)
+      : (data?.data || publication);
     const nextReview = mapMetadataReviewFromPublication(updatedPublication);
+
+    if (publication.sourceType === "reimbursement") {
+      const updatedRequest = data?.data;
+
+      if (updatedRequest?.id) {
+        syncPendingSubmissionStatus(updatedRequest);
+      }
+
+      setSelectedMetadataPublication((current) =>
+        current?.id === publication.id ? updatedPublication : current
+      );
+      setMetadataReviews((prev) => ({
+        ...prev,
+        [updatedPublication.id]: nextReview,
+      }));
+      setCorrectionComment(nextReview.comment || "");
+      return;
+    }
 
     setMetadataPublications((prev) =>
       prev.map((item) => (item.id === updatedPublication.id ? updatedPublication : item))
@@ -1340,7 +1709,10 @@ export default function CommitteeDashboard() {
   };
 
   const sendMetadataReview = async (publication, payload) => {
-    const response = await fetch(apiUrl(`/publications/${publication.id}/metadata-review`), {
+    const endpoint = publication.sourceType === "reimbursement"
+      ? `/reimbursements/${publication.reimbursementId}/metadata-review`
+      : `/publications/${publication.id}/metadata-review`;
+    const response = await fetch(apiUrl(endpoint), {
       method: "PATCH",
       credentials: "include",
       headers: {
@@ -1661,23 +2033,35 @@ export default function CommitteeDashboard() {
   const renderMetadata = () => (
     <section className="committee-page-card committee-stats-only-card committee-metadata-section">
       <div className="committee-page-head committee-metadata-head">
-        <div>
-          <h3>Metadata e publikimeve</h3>
-          <p>Review queue per kontrollin akademik te DOI, autoreve, affiliation dhe dokumenteve.</p>
+        <div className="committee-metadata-title-block">
+          <span className="committee-api-chip">Të dhëna reale</span>
+          <h3>Qendra e Verifikimit të Metadatave</h3>
+          <p>Workflow profesional për kontrollin akademik të DOI, autorëve, affiliation UIBM, burimeve dhe dokumenteve mbështetëse.</p>
         </div>
-        <label className="committee-metadata-filter">
-          <span>Filtro queue</span>
-          <select value={metadataReviewFilter} onChange={(event) => setMetadataReviewFilter(event.target.value)}>
-            {metadataReviewFilterOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        {metadataQueueHighlight ? (() => {
+          const highlightReview = getReviewForPublication(metadataQueueHighlight);
+          const highlightPriority = getMetadataPriorityLabel(metadataQueueHighlight, highlightReview);
+          const highlightInsights = getMetadataReviewInsights(metadataQueueHighlight, highlightReview);
+
+          return (
+            <aside className="committee-metadata-focus-card">
+              <span>Rasti prioritar</span>
+              <strong>{metadataQueueHighlight.title || metadataQueueHighlight.doi || "Publikim pa titull"}</strong>
+              <div>
+                <small className={highlightPriority.className}>{highlightPriority.label}</small>
+                <small>{highlightInsights.score}% gati</small>
+              </div>
+              <button type="button" onClick={() => openMetadataDrawer(metadataQueueHighlight, "details")}>
+                Hape kontrollin
+              </button>
+            </aside>
+          );
+        })() : null}
       </div>
 
       <div className="committee-metadata-summary">
         <article>
-          <span>Publikime</span>
+          <span>Total raste</span>
           <strong>{metadataSummary.total}</strong>
         </article>
         <article>
@@ -1685,13 +2069,62 @@ export default function CommitteeDashboard() {
           <strong>{metadataSummary.verified}</strong>
         </article>
         <article>
-          <span>Pa DOI</span>
-          <strong>{metadataSummary.missingDoi}</strong>
+          <span>Në kontroll</span>
+          <strong>{metadataSummary.inReview}</strong>
         </article>
         <article>
-          <span>Pa perkatesi institucionale UIBM</span>
-          <strong>{metadataSummary.missingUibm}</strong>
+          <span>Korrigjim</span>
+          <strong>{metadataSummary.correction}</strong>
         </article>
+        <article>
+          <span>Me mungesa</span>
+          <strong>{metadataSummary.issues}</strong>
+        </article>
+        <article className="committee-metadata-readiness-card">
+          <span>Gatishmëria mesatare</span>
+          <strong>{metadataSummary.averageReadiness}%</strong>
+          <div className="committee-metadata-summary-progress" aria-hidden="true">
+            <i style={{ width: `${metadataSummary.averageReadiness}%` }} />
+          </div>
+        </article>
+      </div>
+
+      <div className="committee-metadata-workbench">
+        <label className="committee-metadata-search">
+          <span>Kërko në metadata</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Titull, DOI, autor, journal, status..."
+          />
+        </label>
+        <div className="committee-metadata-chip-group" aria-label="Filtro queue">
+          {metadataReviewFilterOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={metadataReviewFilter === option.value ? "is-active" : ""}
+              onClick={() => setMetadataReviewFilter(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <label className="committee-metadata-filter">
+          <span>Rendit sipas</span>
+          <select value={metadataSort} onChange={(event) => setMetadataSort(event.target.value)}>
+            {metadataSortOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="committee-metadata-results-bar">
+        <span><strong>{filteredMetadataPublications.length}</strong> raste në listën aktuale</span>
+        <span>Pa DOI/link: <strong>{metadataSummary.missingDoi}</strong></span>
+        <span>Pa UIBM: <strong>{metadataSummary.missingUibm}</strong></span>
       </div>
 
       {metadataError ? <p className="committee-empty" role="alert">{metadataError}</p> : null}
@@ -1727,16 +2160,23 @@ export default function CommitteeDashboard() {
                 const completeness = getReviewCompleteness(review, item);
                 const insights = getMetadataReviewInsights(item, review);
                 const documentUrl = getPublicationDocumentUrl(item);
+                const priority = getMetadataPriorityLabel(item, review);
 
                 return (
-                  <tr key={item.id}>
+                  <tr key={item.id} className={priority.className === "is-high" ? "is-priority" : ""}>
                     <td>
+                      <span className={`committee-metadata-source-chip ${item.sourceType === "reimbursement" ? "is-reimbursement" : ""}`}>
+                        {item.sourceLabel || "Publikim"}
+                      </span>
                       <strong className="committee-metadata-title">{item.title || "Pa titull"}</strong>
-                      <span className="committee-metadata-muted">{getPublicationTypeLabel(item.publicationType || item.publication_type)}</span>
+                      <span className="committee-metadata-muted">{getMetadataItemTypeLabel(item)}</span>
+                      <span className={`committee-metadata-priority ${priority.className}`}>{priority.label}</span>
                     </td>
                     <td>
                       {item.doi ? (
                         <a href={`https://doi.org/${item.doi}`} target="_blank" rel="noreferrer">{item.doi}</a>
+                      ) : item.sourceUrl || item.source_url ? (
+                        <a href={item.sourceUrl || item.source_url} target="_blank" rel="noreferrer">Link burimor</a>
                       ) : (
                         <span className="committee-metadata-warning">Mungon</span>
                       )}
@@ -1746,7 +2186,7 @@ export default function CommitteeDashboard() {
                       <span className="committee-metadata-muted">{item.publicationYear || item.publication_year || formatDate(item.publicationDate || item.publication_date)}</span>
                     </td>
                     <td>
-                      <strong>{getAuthorName(firstAuthor) || "-"}</strong>
+                      <strong>{item.sourceType === "reimbursement" ? (item.owner?.name || item.owner?.email || getAuthorName(firstAuthor) || "-") : (getAuthorName(firstAuthor) || "-")}</strong>
                       <span className={hasUibm ? "committee-metadata-ok" : "committee-metadata-warning"}>
                         {hasUibm ? "Perkatesia institucionale UIBM OK" : "Perkatesia institucionale UIBM mungon"}
                       </span>
@@ -1755,7 +2195,7 @@ export default function CommitteeDashboard() {
                       <span className={`committee-metadata-badge ${item.metadataVerified || item.metadata_verified ? "is-ok" : "is-warning"}`}>
                         {getMetadataStatus(item)}
                       </span>
-                      <span className="committee-metadata-muted">{getPublicationStatusLabel(item.status)}</span>
+                      <span className="committee-metadata-muted">{getMetadataItemStatusLabel(item)}</span>
                     </td>
                     <td>
                       <span className={`committee-review-badge ${reviewStatus.className}`} title={reviewStatus.description}>
@@ -1770,6 +2210,10 @@ export default function CommitteeDashboard() {
                     </td>
                     <td>
                       <div className="committee-metadata-actions">
+                        <button type="button" className="committee-details-btn" onClick={() => autoFillMetadataChecklist(item)} disabled={insights.isReady}>
+                          <CheckCircle2 size={14} />
+                          Auto
+                        </button>
                         <button type="button" className="committee-details-btn" onClick={() => openMetadataDrawer(item, "details")}>
                           <Eye size={14} />
                           Detaje
@@ -1794,8 +2238,8 @@ export default function CommitteeDashboard() {
 
       {!isMetadataLoading && !metadataError && filteredMetadataPublications.length === 0 ? (
         <div className="committee-metadata-empty">
-          <strong>Nuk ka publikime per filtrin aktual.</strong>
-          <span>Ndrysho filtrin ose kerko me titull, DOI, autor apo status.</span>
+          <strong>Nuk ka raste per filtrin aktual.</strong>
+          <span>Ndrysho filtrin ose kerko me titull, DOI, aplikues, autor apo status.</span>
         </div>
       ) : null}
 
@@ -1807,6 +2251,7 @@ export default function CommitteeDashboard() {
         const selectedInsights = getMetadataReviewInsights(selectedMetadataPublication, selectedReview);
         const selectedDocumentUrl = getPublicationDocumentUrl(selectedMetadataPublication);
         const selectedAuthors = getPublicationAuthors(selectedMetadataPublication);
+        const selectedEvidenceItems = getPublicationEvidenceItems(selectedMetadataPublication);
         const selectedChecklistItems = getMetadataChecklistItems(selectedMetadataPublication);
         const groupedChecklistItems = selectedChecklistItems.reduce((groups, item) => {
           const category = item.category || "Kontrolli baze";
@@ -1833,13 +2278,13 @@ export default function CommitteeDashboard() {
                     {selectedStatus.label}
                   </span>
                   <h4>{selectedMetadataPublication.title || "Pa titull"}</h4>
-                  <p>{selectedMetadataPublication.doi || "Pa DOI"}</p>
+                  <p>{selectedMetadataPublication.doi || selectedMetadataPublication.sourceUrl || selectedMetadataPublication.source_url || "Pa DOI / link"}</p>
                 </div>
                 <button type="button" onClick={() => setSelectedMetadataPublication(null)} aria-label="Mbyll detajet">x</button>
               </div>
 
               <div className="committee-review-quick-summary">
-                <span>Statusi: <strong>{getPublicationStatusLabel(selectedMetadataPublication.status)}</strong></span>
+                <span>Statusi: <strong>{getMetadataItemStatusLabel(selectedMetadataPublication)}</strong></span>
                 <span>Checklist: <strong>{selectedCompleteness.checkedCount}/{selectedCompleteness.total}</strong></span>
                 <span>Tipi: <strong>{getChecklistTypeLabel(selectedMetadataPublication)}</strong></span>
                 <span>UIBM: <strong className={hasUibmAffiliation(selectedMetadataPublication) ? "is-ok" : "is-warning"}>
@@ -1950,7 +2395,7 @@ export default function CommitteeDashboard() {
               <section className="committee-review-panel committee-metadata-compact-panel">
                 <h5>Metadata</h5>
                 <dl className="committee-metadata-detail-grid">
-                  <div><dt>Tipi</dt><dd>{getPublicationTypeLabel(selectedMetadataPublication.publicationType || selectedMetadataPublication.publication_type)}</dd></div>
+                  <div><dt>Tipi</dt><dd>{getMetadataItemTypeLabel(selectedMetadataPublication)}</dd></div>
                   <div><dt>Journal / Konferenca</dt><dd>{selectedMetadataPublication.venue || "-"}</dd></div>
                   <div><dt>Vendi i konferences</dt><dd>{selectedMetadataPublication.conferenceLocation || selectedMetadataPublication.conference_location || "-"}</dd></div>
                   <div><dt>Data/vendi i ngjarjes</dt><dd>{getConferenceEventValue(selectedMetadataPublication) || "-"}</dd></div>
@@ -1964,6 +2409,45 @@ export default function CommitteeDashboard() {
                   <div><dt>Autoret</dt><dd>{selectedAuthors.map((author, index) => getAuthorName(author) || `Autori ${index + 1}`).join(", ") || "-"}</dd></div>
                   <div><dt>Perkatesia institucionale UIBM</dt><dd>{hasUibmAffiliation(selectedMetadataPublication) ? "Po" : "Jo"}</dd></div>
                 </dl>
+              </section>
+
+              <section className="committee-review-panel committee-metadata-documents-panel">
+                <div className="committee-review-panel-head">
+                  <h5>Dokumentet</h5>
+                  <span>{selectedEvidenceItems.length} evidenca</span>
+                </div>
+                {selectedEvidenceItems.length ? (
+                  <div className="committee-metadata-document-list">
+                    {selectedEvidenceItems.map((document, index) => {
+                      const documentUrl = document.url || document.fileUrl || document.file_url;
+                      const documentLabel = document.label || document.name || document.filename || `Dokument ${index + 1}`;
+
+                      return documentUrl ? (
+                        <button
+                          type="button"
+                          key={`${documentLabel}-${index}`}
+                          onClick={() => window.open(documentUrl, "_blank", "noopener,noreferrer")}
+                        >
+                          <FileText size={15} />
+                          <span>
+                            <strong>{documentLabel}</strong>
+                            <small>{document.name || document.description || "Hap dokumentin"}</small>
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="committee-metadata-document-note" key={`${documentLabel}-${index}`}>
+                          <FileText size={15} />
+                          <span>
+                            <strong>{documentLabel}</strong>
+                            <small>{document.name || document.description || "Evidencë tekstuale nga formulari"}</small>
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="committee-history-empty">Nuk ka dokumente ose evidenca te lidhura me kete rast.</p>
+                )}
               </section>
 
               {metadataDrawerMode === "compare" ? (
@@ -2003,7 +2487,12 @@ export default function CommitteeDashboard() {
               </section>
 
               <div className="committee-review-action-bar">
-                <button type="button" className="is-primary" onClick={() => markMetadataOk(selectedMetadataPublication)}>
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={() => markMetadataOk(selectedMetadataPublication)}
+                  disabled={!selectedCompleteness.isComplete}
+                >
                   <CheckCircle2 size={16} />
                   Metadata OK
                 </button>

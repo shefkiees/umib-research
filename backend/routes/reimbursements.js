@@ -28,6 +28,8 @@ const VALID_REIMBURSEMENT_STATUSES = new Set([
   "paid",
 ]);
 
+const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
+
 const STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -42,6 +44,13 @@ const STATUS_LABELS = {
 
 const COMMITTEE_APPROVAL_EVENT_NOTE = "Kërkesa u aprovua nga komisioni.";
 const COMMITTEE_APPROVAL_EMAIL_SUBJECT = "Përditësim mbi kërkesën tuaj – UMIB";
+
+const METADATA_REVIEW_STATUS_LABELS = {
+  unchecked: "Pa kontrolluar",
+  in_review: "Ne kontroll",
+  ok: "Metadata OK",
+  correction: "Kerkohet korrigjim",
+};
 
 const ROLE_LABELS = {
   professor: "Profesor",
@@ -150,6 +159,23 @@ function normalizeText(value) {
 function normalizeRole(value) {
   const normalized = normalizeText(value).toLowerCase().replace(/[\s_-]+/g, "");
   return ROLE_ALIASES[normalized] || normalized;
+}
+
+function normalizeMetadataReviewChecklist(value = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return Object.entries(source).reduce((checklist, [key, checked]) => {
+    const normalizedKey = normalizeText(key);
+
+    if (!normalizedKey) {
+      return checklist;
+    }
+
+    return {
+      ...checklist,
+      [normalizedKey]: Boolean(checked),
+    };
+  }, {});
 }
 
 function getActorName(actor) {
@@ -1224,6 +1250,14 @@ function mapReimbursementRow(row) {
     docxDownloadUrl: `/api/reimbursements/${row.id}/docx`,
     statusHistory: normalizeStatusHistory(row.status_history || []),
     attachments: normalizeAttachments(row.attachments || []),
+    metadataReviewStatus: requestData.metadataReviewStatus || requestData.metadata_review_status || "unchecked",
+    metadata_review_status: requestData.metadataReviewStatus || requestData.metadata_review_status || "unchecked",
+    metadataReviewChecklist: requestData.metadataReviewChecklist || requestData.metadata_review_checklist || {},
+    metadata_review_checklist: requestData.metadataReviewChecklist || requestData.metadata_review_checklist || {},
+    metadataReviewComment: requestData.metadataReviewComment || requestData.metadata_review_comment || "",
+    metadata_review_comment: requestData.metadataReviewComment || requestData.metadata_review_comment || "",
+    reviewHistory: requestData.metadataReviewHistory || requestData.metadata_review_history || [],
+    review_history: requestData.metadataReviewHistory || requestData.metadata_review_history || [],
     requestData,
   };
 }
@@ -2443,6 +2477,112 @@ router.get("/:id/history", requireAuthenticatedUser, async (req, res) => {
   } catch (error) {
     console.error("GET /api/reimbursements/:id/history failed:", error);
     res.status(500).json({ error: "history_failed" });
+  }
+});
+
+router.patch("/:id/metadata-review", requireAuthenticatedUser, async (req, res) => {
+  const actor = await loadCurrentUser(req.user.id);
+
+  if (!actor || !canManageReimbursements(actor)) {
+    res.status(403).json({ error: "forbidden", message: "Vetem komisioni, prorektori ose admini mund te kontrolloje metadata." });
+    return;
+  }
+
+  const status = normalizeText(req.body?.status || req.body?.metadataReviewStatus || req.body?.metadata_review_status);
+  const comment = normalizeText(req.body?.comment || req.body?.metadataReviewComment || req.body?.metadata_review_comment);
+  const checklist = normalizeMetadataReviewChecklist(req.body?.checklist || req.body?.metadataReviewChecklist || req.body?.metadata_review_checklist);
+
+  if (!VALID_METADATA_REVIEW_STATUSES.has(status)) {
+    res.status(400).json({ error: "invalid_metadata_review_status", message: "Statusi i metadata-s nuk eshte valid." });
+    return;
+  }
+
+  if (status === "correction" && !comment) {
+    res.status(400).json({ error: "comment_required", message: "Komenti eshte i detyrueshem per korrigjim." });
+    return;
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, owner_id, title, status, request_type, request_data
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+
+    if (currentResult.rows.length === 0) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Rimbursimi nuk u gjet." });
+      return;
+    }
+
+    const current = currentResult.rows[0];
+    const requestData = current.request_data || {};
+    const previousStatus = requestData.metadataReviewStatus || requestData.metadata_review_status || "unchecked";
+    const previousHistory = Array.isArray(requestData.metadataReviewHistory || requestData.metadata_review_history)
+      ? (requestData.metadataReviewHistory || requestData.metadata_review_history)
+      : [];
+    const historyEntry = {
+      id: `${Date.now()}-${status}`,
+      previousStatus,
+      previous_status: previousStatus,
+      status,
+      statusLabel: METADATA_REVIEW_STATUS_LABELS[status] || status,
+      status_label: METADATA_REVIEW_STATUS_LABELS[status] || status,
+      actorId: req.user.id,
+      actor_id: req.user.id,
+      actorRole: normalizeRole(actor.role),
+      actor_role: normalizeRole(actor.role),
+      actorName: getActorName(actor),
+      actor_name: getActorName(actor),
+      comment,
+      checklist,
+      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    const nextHistory = [historyEntry, ...previousHistory].slice(0, 50);
+    const nextRequestData = {
+      ...requestData,
+      metadataReviewStatus: status,
+      metadata_review_status: status,
+      metadataReviewChecklist: checklist,
+      metadata_review_checklist: checklist,
+      metadataReviewComment: comment,
+      metadata_review_comment: comment,
+      metadataReviewHistory: nextHistory,
+      metadata_review_history: nextHistory,
+    };
+    const nextReimbursementStatus = status === "correction" ? "needs_correction" : current.status;
+
+    await client.query(
+      `update reimbursements
+       set request_data = $2::jsonb,
+           status = $3,
+           updated_at = now()
+       where id = $1`,
+      [current.id, JSON.stringify(nextRequestData), nextReimbursementStatus]
+    );
+
+    if (status === "correction") {
+      await insertStatusHistory(client, current.id, current.status, "needs_correction", actor, comment);
+      await notifyOwner(client, current.id, current.owner_id, "needs_correction", comment);
+    }
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+
+    await client.query("commit");
+    res.json({ data: mapReimbursementRow(rowWithHistory) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/reimbursements/:id/metadata-review failed:", error);
+    res.status(500).json({ error: "metadata_review_failed", message: "Kontrolli i metadata-s nuk u ruajt." });
+  } finally {
+    client.release();
   }
 });
 
