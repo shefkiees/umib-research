@@ -472,10 +472,6 @@ export default function HomePage() {
                 </div>
               </div>
               <p>Platformë institucionale për evidentimin, raportimin dhe prezantimin e aktiviteteve kërkimore të stafit akademik të UMIB.</p>
-              <button className="footer-login-btn" type="button" onClick={() => navigate("/login")}>
-                <Lock size={16} />
-                Hyr në Portal
-              </button>
             </div>
 
             <div className="footer-columns" aria-label="Linqet e footer-it">

@@ -41,7 +41,6 @@
 .umib-homepage-root .uni-logo { height: 60px; border-radius: 4px; }
 .umib-homepage-root .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
 .umib-homepage-root .logo-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--navy); font-weight: 800; }
-.umib-homepage-root .footer-logo { height: 75px; margin-bottom: 20px; }
 
 .umib-homepage-root .nav-menu { display: flex; align-items: center; gap: 30px; }
 .umib-homepage-root .nav-menu a { text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.95rem; transition: color 0.3s; }
@@ -518,18 +517,15 @@
     margin-bottom: 18px;
 }
 .umib-homepage-root .footer-logo-mark {
-    width: 62px;
-    height: 62px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.95);
+    width: 68px;
+    height: 68px;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
 }
 .umib-homepage-root .footer-logo {
-    height: 48px;
-    width: 48px;
+    height: 66px;
+    width: 66px;
     object-fit: contain;
 }
 .umib-homepage-root .footer-brand-head strong {
@@ -552,25 +548,6 @@
     margin: 0 0 22px;
     color: rgba(255, 255, 255, 0.68);
     line-height: 1.72;
-}
-.umib-homepage-root .footer-login-btn {
-    min-height: 44px;
-    border: 1px solid rgba(176, 149, 86, 0.58);
-    border-radius: 8px;
-    background: rgba(140, 118, 62, 0.18);
-    color: #ffffff;
-    padding: 0 16px;
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: background 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
-}
-.umib-homepage-root .footer-login-btn:hover {
-    transform: translateY(-2px);
-    background: var(--gold);
-    border-color: var(--gold);
 }
 .umib-homepage-root .footer-columns {
     display: grid;
