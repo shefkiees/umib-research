@@ -56,6 +56,13 @@ body {
   box-shadow: none;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.prof-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .prof-sidebar-top {
