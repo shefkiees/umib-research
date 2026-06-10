@@ -28,12 +28,10 @@ body {
 
 .prof-layout {
   display: flex;
-  height: 100vh;
-  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg-light);
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* ===== SIDEBAR ===== */
@@ -277,10 +275,9 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 /* ===== TOPBAR ===== */
