@@ -2264,6 +2264,142 @@ export default function CommitteeDashboard() {
         </section>
       );
     };
+    const attachmentItems = Array.isArray(request.attachments) ? request.attachments : [];
+    const getAttachmentFilename = (attachment = {}) => attachment.filename || attachment.name || attachment.fileName || attachment.file_name || "Dokument";
+    const getAttachmentUrl = (attachment = {}) => attachment.downloadUrl || attachment.url || attachment.fileUrl || attachment.file_url || "";
+    const getUrlFilename = (value) => {
+      try {
+        const url = new URL(String(value));
+        const filename = decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() || "");
+        return filename || String(value);
+      } catch {
+        return String(value || "");
+      }
+    };
+    const findAttachmentByKeywords = (keywords = []) => {
+      const normalizedKeywords = keywords.map(normalizeForSearch);
+      return attachmentItems.find((attachment) => {
+        const text = normalizeForSearch([
+          attachment.documentType,
+          attachment.document_type,
+          attachment.label,
+          attachment.description,
+          attachment.filename,
+          attachment.name,
+        ].filter(Boolean).join(" "));
+
+        return normalizedKeywords.some((keyword) => keyword && text.includes(keyword));
+      });
+    };
+    const createChecklistValue = (value, options = {}) => ({
+      value: hasReviewValue(value) ? value : "-",
+      href: options.href || (options.link && isUrlValue(value) ? String(value).trim() : ""),
+    });
+    const createChecklistDocumentValue = (value, options = {}) => {
+      const href = options.href || (isUrlValue(value) ? String(value).trim() : "");
+      const displayValue = options.displayValue || (href ? getUrlFilename(value) : value);
+      return createChecklistValue(displayValue, { href });
+    };
+    const renderChecklistValue = (item) => {
+      const value = item?.value || "-";
+
+      if (item?.href) {
+        return (
+          <a className="committee-review-checklist-value" href={item.href} target="_blank" rel="noreferrer">
+            {Array.isArray(value) ? value.join(", ") : String(value)}
+          </a>
+        );
+      }
+
+      return (
+        <span className="committee-review-checklist-value">
+          {Array.isArray(value) ? value.join(", ") : String(value)}
+        </span>
+      );
+    };
+    const getChecklistItemValue = (label) => {
+      const additionalDocuments = attachmentItems.map(getAttachmentFilename).filter(Boolean);
+      const articleAttachment = findAttachmentByKeywords(["artikull", "article", "publication", "publikim"]);
+      const programAttachment = findAttachmentByKeywords(["program", "ftes", "invitation"]);
+      const acceptanceAttachment = findAttachmentByKeywords(["pranim", "acceptance", "letter", "ftes"]);
+      const travelTicketAttachment = findAttachmentByKeywords(["bilet", "ticket"]);
+      const ticketInvoiceAttachment = findAttachmentByKeywords(["fature bilete", "ticket invoice", "invoice ticket"]);
+      const accommodationInvoiceAttachment = findAttachmentByKeywords(["akomod", "hotel", "accommodation"]);
+      const registrationInvoiceAttachment = findAttachmentByKeywords(["regjistrim", "registration", "fee"]);
+      const participationType = [
+        requestData.speakerWithPaperPoster,
+        requestData.chairPanelist,
+        requestData.artisticSportEvent,
+        requestData.participationType,
+      ].filter(hasReviewValue).join(" / ");
+
+      const valuesByLabel = {
+        "Emri dhe mbiemri": createChecklistValue(getFirstReviewValue(requestData.applicantName, request.owner?.name, request.owner?.email)),
+        Fakulteti: createChecklistValue(getFirstReviewValue(requestData.applicantFaculty, request.owner?.faculty)),
+        Departamenti: createChecklistValue(getFirstReviewValue(requestData.applicantDepartment, request.owner?.department)),
+        ORCID: createChecklistValue(requestData.applicantOrcidId),
+        "Thirrja akademike": createChecklistValue(requestData.academicTitle),
+        "Thirrja shkencore": createChecklistValue(requestData.scientificTitle),
+        "Titulli i artikullit": createChecklistValue(requestData.publicationTitle),
+        "Lloji i publikimit": createChecklistValue(getPublicationTypeLabel(requestData.publicationType)),
+        DOI: createChecklistValue(doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
+        "Revista / Burimi i publikimit": createChecklistValue(getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn, requestData.publicationLink), { link: true }),
+        "Data e publikimit": createChecklistValue(requestData.publicationDate ? formatDate(requestData.publicationDate) : requestData.publicationYear),
+        "Autori kryesor": createChecklistValue(requestData.mainAuthor),
+        "Autori korrespondent": createChecklistValue(requestData.correspondingAuthor),
+        "Bashkëautorët": createChecklistValue(requestData.coauthors),
+        "Affiliation UIBM": createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
+        "ISSN / ISBN": createChecklistValue(getFirstReviewValue(requestData.issn, requestData.isbn)),
+        "Platforma e indeksimit": createChecklistValue(requestData.indexingPlatform),
+        "Kategoria e indeksimit": createChecklistValue(requestData.indexingCategory),
+        Kuartili: createChecklistValue(requestData.scopusQuartile),
+        "Impact Factor / CiteScore": createChecklistValue(getFirstReviewValue(requestData.impactFactor, requestData.citeScore)),
+        "Formulari F1 PDF": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
+        "Formulari F1 DOCX": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
+        "Artikulli i ngarkuar": articleAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(articleAttachment), { displayValue: getAttachmentFilename(articleAttachment), href: getAttachmentUrl(articleAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(articleAttachment)) : "" })
+          : createChecklistDocumentValue(requestData.publicationLink),
+        "Dëshmia e regjistrimit në databazën UIBM": createChecklistDocumentValue(requestData.uibmDatabaseEvidence),
+        "Dokumentet shtesë": createChecklistValue(additionalDocuments),
+        "Emri në bankë": createChecklistValue(requestData.bankApplicantName),
+        Banka: createChecklistValue(getFirstReviewValue(requestData.bankName, requestData.bankNameOther)),
+        "IBAN / Llogaria": createChecklistValue(getFirstReviewValue(requestData.iban, requestData.bankAccountNumber)),
+        SWIFT: createChecklistValue(requestData.swiftCode),
+        "Shuma e kërkuar": createChecklistValue(amount),
+        "Emri i konferencës / simpoziumit": createChecklistValue(requestData.conferenceTitle),
+        Organizatori: createChecklistValue(requestData.organizer),
+        Lokacioni: createChecklistValue(getFirstReviewValue(requestData.location, requestData.conferenceLocation)),
+        "Data e ngjarjes": createChecklistValue(requestData.conferenceDate ? formatDate(requestData.conferenceDate) : requestData.eventPlaceDate),
+        "Faqja zyrtare / linku i ngjarjes": createChecklistDocumentValue(getFirstReviewValue(requestData.eventPublicationLink, requestData.conferenceLink)),
+        "Titulli i punimit / abstraktit": createChecklistValue(requestData.abstractTitle),
+        "Abstrakti / prezantimi": createChecklistValue(getFirstReviewValue(requestData.abstract, requestData.abstractTitle)),
+        Bashkëpjesëmarrësit: createChecklistValue(requestData.coParticipant),
+        "Lloji i pjesëmarrjes": createChecklistValue(participationType),
+        "Formulari F2 PDF": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
+        "Formulari F2 DOCX": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
+        "Programi i ngjarjes": programAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(programAttachment), { displayValue: getAttachmentFilename(programAttachment), href: getAttachmentUrl(programAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(programAttachment)) : "" })
+          : createChecklistDocumentValue(requestData.invitationProgram),
+        "Letra e pranimit / ftesa": acceptanceAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(acceptanceAttachment), { displayValue: getAttachmentFilename(acceptanceAttachment), href: getAttachmentUrl(acceptanceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(acceptanceAttachment)) : "" })
+          : createChecklistDocumentValue(getFirstReviewValue(requestData.acceptanceConfirmation, requestData.invitationProgram)),
+        "Dëshmia e pranimit të abstraktit / punimit": createChecklistDocumentValue(requestData.acceptanceConfirmation),
+        "Biletat e udhëtimit": travelTicketAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(travelTicketAttachment), { displayValue: getAttachmentFilename(travelTicketAttachment), href: getAttachmentUrl(travelTicketAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(travelTicketAttachment)) : "" })
+          : createChecklistValue(requestData.travelTickets),
+        "Faturat e biletave": ticketInvoiceAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(ticketInvoiceAttachment), { displayValue: getAttachmentFilename(ticketInvoiceAttachment), href: getAttachmentUrl(ticketInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(ticketInvoiceAttachment)) : "" })
+          : createChecklistValue(requestData.ticketInvoices),
+        "Fatura e akomodimit": accommodationInvoiceAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(accommodationInvoiceAttachment), { displayValue: getAttachmentFilename(accommodationInvoiceAttachment), href: getAttachmentUrl(accommodationInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(accommodationInvoiceAttachment)) : "" })
+          : createChecklistValue(requestData.accommodationInvoice),
+        "Fatura e regjistrimit": registrationInvoiceAttachment
+          ? createChecklistDocumentValue(getAttachmentUrl(registrationInvoiceAttachment), { displayValue: getAttachmentFilename(registrationInvoiceAttachment), href: getAttachmentUrl(registrationInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(registrationInvoiceAttachment)) : "" })
+          : createChecklistValue(requestData.registrationInvoice),
+      };
+
+      return valuesByLabel[label] || createChecklistValue("");
+    };
     const renderCommitteeChecklist = () => {
       const checklistGroups = requestType === "conference" ? f2CommitteeChecklistGroups : f1CommitteeChecklistGroups;
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
@@ -2308,7 +2444,10 @@ export default function CommitteeDashboard() {
                 <div className="committee-review-checklist-rows">
                   {group.items.map((label) => (
                     <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
-                      <strong>{label}</strong>
+                      <div className="committee-review-checklist-item-main">
+                        <strong>{label}</strong>
+                        {renderChecklistValue(getChecklistItemValue(label))}
+                      </div>
                       <select value={defaultStatus} disabled aria-label={`Statusi për ${label}`}>
                         {committeeChecklistStatuses.map((status) => (
                           <option key={status} value={status}>
