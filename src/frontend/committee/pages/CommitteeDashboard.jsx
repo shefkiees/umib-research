@@ -42,9 +42,10 @@ const reimbursementStatusLabels = {
 };
 
 const publicationTypeLabels = {
-  journal_article: "Artikull reviste",
-  conference_paper: "Punim konference",
-  book: "Libër / kapitull",
+  journal_article: "Artikull në Revistë Shkencore",
+  conference_paper: "Punim Konference",
+  book: "Libër",
+  book_chapter: "Kapitull Libri",
 };
 
 const METADATA_REVIEW_STORAGE_KEY = "committeeMetadataReviewWorkflow";
@@ -292,8 +293,8 @@ function getReviewShellConfig(request = {}) {
   if (requestType === "publication") {
     return {
       badge: "F1",
-      title: "F1 Scientific Article Review",
-      description: "Read-only shell for scientific article reimbursement review.",
+      title: "Shqyrtimi i Kërkesës për Artikull Shkencor (F1)",
+      description: "Pamje vetëm për lexim për shqyrtimin fillestar të kërkesës për rimbursim.",
       typeLabel: "F1 / Artikull Shkencor / Publikim Shkencor",
       supported: true,
     };
@@ -302,8 +303,8 @@ function getReviewShellConfig(request = {}) {
   if (requestType === "conference") {
     return {
       badge: "F2",
-      title: "F2 Conference/Symposium Review",
-      description: "Read-only shell for conference and symposium reimbursement review.",
+      title: "Shqyrtimi i Kërkesës për Konferencë dhe Simpozium (F2)",
+      description: "Pamje vetëm për lexim për shqyrtimin fillestar të kërkesës për rimbursim.",
       typeLabel: "F2 / Konferencë dhe Simpozium",
       supported: true,
     };
@@ -2074,9 +2075,24 @@ export default function CommitteeDashboard() {
     };
     const getFirstReviewValue = (...values) => values.find(hasReviewValue) || "";
     const isUrlValue = (value) => /^https?:\/\//i.test(String(value || "").trim());
+    const normalizeDoi = (value) => String(value || "")
+      .trim()
+      .replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
+      .replace(/^doi:\s*/i, "")
+      .trim();
+    const doiValue = normalizeDoi(requestData.doi);
+    const getPublicationLinkLabel = (value) => {
+      if (!hasReviewValue(value)) {
+        return "";
+      }
+
+      const normalizedLinkDoi = normalizeDoi(value);
+      return doiValue && normalizedLinkDoi === doiValue ? "Hap DOI" : "Hap linkun";
+    };
     const createReviewField = (label, value, options = {}) => ({
       label,
       value,
+      displayValue: options.displayValue,
       href: options.href || (options.link && isUrlValue(value) ? String(value).trim() : ""),
       wide: Boolean(options.wide),
       format: options.format || "",
@@ -2084,7 +2100,7 @@ export default function CommitteeDashboard() {
     });
     const renderReviewValue = (field) => {
       const rawValue = field.format === "date" ? formatDate(field.value) : field.value;
-      const value = hasReviewValue(rawValue) ? rawValue : "-";
+      const value = hasReviewValue(field.displayValue) ? field.displayValue : (hasReviewValue(rawValue) ? rawValue : "-");
 
       if (field.href && hasReviewValue(field.href)) {
         return (
@@ -2159,7 +2175,6 @@ export default function CommitteeDashboard() {
     ];
     const requestFields = [
       createReviewField("Numri i dokumentit", request.documentNumber, { alwaysShow: true }),
-      createReviewField("Request ID", request.id, { alwaysShow: true }),
       createReviewField("Lloji i kërkesës", config.typeLabel, { alwaysShow: true }),
       createReviewField("Statusi", request.statusLabel || request.status, { alwaysShow: true }),
       createReviewField("Data e dorëzimit", request.submittedAt || request.createdAt, { format: "date", alwaysShow: true }),
@@ -2169,12 +2184,12 @@ export default function CommitteeDashboard() {
     ];
     const f1MetadataFields = [
       createReviewField("Titulli i publikimit", requestData.publicationTitle, { wide: true }),
-      createReviewField("Lloji i publikimit", requestData.publicationType),
-      createReviewField("DOI", requestData.doi, { href: requestData.doi ? `https://doi.org/${requestData.doi}` : "" }),
+      createReviewField("Lloji i publikimit", getPublicationTypeLabel(requestData.publicationType)),
+      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
       createReviewField("Publikuar në", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
       createReviewField("Shtëpia botuese", requestData.publisher),
       createReviewField("Data / viti i publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
-      createReviewField("Linku i publikimit", requestData.publicationLink, { link: true, wide: true }),
+      createReviewField("Linku i publikimit", requestData.publicationLink, { link: true, wide: true, displayValue: getPublicationLinkLabel(requestData.publicationLink) }),
       createReviewField("Autori kryesor", requestData.mainAuthor),
       createReviewField("Autori korrespondent", requestData.correspondingAuthor),
       createReviewField("Bashkautorët", requestData.coauthors, { wide: true }),
@@ -2262,17 +2277,17 @@ export default function CommitteeDashboard() {
         {renderReviewSection("Checklista e Komisionit", [], {
           placeholder: true,
           note: "Placeholder",
-          emptyText: "Checklista do të shtohet në hapin e ardhshëm. Nuk ka kontrolle aktive në këtë faqe.",
+          emptyText: "Kjo pjesë do të aktivizohet në hapin e ardhshëm sipas rregullores.",
         })}
         {renderReviewSection("Komentet e Komisionit", [], {
           placeholder: true,
           note: "Placeholder",
-          emptyText: "Komentet e Komisionit do të shfaqen këtu kur të shtohet workflow-i përkatës.",
+          emptyText: "Komentet do të aktivizohen pasi të shtohet procesi i vlerësimit.",
         })}
         {renderReviewSection("Vendimi", [], {
           placeholder: true,
           note: "Placeholder",
-          emptyText: "Vendimi do të shfaqet këtu në një hap të ardhshëm. Nuk ka veprime aprovimi, refuzimi ose korrigjimi.",
+          emptyText: "Vendimi final do të aktivizohet pas implementimit të checklistës dhe rregullave të aprovimit.",
         })}
       </section>
     );
