@@ -2469,17 +2469,6 @@ export default function CommitteeDashboard() {
             )}
           </section>
 
-          {config.supported ? renderCommitteeChecklist() : null}
-          {renderReviewSection("Komentet e Komisionit", [], {
-            placeholder: true,
-            note: "Placeholder",
-            emptyText: "Komentet do të aktivizohen pasi të shtohet procesi i vlerësimit.",
-          })}
-          {renderReviewSection("Vendimi", [], {
-            placeholder: true,
-            note: "Placeholder",
-            emptyText: "Vendimi final do të aktivizohet pas implementimit të checklistës dhe rregullave të aprovimit.",
-          })}
         </section>
 
         {isReviewChecklistDrawerOpen ? (
@@ -2502,10 +2491,7 @@ export default function CommitteeDashboard() {
                 </button>
               </div>
               <div className="committee-review-checklist-drawer-body">
-                <strong>Placeholder</strong>
-                <p>
-                  Këtu do të vendosen kontrollet aktive të Komisionit, shënimet dhe evidencat. Për momentin nuk ruhet asnjë e dhënë dhe nuk ndryshohet statusi i kërkesës.
-                </p>
+                {config.supported ? renderCommitteeChecklist() : null}
               </div>
             </aside>
           </div>
