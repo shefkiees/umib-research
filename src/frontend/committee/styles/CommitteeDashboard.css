@@ -1429,6 +1429,115 @@
 	background: #f8fafc;
 }
 
+.committee-review-shell {
+	display: grid;
+	gap: 20px;
+}
+
+.committee-review-shell-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+.committee-review-shell-head h3 {
+	margin: 8px 0 6px;
+	color: var(--text-dark);
+	font-size: 1.35rem;
+}
+
+.committee-review-shell-head p {
+	margin: 0;
+	color: var(--text-light);
+}
+
+.committee-review-shell-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 44px;
+	height: 28px;
+	border-radius: 8px;
+	background: #e9f2ff;
+	color: #1f4f84;
+	font-size: 0.82rem;
+	font-weight: 800;
+}
+
+.committee-review-shell-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.committee-review-shell-grid div,
+.committee-review-shell-documents {
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	background: #ffffff;
+	padding: 14px;
+}
+
+.committee-review-shell-grid dt {
+	margin: 0 0 6px;
+	color: #64748b;
+	font-size: 0.78rem;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.committee-review-shell-grid dd {
+	margin: 0;
+	color: #17324f;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.committee-review-shell-wide {
+	grid-column: 1 / -1;
+}
+
+.committee-review-shell-documents h4 {
+	margin: 0 0 12px;
+	color: #17324f;
+	font-size: 1rem;
+}
+
+.committee-review-shell-document-list {
+	display: grid;
+	gap: 10px;
+}
+
+.committee-review-shell-document {
+	display: grid;
+	grid-template-columns: auto minmax(120px, 0.35fr) 1fr;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid #d7e1ee;
+	border-radius: 8px;
+	padding: 10px 12px;
+	color: #1f4f84;
+	text-decoration: none;
+}
+
+.committee-review-shell-document:hover {
+	border-color: #1f5f99;
+	background: #eef5ff;
+}
+
+.committee-review-shell-document span {
+	font-weight: 800;
+}
+
+.committee-review-shell-document strong {
+	color: #17324f;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
 .committee-metadata-table th:nth-child(1) { width: 22%; }
 .committee-metadata-table th:nth-child(2) { width: 15%; }
 .committee-metadata-table th:nth-child(3) { width: 16%; }
@@ -3863,8 +3972,21 @@
 
 	.committee-compare-grid,
 	.committee-checklist-grid,
-	.committee-metadata-detail-grid {
+	.committee-metadata-detail-grid,
+	.committee-review-shell-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.committee-review-shell-head {
+		flex-direction: column;
+	}
+
+	.committee-review-shell-document {
+		grid-template-columns: auto 1fr;
+	}
+
+	.committee-review-shell-document strong {
+		grid-column: 2;
 	}
 }
 

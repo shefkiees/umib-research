@@ -260,6 +260,46 @@ function splitMetadataNames(value) {
     .filter(Boolean);
 }
 
+function getReviewShellConfig(request = {}) {
+  const requestType = getRequestType(request);
+
+  if (requestType === "publication") {
+    return {
+      badge: "F1",
+      title: "F1 Scientific Article Review",
+      description: "Read-only shell for scientific article reimbursement review.",
+      typeLabel: "F1 / Artikull Shkencor / Publikim Shkencor",
+      supported: true,
+    };
+  }
+
+  if (requestType === "conference") {
+    return {
+      badge: "F2",
+      title: "F2 Conference/Symposium Review",
+      description: "Read-only shell for conference and symposium reimbursement review.",
+      typeLabel: "F2 / Konferencë dhe Simpozium",
+      supported: true,
+    };
+  }
+
+  return {
+    badge: requestType ? requestType.toUpperCase() : "N/A",
+    title: "Unsupported reimbursement review",
+    description: "This first workflow step is currently available only for F1 and F2 requests.",
+    typeLabel: request.requestTypeLabel || requestType || "-",
+    supported: false,
+  };
+}
+
+function getCommitteeDocumentUrl(url = "") {
+  if (!url) {
+    return "";
+  }
+
+  return apiUrl(url.replace(/^\/api/, ""));
+}
+
 function normalizeForSearch(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -900,6 +940,7 @@ export default function CommitteeDashboard() {
   const [activePage, setActivePage] = useState("Përmbledhje");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [reviewRequests, setReviewRequests] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
@@ -1545,6 +1586,16 @@ export default function CommitteeDashboard() {
     });
   };
 
+  const openReimbursementReview = (request) => {
+    setSelectedReimbursementReview(request);
+    setActivePage("DorÃ«zimet nÃ« Pritje");
+  };
+
+  const closeReimbursementReview = () => {
+    setSelectedReimbursementReview(null);
+    setActivePage("DorÃ«zimet nÃ« Pritje");
+  };
+
   const saveMetadataReview = (publication, updater) => {
     setMetadataReviews((prev) => {
       const current = prev[publication.id] || createInitialReview(publication);
@@ -1977,7 +2028,88 @@ export default function CommitteeDashboard() {
     </div>
   );
 
-  const renderPendingSubmissions = () => (
+  const renderReimbursementReviewShell = (request) => {
+    const config = getReviewShellConfig(request);
+    const amount = request.amount === null || request.amount === undefined || request.amount === ""
+      ? "-"
+      : `${request.amount} ${request.currency || "EUR"}`;
+    const supportingDocuments = [
+      request.downloadUrl ? {
+        id: "pdf",
+        label: "PDF",
+        filename: request.documentFilename || "rimbursim.pdf",
+        url: request.downloadUrl,
+      } : null,
+      request.docxDownloadUrl ? {
+        id: "docx",
+        label: "DOCX",
+        filename: request.documentDocxFilename || "rimbursim.docx",
+        url: request.docxDownloadUrl,
+      } : null,
+      ...(Array.isArray(request.attachments) ? request.attachments.map((attachment) => ({
+        id: attachment.id || attachment.filename || attachment.downloadUrl,
+        label: attachment.documentType || attachment.document_type || "Dokument mbeshtetes",
+        filename: attachment.filename || attachment.name || "Dokument",
+        url: attachment.downloadUrl || `/api/reimbursements/${request.id}/attachments/${attachment.id}`,
+      })) : []),
+    ].filter((item) => item?.url);
+
+    return (
+      <section className="committee-page-card committee-stats-only-card committee-review-shell">
+        <div className="committee-review-shell-head">
+          <div>
+            <span className="committee-review-shell-badge">{config.badge}</span>
+            <h3>{config.title}</h3>
+            <p>{config.description}</p>
+          </div>
+          <button type="button" className="committee-settings-back" onClick={closeReimbursementReview}>
+            Back
+          </button>
+        </div>
+
+        {!config.supported ? (
+          <p className="committee-empty" role="alert">
+            Ky formular nuk ka ende shell shqyrtimi ne kete hap te workflow-it.
+          </p>
+        ) : null}
+
+        <div className="committee-review-shell-grid">
+          <div><dt>Request ID</dt><dd>{request.documentNumber || request.id || "-"}</dd></div>
+          <div><dt>Applicant</dt><dd>{request.owner?.name || request.owner?.email || "-"}</dd></div>
+          <div><dt>Request type</dt><dd>{config.typeLabel}</dd></div>
+          <div><dt>Academic unit</dt><dd>{request.owner?.faculty || request.owner?.department || "-"}</dd></div>
+          <div><dt>Submitted date</dt><dd>{formatDate(request.submittedAt || request.createdAt)}</dd></div>
+          <div><dt>Amount</dt><dd>{amount}</dd></div>
+          <div className="committee-review-shell-wide"><dt>Title</dt><dd>{request.title || request.requestTypeLabel || "-"}</dd></div>
+        </div>
+
+        <section className="committee-review-shell-documents">
+          <h4>Uploaded/supporting documents</h4>
+          {supportingDocuments.length ? (
+            <div className="committee-review-shell-document-list">
+              {supportingDocuments.map((document) => (
+                <a
+                  key={`${document.id}-${document.filename}`}
+                  href={getCommitteeDocumentUrl(document.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="committee-review-shell-document"
+                >
+                  <FileText size={16} />
+                  <span>{document.label}</span>
+                  <strong>{document.filename}</strong>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="committee-empty">Nuk ka dokumente mbeshtetese te lidhura me kete kerkese.</p>
+          )}
+        </section>
+      </section>
+    );
+  };
+
+  const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head">
         <h3>Dorëzimet në Pritje</h3>
@@ -2013,7 +2145,7 @@ export default function CommitteeDashboard() {
                     <td>{formatDate(row.submittedAt || row.createdAt)}</td>
                     <td>{row.statusLabel || row.status || "-"}</td>
                     <td>
-                      <button type="button" className="committee-details-btn" onClick={() => setActivePage("Shqyrtimi")}>
+                      <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
                         Shqyrto
                       </button>
                     </td>
