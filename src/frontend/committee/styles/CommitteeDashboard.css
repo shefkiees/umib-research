@@ -1429,6 +1429,44 @@
 	background: #f8fafc;
 }
 
+.committee-request-type-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+	border: 1px solid #d7e1ee;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #17324f;
+	padding: 6px 10px;
+	font-size: 0.84rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.committee-request-type-badge strong {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 28px;
+	height: 22px;
+	border-radius: 6px;
+	background: #e9f2ff;
+	color: #1f4f84;
+	font-size: 0.76rem;
+	font-weight: 900;
+}
+
+.committee-request-type-badge.is-f2 strong {
+	background: #f7f1df;
+	color: #996f17;
+}
+
+.committee-request-type-badge.is-neutral strong {
+	background: #eef2f7;
+	color: #64748b;
+}
+
 .committee-review-shell {
 	display: grid;
 	gap: 20px;

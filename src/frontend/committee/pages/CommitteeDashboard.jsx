@@ -253,6 +253,32 @@ function getRequestType(request = {}) {
   return request.requestType || request.requestData?.requestType || "";
 }
 
+function getPendingRequestTypeDisplay(request = {}) {
+  const requestType = getRequestType(request);
+
+  if (requestType === "publication") {
+    return {
+      badge: "F1",
+      label: "Artikull Shkencor",
+      className: "is-f1",
+    };
+  }
+
+  if (requestType === "conference") {
+    return {
+      badge: "F2",
+      label: "Konferencë / Simpozium",
+      className: "is-f2",
+    };
+  }
+
+  return {
+    badge: requestType ? requestType.toUpperCase() : "-",
+    label: request.requestTypeLabel || requestType || "-",
+    className: "is-neutral",
+  };
+}
+
 function splitMetadataNames(value) {
   return String(value || "")
     .split(/;|\r?\n|,/)
@@ -2128,6 +2154,7 @@ export default function CommitteeDashboard() {
                 <tr>
                   <th>ID / Dokumenti</th>
                   <th>Titulli / Lloji</th>
+                  <th>Lloji i Kërkesës</th>
                   <th>Aplikanti</th>
                   <th>Njësia akademike</th>
                   <th>Data e dorëzimit</th>
@@ -2136,21 +2163,31 @@ export default function CommitteeDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPendingSubmissions.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.documentNumber || row.id}</td>
-                    <td>{row.title || row.requestTypeLabel || "-"}</td>
-                    <td>{row.owner?.name || row.owner?.email || "-"}</td>
-                    <td>{row.owner?.faculty || row.owner?.department || "-"}</td>
-                    <td>{formatDate(row.submittedAt || row.createdAt)}</td>
-                    <td>{row.statusLabel || row.status || "-"}</td>
-                    <td>
-                      <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
-                        Shqyrto
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredPendingSubmissions.map((row) => {
+                  const typeDisplay = getPendingRequestTypeDisplay(row);
+
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.documentNumber || row.id}</td>
+                      <td>{row.title || row.requestTypeLabel || "-"}</td>
+                      <td>
+                        <span className={`committee-request-type-badge ${typeDisplay.className}`}>
+                          <strong>{typeDisplay.badge}</strong>
+                          <span>{typeDisplay.label}</span>
+                        </span>
+                      </td>
+                      <td>{row.owner?.name || row.owner?.email || "-"}</td>
+                      <td>{row.owner?.faculty || row.owner?.department || "-"}</td>
+                      <td>{formatDate(row.submittedAt || row.createdAt)}</td>
+                      <td>{row.statusLabel || row.status || "-"}</td>
+                      <td>
+                        <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
+                          Shqyrto
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
