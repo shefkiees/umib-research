@@ -48,6 +48,132 @@ const publicationTypeLabels = {
   book_chapter: "Kapitull Libri",
 };
 
+const committeeChecklistStatuses = [
+  "Pa kontrolluar",
+  "Në rregull",
+  "Korrigjuar nga Komisioni",
+  "Kërkon korrigjim",
+  "Nuk aplikohet",
+];
+
+const f1CommitteeChecklistGroups = [
+  {
+    title: "Verifikimi i Aplikantit",
+    items: [
+      "Emri dhe mbiemri",
+      "Fakulteti",
+      "Departamenti",
+      "ORCID",
+      "Thirrja akademike",
+      "Thirrja shkencore",
+    ],
+  },
+  {
+    title: "Verifikimi i Publikimit",
+    items: [
+      "Titulli i artikullit",
+      "Lloji i publikimit",
+      "DOI",
+      "Revista / Burimi i publikimit",
+      "Data e publikimit",
+      "Autori kryesor",
+      "Autori korrespondent",
+      "Bashkëautorët",
+      "Affiliation UIBM",
+    ],
+  },
+  {
+    title: "Verifikimi i Indeksimit",
+    items: [
+      "ISSN / ISBN",
+      "Platforma e indeksimit",
+      "Kategoria e indeksimit",
+      "Kuartili",
+      "Impact Factor / CiteScore",
+    ],
+  },
+  {
+    title: "Verifikimi i Dokumenteve",
+    items: [
+      "Formulari F1 PDF",
+      "Formulari F1 DOCX",
+      "Artikulli i ngarkuar",
+      "Dëshmia e regjistrimit në databazën UIBM",
+      "Dokumentet shtesë",
+    ],
+  },
+  {
+    title: "Verifikimi Financiar",
+    items: [
+      "Emri në bankë",
+      "Banka",
+      "IBAN / Llogaria",
+      "SWIFT",
+      "Shuma e kërkuar",
+    ],
+  },
+];
+
+const f2CommitteeChecklistGroups = [
+  {
+    title: "Verifikimi i Aplikantit",
+    items: [
+      "Emri dhe mbiemri",
+      "Fakulteti",
+      "Departamenti",
+      "ORCID",
+      "Thirrja akademike",
+      "Thirrja shkencore",
+    ],
+  },
+  {
+    title: "Verifikimi i Konferencës",
+    items: [
+      "Emri i konferencës / simpoziumit",
+      "Organizatori",
+      "Lokacioni",
+      "Data e ngjarjes",
+      "Faqja zyrtare / linku i ngjarjes",
+    ],
+  },
+  {
+    title: "Verifikimi i Punimit dhe Pjesëmarrjes",
+    items: [
+      "Titulli i punimit / abstraktit",
+      "Abstrakti / prezantimi",
+      "Autori kryesor",
+      "Bashkëpjesëmarrësit",
+      "Lloji i pjesëmarrjes",
+      "Affiliation UIBM",
+    ],
+  },
+  {
+    title: "Verifikimi i Dokumenteve",
+    items: [
+      "Formulari F2 PDF",
+      "Formulari F2 DOCX",
+      "Programi i ngjarjes",
+      "Letra e pranimit / ftesa",
+      "Dëshmia e pranimit të abstraktit / punimit",
+      "Dokumentet shtesë",
+    ],
+  },
+  {
+    title: "Verifikimi Financiar",
+    items: [
+      "Biletat e udhëtimit",
+      "Faturat e biletave",
+      "Fatura e akomodimit",
+      "Fatura e regjistrimit",
+      "Emri në bankë",
+      "Banka",
+      "IBAN / Llogaria",
+      "SWIFT",
+      "Shuma e kërkuar",
+    ],
+  },
+];
+
 const METADATA_REVIEW_STORAGE_KEY = "committeeMetadataReviewWorkflow";
 
 const metadataReviewStatuses = {
@@ -2136,6 +2262,63 @@ export default function CommitteeDashboard() {
         </section>
       );
     };
+    const renderCommitteeChecklist = () => {
+      const checklistGroups = requestType === "conference" ? f2CommitteeChecklistGroups : f1CommitteeChecklistGroups;
+      const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
+      const defaultStatus = committeeChecklistStatuses[0];
+      const statusSummary = committeeChecklistStatuses.map((status) => ({
+        status,
+        count: status === defaultStatus ? totalItems : 0,
+      }));
+
+      return (
+        <section className="committee-review-section committee-review-checklist-section">
+          <div className="committee-review-section-head">
+            <h4>Checklista e Komisionit</h4>
+            <span>UI lokale / pa ruajtje</span>
+          </div>
+
+          <div className="committee-review-checklist-summary" aria-label="Përmbledhje e checklistës">
+            <article>
+              <span>Total items</span>
+              <strong>{totalItems}</strong>
+            </article>
+            {statusSummary.map((item) => (
+              <article key={item.status}>
+                <span>{item.status}</span>
+                <strong>{item.count}</strong>
+              </article>
+            ))}
+          </div>
+
+          <div className="committee-review-checklist-groups">
+            {checklistGroups.map((group) => (
+              <article className="committee-review-checklist-card" key={group.title}>
+                <header>
+                  <h5>{group.title}</h5>
+                  <span>{group.items.length} pika</span>
+                </header>
+                <div className="committee-review-checklist-rows">
+                  {group.items.map((label) => (
+                    <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
+                      <strong>{label}</strong>
+                      <select value={defaultStatus} disabled aria-label={`Statusi për ${label}`}>
+                        {committeeChecklistStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="committee-review-checklist-note">Shënim / evidencë do të shtohet në hapin tjetër.</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      );
+    };
     const supportingDocuments = [
       request.downloadUrl ? {
         id: "pdf",
@@ -2274,11 +2457,7 @@ export default function CommitteeDashboard() {
           )}
         </section>
 
-        {renderReviewSection("Checklista e Komisionit", [], {
-          placeholder: true,
-          note: "Placeholder",
-          emptyText: "Kjo pjesë do të aktivizohet në hapin e ardhshëm sipas rregullores.",
-        })}
+        {config.supported ? renderCommitteeChecklist() : null}
         {renderReviewSection("Komentet e Komisionit", [], {
           placeholder: true,
           note: "Placeholder",

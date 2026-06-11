@@ -1619,6 +1619,130 @@
 	overflow-wrap: anywhere;
 }
 
+.committee-review-checklist-section {
+	gap: 16px;
+}
+
+.committee-review-checklist-summary {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.committee-review-checklist-summary article {
+	border: 1px solid #d7e1ee;
+	border-radius: 8px;
+	background: #fbfdff;
+	padding: 12px;
+	min-width: 0;
+}
+
+.committee-review-checklist-summary span {
+	display: block;
+	color: #64748b;
+	font-size: 0.74rem;
+	font-weight: 800;
+	line-height: 1.25;
+	text-transform: uppercase;
+}
+
+.committee-review-checklist-summary strong {
+	display: block;
+	margin-top: 6px;
+	color: #17324f;
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
+.committee-review-checklist-groups {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.committee-review-checklist-card {
+	border: 1px solid #d7e1ee;
+	border-radius: 8px;
+	background: #ffffff;
+	overflow: hidden;
+}
+
+.committee-review-checklist-card header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 14px;
+	background: #f8fafc;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+.committee-review-checklist-card h5 {
+	margin: 0;
+	color: #17324f;
+	font-size: 0.96rem;
+}
+
+.committee-review-checklist-card header span {
+	flex: 0 0 auto;
+	color: #64748b;
+	font-size: 0.76rem;
+	font-weight: 800;
+}
+
+.committee-review-checklist-rows {
+	display: grid;
+}
+
+.committee-review-checklist-row {
+	display: grid;
+	grid-template-columns: minmax(150px, 1fr) minmax(180px, 0.55fr);
+	gap: 10px 12px;
+	align-items: center;
+	padding: 12px 14px;
+	border-bottom: 1px solid #eef2f7;
+}
+
+.committee-review-checklist-row:last-child {
+	border-bottom: 0;
+}
+
+.committee-review-checklist-row strong {
+	color: #17324f;
+	font-size: 0.9rem;
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+.committee-review-checklist-row select {
+	width: 100%;
+	min-height: 36px;
+	border: 1px solid #cfd9e7;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #475569;
+	padding: 7px 10px;
+	font: inherit;
+	font-size: 0.86rem;
+	font-weight: 700;
+}
+
+.committee-review-checklist-row select:disabled {
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+.committee-review-checklist-note {
+	grid-column: 1 / -1;
+	border: 1px dashed #d7e1ee;
+	border-radius: 8px;
+	background: #fbfdff;
+	color: #64748b;
+	padding: 8px 10px;
+	font-size: 0.78rem;
+	line-height: 1.35;
+}
+
 .committee-metadata-table th:nth-child(1) { width: 22%; }
 .committee-metadata-table th:nth-child(2) { width: 15%; }
 .committee-metadata-table th:nth-child(3) { width: 16%; }
@@ -4051,6 +4175,14 @@
 		border-bottom: 1px solid #e2e8f0;
 	}
 
+	.committee-review-checklist-summary {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.committee-review-checklist-groups {
+		grid-template-columns: 1fr;
+	}
+
 	.committee-compare-grid,
 	.committee-checklist-grid,
 	.committee-metadata-detail-grid,
@@ -4078,6 +4210,11 @@
 
 	.committee-notifications-hero-main h3 {
 		font-size: 1.35rem;
+	}
+
+	.committee-review-checklist-summary,
+	.committee-review-checklist-row {
+		grid-template-columns: 1fr;
 	}
 }
 
@@ -4146,3 +4283,4 @@
 		width: 100%;
 	}
 }
+
