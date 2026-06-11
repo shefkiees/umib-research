@@ -1094,6 +1094,7 @@ export default function CommitteeDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
+  const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [reviewRequests, setReviewRequests] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
@@ -1745,6 +1746,7 @@ export default function CommitteeDashboard() {
   };
 
   const closeReimbursementReview = () => {
+    setIsReviewChecklistDrawerOpen(false);
     setSelectedReimbursementReview(null);
     setActivePage("Dorëzimet në Pritje");
   };
@@ -2410,65 +2412,105 @@ export default function CommitteeDashboard() {
     const metadataFields = requestType === "conference" ? f2MetadataFields : f1MetadataFields;
 
     return (
-      <section className="committee-page-card committee-stats-only-card committee-review-shell">
-        <div className="committee-review-shell-head">
-          <div>
-            <span className="committee-review-shell-badge">{config.badge}</span>
-            <h3>{config.title}</h3>
-            <p>{config.description}</p>
-          </div>
-          <button type="button" className="committee-settings-back" onClick={closeReimbursementReview}>
-            Back
-          </button>
-        </div>
-
-        {!config.supported ? (
-          <p className="committee-empty" role="alert">
-            Ky formular nuk ka ende shell shqyrtimi ne kete hap te workflow-it.
-          </p>
-        ) : null}
-
-        {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
-        {renderReviewSection("Të dhënat e kërkesës", requestFields)}
-        {renderReviewSection("Metadata akademike", metadataFields)}
-
-        <section className="committee-review-section committee-review-shell-documents">
-          <div className="committee-review-section-head">
-            <h4>Dokumentet mbështetëse</h4>
-          </div>
-          {supportingDocuments.length ? (
-            <div className="committee-review-shell-document-list">
-              {supportingDocuments.map((document) => (
-                <a
-                  key={`${document.id}-${document.filename}`}
-                  href={getCommitteeDocumentUrl(document.url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="committee-review-shell-document"
-                >
-                  <FileText size={16} />
-                  <span>{document.label}</span>
-                  <strong>{document.filename}</strong>
-                </a>
-              ))}
+      <>
+        <section className="committee-page-card committee-stats-only-card committee-review-shell">
+          <div className="committee-review-shell-head">
+            <div>
+              <span className="committee-review-shell-badge">{config.badge}</span>
+              <h3>{config.title}</h3>
+              <p>{config.description}</p>
             </div>
-          ) : (
-            <p className="committee-empty">Nuk ka dokumente mbështetëse të lidhura me këtë kërkesë.</p>
-          )}
+            <div className="committee-review-shell-actions">
+              <button
+                type="button"
+                className="committee-review-checklist-open"
+                onClick={() => setIsReviewChecklistDrawerOpen(true)}
+              >
+                Checklista e Komisionit
+              </button>
+              <button type="button" className="committee-settings-back" onClick={closeReimbursementReview}>
+                Kthehu
+              </button>
+            </div>
+          </div>
+
+          {!config.supported ? (
+            <p className="committee-empty" role="alert">
+              Ky formular nuk ka ende shell shqyrtimi ne kete hap te workflow-it.
+            </p>
+          ) : null}
+
+          {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
+          {renderReviewSection("Të dhënat e kërkesës", requestFields)}
+          {renderReviewSection("Metadata akademike", metadataFields)}
+
+          <section className="committee-review-section committee-review-shell-documents">
+            <div className="committee-review-section-head">
+              <h4>Dokumentet mbështetëse</h4>
+            </div>
+            {supportingDocuments.length ? (
+              <div className="committee-review-shell-document-list">
+                {supportingDocuments.map((document) => (
+                  <a
+                    key={`${document.id}-${document.filename}`}
+                    href={getCommitteeDocumentUrl(document.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="committee-review-shell-document"
+                  >
+                    <FileText size={16} />
+                    <span>{document.label}</span>
+                    <strong>{document.filename}</strong>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="committee-empty">Nuk ka dokumente mbështetëse të lidhura me këtë kërkesë.</p>
+            )}
+          </section>
+
+          {config.supported ? renderCommitteeChecklist() : null}
+          {renderReviewSection("Komentet e Komisionit", [], {
+            placeholder: true,
+            note: "Placeholder",
+            emptyText: "Komentet do të aktivizohen pasi të shtohet procesi i vlerësimit.",
+          })}
+          {renderReviewSection("Vendimi", [], {
+            placeholder: true,
+            note: "Placeholder",
+            emptyText: "Vendimi final do të aktivizohet pas implementimit të checklistës dhe rregullave të aprovimit.",
+          })}
         </section>
 
-        {config.supported ? renderCommitteeChecklist() : null}
-        {renderReviewSection("Komentet e Komisionit", [], {
-          placeholder: true,
-          note: "Placeholder",
-          emptyText: "Komentet do të aktivizohen pasi të shtohet procesi i vlerësimit.",
-        })}
-        {renderReviewSection("Vendimi", [], {
-          placeholder: true,
-          note: "Placeholder",
-          emptyText: "Vendimi final do të aktivizohet pas implementimit të checklistës dhe rregullave të aprovimit.",
-        })}
-      </section>
+        {isReviewChecklistDrawerOpen ? (
+          <div className="committee-review-checklist-drawer-backdrop" role="presentation" onClick={() => setIsReviewChecklistDrawerOpen(false)}>
+            <aside
+              className="committee-review-checklist-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="committee-review-checklist-drawer-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="committee-review-checklist-drawer-head">
+                <div>
+                  <span>{config.badge}</span>
+                  <h4 id="committee-review-checklist-drawer-title">Checklista e Komisionit</h4>
+                  <p>Panel përgatitor për workflow-in e ardhshëm të verifikimit.</p>
+                </div>
+                <button type="button" onClick={() => setIsReviewChecklistDrawerOpen(false)} aria-label="Mbyll checklistën">
+                  ×
+                </button>
+              </div>
+              <div className="committee-review-checklist-drawer-body">
+                <strong>Placeholder</strong>
+                <p>
+                  Këtu do të vendosen kontrollet aktive të Komisionit, shënimet dhe evidencat. Për momentin nuk ruhet asnjë e dhënë dhe nuk ndryshohet statusi i kërkesës.
+                </p>
+              </div>
+            </aside>
+          </div>
+        ) : null}
+      </>
     );
   };
 
