@@ -2056,9 +2056,70 @@ export default function CommitteeDashboard() {
 
   const renderReimbursementReviewShell = (request) => {
     const config = getReviewShellConfig(request);
+    const requestData = request.requestData || {};
+    const requestType = getRequestType(request);
     const amount = request.amount === null || request.amount === undefined || request.amount === ""
       ? "-"
       : `${request.amount} ${request.currency || "EUR"}`;
+    const hasReviewValue = (value) => {
+      if (Array.isArray(value)) {
+        return value.some(hasReviewValue);
+      }
+
+      if (value && typeof value === "object") {
+        return Object.values(value).some(hasReviewValue);
+      }
+
+      return value !== null && value !== undefined && String(value).trim() !== "";
+    };
+    const getFirstReviewValue = (...values) => values.find(hasReviewValue) || "";
+    const isUrlValue = (value) => /^https?:\/\//i.test(String(value || "").trim());
+    const createReviewField = (label, value, options = {}) => ({
+      label,
+      value,
+      href: options.href || (options.link && isUrlValue(value) ? String(value).trim() : ""),
+      wide: Boolean(options.wide),
+      format: options.format || "",
+      alwaysShow: Boolean(options.alwaysShow),
+    });
+    const renderReviewValue = (field) => {
+      const rawValue = field.format === "date" ? formatDate(field.value) : field.value;
+      const value = hasReviewValue(rawValue) ? rawValue : "-";
+
+      if (field.href && hasReviewValue(field.href)) {
+        return (
+          <a href={field.href} target="_blank" rel="noreferrer">
+            {value}
+          </a>
+        );
+      }
+
+      return Array.isArray(value) ? value.join(", ") : String(value);
+    };
+    const renderReviewSection = (title, fields, options = {}) => {
+      const visibleFields = fields.filter((field) => field.alwaysShow || hasReviewValue(field.value));
+
+      return (
+        <section className={`committee-review-section ${options.placeholder ? "is-placeholder" : ""}`}>
+          <div className="committee-review-section-head">
+            <h4>{title}</h4>
+            {options.note ? <span>{options.note}</span> : null}
+          </div>
+          {visibleFields.length ? (
+            <dl className="committee-review-fields">
+              {visibleFields.map((field) => (
+                <div key={`${title}-${field.label}`} className={field.wide ? "is-wide" : ""}>
+                  <dt>{field.label}</dt>
+                  <dd>{renderReviewValue(field)}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="committee-empty">{options.emptyText || "Nuk ka të dhëna të regjistruara për këtë seksion."}</p>
+          )}
+        </section>
+      );
+    };
     const supportingDocuments = [
       request.downloadUrl ? {
         id: "pdf",
@@ -2079,6 +2140,76 @@ export default function CommitteeDashboard() {
         url: attachment.downloadUrl || `/api/reimbursements/${request.id}/attachments/${attachment.id}`,
       })) : []),
     ].filter((item) => item?.url);
+    const applicantFields = [
+      createReviewField("Emri dhe mbiemri", getFirstReviewValue(requestData.applicantName, request.owner?.name, request.owner?.email), { alwaysShow: true }),
+      createReviewField("Email", getFirstReviewValue(requestData.applicantEmail, request.owner?.email), { alwaysShow: true }),
+      createReviewField("Fakulteti", getFirstReviewValue(requestData.applicantFaculty, request.owner?.faculty), { alwaysShow: true }),
+      createReviewField("Departamenti", getFirstReviewValue(requestData.applicantDepartment, request.owner?.department), { alwaysShow: true }),
+      createReviewField("Zyra", requestData.applicantOffice),
+      createReviewField("ORCID", requestData.applicantOrcidId),
+      createReviewField("Thirrja akademike", requestData.academicTitle),
+      createReviewField("Thirrja shkencore", requestData.scientificTitle),
+    ];
+    const bankingFields = [
+      createReviewField("Emri në bankë", requestData.bankApplicantName),
+      createReviewField("Banka", getFirstReviewValue(requestData.bankName, requestData.bankNameOther)),
+      createReviewField("Numri i llogarisë / IBAN", getFirstReviewValue(requestData.bankAccountNumber, requestData.iban)),
+      createReviewField("SWIFT", requestData.swiftCode),
+      createReviewField("Vendi i bankës", requestData.bankCountry),
+    ];
+    const requestFields = [
+      createReviewField("Numri i dokumentit", request.documentNumber, { alwaysShow: true }),
+      createReviewField("Request ID", request.id, { alwaysShow: true }),
+      createReviewField("Lloji i kërkesës", config.typeLabel, { alwaysShow: true }),
+      createReviewField("Statusi", request.statusLabel || request.status, { alwaysShow: true }),
+      createReviewField("Data e dorëzimit", request.submittedAt || request.createdAt, { format: "date", alwaysShow: true }),
+      createReviewField("Shuma", amount, { alwaysShow: true }),
+      createReviewField("Titulli", request.title || request.requestTypeLabel, { wide: true, alwaysShow: true }),
+      ...bankingFields,
+    ];
+    const f1MetadataFields = [
+      createReviewField("Titulli i publikimit", requestData.publicationTitle, { wide: true }),
+      createReviewField("Lloji i publikimit", requestData.publicationType),
+      createReviewField("DOI", requestData.doi, { href: requestData.doi ? `https://doi.org/${requestData.doi}` : "" }),
+      createReviewField("Publikuar në", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
+      createReviewField("Shtëpia botuese", requestData.publisher),
+      createReviewField("Data / viti i publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
+      createReviewField("Linku i publikimit", requestData.publicationLink, { link: true, wide: true }),
+      createReviewField("Autori kryesor", requestData.mainAuthor),
+      createReviewField("Autori korrespondent", requestData.correspondingAuthor),
+      createReviewField("Bashkautorët", requestData.coauthors, { wide: true }),
+      createReviewField("Affiliation", requestData.affiliation, { wide: true }),
+      createReviewField("Abstrakti", requestData.abstract, { wide: true }),
+      createReviewField("Vëllimi", requestData.volume),
+      createReviewField("Issue", requestData.issue),
+      createReviewField("Faqet", requestData.pages),
+      createReviewField("ISSN", requestData.issn),
+      createReviewField("ISBN", requestData.isbn),
+      createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
+      createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
+      createReviewField("Impact Factor", requestData.impactFactor),
+      createReviewField("Kuartili", requestData.scopusQuartile),
+      createReviewField("Data e pranimit", requestData.acceptanceDate, { format: "date" }),
+      createReviewField("Dëshmia në databazën UIBM", requestData.uibmDatabaseEvidence, { link: true, wide: true }),
+    ];
+    const f2MetadataFields = [
+      createReviewField("Emërtimi i ngjarjes", requestData.conferenceTitle, { wide: true }),
+      createReviewField("Vendi", requestData.location),
+      createReviewField("Data e konferencës", requestData.conferenceDate, { format: "date" }),
+      createReviewField("Vendi dhe data", requestData.eventPlaceDate),
+      createReviewField("Organizatori", requestData.organizer, { wide: true }),
+      createReviewField("Ftesa dhe programi", requestData.invitationProgram, { link: true, wide: true }),
+      createReviewField("Abstrakti dhe titulli i punimit", requestData.abstractTitle, { wide: true }),
+      createReviewField("Konfirmimi i pranimit", requestData.acceptanceConfirmation, { link: true, wide: true }),
+      createReviewField("Autorët dhe affiliation", requestData.authorsAffiliation, { wide: true }),
+      createReviewField("Autori kryesor", requestData.mainAuthor),
+      createReviewField("Bashkëpjesëmarrësi", requestData.coParticipant, { wide: true }),
+      createReviewField("Folës me kumtesë/poster", requestData.speakerWithPaperPoster),
+      createReviewField("Kryesues/panelist", requestData.chairPanelist),
+      createReviewField("Ngjarje artistike/sportive", requestData.artisticSportEvent),
+      createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, { link: true, wide: true }),
+    ];
+    const metadataFields = requestType === "conference" ? f2MetadataFields : f1MetadataFields;
 
     return (
       <section className="committee-page-card committee-stats-only-card committee-review-shell">
@@ -2099,18 +2230,14 @@ export default function CommitteeDashboard() {
           </p>
         ) : null}
 
-        <div className="committee-review-shell-grid">
-          <div><dt>Request ID</dt><dd>{request.documentNumber || request.id || "-"}</dd></div>
-          <div><dt>Applicant</dt><dd>{request.owner?.name || request.owner?.email || "-"}</dd></div>
-          <div><dt>Request type</dt><dd>{config.typeLabel}</dd></div>
-          <div><dt>Academic unit</dt><dd>{request.owner?.faculty || request.owner?.department || "-"}</dd></div>
-          <div><dt>Submitted date</dt><dd>{formatDate(request.submittedAt || request.createdAt)}</dd></div>
-          <div><dt>Amount</dt><dd>{amount}</dd></div>
-          <div className="committee-review-shell-wide"><dt>Title</dt><dd>{request.title || request.requestTypeLabel || "-"}</dd></div>
-        </div>
+        {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
+        {renderReviewSection("Të dhënat e kërkesës", requestFields)}
+        {renderReviewSection("Metadata akademike", metadataFields)}
 
-        <section className="committee-review-shell-documents">
-          <h4>Uploaded/supporting documents</h4>
+        <section className="committee-review-section committee-review-shell-documents">
+          <div className="committee-review-section-head">
+            <h4>Dokumentet mbështetëse</h4>
+          </div>
           {supportingDocuments.length ? (
             <div className="committee-review-shell-document-list">
               {supportingDocuments.map((document) => (
@@ -2128,9 +2255,25 @@ export default function CommitteeDashboard() {
               ))}
             </div>
           ) : (
-            <p className="committee-empty">Nuk ka dokumente mbeshtetese te lidhura me kete kerkese.</p>
+            <p className="committee-empty">Nuk ka dokumente mbështetëse të lidhura me këtë kërkesë.</p>
           )}
         </section>
+
+        {renderReviewSection("Checklista e Komisionit", [], {
+          placeholder: true,
+          note: "Placeholder",
+          emptyText: "Checklista do të shtohet në hapin e ardhshëm. Nuk ka kontrolle aktive në këtë faqe.",
+        })}
+        {renderReviewSection("Komentet e Komisionit", [], {
+          placeholder: true,
+          note: "Placeholder",
+          emptyText: "Komentet e Komisionit do të shfaqen këtu kur të shtohet workflow-i përkatës.",
+        })}
+        {renderReviewSection("Vendimi", [], {
+          placeholder: true,
+          note: "Placeholder",
+          emptyText: "Vendimi do të shfaqet këtu në një hap të ardhshëm. Nuk ka veprime aprovimi, refuzimi ose korrigjimi.",
+        })}
       </section>
     );
   };

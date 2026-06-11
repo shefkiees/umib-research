@@ -1505,21 +1505,60 @@
 	font-weight: 800;
 }
 
-.committee-review-shell-grid {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.committee-review-shell-grid div,
-.committee-review-shell-documents {
+.committee-review-section {
 	border: 1px solid #e2e8f0;
 	border-radius: 10px;
 	background: #ffffff;
+	padding: 16px;
+	display: grid;
+	gap: 14px;
+}
+
+.committee-review-section.is-placeholder {
+	background: #f8fafc;
+	border-style: dashed;
+}
+
+.committee-review-section-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.committee-review-section-head h4 {
+	margin: 0;
+	color: #17324f;
+	font-size: 1rem;
+}
+
+.committee-review-section-head span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	border-radius: 999px;
+	background: #eef2f7;
+	color: #64748b;
+	padding: 2px 10px;
+	font-size: 0.76rem;
+	font-weight: 800;
+}
+
+.committee-review-fields {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin: 0;
+}
+
+.committee-review-fields div {
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #fbfdff;
 	padding: 14px;
 }
 
-.committee-review-shell-grid dt {
+.committee-review-fields dt {
 	margin: 0 0 6px;
 	color: #64748b;
 	font-size: 0.78rem;
@@ -1527,21 +1566,25 @@
 	text-transform: uppercase;
 }
 
-.committee-review-shell-grid dd {
+.committee-review-fields dd {
 	margin: 0;
 	color: #17324f;
 	font-weight: 700;
 	overflow-wrap: anywhere;
+	white-space: pre-wrap;
 }
 
-.committee-review-shell-wide {
+.committee-review-fields dd a {
+	color: #1f5f99;
+	text-decoration: none;
+}
+
+.committee-review-fields dd a:hover {
+	text-decoration: underline;
+}
+
+.committee-review-fields .is-wide {
 	grid-column: 1 / -1;
-}
-
-.committee-review-shell-documents h4 {
-	margin: 0 0 12px;
-	color: #17324f;
-	font-size: 1rem;
 }
 
 .committee-review-shell-document-list {
@@ -4011,7 +4054,7 @@
 	.committee-compare-grid,
 	.committee-checklist-grid,
 	.committee-metadata-detail-grid,
-	.committee-review-shell-grid {
+	.committee-review-fields {
 		grid-template-columns: 1fr;
 	}
 
