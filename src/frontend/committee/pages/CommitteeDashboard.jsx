@@ -1614,12 +1614,12 @@ export default function CommitteeDashboard() {
 
   const openReimbursementReview = (request) => {
     setSelectedReimbursementReview(request);
-    setActivePage("DorÃ«zimet nÃ« Pritje");
+    setActivePage("Dorëzimet në Pritje");
   };
 
   const closeReimbursementReview = () => {
     setSelectedReimbursementReview(null);
-    setActivePage("DorÃ«zimet nÃ« Pritje");
+    setActivePage("Dorëzimet në Pritje");
   };
 
   const saveMetadataReview = (publication, updater) => {
