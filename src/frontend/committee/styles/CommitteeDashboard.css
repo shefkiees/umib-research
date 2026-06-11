@@ -1540,7 +1540,7 @@
 }
 
 .committee-review-checklist-drawer {
-	width: min(960px, 100%);
+	width: min(1120px, 100%);
 	min-height: 100vh;
 	background: #ffffff;
 	box-shadow: -20px 0 40px rgba(15, 23, 42, 0.2);
@@ -1821,6 +1821,8 @@
 }
 
 .committee-review-checklist-row strong {
+	display: block;
+	margin: 0;
 	color: #17324f;
 	font-size: 0.9rem;
 	font-weight: 800;
@@ -1845,15 +1847,48 @@
 	opacity: 1;
 }
 
-.committee-review-checklist-note {
+.committee-review-checklist-item-comment {
 	grid-column: 1 / -1;
+	width: 100%;
+	min-height: 72px;
+	resize: vertical;
 	border: 1px dashed #d7e1ee;
 	border-radius: 8px;
 	background: #fbfdff;
 	color: #64748b;
 	padding: 8px 10px;
+	font: inherit;
 	font-size: 0.78rem;
 	line-height: 1.35;
+}
+
+.committee-review-checklist-general-comment {
+	display: grid;
+	gap: 8px;
+	border: 1px solid #d7e1ee;
+	border-radius: 8px;
+	background: #fbfdff;
+	padding: 14px;
+}
+
+.committee-review-checklist-general-comment span {
+	color: #17324f;
+	font-size: 0.9rem;
+	font-weight: 900;
+}
+
+.committee-review-checklist-general-comment textarea {
+	width: 100%;
+	min-height: 110px;
+	resize: vertical;
+	border: 1px solid #cfd9e7;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #17324f;
+	padding: 10px 12px;
+	font: inherit;
+	font-size: 0.9rem;
+	line-height: 1.45;
 }
 
 .committee-metadata-table th:nth-child(1) { width: 22%; }

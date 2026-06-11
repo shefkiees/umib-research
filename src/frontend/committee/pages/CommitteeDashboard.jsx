@@ -2272,6 +2272,11 @@ export default function CommitteeDashboard() {
         status,
         count: status === defaultStatus ? totalItems : 0,
       }));
+      const shouldShowChecklistComment = (status) => {
+        const normalizedStatus = normalizeForSearch(status);
+        return normalizedStatus === normalizeForSearch("Kërkon korrigjim")
+          || normalizedStatus === normalizeForSearch("Korrigjuar nga Komisioni");
+      };
 
       return (
         <section className="committee-review-section committee-review-checklist-section">
@@ -2311,13 +2316,24 @@ export default function CommitteeDashboard() {
                           </option>
                         ))}
                       </select>
-                      <span className="committee-review-checklist-note">Shënim / evidencë do të shtohet në hapin tjetër.</span>
+                      {shouldShowChecklistComment(defaultStatus) ? (
+                        <textarea
+                          className="committee-review-checklist-item-comment"
+                          placeholder="Koment për këtë pikë të checklistës"
+                          disabled
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>
               </article>
             ))}
           </div>
+
+          <label className="committee-review-checklist-general-comment">
+            <span>Koment i përgjithshëm i komisionit</span>
+            <textarea placeholder="Ky koment është vetëm lokal për këtë hap dhe nuk ruhet ende." />
+          </label>
         </section>
       );
     };
