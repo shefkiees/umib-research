@@ -126,6 +126,7 @@ function getActivityScore(row) {
 }
 
 const FACULTY_CHART_COLORS = ["#153a63", "#2e6aa6", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
+const PRORECTOR_PUBLICATIONS_PAGE_SIZE = 50;
 const PUBLICATION_STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorezuar",
@@ -342,23 +343,36 @@ export default function ProRectorDashboard() {
       setPublicationStatsError("");
 
       try {
-        const response = await fetch(apiUrl("/publications?scope=all&limit=200"), {
-          credentials: "include",
-        });
-        const data = await response.json().catch(() => ({}));
+        const rows = [];
+        let page = 1;
+        let totalPages = 1;
 
-        if (response.status === 401) {
-          throw new Error("unauthorized");
-        }
+        do {
+          const params = new URLSearchParams({
+            scope: "all",
+            limit: String(PRORECTOR_PUBLICATIONS_PAGE_SIZE),
+            page: String(page),
+          });
+          const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
+            credentials: "include",
+          });
+          const data = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
-          throw new Error(data.message || "publications_load_failed");
-        }
+          if (response.status === 401) {
+            throw new Error("unauthorized");
+          }
 
-        const rows = Array.isArray(data) ? data : data.data;
+          if (!response.ok) {
+            throw new Error(data.message || "publications_load_failed");
+          }
+
+          rows.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
+          totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
+          page += 1;
+        } while (page <= totalPages);
 
         if (isMounted) {
-          setPublicationStats(Array.isArray(rows) ? rows : []);
+          setPublicationStats(rows);
         }
       } catch (error) {
         console.error("Pro rector publications load failed:", error);
@@ -1426,39 +1440,6 @@ export default function ProRectorDashboard() {
           {!facultyStatsLoading && facultyDashboardRows.length === 0 ? (
             <div className="prorector-faculty-empty">Nuk u gjet asnjë fakultet aktiv për këtë kërkim.</div>
           ) : null}
-        </div>
-      );
-    }
-
-    if (activePage === "PublikimeLegacy") {
-      return (
-        <div className="prorector-table-section">
-          <h2>Publikime</h2>
-          <p>Përmbledhje e të gjitha publikimeve akademike.</p>
-          <table className="prorector-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>TITULL</th>
-                <th>NJESIA</th>
-                <th>STATUSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPublications.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td>{row.title}</td>
-                  <td>{row.unit}</td>
-                  <td>
-                    <span className={`status-badge status-${row.status.toLowerCase().replace(" ", "-")}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       );
     }

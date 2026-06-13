@@ -1466,6 +1466,28 @@
   color: #065f46;
 }
 
+.status-approved {
+  background: #c8f7dc;
+  color: #065f46;
+}
+
+.status-draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.status-submitted,
+.status-in-review,
+.status-needs-correction {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .status-ne-shqyrtim {
   background: #fef3c7;
   color: #92400e;
