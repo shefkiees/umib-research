@@ -603,6 +603,77 @@
   white-space: nowrap;
 }
 
+.prorector-faculty-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border: 1px solid #dfe7f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.prorector-faculty-summary div {
+  min-height: 76px;
+  padding: 14px 16px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  border-right: 1px solid #dfe7f0;
+}
+
+.prorector-faculty-summary div:last-child {
+  border-right: none;
+}
+
+.prorector-faculty-summary span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.prorector-faculty-summary strong {
+  color: #0f172a;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.prorector-faculty-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e3e8ef;
+  border-radius: 12px;
+}
+
+.prorector-faculty-table {
+  min-width: 860px;
+}
+
+.prorector-faculty-table thead {
+  border-bottom: 1px solid #dfe7f0;
+  background: #f8fafc;
+}
+
+.prorector-faculty-table th,
+.prorector-faculty-table td {
+  white-space: nowrap;
+}
+
+.prorector-faculty-table th:first-child,
+.prorector-faculty-table td:first-child {
+  white-space: normal;
+  min-width: 280px;
+}
+
+.prorector-faculty-table td:not(:first-child) {
+  font-weight: 700;
+}
+
+.prorector-faculty-name {
+  display: block;
+  color: #132238;
+  line-height: 1.35;
+}
+
 .prorector-overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1384,10 +1455,15 @@ input:checked + .prorector-slider:before {
     align-items: flex-start;
   }
 
+  .prorector-faculty-summary,
   .prorector-overview-grid,
   .prorector-insight-strip,
   .prorector-faculty-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prorector-faculty-summary div:nth-child(2n) {
+    border-right: none;
   }
 
   .prorector-section-pill {
@@ -1418,11 +1494,21 @@ input:checked + .prorector-slider:before {
     padding: 18px;
   }
 
+  .prorector-faculty-summary,
   .prorector-overview-grid,
   .prorector-insight-strip,
   .prorector-faculty-metrics,
   .prorector-faculty-card-head {
     grid-template-columns: 1fr;
+  }
+
+  .prorector-faculty-summary div {
+    border-right: none;
+    border-bottom: 1px solid #dfe7f0;
+  }
+
+  .prorector-faculty-summary div:last-child {
+    border-bottom: none;
   }
 
   .prorector-faculty-card-head .status-badge {

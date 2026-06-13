@@ -1,17 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BookOpenCheck,
-  Building2,
   CheckCircle2,
   CircleUserRound,
-  Layers3,
   Link2,
-  ReceiptText,
   RefreshCw,
   Settings,
   ShieldX,
-  UsersRound,
 } from "lucide-react";
 import "../styles/ProRectorDashboard.css";
 import ProRectorSidebar from "../components/Sidebar";
@@ -508,45 +503,31 @@ export default function ProRectorDashboard() {
               {facultyStatsError}
             </div>
           ) : null}
-          <div className="prorector-overview-grid">
-            <article className="prorector-overview-card is-blue">
-              <Building2 size={20} />
-              <span>Fakultete</span>
+          <div className="prorector-faculty-summary" aria-label="Permbledhje e fakulteteve aktive">
+            <div>
+              <span>Fakultete aktive</span>
               <strong>{facultyOverview.facultyCount}</strong>
-            </article>
-            <article className="prorector-overview-card is-gold">
-              <UsersRound size={20} />
+            </div>
+            <div>
               <span>Staf aktiv</span>
               <strong>{facultyOverview.activeUserCount}</strong>
-            </article>
-            <article className="prorector-overview-card is-green">
-              <BookOpenCheck size={20} />
-              <span>Publikime</span>
-              <strong>{facultyOverview.publicationCount}</strong>
-            </article>
-            <article className="prorector-overview-card is-rose">
-              <ReceiptText size={20} />
-              <span>Rimbursime</span>
-              <strong>{facultyOverview.reimbursementCount}</strong>
-            </article>
-          </div>
-
-          <div className="prorector-insight-strip">
-            <article>
-              <span>Aktivitet total</span>
-              <strong>{facultyOverview.activityCount}</strong>
-              <p>Publikime dhe rimbursime gjithsej</p>
-            </article>
-            <article>
+            </div>
+            <div>
               <span>Departamente</span>
               <strong>{facultyOverview.departmentCount}</strong>
-              <p>Struktura akademike aktive</p>
-            </article>
-            <article>
-              <span>Mesatare / fakultet</span>
-              <strong>{facultyOverview.averageActivity}</strong>
-              <p>Aktivitet akademik i shpërndarë</p>
-            </article>
+            </div>
+            <div>
+              <span>Publikime</span>
+              <strong>{facultyOverview.publicationCount}</strong>
+            </div>
+            <div>
+              <span>Rimbursime</span>
+              <strong>{facultyOverview.reimbursementCount}</strong>
+            </div>
+            <div>
+              <span>Aktivitet total</span>
+              <strong>{facultyOverview.activityCount}</strong>
+            </div>
           </div>
 
           {facultyStatsLoading ? (
@@ -554,49 +535,45 @@ export default function ProRectorDashboard() {
           ) : null}
 
           {!facultyStatsLoading && facultyDashboardRows.length > 0 ? (
-            <div className="prorector-faculty-grid">
-              {facultyDashboardRows.map((row) => (
-                <article className="prorector-faculty-card" key={row.id || row.code || row.name}>
-                  <div className="prorector-faculty-card-head">
-                    <span className="prorector-faculty-avatar">
-                      <Building2 size={22} />
-                    </span>
-                    <div>
-                      <h3>{row.name}</h3>
-                      <div className="prorector-faculty-meta">
-                        {row.code ? <span>{row.code}</span> : null}
-                        <span>{row.isOfficial ? "Zyrtar" : "Nga profilet"}</span>
-                      </div>
-                    </div>
-                    <span className="status-badge status-aprovuar">
-                      {row.statusLabel || "Aktiv"}
-                    </span>
-                  </div>
-
-                  <div className="prorector-faculty-metrics">
-                    <div className="is-staff">
-                      <UsersRound size={17} />
-                      <span>Staf</span>
-                      <strong>{row.activeUserCount}</strong>
-                    </div>
-                    <div className="is-departments">
-                      <Layers3 size={17} />
-                      <span>Depart.</span>
-                      <strong>{row.departmentCount}</strong>
-                    </div>
-                    <div className="is-publications">
-                      <BookOpenCheck size={17} />
-                      <span>Publ.</span>
-                      <strong>{row.publicationCount}</strong>
-                    </div>
-                    <div className="is-reimbursements">
-                      <ReceiptText size={17} />
-                      <span>Rimb.</span>
-                      <strong>{row.reimbursementCount}</strong>
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div className="prorector-faculty-table-wrap">
+              <table className="prorector-table prorector-faculty-table">
+                <thead>
+                  <tr>
+                    <th>Fakulteti aktiv</th>
+                    <th>Kodi / burimi</th>
+                    <th>Staf</th>
+                    <th>Depart.</th>
+                    <th>Publikime</th>
+                    <th>Rimbursime</th>
+                    <th>Aktivitet</th>
+                    <th>Statusi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {facultyDashboardRows.map((row) => (
+                    <tr key={row.id || row.code || row.name}>
+                      <td>
+                        <strong className="prorector-faculty-name">{row.name}</strong>
+                      </td>
+                      <td>
+                        <span className="prorector-table-muted">
+                          {row.code || "Pa kod"} · {row.isOfficial ? "Zyrtar" : "Nga profilet"}
+                        </span>
+                      </td>
+                      <td>{row.activeUserCount}</td>
+                      <td>{row.departmentCount}</td>
+                      <td>{row.publicationCount}</td>
+                      <td>{row.reimbursementCount}</td>
+                      <td>{row.publicationCount + row.reimbursementCount}</td>
+                      <td>
+                        <span className="status-badge status-aprovuar">
+                          {row.statusLabel || "Aktiv"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
 
