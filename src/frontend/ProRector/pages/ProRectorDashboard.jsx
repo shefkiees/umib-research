@@ -1,13 +1,41 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
+  BadgeCheck,
+  BarChart3,
+  BookOpen,
   CheckCircle2,
   CircleUserRound,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Filter,
   Link2,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
   RefreshCw,
+  Search,
   Settings,
   ShieldX,
+  TrendingUp,
+  UsersRound,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import "../styles/ProRectorDashboard.css";
 import ProRectorSidebar from "../components/Sidebar";
 import ProRectorTopBar from "../components/TopBar";
@@ -66,6 +94,44 @@ function titleCaseFaculty(value) {
     })
     .join(" ");
 }
+
+function formatMetric(value) {
+  return new Intl.NumberFormat("sq-AL").format(toNumber(value));
+}
+
+function getInitials(value) {
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toLocaleUpperCase("sq-AL"))
+    .join("");
+}
+
+function getActivityScore(row) {
+  const score =
+    toNumber(row.publicationCount) * 4 +
+    toNumber(row.reimbursementCount) * 3 +
+    toNumber(row.activeUserCount) * 1.5 +
+    toNumber(row.departmentCount) * 2 +
+    toNumber(row.citationCount) * 0.25;
+
+  if (score >= 80) {
+    return { label: "Excellent", className: "is-excellent", score: Math.round(score) };
+  }
+
+  if (score >= 42) {
+    return { label: "Good", className: "is-good", score: Math.round(score) };
+  }
+
+  if (score >= 16) {
+    return { label: "Average", className: "is-average", score: Math.round(score) };
+  }
+
+  return { label: "Low", className: "is-low", score: Math.round(score) };
+}
+
+const FACULTY_CHART_COLORS = ["#153a63", "#2e6aa6", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
 
 function getFacultyPresentation(row) {
   const rawName = String(row.name || "").trim();
@@ -157,8 +223,12 @@ export default function ProRectorDashboard() {
   const [facultyStats, setFacultyStats] = useState([]);
   const [facultyStatsLoading, setFacultyStatsLoading] = useState(true);
   const [facultyStatsError, setFacultyStatsError] = useState("");
+  const [facultySearchQuery, setFacultySearchQuery] = useState("");
+  const [facultySortBy, setFacultySortBy] = useState("publications");
+  const [facultyStatusFilter, setFacultyStatusFilter] = useState("all");
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedFacultyQuery = facultySearchQuery.trim().toLowerCase();
 
   useEffect(() => {
     let isMounted = true;
@@ -261,6 +331,11 @@ export default function ProRectorDashboard() {
       const presentation = getFacultyPresentation(row);
       const key = normalizeFacultyKey(presentation.name);
       const existing = groupedRows.get(key);
+      const explicitCitationCount = row.citationCount ?? row.citations ?? row.totalCitations ?? 0;
+      const explicitQ1 = row.q1Count ?? row.q1 ?? 0;
+      const explicitQ2 = row.q2Count ?? row.q2 ?? 0;
+      const explicitQ3 = row.q3Count ?? row.q3 ?? 0;
+      const explicitQ4 = row.q4Count ?? row.q4 ?? 0;
       const nextRow = {
         ...row,
         ...presentation,
@@ -268,6 +343,11 @@ export default function ProRectorDashboard() {
         departmentCount: toNumber(row.departmentCount),
         publicationCount: toNumber(row.publicationCount),
         reimbursementCount: toNumber(row.reimbursementCount),
+        citationCount: toNumber(explicitCitationCount),
+        q1Count: toNumber(explicitQ1),
+        q2Count: toNumber(explicitQ2),
+        q3Count: toNumber(explicitQ3),
+        q4Count: toNumber(explicitQ4),
       };
 
       if (!existing) {
@@ -281,6 +361,11 @@ export default function ProRectorDashboard() {
         departmentCount: Math.max(existing.departmentCount, nextRow.departmentCount),
         publicationCount: existing.publicationCount + nextRow.publicationCount,
         reimbursementCount: existing.reimbursementCount + nextRow.reimbursementCount,
+        citationCount: existing.citationCount + nextRow.citationCount,
+        q1Count: existing.q1Count + nextRow.q1Count,
+        q2Count: existing.q2Count + nextRow.q2Count,
+        q3Count: existing.q3Count + nextRow.q3Count,
+        q4Count: existing.q4Count + nextRow.q4Count,
         isOfficial: existing.isOfficial || nextRow.isOfficial,
       });
     });
@@ -293,6 +378,39 @@ export default function ProRectorDashboard() {
     });
   }, [filteredFacultyStats]);
 
+  const facultyPerformanceRows = useMemo(() => {
+    const rows = facultyDashboardRows
+      .filter((row) => {
+        if (!normalizedFacultyQuery) {
+          return true;
+        }
+
+        const searchable = `${row.name} ${row.code} ${row.statusLabel} ${row.departmentNames?.join(" ")}`.toLowerCase();
+        return searchable.includes(normalizedFacultyQuery);
+      })
+      .map((row) => ({
+        ...row,
+        activity: getActivityScore(row),
+      }))
+      .filter((row) => {
+        if (facultyStatusFilter === "all") {
+          return true;
+        }
+
+        return row.activity.className === `is-${facultyStatusFilter}`;
+      });
+
+    return [...rows].sort((first, second) => {
+      const sorters = {
+        publications: second.publicationCount - first.publicationCount,
+        citations: second.citationCount - first.citationCount,
+        reimbursements: second.reimbursementCount - first.reimbursementCount,
+      };
+
+      return sorters[facultySortBy] || first.name.localeCompare(second.name, "sq");
+    });
+  }, [facultyDashboardRows, facultySortBy, facultyStatusFilter, normalizedFacultyQuery]);
+
   const facultyOverview = useMemo(() => {
     const totals = facultyDashboardRows.reduce(
       (totals, row) => ({
@@ -301,8 +419,24 @@ export default function ProRectorDashboard() {
         departmentCount: totals.departmentCount + row.departmentCount,
         publicationCount: totals.publicationCount + row.publicationCount,
         reimbursementCount: totals.reimbursementCount + row.reimbursementCount,
+        citationCount: totals.citationCount + row.citationCount,
+        q1Count: totals.q1Count + row.q1Count,
+        q2Count: totals.q2Count + row.q2Count,
+        q3Count: totals.q3Count + row.q3Count,
+        q4Count: totals.q4Count + row.q4Count,
       }),
-      { facultyCount: 0, activeUserCount: 0, departmentCount: 0, publicationCount: 0, reimbursementCount: 0 }
+      {
+        facultyCount: 0,
+        activeUserCount: 0,
+        departmentCount: 0,
+        publicationCount: 0,
+        reimbursementCount: 0,
+        citationCount: 0,
+        q1Count: 0,
+        q2Count: 0,
+        q3Count: 0,
+        q4Count: 0,
+      }
     );
 
     const activityCount = totals.publicationCount + totals.reimbursementCount;
@@ -314,6 +448,127 @@ export default function ProRectorDashboard() {
       averageActivity,
     };
   }, [facultyDashboardRows]);
+
+  const facultyKpiCards = useMemo(
+    () => [
+      {
+        label: "Fakultete Aktive",
+        value: facultyOverview.facultyCount,
+        trend: `${facultyPerformanceRows.length} ne pamje`,
+        icon: BadgeCheck,
+        tone: "is-blue",
+      },
+      {
+        label: "Staf Akademik Aktiv",
+        value: facultyOverview.activeUserCount,
+        trend: "profile aktive",
+        icon: UsersRound,
+        tone: "is-green",
+      },
+      {
+        label: "Publikime Shkencore",
+        value: facultyOverview.publicationCount,
+        trend: `${facultyOverview.averageActivity} mes. aktivitet`,
+        icon: BookOpen,
+        tone: "is-gold",
+      },
+      {
+        label: "Rimbursime Totale",
+        value: facultyOverview.reimbursementCount,
+        trend: "kerkesa jo draft",
+        icon: FileText,
+        tone: "is-rose",
+      },
+      {
+        label: "Citime Totale",
+        value: facultyOverview.citationCount,
+        trend: facultyOverview.citationCount ? "nga profili" : "pa te dhena",
+        icon: TrendingUp,
+        tone: "is-indigo",
+      },
+      {
+        label: "Aktivitete Akademike",
+        value: facultyOverview.activityCount,
+        trend: "publikime + rimbursime",
+        icon: Activity,
+        tone: "is-teal",
+      },
+    ],
+    [facultyOverview, facultyPerformanceRows.length]
+  );
+
+  const publicationsByFaculty = useMemo(
+    () =>
+      facultyDashboardRows
+        .filter((row) => row.publicationCount > 0)
+        .slice(0, 10)
+        .map((row) => ({
+          faculty: row.code || getInitials(row.name) || "N/A",
+          publications: row.publicationCount,
+          name: row.name,
+        })),
+    [facultyDashboardRows]
+  );
+
+  const publicationDistribution = useMemo(() => {
+    return [
+      {
+        name: "Journal Articles",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.journalArticleCount ?? row.journalArticles), 0),
+      },
+      {
+        name: "Conference Papers",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.conferencePaperCount ?? row.conferencePapers), 0),
+      },
+      {
+        name: "Book Chapters",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.bookChapterCount ?? row.bookChapters), 0),
+      },
+      {
+        name: "Books",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.bookCount ?? row.books), 0),
+      },
+    ].filter((item) => item.value > 0);
+  }, [facultyDashboardRows]);
+
+  const reimbursementStatusData = useMemo(() => {
+    return [
+      {
+        name: "Approved",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.approvedReimbursementCount ?? row.approvedReimbursements), 0),
+      },
+      {
+        name: "Pending",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.pendingReimbursementCount ?? row.pendingReimbursements), 0),
+      },
+      {
+        name: "Rejected",
+        value: facultyDashboardRows.reduce((sum, row) => sum + toNumber(row.rejectedReimbursementCount ?? row.rejectedReimbursements), 0),
+      },
+    ].filter((item) => item.value > 0);
+  }, [facultyDashboardRows]);
+
+  const monthlyActivityTrend = useMemo(() => {
+    const monthFormatter = new Intl.DateTimeFormat("sq-AL", { month: "short" });
+    const currentDate = new Date();
+
+    return Array.from({ length: 6 }, (_, index) => {
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - index), 1);
+      const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+      const rowsForMonth = facultyDashboardRows.filter((row) => String(row.updatedAt || "").startsWith(monthKey));
+
+      return {
+        month: monthFormatter.format(monthDate),
+        publications: rowsForMonth.reduce((sum, row) => sum + row.publicationCount, 0),
+        reimbursements: rowsForMonth.reduce((sum, row) => sum + row.reimbursementCount, 0),
+      };
+    });
+  }, [facultyDashboardRows]);
+
+  const hasMonthlyActivityTrend = useMemo(
+    () => monthlyActivityTrend.some((row) => row.publications > 0 || row.reimbursements > 0),
+    [monthlyActivityTrend]
+  );
 
   const filteredPublications = useMemo(() => {
     if (!normalizedQuery) {
@@ -485,10 +740,75 @@ export default function ProRectorDashboard() {
     );
   };
 
+  const exportFacultyCsv = () => {
+    const headers = [
+      "Faculty Name",
+      "Code",
+      "Academic Staff",
+      "Departments",
+      "Publications",
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "Citations",
+      "Reimbursements",
+      "Activity Score",
+      "Status",
+    ];
+    const escapeCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows = facultyPerformanceRows.map((row) => [
+      row.name,
+      row.code || "-",
+      row.activeUserCount,
+      row.departmentCount,
+      row.publicationCount,
+      row.q1Count,
+      row.q2Count,
+      row.q3Count,
+      row.q4Count,
+      row.citationCount,
+      row.reimbursementCount,
+      row.activity.label,
+      row.statusLabel || "Aktiv",
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "faculty-performance-analytics.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportFacultyPdf = () => {
+    window.print();
+  };
+
+  const renderChartEmpty = (message) => (
+    <div className="prorector-chart-empty">
+      <BarChart3 size={22} />
+      <span>{message}</span>
+    </div>
+  );
+
+  const renderFacultySkeletons = () => (
+    <div className="prorector-faculty-skeletons" aria-label="Duke ngarkuar analitikat e fakulteteve">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div className="prorector-skeleton-card" key={`faculty-skeleton-${index}`}>
+          <span />
+          <strong />
+          <small />
+        </div>
+      ))}
+    </div>
+  );
+
   const renderContent = () => {
     if (activePage === "Fakultetet") {
       return (
-        <div className="prorector-table-section prorector-faculties-section">
+        <div className="prorector-table-section prorector-faculties-section prorector-analytics-dashboard">
           <div className="prorector-section-head">
             <div>
               <h2>Fakultetet</h2>
@@ -503,68 +823,222 @@ export default function ProRectorDashboard() {
               {facultyStatsError}
             </div>
           ) : null}
-          <div className="prorector-faculty-summary" aria-label="Permbledhje e fakulteteve aktive">
-            <div>
-              <span>Fakultete aktive</span>
-              <strong>{facultyOverview.facultyCount}</strong>
-            </div>
-            <div>
-              <span>Staf aktiv</span>
-              <strong>{facultyOverview.activeUserCount}</strong>
-            </div>
-            <div>
-              <span>Departamente</span>
-              <strong>{facultyOverview.departmentCount}</strong>
-            </div>
-            <div>
-              <span>Publikime</span>
-              <strong>{facultyOverview.publicationCount}</strong>
-            </div>
-            <div>
-              <span>Rimbursime</span>
-              <strong>{facultyOverview.reimbursementCount}</strong>
-            </div>
-            <div>
-              <span>Aktivitet total</span>
-              <strong>{facultyOverview.activityCount}</strong>
-            </div>
-          </div>
+          {facultyStatsLoading ? renderFacultySkeletons() : null}
 
-          {facultyStatsLoading ? (
-            <div className="prorector-faculty-empty">Duke i ngarkuar fakultetet aktive...</div>
+          {!facultyStatsLoading ? (
+            <div className="prorector-kpi-grid" aria-label="Treguesit kryesore te fakulteteve">
+              {facultyKpiCards.map((card) => {
+                const Icon = card.icon;
+
+                return (
+                  <article className={`prorector-kpi-card ${card.tone}`} key={card.label}>
+                    <div className="prorector-kpi-icon">
+                      <Icon size={22} />
+                    </div>
+                    <div>
+                      <strong>{formatMetric(card.value)}</strong>
+                      <span>{card.label}</span>
+                    </div>
+                    <small>
+                      <TrendingUp size={14} />
+                      {card.trend}
+                    </small>
+                  </article>
+                );
+              })}
+            </div>
           ) : null}
 
-          {!facultyStatsLoading && facultyDashboardRows.length > 0 ? (
+          {!facultyStatsLoading ? (
+            <div className="prorector-analytics-grid">
+              <article className="prorector-analytics-card is-wide">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Publications by Faculty</h3>
+                    <p>Numri i publikimeve sipas fakultetit.</p>
+                  </div>
+                  <BarChart3 size={20} />
+                </div>
+                {publicationsByFaculty.length ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={publicationsByFaculty} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                      <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
+                      <Bar dataKey="publications" name="Publications" radius={[8, 8, 0, 0]} fill="#153a63" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka publikime te regjistruara per grafikun.")
+                )}
+              </article>
+
+              <article className="prorector-analytics-card">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Publication Distribution</h3>
+                    <p>Struktura e publikimeve shkencore.</p>
+                  </div>
+                  <PieChartIcon size={20} />
+                </div>
+                {publicationDistribution.length ? (
+                  <ResponsiveContainer width="100%" height={270}>
+                    <PieChart>
+                      <Pie data={publicationDistribution} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
+                        {publicationDistribution.map((entry, index) => (
+                          <Cell key={entry.name} fill={FACULTY_CHART_COLORS[index % FACULTY_CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka ndarje te publikimeve per raportim.")
+                )}
+              </article>
+
+              <article className="prorector-analytics-card">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Reimbursement Status</h3>
+                    <p>Aprovuar, ne pritje dhe refuzuar.</p>
+                  </div>
+                  <BadgeCheck size={20} />
+                </div>
+                {reimbursementStatusData.length ? (
+                  <ResponsiveContainer width="100%" height={270}>
+                    <PieChart>
+                      <Pie data={reimbursementStatusData} dataKey="value" nameKey="name" outerRadius={92}>
+                        {reimbursementStatusData.map((entry, index) => (
+                          <Cell key={entry.name} fill={["#15803d", "#c9a24f", "#be123c"][index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka rimbursime per status.")
+                )}
+              </article>
+
+              <article className="prorector-analytics-card is-wide">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Monthly Activity Trend</h3>
+                    <p>Publikime dhe rimbursime sipas muajit.</p>
+                  </div>
+                  <LineChartIcon size={20} />
+                </div>
+                {hasMonthlyActivityTrend ? (
+                  <ResponsiveContainer width="100%" height={290}>
+                    <LineChart data={monthlyActivityTrend} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="publications" name="Publications" stroke="#153a63" strokeWidth={3} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="reimbursements" name="Reimbursements" stroke="#c9a24f" strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka te dhena mujore per aktivitetin.")
+                )}
+              </article>
+            </div>
+          ) : null}
+
+          {!facultyStatsLoading ? (
+            <div className="prorector-faculty-toolbar">
+              <label className="prorector-faculty-search">
+                <Search size={17} />
+                <input
+                  value={facultySearchQuery}
+                  onChange={(event) => setFacultySearchQuery(event.target.value)}
+                  placeholder="Kerko fakultet, kod ose departament"
+                />
+              </label>
+              <label className="prorector-faculty-control">
+                <Filter size={16} />
+                <select value={facultyStatusFilter} onChange={(event) => setFacultyStatusFilter(event.target.value)}>
+                  <option value="all">Te gjitha statuset</option>
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="average">Average</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label className="prorector-faculty-control">
+                <BarChart3 size={16} />
+                <select value={facultySortBy} onChange={(event) => setFacultySortBy(event.target.value)}>
+                  <option value="publications">Sorto: publikime</option>
+                  <option value="citations">Sorto: citime</option>
+                  <option value="reimbursements">Sorto: rimbursime</option>
+                </select>
+              </label>
+              <div className="prorector-export-actions">
+                <button type="button" onClick={exportFacultyCsv}>
+                  <FileSpreadsheet size={16} />
+                  Excel
+                </button>
+                <button type="button" onClick={exportFacultyPdf}>
+                  <Download size={16} />
+                  PDF
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {!facultyStatsLoading && facultyPerformanceRows.length > 0 ? (
             <div className="prorector-faculty-table-wrap">
-              <table className="prorector-table prorector-faculty-table">
+              <table className="prorector-table prorector-faculty-table prorector-performance-table">
                 <thead>
                   <tr>
-                    <th>Fakulteti aktiv</th>
-                    <th>Kodi</th>
-                    <th>Staf</th>
-                    <th>Depart.</th>
-                    <th>Publikime</th>
-                    <th>Rimbursime</th>
-                    <th>Aktivitet</th>
-                    <th>Statusi</th>
+                    <th>Faculty Name</th>
+                    <th>Code</th>
+                    <th>Academic Staff</th>
+                    <th>Departments</th>
+                    <th>Publications</th>
+                    <th>Q1</th>
+                    <th>Q2</th>
+                    <th>Q3</th>
+                    <th>Q4</th>
+                    <th>Citations</th>
+                    <th>Reimbursements</th>
+                    <th>Activity Score</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {facultyDashboardRows.map((row) => (
+                  {facultyPerformanceRows.map((row) => (
                     <tr key={row.id || row.code || row.name}>
                       <td>
-                        <strong className="prorector-faculty-name">{row.name}</strong>
+                        <div className="prorector-faculty-identity">
+                          <span>{getInitials(row.name) || "FA"}</span>
+                          <div>
+                            <strong className="prorector-faculty-name">{row.name}</strong>
+                            <small>{row.departmentNames?.slice(0, 2).join(", ") || "Njesi akademike"}</small>
+                          </div>
+                        </div>
                       </td>
+                      <td><span className="prorector-table-muted">{row.code || "-"}</span></td>
+                      <td>{formatMetric(row.activeUserCount)}</td>
+                      <td>{formatMetric(row.departmentCount)}</td>
+                      <td>{formatMetric(row.publicationCount)}</td>
+                      <td>{formatMetric(row.q1Count)}</td>
+                      <td>{formatMetric(row.q2Count)}</td>
+                      <td>{formatMetric(row.q3Count)}</td>
+                      <td>{formatMetric(row.q4Count)}</td>
+                      <td>{formatMetric(row.citationCount)}</td>
+                      <td>{formatMetric(row.reimbursementCount)}</td>
                       <td>
-                        <span className="prorector-table-muted">
-                          {row.code || "-"}
+                        <span className={`prorector-activity-badge ${row.activity.className}`}>
+                          {row.activity.label}
                         </span>
                       </td>
-                      <td>{row.activeUserCount}</td>
-                      <td>{row.departmentCount}</td>
-                      <td>{row.publicationCount}</td>
-                      <td>{row.reimbursementCount}</td>
-                      <td>{row.publicationCount + row.reimbursementCount}</td>
                       <td>
                         <span className="status-badge status-aprovuar">
                           {row.statusLabel || "Aktiv"}
@@ -575,6 +1049,10 @@ export default function ProRectorDashboard() {
                 </tbody>
               </table>
             </div>
+          ) : null}
+
+          {!facultyStatsLoading && facultyDashboardRows.length > 0 && facultyPerformanceRows.length === 0 ? (
+            <div className="prorector-faculty-empty">Nuk ka fakultete qe perputhen me kerkimin ose filtrat aktuale.</div>
           ) : null}
 
           {!facultyStatsLoading && facultyDashboardRows.length === 0 ? (
