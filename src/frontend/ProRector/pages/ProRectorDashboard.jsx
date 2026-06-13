@@ -540,7 +540,7 @@ export default function ProRectorDashboard() {
                 <thead>
                   <tr>
                     <th>Fakulteti aktiv</th>
-                    <th>Kodi / burimi</th>
+                    <th>Kodi</th>
                     <th>Staf</th>
                     <th>Depart.</th>
                     <th>Publikime</th>
@@ -557,7 +557,7 @@ export default function ProRectorDashboard() {
                       </td>
                       <td>
                         <span className="prorector-table-muted">
-                          {row.code || "Pa kod"} · {row.isOfficial ? "Zyrtar" : "Nga profilet"}
+                          {row.code || "-"}
                         </span>
                       </td>
                       <td>{row.activeUserCount}</td>

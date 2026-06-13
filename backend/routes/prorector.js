@@ -43,6 +43,7 @@ function mapFaculty(row) {
     name: row.name || "",
     isOfficial: Boolean(row.faculty_id),
     departmentCount: Number(row.department_count || 0),
+    departmentNames: Array.isArray(row.department_names) ? row.department_names.filter(Boolean) : [],
     activeUserCount,
     professorCount: Number(row.professor_count || 0),
     publicationCount: Number(row.publication_count || 0),
@@ -101,7 +102,11 @@ router.get("/faculties", requireProRectorAccess, async (req, res) => {
          fs.code,
          fs.name,
          fs.updated_at,
-         coalesce(departments.department_count, 0)::int as department_count,
+         greatest(
+           coalesce(departments.department_count, 0),
+           coalesce(user_departments.department_count, 0)
+         )::int as department_count,
+         coalesce(user_departments.department_names, array[]::text[]) as department_names,
          coalesce(users_stats.active_user_count, 0)::int as active_user_count,
          coalesce(users_stats.professor_count, 0)::int as professor_count,
          coalesce(publications_stats.publication_count, 0)::int as publication_count,
@@ -112,6 +117,15 @@ router.get("/faculties", requireProRectorAccess, async (req, res) => {
          from departments d
          where fs.faculty_id is not null and d.faculty_id = fs.faculty_id
        ) departments on true
+       left join lateral (
+         select
+           count(distinct lower(trim(u.department)))::int as department_count,
+           array_agg(distinct trim(u.department) order by trim(u.department)) as department_names
+         from users u
+         where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
+           and coalesce(u.status, 'active') = 'active'
+           and nullif(trim(u.department), '') is not null
+       ) user_departments on true
        left join lateral (
          select
            count(*) filter (where coalesce(u.status, 'active') = 'active')::int as active_user_count,
