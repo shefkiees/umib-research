@@ -1769,10 +1769,8 @@
 }
 
 .committee-review-checklist-groups {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	align-items: start;
-	gap: 12px;
+	columns: 2 320px;
+	column-gap: 12px;
 }
 
 .committee-review-checklist-card {
@@ -1780,10 +1778,12 @@
 	border-radius: 8px;
 	background: #ffffff;
 	overflow: hidden;
+	break-inside: avoid;
+	margin-bottom: 12px;
 }
 
 .committee-review-checklist-card:last-child:nth-child(odd) {
-	grid-column: 1 / -1;
+	width: 100%;
 }
 
 .committee-review-checklist-card header {
@@ -4356,7 +4356,7 @@ a.committee-review-checklist-value:hover {
 	}
 
 	.committee-review-checklist-groups {
-		grid-template-columns: 1fr;
+		columns: 1;
 	}
 
 	.committee-compare-grid,
