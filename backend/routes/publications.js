@@ -1383,6 +1383,15 @@ function mapPublication(row) {
     created_at: row.created_at || null,
     updatedAt: row.updated_at || null,
     updated_at: row.updated_at || null,
+    owner: {
+      id: row.owner_id || null,
+      name: row.owner_name || "",
+      email: row.owner_email || "",
+      faculty: row.owner_faculty || "",
+      department: row.owner_department || "",
+      academicTitle: row.owner_academic_title || "",
+      academic_title: row.owner_academic_title || "",
+    },
   };
 }
 
@@ -1394,6 +1403,8 @@ const PUBLICATION_SELECT_SQL = `
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
+  u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty,
+  u.department as owner_department, u.academic_title as owner_academic_title,
   m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
   coalesce((
     select jsonb_agg(jsonb_build_object(
@@ -1466,6 +1477,8 @@ const LEGACY_PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
+  u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty,
+  u.department as owner_department, u.academic_title as owner_academic_title,
   '[]'::jsonb as review_history,
   m.container_title, m.publisher, m.year, m.type as metadata_type, m.authors as metadata_authors, m.source_url,
   m.raw_json as metadata_raw_json
@@ -1602,6 +1615,7 @@ async function fetchPublicationById(client, publicationId, ownerId) {
     `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
      ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
+     left join users u on u.id = p.owner_id
      where p.id = $1
        and ($2::uuid is null or p.owner_id = $2)
      limit 1`,
@@ -1701,6 +1715,7 @@ async function fetchPublicationByDoi(client, ownerId, doi) {
     `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
      from publications p
      ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
+     left join users u on u.id = p.owner_id
      where p.owner_id = $1 and p.doi = $2
      limit 1`,
     [ownerId, doi]
@@ -2162,6 +2177,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
         `select ${isUnified ? PUBLICATION_SELECT_SQL : LEGACY_PUBLICATION_SELECT_SQL}
          from publications p
          ${isUnified ? "left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)" : "left join publication_metadata m on m.doi = p.doi"}
+         left join users u on u.id = p.owner_id
          where ${resolvedWhereClause}
          order by p.updated_at desc, p.created_at desc
          limit $${limitParam} offset $${offsetParam}`,
