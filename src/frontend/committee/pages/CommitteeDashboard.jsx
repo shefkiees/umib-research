@@ -53,7 +53,6 @@ const committeeChecklistStatuses = [
   "Në rregull",
   "Korrigjuar nga Komisioni",
   "Kërkon korrigjim",
-  "Nuk aplikohet",
 ];
 
 const f1CommitteeChecklistGroups = [
@@ -1095,6 +1094,7 @@ export default function CommitteeDashboard() {
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
+  const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
   const [reviewRequests, setReviewRequests] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
@@ -2187,6 +2187,8 @@ export default function CommitteeDashboard() {
     const config = getReviewShellConfig(request);
     const requestData = request.requestData || {};
     const requestType = getRequestType(request);
+    const checklistDraftKey = request.id || request.documentNumber || `${requestType}-${request.title || request.requestTypeLabel || "request"}`;
+    const checklistDraft = committeeChecklistDrafts[checklistDraftKey] || {};
     const amount = request.amount === null || request.amount === undefined || request.amount === ""
       ? "-"
       : `${request.amount} ${request.currency || "EUR"}`;
@@ -2400,13 +2402,44 @@ export default function CommitteeDashboard() {
 
       return valuesByLabel[label] || createChecklistValue("");
     };
+    const getCommitteeChecklistItemKey = (groupTitle, label) => `${groupTitle}::${label}`;
+    const updateCommitteeChecklistDraft = (updater) => {
+      setCommitteeChecklistDrafts((drafts) => {
+        const currentDraft = drafts[checklistDraftKey] || {};
+        return {
+          ...drafts,
+          [checklistDraftKey]: updater(currentDraft),
+        };
+      });
+    };
+    const updateCommitteeChecklistItem = (itemKey, updates) => {
+      updateCommitteeChecklistDraft((currentDraft) => ({
+        ...currentDraft,
+        items: {
+          ...(currentDraft.items || {}),
+          [itemKey]: {
+            ...(currentDraft.items?.[itemKey] || {}),
+            ...updates,
+          },
+        },
+      }));
+    };
+    const updateCommitteeChecklistGeneralComment = (generalComment) => {
+      updateCommitteeChecklistDraft((currentDraft) => ({
+        ...currentDraft,
+        generalComment,
+      }));
+    };
     const renderCommitteeChecklist = () => {
       const checklistGroups = requestType === "conference" ? f2CommitteeChecklistGroups : f1CommitteeChecklistGroups;
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
       const defaultStatus = committeeChecklistStatuses[0];
+      const itemKeys = checklistGroups.flatMap((group) => (
+        group.items.map((label) => getCommitteeChecklistItemKey(group.title, label))
+      ));
       const statusSummary = committeeChecklistStatuses.map((status) => ({
         status,
-        count: status === defaultStatus ? totalItems : 0,
+        count: itemKeys.filter((itemKey) => (checklistDraft.items?.[itemKey]?.status || defaultStatus) === status).length,
       }));
       const shouldShowChecklistComment = (status) => {
         const normalizedStatus = normalizeForSearch(status);
@@ -2442,28 +2475,39 @@ export default function CommitteeDashboard() {
                   <span>{group.items.length} pika</span>
                 </header>
                 <div className="committee-review-checklist-rows">
-                  {group.items.map((label) => (
-                    <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
-                      <div className="committee-review-checklist-item-main">
-                        <strong>{label}</strong>
-                        {renderChecklistValue(getChecklistItemValue(label))}
+                  {group.items.map((label) => {
+                    const itemKey = getCommitteeChecklistItemKey(group.title, label);
+                    const itemDraft = checklistDraft.items?.[itemKey] || {};
+                    const selectedStatus = itemDraft.status || defaultStatus;
+
+                    return (
+                      <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
+                        <div className="committee-review-checklist-item-main">
+                          <strong>{label}</strong>
+                          {renderChecklistValue(getChecklistItemValue(label))}
+                        </div>
+                        <select
+                          value={selectedStatus}
+                          aria-label={`Statusi për ${label}`}
+                          onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
+                        >
+                          {committeeChecklistStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                        {shouldShowChecklistComment(selectedStatus) ? (
+                          <textarea
+                            className="committee-review-checklist-item-comment"
+                            placeholder="Koment për këtë pikë të checklistës"
+                            value={itemDraft.comment || ""}
+                            onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
+                          />
+                        ) : null}
                       </div>
-                      <select value={defaultStatus} disabled aria-label={`Statusi për ${label}`}>
-                        {committeeChecklistStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                      {shouldShowChecklistComment(defaultStatus) ? (
-                        <textarea
-                          className="committee-review-checklist-item-comment"
-                          placeholder="Koment për këtë pikë të checklistës"
-                          disabled
-                        />
-                      ) : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </article>
             ))}
@@ -2471,7 +2515,11 @@ export default function CommitteeDashboard() {
 
           <label className="committee-review-checklist-general-comment">
             <span>Koment i përgjithshëm i komisionit</span>
-            <textarea placeholder="Ky koment është vetëm lokal për këtë hap dhe nuk ruhet ende." />
+            <textarea
+              placeholder="Ky koment është vetëm lokal për këtë hap dhe nuk ruhet ende."
+              value={checklistDraft.generalComment || ""}
+              onChange={(event) => updateCommitteeChecklistGeneralComment(event.target.value)}
+            />
           </label>
         </section>
       );
