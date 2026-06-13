@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Bell, CheckCircle2, CircleUserRound, Link2, LogOut, RefreshCw, Settings, ShieldX } from "lucide-react";
 import {
-  Bar,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  BarChart,
-} from "recharts";
+  BookOpenCheck,
+  Building2,
+  CheckCircle2,
+  CircleUserRound,
+  Layers3,
+  Link2,
+  ReceiptText,
+  RefreshCw,
+  Settings,
+  ShieldX,
+  UsersRound,
+} from "lucide-react";
 import "../styles/ProRectorDashboard.css";
 import ProRectorSidebar from "../components/Sidebar";
 import ProRectorTopBar from "../components/TopBar";
@@ -28,6 +30,69 @@ const conferenceRows = [
   { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
   { id: "CF-018", event: "Legal Innovation Summit", unit: "FJ", status: "Konfirmuar" },
 ];
+
+const KNOWN_FACULTY_PATTERNS = [
+  {
+    code: "FIMK",
+    name: "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike",
+    matches: (value) => value.includes("mekanike") && value.includes("kompjuterike"),
+  },
+];
+
+function toNumber(value) {
+  return Number.isFinite(Number(value)) ? Number(value) : 0;
+}
+
+function normalizeFacultyKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function titleCaseFaculty(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+
+  if (!text) {
+    return "Fakultet i pa emërtuar";
+  }
+
+  return text
+    .toLocaleLowerCase("sq-AL")
+    .split(" ")
+    .map((word) => {
+      if (["i", "e", "dhe", "në", "ne"].includes(word)) {
+        return word;
+      }
+
+      return word.charAt(0).toLocaleUpperCase("sq-AL") + word.slice(1);
+    })
+    .join(" ");
+}
+
+function getFacultyPresentation(row) {
+  const rawName = String(row.name || "").trim();
+  const rawCode = String(row.code || "").trim();
+  const lookupValue = normalizeFacultyKey(`${rawName} ${rawCode}`);
+  const knownFaculty = KNOWN_FACULTY_PATTERNS.find((item) => item.matches(lookupValue));
+
+  if (knownFaculty) {
+    return knownFaculty;
+  }
+
+  const hasReadableName =
+    rawName.length >= 8 &&
+    /[aeiouyë]/i.test(rawName) &&
+    !/^([a-z])\1{2,}$/i.test(rawName.replace(/[^a-z]/gi, ""));
+
+  const name = hasReadableName ? titleCaseFaculty(rawName) : "Njësi akademike për verifikim";
+  const generatedCode = rawCode.length > 8 || normalizeFacultyKey(rawCode) === normalizeFacultyKey(rawName);
+  const code = generatedCode ? "" : rawCode.toLocaleUpperCase("sq-AL");
+
+  return { code, name };
+}
 
 export default function ProRectorDashboard() {
   const navigate = useNavigate();
@@ -193,6 +258,57 @@ export default function ProRectorDashboard() {
       return row.includes(normalizedQuery);
     });
   }, [facultyStats, normalizedQuery]);
+
+  const facultyDashboardRows = useMemo(() => {
+    const groupedRows = new Map();
+
+    filteredFacultyStats.forEach((row) => {
+      const presentation = getFacultyPresentation(row);
+      const key = normalizeFacultyKey(presentation.name);
+      const existing = groupedRows.get(key);
+      const nextRow = {
+        ...row,
+        ...presentation,
+        activeUserCount: toNumber(row.activeUserCount),
+        departmentCount: toNumber(row.departmentCount),
+        publicationCount: toNumber(row.publicationCount),
+        reimbursementCount: toNumber(row.reimbursementCount),
+      };
+
+      if (!existing) {
+        groupedRows.set(key, nextRow);
+        return;
+      }
+
+      groupedRows.set(key, {
+        ...existing,
+        activeUserCount: existing.activeUserCount + nextRow.activeUserCount,
+        departmentCount: Math.max(existing.departmentCount, nextRow.departmentCount),
+        publicationCount: existing.publicationCount + nextRow.publicationCount,
+        reimbursementCount: existing.reimbursementCount + nextRow.reimbursementCount,
+        isOfficial: existing.isOfficial || nextRow.isOfficial,
+      });
+    });
+
+    return Array.from(groupedRows.values()).sort((first, second) => {
+      const secondTotal = second.publicationCount + second.reimbursementCount + second.activeUserCount;
+      const firstTotal = first.publicationCount + first.reimbursementCount + first.activeUserCount;
+
+      return secondTotal - firstTotal || first.name.localeCompare(second.name, "sq");
+    });
+  }, [filteredFacultyStats]);
+
+  const facultyOverview = useMemo(() => {
+    return facultyDashboardRows.reduce(
+      (totals, row) => ({
+        facultyCount: totals.facultyCount + 1,
+        activeUserCount: totals.activeUserCount + row.activeUserCount,
+        publicationCount: totals.publicationCount + row.publicationCount,
+        reimbursementCount: totals.reimbursementCount + row.reimbursementCount,
+      }),
+      { facultyCount: 0, activeUserCount: 0, publicationCount: 0, reimbursementCount: 0 }
+    );
+  }, [facultyDashboardRows]);
 
   const filteredPublications = useMemo(() => {
     if (!normalizedQuery) {
@@ -367,55 +483,98 @@ export default function ProRectorDashboard() {
   const renderContent = () => {
     if (activePage === "Fakultetet") {
       return (
-        <div className="prorector-table-section">
-          <h2>Fakultetet</h2>
-          <p>Përmbledhje e statistikave të të gjitha fakulteteve.</p>
+        <div className="prorector-table-section prorector-faculties-section">
+          <div className="prorector-section-head">
+            <div>
+              <h2>Fakultetet</h2>
+              <p>Përmbledhje e pastër e njësive akademike dhe aktivitetit të tyre.</p>
+            </div>
+            <span className="prorector-section-pill">
+              {facultyOverview.facultyCount} fakultete aktive
+            </span>
+          </div>
           {facultyStatsError ? (
             <div className="prorector-inline-alert" role="alert">
               {facultyStatsError}
             </div>
           ) : null}
-          <table className="prorector-table">
-            <thead>
-              <tr>
-                <th>FAKULTETI</th>
-                <th>STATUSI</th>
-                <th>STAF AKTIV</th>
-                <th>DEPARTAMENTE</th>
-                <th>PUBLIKIME</th>
-                <th>RIMBURSIME</th>
-              </tr>
-            </thead>
-            <tbody>
-              {facultyStatsLoading ? (
-                <tr>
-                  <td colSpan="6">Duke i ngarkuar fakultetet aktive...</td>
-                </tr>
-              ) : null}
-              {!facultyStatsLoading && filteredFacultyStats.map((row) => (
-                <tr key={row.id || row.code || row.name}>
-                  <td>
-                    <strong>{row.code || "-"}</strong>
-                    <span className="prorector-table-muted">{row.name}</span>
-                  </td>
-                  <td>
+          <div className="prorector-overview-grid">
+            <article className="prorector-overview-card">
+              <Building2 size={20} />
+              <span>Fakultete</span>
+              <strong>{facultyOverview.facultyCount}</strong>
+            </article>
+            <article className="prorector-overview-card">
+              <UsersRound size={20} />
+              <span>Staf aktiv</span>
+              <strong>{facultyOverview.activeUserCount}</strong>
+            </article>
+            <article className="prorector-overview-card">
+              <BookOpenCheck size={20} />
+              <span>Publikime</span>
+              <strong>{facultyOverview.publicationCount}</strong>
+            </article>
+            <article className="prorector-overview-card">
+              <ReceiptText size={20} />
+              <span>Rimbursime</span>
+              <strong>{facultyOverview.reimbursementCount}</strong>
+            </article>
+          </div>
+
+          {facultyStatsLoading ? (
+            <div className="prorector-faculty-empty">Duke i ngarkuar fakultetet aktive...</div>
+          ) : null}
+
+          {!facultyStatsLoading && facultyDashboardRows.length > 0 ? (
+            <div className="prorector-faculty-grid">
+              {facultyDashboardRows.map((row) => (
+                <article className="prorector-faculty-card" key={row.id || row.code || row.name}>
+                  <div className="prorector-faculty-card-head">
+                    <span className="prorector-faculty-avatar">
+                      <Building2 size={22} />
+                    </span>
+                    <div>
+                      <h3>{row.name}</h3>
+                      <div className="prorector-faculty-meta">
+                        {row.code ? <span>{row.code}</span> : null}
+                        <span>{row.isOfficial ? "Zyrtar" : "Nga profilet"}</span>
+                      </div>
+                    </div>
                     <span className="status-badge status-aprovuar">
                       {row.statusLabel || "Aktiv"}
                     </span>
-                  </td>
-                  <td>{row.activeUserCount}</td>
-                  <td>{row.departmentCount}</td>
-                  <td>{row.publicationCount}</td>
-                  <td>{row.reimbursementCount}</td>
-                </tr>
+                  </div>
+
+                  <div className="prorector-faculty-metrics">
+                    <div>
+                      <UsersRound size={17} />
+                      <span>Staf</span>
+                      <strong>{row.activeUserCount}</strong>
+                    </div>
+                    <div>
+                      <Layers3 size={17} />
+                      <span>Depart.</span>
+                      <strong>{row.departmentCount}</strong>
+                    </div>
+                    <div>
+                      <BookOpenCheck size={17} />
+                      <span>Publ.</span>
+                      <strong>{row.publicationCount}</strong>
+                    </div>
+                    <div>
+                      <ReceiptText size={17} />
+                      <span>Rimb.</span>
+                      <strong>{row.reimbursementCount}</strong>
+                    </div>
+                  </div>
+                </article>
               ))}
-              {!facultyStatsLoading && filteredFacultyStats.length === 0 ? (
-                <tr>
-                  <td colSpan="6">Nuk u gjet asnje fakultet aktiv.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+            </div>
+          ) : null}
+
+          {!facultyStatsLoading && facultyDashboardRows.length === 0 ? (
+            <div className="prorector-faculty-empty">Nuk u gjet asnjë fakultet aktiv për këtë kërkim.</div>
+          ) : null}
         </div>
       );
     }

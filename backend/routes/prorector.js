@@ -41,6 +41,7 @@ function mapFaculty(row) {
     id: row.id,
     code: row.code || "",
     name: row.name || "",
+    isOfficial: Boolean(row.faculty_id),
     departmentCount: Number(row.department_count || 0),
     activeUserCount,
     professorCount: Number(row.professor_count || 0),
@@ -84,6 +85,10 @@ router.get("/faculties", requireProRectorAccess, async (req, res) => {
          from users u
          where coalesce(u.status, 'active') = 'active'
            and nullif(trim(u.faculty), '') is not null
+           and (
+             trim(u.faculty) ~* '(fakult|faculty|universitet|university|college|school)'
+             or (length(trim(u.faculty)) >= 12 and trim(u.faculty) like '% %')
+           )
            and not exists (
              select 1
              from faculties f
