@@ -78,7 +78,7 @@ const f1CommitteeChecklistGroups = [
       "Autori kryesor",
       "Autori korrespondent",
       "Bashkëautorët",
-      "Affiliation UIBM",
+      "Afiliacioni",
     ],
   },
   {
@@ -94,11 +94,11 @@ const f1CommitteeChecklistGroups = [
   {
     title: "Verifikimi i Dokumenteve",
     items: [
-      "Formulari F1 PDF",
-      "Formulari F1 DOCX",
-      "Artikulli i ngarkuar",
-      "Dëshmia e regjistrimit në databazën UIBM",
-      "Dokumentet shtesë",
+      "Formulari i kërkesës (PDF)",
+      "Formulari i kërkesës (DOCX)",
+      "Artikulli shkencor",
+      "Regjistrimi në UIBM",
+      "Dokumente shtesë",
     ],
   },
   {
@@ -2350,19 +2350,19 @@ export default function CommitteeDashboard() {
         "Autori kryesor": createChecklistValue(requestData.mainAuthor),
         "Autori korrespondent": createChecklistValue(requestData.correspondingAuthor),
         "Bashkëautorët": createChecklistValue(requestData.coauthors),
-        "Affiliation UIBM": createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
+        Afiliacioni: createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
         "ISSN / ISBN": createChecklistValue(getFirstReviewValue(requestData.issn, requestData.isbn)),
         "Platforma e indeksimit": createChecklistValue(requestData.indexingPlatform),
         "Kategoria e indeksimit": createChecklistValue(requestData.indexingCategory),
         Kuartili: createChecklistValue(requestData.scopusQuartile),
         "Impact Factor / CiteScore": createChecklistValue(getFirstReviewValue(requestData.impactFactor, requestData.citeScore)),
-        "Formulari F1 PDF": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
-        "Formulari F1 DOCX": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
-        "Artikulli i ngarkuar": articleAttachment
+        "Formulari i kërkesës (PDF)": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
+        "Formulari i kërkesës (DOCX)": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
+        "Artikulli shkencor": articleAttachment
           ? createChecklistDocumentValue(getAttachmentUrl(articleAttachment), { displayValue: getAttachmentFilename(articleAttachment), href: getAttachmentUrl(articleAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(articleAttachment)) : "" })
           : createChecklistDocumentValue(requestData.publicationLink),
-        "Dëshmia e regjistrimit në databazën UIBM": createChecklistDocumentValue(requestData.uibmDatabaseEvidence),
-        "Dokumentet shtesë": createChecklistValue(additionalDocuments),
+        "Regjistrimi në UIBM": createChecklistDocumentValue(requestData.uibmDatabaseEvidence),
+        "Dokumente shtesë": createChecklistValue(additionalDocuments),
         "Emri në bankë": createChecklistValue(requestData.bankApplicantName),
         Banka: createChecklistValue(getFirstReviewValue(requestData.bankName, requestData.bankNameOther)),
         "IBAN / Llogaria": createChecklistValue(getFirstReviewValue(requestData.iban, requestData.bankAccountNumber)),
