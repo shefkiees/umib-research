@@ -1780,6 +1780,10 @@
 	overflow: hidden;
 }
 
+.committee-review-checklist-card:last-child:nth-child(odd) {
+	grid-column: 1 / -1;
+}
+
 .committee-review-checklist-card header {
 	display: flex;
 	align-items: center;

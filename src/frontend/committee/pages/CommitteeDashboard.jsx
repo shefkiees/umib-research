@@ -2565,6 +2565,9 @@ export default function CommitteeDashboard() {
       createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, { link: true, wide: true }),
     ];
     const metadataFields = requestType === "conference" ? f2MetadataFields : f1MetadataFields;
+    const checklistDrawerSubtitle = requestType === "conference"
+      ? "Konferencë dhe Simpozium (F2) • Panel për verifikimin e kërkesës"
+      : "Artikull Shkencor (F1) • Panel për verifikimin e kërkesës";
 
     return (
       <>
@@ -2637,9 +2640,8 @@ export default function CommitteeDashboard() {
             >
               <div className="committee-review-checklist-drawer-head">
                 <div>
-                  <span>{config.badge}</span>
                   <h4 id="committee-review-checklist-drawer-title">Checklista e Komisionit</h4>
-                  <p>Panel përgatitor për workflow-in e ardhshëm të verifikimit.</p>
+                  <p>{checklistDrawerSubtitle}</p>
                 </div>
                 <button type="button" onClick={() => setIsReviewChecklistDrawerOpen(false)} aria-label="Mbyll checklistën">
                   ×
