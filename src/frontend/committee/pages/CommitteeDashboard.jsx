@@ -2449,14 +2449,9 @@ export default function CommitteeDashboard() {
 
       return (
         <section className="committee-review-section committee-review-checklist-section">
-          <div className="committee-review-section-head">
-            <h4>Checklista e Komisionit</h4>
-            <span>UI lokale / pa ruajtje</span>
-          </div>
-
           <div className="committee-review-checklist-summary" aria-label="Përmbledhje e checklistës">
             <article>
-              <span>Total items</span>
+              <span>Gjithsej pika</span>
               <strong>{totalItems}</strong>
             </article>
             {statusSummary.map((item) => (
@@ -2516,7 +2511,7 @@ export default function CommitteeDashboard() {
           <label className="committee-review-checklist-general-comment">
             <span>Koment i përgjithshëm i komisionit</span>
             <textarea
-              placeholder="Ky koment është vetëm lokal për këtë hap dhe nuk ruhet ende."
+              placeholder="Shkruani një koment të përgjithshëm për këtë shqyrtim..."
               value={checklistDraft.generalComment || ""}
               onChange={(event) => updateCommitteeChecklistGeneralComment(event.target.value)}
             />
