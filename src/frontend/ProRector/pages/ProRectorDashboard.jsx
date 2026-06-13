@@ -17,15 +17,6 @@ import ProRectorTopBar from "../components/TopBar";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const facultyStatistics = [
-  { faculty: "FG", label: "Fakulteti i Gjeoshkencave", department: "Fakulteti i Gjeoshkencave", publikime: 22, projekte: 8, rimbursime: 6 },
-  { faculty: "FTU", label: "Fakulteti i Teknologjisë Ushqimore", department: "Fakulteti i Teknologjisë Ushqimore", publikime: 18, projekte: 6, rimbursime: 5 },
-  { faculty: "FIMC", label: "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike", department: "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike", publikime: 26, projekte: 10, rimbursime: 7 },
-  { faculty: "FJ", label: "Fakulteti Juridik", department: "Fakulteti Juridik", publikime: 14, projekte: 5, rimbursime: 4 },
-  { faculty: "FE", label: "Fakulteti Ekonomik", department: "Fakulteti Ekonomik", publikime: 20, projekte: 7, rimbursime: 6 },
-  { faculty: "FED", label: "Fakulteti i Edukimit", department: "Fakulteti i Edukimit", publikime: 16, projekte: 5, rimbursime: 5 },
-];
-
 const publicationRows = [
   { id: "PB-120", title: "Smart Grids in Emerging Markets", unit: "FIMC", status: "Aprovuar" },
   { id: "PB-115", title: "Applied Data Ethics in Education", unit: "FG", status: "Ne shqyrtim" },
@@ -103,8 +94,51 @@ export default function ProRectorDashboard() {
       status: "Pending",
     },
   ]);
+  const [facultyStats, setFacultyStats] = useState([]);
+  const [facultyStatsLoading, setFacultyStatsLoading] = useState(true);
+  const [facultyStatsError, setFacultyStatsError] = useState("");
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFacultyStats = async () => {
+      setFacultyStatsLoading(true);
+      setFacultyStatsError("");
+
+      try {
+        const response = await fetch(apiUrl("/prorector/faculties"), {
+          credentials: "include",
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.message || "faculties_load_failed");
+        }
+
+        if (isMounted) {
+          setFacultyStats(Array.isArray(data.faculties) ? data.faculties : []);
+        }
+      } catch (error) {
+        console.error("Faculty stats load failed:", error);
+
+        if (isMounted) {
+          setFacultyStatsError("Fakultetet aktive nuk u ngarkuan. Provoni perseri.");
+        }
+      } finally {
+        if (isMounted) {
+          setFacultyStatsLoading(false);
+        }
+      }
+    };
+
+    loadFacultyStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -151,14 +185,14 @@ export default function ProRectorDashboard() {
 
   const filteredFacultyStats = useMemo(() => {
     if (!normalizedQuery) {
-      return facultyStatistics;
+      return facultyStats;
     }
 
-    return facultyStatistics.filter((item) => {
-      const row = `${item.faculty} ${item.department} ${item.publikime} ${item.projekte} ${item.rimbursime}`.toLowerCase();
+    return facultyStats.filter((item) => {
+      const row = `${item.code} ${item.name} ${item.statusLabel} ${item.departmentCount} ${item.activeUserCount} ${item.publicationCount} ${item.reimbursementCount}`.toLowerCase();
       return row.includes(normalizedQuery);
     });
-  }, [normalizedQuery]);
+  }, [facultyStats, normalizedQuery]);
 
   const filteredPublications = useMemo(() => {
     if (!normalizedQuery) {
@@ -336,26 +370,50 @@ export default function ProRectorDashboard() {
         <div className="prorector-table-section">
           <h2>Fakultetet</h2>
           <p>Përmbledhje e statistikave të të gjitha fakulteteve.</p>
+          {facultyStatsError ? (
+            <div className="prorector-inline-alert" role="alert">
+              {facultyStatsError}
+            </div>
+          ) : null}
           <table className="prorector-table">
             <thead>
               <tr>
                 <th>FAKULTETI</th>
-                <th>DEPARTAMENTI</th>
+                <th>STATUSI</th>
+                <th>STAF AKTIV</th>
+                <th>DEPARTAMENTE</th>
                 <th>PUBLIKIME</th>
-                <th>PROJEKTE</th>
                 <th>RIMBURSIME</th>
               </tr>
             </thead>
             <tbody>
-              {filteredFacultyStats.map((row) => (
-                <tr key={row.faculty}>
-                  <td>{row.faculty}</td>
-                  <td>{row.department}</td>
-                  <td>{row.publikime}</td>
-                  <td>{row.projekte}</td>
-                  <td>{row.rimbursime}</td>
+              {facultyStatsLoading ? (
+                <tr>
+                  <td colSpan="6">Duke i ngarkuar fakultetet aktive...</td>
+                </tr>
+              ) : null}
+              {!facultyStatsLoading && filteredFacultyStats.map((row) => (
+                <tr key={row.id || row.code || row.name}>
+                  <td>
+                    <strong>{row.code || "-"}</strong>
+                    <span className="prorector-table-muted">{row.name}</span>
+                  </td>
+                  <td>
+                    <span className="status-badge status-aprovuar">
+                      {row.statusLabel || "Aktiv"}
+                    </span>
+                  </td>
+                  <td>{row.activeUserCount}</td>
+                  <td>{row.departmentCount}</td>
+                  <td>{row.publicationCount}</td>
+                  <td>{row.reimbursementCount}</td>
                 </tr>
               ))}
+              {!facultyStatsLoading && filteredFacultyStats.length === 0 ? (
+                <tr>
+                  <td colSpan="6">Nuk u gjet asnje fakultet aktiv.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -616,20 +674,25 @@ export default function ProRectorDashboard() {
           <thead>
             <tr>
               <th>FAKULTETI</th>
-              <th>DEPARTAMENTI</th>
+              <th>STATUSI</th>
+              <th>STAF AKTIV</th>
+              <th>DEPARTAMENTE</th>
               <th>PUBLIKIME</th>
-              <th>PROJEKTE</th>
               <th>RIMBURSIME</th>
             </tr>
           </thead>
           <tbody>
             {filteredFacultyStats.map((row) => (
-              <tr key={row.faculty}>
-                <td>{row.faculty}</td>
-                <td>{row.department}</td>
-                <td>{row.publikime}</td>
-                <td>{row.projekte}</td>
-                <td>{row.rimbursime}</td>
+              <tr key={row.id || row.code || row.name}>
+                <td>
+                  <strong>{row.code || "-"}</strong>
+                  <span className="prorector-table-muted">{row.name}</span>
+                </td>
+                <td>{row.statusLabel || "Aktiv"}</td>
+                <td>{row.activeUserCount}</td>
+                <td>{row.departmentCount}</td>
+                <td>{row.publicationCount}</td>
+                <td>{row.reimbursementCount}</td>
               </tr>
             ))}
           </tbody>

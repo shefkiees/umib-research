@@ -723,6 +723,25 @@
   background: #f8fbff;
 }
 
+.prorector-table-muted {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-light);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.prorector-inline-alert {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #991b1b;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .status-badge {
   display: inline-block;
   padding: 6px 12px;
