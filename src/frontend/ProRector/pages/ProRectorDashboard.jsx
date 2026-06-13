@@ -299,15 +299,25 @@ export default function ProRectorDashboard() {
   }, [filteredFacultyStats]);
 
   const facultyOverview = useMemo(() => {
-    return facultyDashboardRows.reduce(
+    const totals = facultyDashboardRows.reduce(
       (totals, row) => ({
         facultyCount: totals.facultyCount + 1,
         activeUserCount: totals.activeUserCount + row.activeUserCount,
+        departmentCount: totals.departmentCount + row.departmentCount,
         publicationCount: totals.publicationCount + row.publicationCount,
         reimbursementCount: totals.reimbursementCount + row.reimbursementCount,
       }),
-      { facultyCount: 0, activeUserCount: 0, publicationCount: 0, reimbursementCount: 0 }
+      { facultyCount: 0, activeUserCount: 0, departmentCount: 0, publicationCount: 0, reimbursementCount: 0 }
     );
+
+    const activityCount = totals.publicationCount + totals.reimbursementCount;
+    const averageActivity = totals.facultyCount > 0 ? Math.round(activityCount / totals.facultyCount) : 0;
+
+    return {
+      ...totals,
+      activityCount,
+      averageActivity,
+    };
   }, [facultyDashboardRows]);
 
   const filteredPublications = useMemo(() => {
@@ -499,25 +509,43 @@ export default function ProRectorDashboard() {
             </div>
           ) : null}
           <div className="prorector-overview-grid">
-            <article className="prorector-overview-card">
+            <article className="prorector-overview-card is-blue">
               <Building2 size={20} />
               <span>Fakultete</span>
               <strong>{facultyOverview.facultyCount}</strong>
             </article>
-            <article className="prorector-overview-card">
+            <article className="prorector-overview-card is-gold">
               <UsersRound size={20} />
               <span>Staf aktiv</span>
               <strong>{facultyOverview.activeUserCount}</strong>
             </article>
-            <article className="prorector-overview-card">
+            <article className="prorector-overview-card is-green">
               <BookOpenCheck size={20} />
               <span>Publikime</span>
               <strong>{facultyOverview.publicationCount}</strong>
             </article>
-            <article className="prorector-overview-card">
+            <article className="prorector-overview-card is-rose">
               <ReceiptText size={20} />
               <span>Rimbursime</span>
               <strong>{facultyOverview.reimbursementCount}</strong>
+            </article>
+          </div>
+
+          <div className="prorector-insight-strip">
+            <article>
+              <span>Aktivitet total</span>
+              <strong>{facultyOverview.activityCount}</strong>
+              <p>Publikime dhe rimbursime gjithsej</p>
+            </article>
+            <article>
+              <span>Departamente</span>
+              <strong>{facultyOverview.departmentCount}</strong>
+              <p>Struktura akademike aktive</p>
+            </article>
+            <article>
+              <span>Mesatare / fakultet</span>
+              <strong>{facultyOverview.averageActivity}</strong>
+              <p>Aktivitet akademik i shpërndarë</p>
             </article>
           </div>
 
@@ -546,22 +574,22 @@ export default function ProRectorDashboard() {
                   </div>
 
                   <div className="prorector-faculty-metrics">
-                    <div>
+                    <div className="is-staff">
                       <UsersRound size={17} />
                       <span>Staf</span>
                       <strong>{row.activeUserCount}</strong>
                     </div>
-                    <div>
+                    <div className="is-departments">
                       <Layers3 size={17} />
                       <span>Depart.</span>
                       <strong>{row.departmentCount}</strong>
                     </div>
-                    <div>
+                    <div className="is-publications">
                       <BookOpenCheck size={17} />
                       <span>Publ.</span>
                       <strong>{row.publicationCount}</strong>
                     </div>
-                    <div>
+                    <div className="is-reimbursements">
                       <ReceiptText size={17} />
                       <span>Rimb.</span>
                       <strong>{row.reimbursementCount}</strong>

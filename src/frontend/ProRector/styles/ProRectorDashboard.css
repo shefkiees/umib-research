@@ -618,13 +618,57 @@
   display: grid;
   align-content: space-between;
   gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.prorector-overview-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.prorector-overview-card.is-blue {
+  border-color: #bfd7f5;
+}
+
+.prorector-overview-card.is-blue::before {
+  background: linear-gradient(135deg, #1d4d7d, #60a5fa);
+}
+
+.prorector-overview-card.is-gold {
+  border-color: #ecd49b;
+}
+
+.prorector-overview-card.is-gold::before {
+  background: linear-gradient(135deg, #c9a24f, #f8d36d);
+}
+
+.prorector-overview-card.is-green {
+  border-color: #b9e8cd;
+}
+
+.prorector-overview-card.is-green::before {
+  background: linear-gradient(135deg, #15803d, #6ee7a0);
+}
+
+.prorector-overview-card.is-rose {
+  border-color: #f5c2cc;
+}
+
+.prorector-overview-card.is-rose::before {
+  background: linear-gradient(135deg, #be123c, #fb7185);
 }
 
 .prorector-overview-card svg {
+  position: relative;
   color: #1d4d7d;
 }
 
 .prorector-overview-card span {
+  position: relative;
   color: #64748b;
   font-size: 0.82rem;
   font-weight: 700;
@@ -633,9 +677,57 @@
 }
 
 .prorector-overview-card strong {
+  position: relative;
   color: #0f172a;
   font-size: 1.65rem;
   line-height: 1;
+}
+
+.prorector-overview-card.is-gold svg {
+  color: #a27316;
+}
+
+.prorector-overview-card.is-green svg {
+  color: #15803d;
+}
+
+.prorector-overview-card.is-rose svg {
+  color: #be123c;
+}
+
+.prorector-insight-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prorector-insight-strip article {
+  border: 1px solid #e1e8f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  padding: 14px 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.prorector-insight-strip span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.prorector-insight-strip strong {
+  color: #102a43;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.prorector-insight-strip p {
+  margin: 0;
+  color: #6b7a90;
+  font-size: 0.84rem;
 }
 
 .prorector-faculty-grid {
@@ -715,8 +807,44 @@
   gap: 6px;
 }
 
+.prorector-faculty-metrics .is-staff {
+  background: #f1f7ff;
+  border-color: #d7e8fb;
+}
+
+.prorector-faculty-metrics .is-departments {
+  background: #fff9ea;
+  border-color: #f1dc9f;
+}
+
+.prorector-faculty-metrics .is-publications {
+  background: #effaf3;
+  border-color: #ccefd8;
+}
+
+.prorector-faculty-metrics .is-reimbursements {
+  background: #fff1f3;
+  border-color: #f6cbd3;
+}
+
 .prorector-faculty-metrics svg {
   color: #64748b;
+}
+
+.prorector-faculty-metrics .is-staff svg {
+  color: #1d4d7d;
+}
+
+.prorector-faculty-metrics .is-departments svg {
+  color: #a27316;
+}
+
+.prorector-faculty-metrics .is-publications svg {
+  color: #15803d;
+}
+
+.prorector-faculty-metrics .is-reimbursements svg {
+  color: #be123c;
 }
 
 .prorector-faculty-metrics span {
@@ -1257,6 +1385,7 @@ input:checked + .prorector-slider:before {
   }
 
   .prorector-overview-grid,
+  .prorector-insight-strip,
   .prorector-faculty-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1290,6 +1419,7 @@ input:checked + .prorector-slider:before {
   }
 
   .prorector-overview-grid,
+  .prorector-insight-strip,
   .prorector-faculty-metrics,
   .prorector-faculty-card-head {
     grid-template-columns: 1fr;
