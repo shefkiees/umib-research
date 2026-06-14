@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -33,7 +33,6 @@ import ProRectorTopBar from "../components/TopBar";
 import { apiUrl } from "../../utils/api";
 
 const CHART_COLORS = ["#153a63", "#2e6aa6", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
-const PAGE_SIZE = 50;
 
 const KNOWN_FACULTY_PATTERNS = [
   {
@@ -185,10 +184,6 @@ function buildFacultyRows(rows = []) {
   });
 }
 
-function getPublicationFaculty(row = {}) {
-  return row.owner?.faculty || row.authorAffiliation || row.author_affiliation || "";
-}
-
 function getPublicationDate(row = {}) {
   return row.publicationDate || row.publication_date || row.updatedAt || row.updated_at || row.createdAt || row.created_at || "";
 }
@@ -244,64 +239,19 @@ export default function FacultyDetails() {
       setDataError("");
 
       try {
-        const facultiesResponse = await fetch(apiUrl("/prorector/faculties"), {
+        const response = await fetch(apiUrl(`/prorector/faculties/${encodeURIComponent(routeId)}`), {
           credentials: "include",
         });
-        const facultiesData = await facultiesResponse.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({}));
 
-        if (!facultiesResponse.ok) {
-          throw new Error(facultiesData.message || "faculties_load_failed");
+        if (!response.ok) {
+          throw new Error(data.message || "faculty_details_load_failed");
         }
 
         if (isMounted) {
-          setFacultyRowsRaw(Array.isArray(facultiesData.faculties) ? facultiesData.faculties : []);
-        }
-
-        let publicationRowsNext = [];
-        let reimbursementRowsNext = [];
-
-        try {
-          let page = 1;
-          let totalPages = 1;
-
-          do {
-            const params = new URLSearchParams({
-              scope: "all",
-              limit: String(PAGE_SIZE),
-              page: String(page),
-            });
-            const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
-              credentials: "include",
-            });
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-              throw new Error(data.message || "publications_load_failed");
-            }
-
-            publicationRowsNext.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
-            totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
-            page += 1;
-          } while (page <= totalPages);
-        } catch (error) {
-          console.error("Faculty publications load failed:", error);
-          publicationRowsNext = [];
-        }
-
-        try {
-          const reimbursementsResponse = await fetch(apiUrl("/reimbursements?scope=all"), {
-            credentials: "include",
-          });
-          const reimbursementsData = await reimbursementsResponse.json().catch(() => []);
-          reimbursementRowsNext = reimbursementsResponse.ok && Array.isArray(reimbursementsData) ? reimbursementsData : [];
-        } catch (error) {
-          console.error("Faculty reimbursements load failed:", error);
-          reimbursementRowsNext = [];
-        }
-
-        if (isMounted) {
-          setPublicationRows(publicationRowsNext);
-          setReimbursementRows(reimbursementRowsNext);
+          setFacultyRowsRaw(data.faculty ? [data.faculty] : []);
+          setPublicationRows(Array.isArray(data.publications) ? data.publications : []);
+          setReimbursementRows(Array.isArray(data.reimbursements) ? data.reimbursements : []);
         }
       } catch (error) {
         console.error("Faculty details load failed:", error);
@@ -324,7 +274,7 @@ export default function FacultyDetails() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [routeId]);
 
   const facultyRows = useMemo(() => buildFacultyRows(facultyRowsRaw), [facultyRowsRaw]);
 
@@ -340,33 +290,14 @@ export default function FacultyDetails() {
     return facultyRows.find(matchesRoute) || null;
   }, [facultyRows, routeId]);
 
-  const facultyNameKeys = useMemo(() => {
-    if (!selectedFaculty) {
-      return [];
-    }
-
-    return [selectedFaculty.name, selectedFaculty.code]
-      .map(normalizeFacultyKey)
-      .filter(Boolean);
-  }, [selectedFaculty]);
-
-  const matchesSelectedFaculty = useCallback((value) => {
-    const normalized = normalizeFacultyKey(value);
-
-    return Boolean(
-      normalized &&
-      facultyNameKeys.some((key) => normalized === key || normalized.includes(key) || key.includes(normalized))
-    );
-  }, [facultyNameKeys]);
-
   const facultyPublications = useMemo(
-    () => publicationRows.filter((row) => matchesSelectedFaculty(getPublicationFaculty(row))),
-    [matchesSelectedFaculty, publicationRows]
+    () => (selectedFaculty ? publicationRows : []),
+    [publicationRows, selectedFaculty]
   );
 
   const facultyReimbursements = useMemo(
-    () => reimbursementRows.filter((row) => matchesSelectedFaculty(row.owner?.faculty || row.requestData?.applicantFaculty)),
-    [matchesSelectedFaculty, reimbursementRows]
+    () => (selectedFaculty ? reimbursementRows : []),
+    [reimbursementRows, selectedFaculty]
   );
 
   const filteredPublications = useMemo(() => {
