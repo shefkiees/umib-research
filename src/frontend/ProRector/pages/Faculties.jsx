@@ -366,26 +366,6 @@ export default function FacultyDetails() {
     [facultyReimbursements]
   );
 
-  const quartileData = useMemo(() => {
-    const counts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
-
-    facultyPublications.forEach((row) => {
-      const quartile = getPrimaryPublicationQuartile(row);
-      if (counts[quartile] !== undefined) {
-        counts[quartile] += 1;
-      }
-    });
-
-    if (!facultyPublications.length && selectedFaculty) {
-      counts.Q1 = selectedFaculty.q1Count;
-      counts.Q2 = selectedFaculty.q2Count;
-      counts.Q3 = selectedFaculty.q3Count;
-      counts.Q4 = selectedFaculty.q4Count;
-    }
-
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [facultyPublications, selectedFaculty]);
-
   const publicationTypeChartData = useMemo(() => {
     if (facultyAnalytics.publicationTypes.length) {
       return facultyAnalytics.publicationTypes.map((row) => ({
@@ -396,45 +376,6 @@ export default function FacultyDetails() {
 
     return publicationTypeData;
   }, [facultyAnalytics.publicationTypes, publicationTypeData]);
-
-  const quartileChartData = useMemo(() => {
-    if (facultyAnalytics.quartileDistribution.length) {
-      const counts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
-
-      facultyAnalytics.quartileDistribution.forEach((row) => {
-        const quartile = normalizeQuartile(row.quartile || row.name);
-        if (counts[quartile] !== undefined) {
-          counts[quartile] += toNumber(row.count ?? row.value);
-        }
-      });
-
-      return Object.entries(counts).map(([name, value]) => ({ name, value }));
-    }
-
-    return quartileData;
-  }, [facultyAnalytics.quartileDistribution, quartileData]);
-
-  const departmentData = useMemo(() => {
-    if (facultyAnalytics.departments.length) {
-      return facultyAnalytics.departments.map((row) => ({
-        departmentName: row.departmentName || row.department_name || row.name || "Pa departament",
-        publicationCount: toNumber(row.publicationCount ?? row.publication_count ?? row.count),
-        q1Count: toNumber(row.q1Count ?? row.q1_count ?? row.q1),
-        q2Count: toNumber(row.q2Count ?? row.q2_count ?? row.q2),
-        q3Count: toNumber(row.q3Count ?? row.q3_count ?? row.q3),
-        q4Count: toNumber(row.q4Count ?? row.q4_count ?? row.q4),
-      }));
-    }
-
-    return selectedFaculty?.departmentNames.map((departmentName) => ({
-      departmentName,
-      publicationCount: 0,
-      q1Count: 0,
-      q2Count: 0,
-      q3Count: 0,
-      q4Count: 0,
-    })) || [];
-  }, [facultyAnalytics.departments, selectedFaculty]);
 
   const attentionPublications = useMemo(() => {
     const sourceRows = facultyAnalytics.attentionPublications.length
@@ -667,55 +608,6 @@ export default function FacultyDetails() {
                     )}
                   </article>
 
-                  <article className="prorector-analytics-card">
-                    <div className="prorector-card-head">
-                      <div>
-                        <h3>Q1/Q2/Q3/Q4</h3>
-                        <p>Shpërndarja sipas kuartileve.</p>
-                      </div>
-                      <BookOpen size={20} />
-                    </div>
-                    {hasChartValues(quartileChartData) ? (
-                      <ResponsiveContainer width="100%" height={270}>
-                        <BarChart data={quartileChartData} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                          <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                          <YAxis tickLine={false} axisLine={false} />
-                          <Tooltip />
-                          <Bar dataKey="value" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      renderChartEmpty("Nuk ka të dhëna për kuartilet.")
-                    )}
-                  </article>
-
-                  <article className="prorector-analytics-card">
-                    <div className="prorector-card-head">
-                      <div>
-                        <h3>Departamente</h3>
-                        <p>Njësitë e brendshme akademike.</p>
-                      </div>
-                      <Building2 size={20} />
-                    </div>
-                    {departmentData.length ? (
-                      <div className="prorector-department-analytics-list">
-                        {departmentData.map((department) => (
-                          <article key={department.departmentName} className="prorector-department-analytics-row">
-                            <div>
-                              <strong>{department.departmentName}</strong>
-                              <span>{formatMetric(department.publicationCount)} publikime</span>
-                            </div>
-                            <small>
-                              Q1 {formatMetric(department.q1Count)} · Q2 {formatMetric(department.q2Count)} · Q3 {formatMetric(department.q3Count)} · Q4 {formatMetric(department.q4Count)}
-                            </small>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      renderChartEmpty("Nuk ka departamente të regjistruara.")
-                    )}
-                  </article>
                 </div>
 
                 <div className="prorector-faculty-detail-list">
