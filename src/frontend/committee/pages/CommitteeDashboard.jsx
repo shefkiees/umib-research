@@ -2452,12 +2452,12 @@ export default function CommitteeDashboard() {
       return (
         <section className="committee-review-section committee-review-checklist-section">
           <div className="committee-review-checklist-summary" aria-label="Përmbledhje e checklistës">
-            <article>
+            <article className="is-summary-total">
               <span>Gjithsej pika</span>
               <strong>{totalItems}</strong>
             </article>
-            {statusSummary.map((item) => (
-              <article key={item.status}>
+            {statusSummary.map((item, index) => (
+              <article className={`is-summary-status-${index + 1}`} key={item.status}>
                 <span>{item.status}</span>
                 <strong>{item.count}</strong>
               </article>
@@ -2465,10 +2465,10 @@ export default function CommitteeDashboard() {
           </div>
 
           <div className="committee-review-checklist-groups">
-            {checklistGroups.map((group) => (
-              <article className="committee-review-checklist-card" key={group.title}>
+            {checklistGroups.map((group, groupIndex) => (
+              <article className={`committee-review-checklist-card is-category-${groupIndex + 1}`} key={group.title}>
                 <header>
-                  <h5>{group.title}</h5>
+                  <h5><span>{groupIndex + 1}.</span> {group.title}</h5>
                   <span>{group.items.length} pika</span>
                 </header>
                 <div className="committee-review-checklist-rows">
