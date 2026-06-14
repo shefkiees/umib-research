@@ -2584,6 +2584,7 @@ export default function CommitteeDashboard() {
       createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
       createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
       createReviewField("Impakt Faktori (IF)", requestData.impactFactor),
+      createReviewField("CiteScore", getFirstReviewValue(requestData.citeScore, requestData.cite_score, requestData.citescore)),
       createReviewField("Kuartili", requestData.scopusQuartile),
       createReviewField("Data e pranimit", requestData.acceptanceDate, { format: "date" }),
       createReviewField("Dëshmia në databazën UIBM", requestData.uibmDatabaseEvidence, { link: true, wide: true }),
