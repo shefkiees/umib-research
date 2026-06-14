@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, Loader2, RotateCcw, Search, Wallet, XCircle } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { apiUrl } from "../utils/api";
 import "./ReimbursementReviewPanel.css";
 
@@ -30,6 +42,7 @@ const REVIEW_FORM_FILTERS = [
   { value: "conference", label: "Konferenca dhe simpoziume" },
   { value: "project", label: "Projekte shkencore" },
 ];
+const REVIEW_CHART_COLORS = ["#1688f0", "#153a63", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
 
 function normalizeDate(value) {
   if (!value) {
@@ -88,6 +101,12 @@ function groupRequests(requests, getKey, getLabel) {
   });
 
   return Array.from(counts.values()).sort((first, second) => second.count - first.count || first.label.localeCompare(second.label, "sq"));
+}
+
+function getRequestYear(request = {}) {
+  const dateValue = request.submittedAt || request.createdAt || request.updatedAt;
+  const date = dateValue ? new Date(dateValue) : null;
+  return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "-";
 }
 
 function getActions(role, status, canApprove = true) {
@@ -183,9 +202,11 @@ export default function ReimbursementReviewPanel({
         totals.rejected += request.status === "rejected" ? 1 : 0;
         totals.paid += request.status === "paid" ? 1 : 0;
         totals.totalAmount += toNumber(request.amount);
+        totals.approvedAmount += ["committee_approved", "approved", "paid"].includes(request.status) ? toNumber(request.amount) : 0;
+        totals.paidAmount += request.status === "paid" ? toNumber(request.amount) : 0;
         return totals;
       },
-      { total: 0, pending: 0, approved: 0, rejected: 0, paid: 0, totalAmount: 0 }
+      { total: 0, pending: 0, approved: 0, rejected: 0, paid: 0, totalAmount: 0, approvedAmount: 0, paidAmount: 0 }
     );
 
     return {
@@ -195,6 +216,8 @@ export default function ReimbursementReviewPanel({
       rejected: toNumber(sourceStats.rejected ?? fallback.rejected),
       paid: toNumber(sourceStats.paid ?? fallback.paid),
       totalAmount: toNumber(sourceStats.total_amount ?? sourceStats.totalAmount ?? fallback.totalAmount),
+      approvedAmount: toNumber(sourceStats.approved_amount ?? sourceStats.approvedAmount ?? fallback.approvedAmount),
+      paidAmount: toNumber(sourceStats.paid_amount ?? sourceStats.paidAmount ?? fallback.paidAmount),
     };
   }, [requests, stats]);
 
@@ -213,6 +236,27 @@ export default function ReimbursementReviewPanel({
       (request) => request.requestType || request.requestData?.requestType,
       (request, key) => request.requestTypeLabel || key || "Pa kategori"
     ),
+    [requests]
+  );
+
+  const reimbursementsByYear = useMemo(
+    () => groupRequests(requests, getRequestYear, (request, key) => key).map((row) => ({ ...row, reimbursements: row.count })).sort((first, second) => String(first.key).localeCompare(String(second.key))),
+    [requests]
+  );
+
+  const reimbursementsByFaculty = useMemo(
+    () => groupRequests(
+      requests,
+      (request) => request.owner?.faculty || "Pa fakultet",
+      (request, key) => key
+    ).slice(0, 8),
+    [requests]
+  );
+
+  const latestRequests = useMemo(
+    () => [...requests]
+      .sort((first, second) => String(second.submittedAt || second.createdAt || "").localeCompare(String(first.submittedAt || first.createdAt || "")))
+      .slice(0, 5),
     [requests]
   );
 
@@ -362,6 +406,8 @@ export default function ReimbursementReviewPanel({
       ["Refuzuar", dashboardStats.rejected],
       ["Paguar", dashboardStats.paid],
       ["Shuma totale", formatCurrency(dashboardStats.totalAmount)],
+      ["Shuma aprovuar", formatCurrency(dashboardStats.approvedAmount)],
+      ["Shuma paguar", formatCurrency(dashboardStats.paidAmount)],
     ];
 
     return (
@@ -439,9 +485,72 @@ export default function ReimbursementReviewPanel({
       {renderStats()}
 
       {showAnalytics ? (
-        <div className="review-analytics-grid" aria-label="Statistikat e rimbursimeve">
-          {renderBreakdown("Sipas statusit", statusBreakdown)}
+        <div className="review-analytics-grid review-analytics-grid--wide" aria-label="Statistikat e rimbursimeve">
+          <article className="review-breakdown-card">
+            <h3>Statuset e workflow-it</h3>
+            {statusBreakdown.length ? (
+              <ResponsiveContainer width="100%" height={230}>
+                <PieChart>
+                  <Pie data={statusBreakdown} dataKey="count" nameKey="label" innerRadius={52} outerRadius={84} paddingAngle={3}>
+                    {statusBreakdown.map((entry, index) => (
+                      <Cell key={entry.key} fill={REVIEW_CHART_COLORS[index % REVIEW_CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="review-empty">Nuk ka të dhëna për këtë periudhë.</div>
+            )}
+          </article>
+          <article className="review-breakdown-card">
+            <h3>Rimbursimet sipas vitit</h3>
+            {reimbursementsByYear.length ? (
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={reimbursementsByYear}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="reimbursements" name="Kërkesa" radius={[8, 8, 0, 0]} fill="#1688f0" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="review-empty">Nuk ka të dhëna për këtë periudhë.</div>
+            )}
+          </article>
+          <article className="review-breakdown-card">
+            <h3>Shuma sipas fakultetit</h3>
+            {reimbursementsByFaculty.length ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={reimbursementsByFaculty} layout="vertical" margin={{ top: 8, right: 24, left: 18, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#d8e0ea" />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="label" width={140} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="amount" name="Shuma" radius={[0, 8, 8, 0]} fill="#153a63" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="review-empty">Nuk ka të dhëna për këtë periudhë.</div>
+            )}
+          </article>
           {renderBreakdown("Sipas formularit", formBreakdown)}
+          <article className="review-breakdown-card review-latest-card">
+            <h3>5 kërkesat e fundit</h3>
+            {latestRequests.length ? (
+              <div className="review-latest-list">
+                {latestRequests.map((request) => (
+                  <div className="review-latest-row" key={request.id}>
+                    <strong>{request.title || request.requestTypeLabel || "Kërkesë"}</strong>
+                    <span>{[request.owner?.name || request.owner?.email, request.statusLabel || STATUS_LABELS[request.status], formatAmount(request)].filter(Boolean).join(" | ")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="review-empty">Nuk ka të dhëna për këtë periudhë.</div>
+            )}
+          </article>
         </div>
       ) : null}
 

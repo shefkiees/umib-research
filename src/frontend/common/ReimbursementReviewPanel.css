@@ -60,7 +60,7 @@
 
 .review-stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -90,6 +90,10 @@
   gap: 12px;
 }
 
+.review-analytics-grid--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .review-breakdown-card {
   border: 1px solid #e3e8ef;
   border-radius: 12px;
@@ -97,6 +101,7 @@
   padding: 14px;
   display: grid;
   gap: 12px;
+  min-height: 280px;
 }
 
 .review-breakdown-card h3 {
@@ -146,6 +151,36 @@
 }
 
 .review-breakdown-row small {
+  color: #6b7a90;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.review-latest-card {
+  grid-column: span 2;
+}
+
+.review-latest-list {
+  display: grid;
+  gap: 8px;
+}
+
+.review-latest-row {
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.review-latest-row strong {
+  color: #132238;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.review-latest-row span {
   color: #6b7a90;
   font-size: 0.78rem;
   font-weight: 750;
@@ -401,5 +436,9 @@
 
   .review-analytics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .review-latest-card {
+    grid-column: auto;
   }
 }
