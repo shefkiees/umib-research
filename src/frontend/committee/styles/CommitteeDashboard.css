@@ -1536,13 +1536,17 @@
 	z-index: 80;
 	display: flex;
 	justify-content: flex-end;
+	overflow: hidden;
 	background: rgba(15, 23, 42, 0.34);
 }
 
 .committee-review-checklist-drawer {
 	width: calc(100vw - 340px);
 	max-width: none;
-	min-height: 100vh;
+	height: 100vh;
+	max-height: 100vh;
+	min-height: 0;
+	overflow: hidden;
 	background: #f7f9fc;
 	box-shadow: -22px 0 48px rgba(15, 23, 42, 0.22);
 	display: flex;
@@ -1557,6 +1561,7 @@
 	padding: 24px 28px;
 	border-bottom: 1px solid #e2e8f0;
 	background: #ffffff;
+	flex-shrink: 0;
 }
 
 .committee-review-checklist-drawer-head span {
@@ -1602,11 +1607,14 @@
 }
 
 .committee-review-checklist-drawer-body {
-	flex: 1;
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow-y: auto;
+	overflow-x: hidden;
 	padding: 24px 28px 28px;
 	color: #475569;
 	line-height: 1.55;
+	overscroll-behavior: contain;
 }
 
 .committee-review-checklist-drawer-body strong {
@@ -1861,14 +1869,43 @@
 	color: #17324f;
 	font-size: 0.94rem;
 	line-height: 1.25;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
 }
 
-.committee-review-checklist-card h5 span {
+.committee-review-checklist-card h5 > span:last-child {
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.committee-review-checklist-category-number,
+.committee-review-checklist-category-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	border: 1px solid var(--checklist-accent-border);
+	background: rgba(255, 255, 255, 0.74);
 	color: var(--checklist-accent-text);
 	font-weight: 950;
 }
 
-.committee-review-checklist-card header span {
+.committee-review-checklist-category-number {
+	width: 25px;
+	height: 25px;
+	border-radius: 999px;
+	font-size: 0.78rem;
+}
+
+.committee-review-checklist-category-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 9px;
+}
+
+.committee-review-checklist-card header > span {
 	flex: 0 0 auto;
 	border: 1px solid var(--checklist-accent-border);
 	border-radius: 999px;

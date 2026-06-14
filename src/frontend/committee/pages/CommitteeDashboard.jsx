@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, BarChart3, Bell, CheckCircle2, CircleUserRound, Clock3, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, BookOpen, CheckCircle2, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
@@ -2434,6 +2434,7 @@ export default function CommitteeDashboard() {
     };
     const renderCommitteeChecklist = () => {
       const checklistGroups = requestType === "conference" ? f2CommitteeChecklistGroups : f1CommitteeChecklistGroups;
+      const checklistCategoryIcons = [CircleUserRound, BookOpen, Database, FileText, CreditCard];
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
       const defaultStatus = committeeChecklistStatuses[0];
       const itemKeys = checklistGroups.flatMap((group) => (
@@ -2465,49 +2466,59 @@ export default function CommitteeDashboard() {
           </div>
 
           <div className="committee-review-checklist-groups">
-            {checklistGroups.map((group, groupIndex) => (
-              <article className={`committee-review-checklist-card is-category-${groupIndex + 1}`} key={group.title}>
-                <header>
-                  <h5><span>{groupIndex + 1}.</span> {group.title}</h5>
-                  <span>{group.items.length} pika</span>
-                </header>
-                <div className="committee-review-checklist-rows">
-                  {group.items.map((label) => {
-                    const itemKey = getCommitteeChecklistItemKey(group.title, label);
-                    const itemDraft = checklistDraft.items?.[itemKey] || {};
-                    const selectedStatus = itemDraft.status || defaultStatus;
+            {checklistGroups.map((group, groupIndex) => {
+              const CategoryIcon = checklistCategoryIcons[groupIndex] || FileText;
 
-                    return (
-                      <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
-                        <div className="committee-review-checklist-item-main">
-                          <strong>{label}</strong>
-                          {renderChecklistValue(getChecklistItemValue(label))}
+              return (
+                <article className={`committee-review-checklist-card is-category-${groupIndex + 1}`} key={group.title}>
+                  <header>
+                    <h5>
+                      <span className="committee-review-checklist-category-number">{groupIndex + 1}</span>
+                      <span className="committee-review-checklist-category-icon" aria-hidden="true">
+                        <CategoryIcon size={15} strokeWidth={2.4} />
+                      </span>
+                      <span>{group.title}</span>
+                    </h5>
+                    <span>{group.items.length} pika</span>
+                  </header>
+                  <div className="committee-review-checklist-rows">
+                    {group.items.map((label) => {
+                      const itemKey = getCommitteeChecklistItemKey(group.title, label);
+                      const itemDraft = checklistDraft.items?.[itemKey] || {};
+                      const selectedStatus = itemDraft.status || defaultStatus;
+
+                      return (
+                        <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
+                          <div className="committee-review-checklist-item-main">
+                            <strong>{label}</strong>
+                            {renderChecklistValue(getChecklistItemValue(label))}
+                          </div>
+                          <select
+                            value={selectedStatus}
+                            aria-label={`Statusi për ${label}`}
+                            onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
+                          >
+                            {committeeChecklistStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                          {shouldShowChecklistComment(selectedStatus) ? (
+                            <textarea
+                              className="committee-review-checklist-item-comment"
+                              placeholder="Koment për këtë pikë të checklistës"
+                              value={itemDraft.comment || ""}
+                              onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
+                            />
+                          ) : null}
                         </div>
-                        <select
-                          value={selectedStatus}
-                          aria-label={`Statusi për ${label}`}
-                          onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
-                        >
-                          {committeeChecklistStatuses.map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
-                        {shouldShowChecklistComment(selectedStatus) ? (
-                          <textarea
-                            className="committee-review-checklist-item-comment"
-                            placeholder="Koment për këtë pikë të checklistës"
-                            value={itemDraft.comment || ""}
-                            onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
-                          />
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
+                      );
+                    })}
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
           <label className="committee-review-checklist-general-comment">
