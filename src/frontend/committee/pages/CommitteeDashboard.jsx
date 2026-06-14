@@ -1096,6 +1096,22 @@ export default function CommitteeDashboard() {
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
+
+  useEffect(() => {
+    if (!isReviewChecklistDrawerOpen) {
+      return undefined;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
+  }, [isReviewChecklistDrawerOpen]);
   const [reviewRequests, setReviewRequests] = useState([]);
   const [isPendingSubmissionsLoading, setIsPendingSubmissionsLoading] = useState(true);
   const [pendingSubmissionsError, setPendingSubmissionsError] = useState("");
@@ -2475,7 +2491,7 @@ export default function CommitteeDashboard() {
                     <h5>
                       <span className="committee-review-checklist-category-number">{groupIndex + 1}</span>
                       <span className="committee-review-checklist-category-icon" aria-hidden="true">
-                        <CategoryIcon size={15} strokeWidth={2.4} />
+                        <CategoryIcon size={17} strokeWidth={2.5} />
                       </span>
                       <span>{group.title}</span>
                     </h5>
