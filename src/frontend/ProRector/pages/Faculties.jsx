@@ -510,7 +510,7 @@ export default function FacultyDetails() {
             ) : null}
 
             {!isLoading && !selectedFaculty ? (
-              <div className="prorector-faculty-empty">Fakulteti i kërkuar nuk u gjet.</div>
+              <div className="prorector-faculty-empty">Fakulteti nuk u gjet.</div>
             ) : null}
 
             {!isLoading && selectedFaculty ? (
