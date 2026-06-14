@@ -1486,7 +1486,7 @@ export default function ProRectorDashboard() {
           role="prorector"
           scope="all"
           searchQuery={searchQuery}
-          title="Statistika të rimbursimeve"
+          title="Rimbursimet"
           description="Pasqyrë reale e të gjitha kërkesave për rimbursim, shumave dhe statusit aktual në workflow."
           showReviewFilters
           showActions={false}
