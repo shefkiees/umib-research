@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -227,7 +227,6 @@ function normalizeStatusClass(value) {
 
 export default function FacultyDetails() {
   const { id } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [facultyRowsRaw, setFacultyRowsRaw] = useState([]);
@@ -328,10 +327,6 @@ export default function FacultyDetails() {
   }, []);
 
   const facultyRows = useMemo(() => buildFacultyRows(facultyRowsRaw), [facultyRowsRaw]);
-  const stateFaculty = useMemo(
-    () => (location.state?.faculty ? normalizeFacultyRow(location.state.faculty) : null),
-    [location.state]
-  );
 
   const selectedFaculty = useMemo(() => {
     const matchesRoute = (row = {}) => {
@@ -342,8 +337,8 @@ export default function FacultyDetails() {
       return routeKeys.some((key) => key === routeId);
     };
 
-    return facultyRows.find(matchesRoute) || (stateFaculty && matchesRoute(stateFaculty) ? stateFaculty : null);
-  }, [facultyRows, routeId, stateFaculty]);
+    return facultyRows.find(matchesRoute) || null;
+  }, [facultyRows, routeId]);
 
   const facultyNameKeys = useMemo(() => {
     if (!selectedFaculty) {

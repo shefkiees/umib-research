@@ -1089,7 +1089,6 @@ export default function ProRectorDashboard() {
                       <td data-label="Veprime">
                         <Link
                           to={`/prorector/faculties/${encodeURIComponent(getFacultyRouteId(row))}`}
-                          state={{ faculty: row }}
                           className="prorector-row-action-btn"
                         >
                           Shiko detajet
