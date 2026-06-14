@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BadgeCheck,
   BarChart3,
@@ -1087,13 +1087,13 @@ export default function ProRectorDashboard() {
                         </span>
                       </td>
                       <td data-label="Veprime">
-                        <button
-                          type="button"
+                        <Link
+                          to={`/prorector/faculties/${encodeURIComponent(getFacultyRouteId(row))}`}
+                          state={{ faculty: row }}
                           className="prorector-row-action-btn"
-                          onClick={() => navigate(`/prorector/faculties/${encodeURIComponent(getFacultyRouteId(row))}`, { state: { faculty: row } })}
                         >
                           Shiko detajet
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))}

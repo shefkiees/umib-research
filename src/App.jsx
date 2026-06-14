@@ -34,6 +34,7 @@ function App() {
           <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
           <Route path="/prorector/dashboard" element={<ProRectorDashboard />} />
           <Route path="/prorector/faculties/:id" element={<FacultyDetails />} />
+          <Route path="/ProRector/faculties/:id" element={<FacultyDetails />} />
           <Route path="/committee/dashboard" element={<CommitteeDashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/committee/notifications" element={<NotificationsPage />} />

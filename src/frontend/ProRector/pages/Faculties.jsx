@@ -254,39 +254,55 @@ export default function FacultyDetails() {
           throw new Error(facultiesData.message || "faculties_load_failed");
         }
 
-        const publicationRowsNext = [];
-        let page = 1;
-        let totalPages = 1;
-
-        do {
-          const params = new URLSearchParams({
-            scope: "all",
-            limit: String(PAGE_SIZE),
-            page: String(page),
-          });
-          const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
-            credentials: "include",
-          });
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            throw new Error(data.message || "publications_load_failed");
-          }
-
-          publicationRowsNext.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
-          totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
-          page += 1;
-        } while (page <= totalPages);
-
-        const reimbursementsResponse = await fetch(apiUrl("/reimbursements?scope=all"), {
-          credentials: "include",
-        });
-        const reimbursementsData = await reimbursementsResponse.json().catch(() => []);
-
         if (isMounted) {
           setFacultyRowsRaw(Array.isArray(facultiesData.faculties) ? facultiesData.faculties : []);
+        }
+
+        let publicationRowsNext = [];
+        let reimbursementRowsNext = [];
+
+        try {
+          let page = 1;
+          let totalPages = 1;
+
+          do {
+            const params = new URLSearchParams({
+              scope: "all",
+              limit: String(PAGE_SIZE),
+              page: String(page),
+            });
+            const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
+              credentials: "include",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+              throw new Error(data.message || "publications_load_failed");
+            }
+
+            publicationRowsNext.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
+            totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
+            page += 1;
+          } while (page <= totalPages);
+        } catch (error) {
+          console.error("Faculty publications load failed:", error);
+          publicationRowsNext = [];
+        }
+
+        try {
+          const reimbursementsResponse = await fetch(apiUrl("/reimbursements?scope=all"), {
+            credentials: "include",
+          });
+          const reimbursementsData = await reimbursementsResponse.json().catch(() => []);
+          reimbursementRowsNext = reimbursementsResponse.ok && Array.isArray(reimbursementsData) ? reimbursementsData : [];
+        } catch (error) {
+          console.error("Faculty reimbursements load failed:", error);
+          reimbursementRowsNext = [];
+        }
+
+        if (isMounted) {
           setPublicationRows(publicationRowsNext);
-          setReimbursementRows(reimbursementsResponse.ok && Array.isArray(reimbursementsData) ? reimbursementsData : []);
+          setReimbursementRows(reimbursementRowsNext);
         }
       } catch (error) {
         console.error("Faculty details load failed:", error);
