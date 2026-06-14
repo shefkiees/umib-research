@@ -1096,6 +1096,7 @@ export default function CommitteeDashboard() {
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
+  const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
 
   useEffect(() => {
     if (!isReviewChecklistDrawerOpen) {
@@ -1758,12 +1759,14 @@ export default function CommitteeDashboard() {
   };
 
   const openReimbursementReview = (request) => {
+    setIsF2AbstractExpanded(false);
     setSelectedReimbursementReview(request);
     setActivePage("Dorëzimet në Pritje");
   };
 
   const closeReimbursementReview = () => {
     setIsReviewChecklistDrawerOpen(false);
+    setIsF2AbstractExpanded(false);
     setSelectedReimbursementReview(null);
     setActivePage("Dorëzimet në Pritje");
   };
@@ -2276,6 +2279,8 @@ export default function CommitteeDashboard() {
       wide: Boolean(options.wide),
       format: options.format || "",
       alwaysShow: Boolean(options.alwaysShow),
+      className: options.className || "",
+      expandable: Boolean(options.expandable),
     });
     const renderReviewValue = (field) => {
       const rawValue = field.format === "date" ? formatDate(field.value) : field.value;
@@ -2289,13 +2294,24 @@ export default function CommitteeDashboard() {
         );
       }
 
+      if (field.expandable && typeof value === "string") {
+        return (
+          <div className="committee-review-expandable-value">
+            <span className={isF2AbstractExpanded ? "" : "is-clamped"}>{value}</span>
+            <button type="button" onClick={() => setIsF2AbstractExpanded((current) => !current)}>
+              {isF2AbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            </button>
+          </div>
+        );
+      }
+
       return Array.isArray(value) ? value.join(", ") : String(value);
     };
     const renderReviewSection = (title, fields, options = {}) => {
       const visibleFields = fields.filter((field) => field.alwaysShow || hasReviewValue(field.value));
 
       return (
-        <section className={`committee-review-section ${options.placeholder ? "is-placeholder" : ""}`}>
+        <section className={`committee-review-section ${options.placeholder ? "is-placeholder" : ""} ${options.className || ""}`}>
           <div className="committee-review-section-head">
             <h4>{title}</h4>
             {options.note ? <span>{options.note}</span> : null}
@@ -2303,7 +2319,7 @@ export default function CommitteeDashboard() {
           {visibleFields.length ? (
             <dl className="committee-review-fields">
               {visibleFields.map((field) => (
-                <div key={`${title}-${field.label}`} className={field.wide ? "is-wide" : ""}>
+                <div key={`${title}-${field.label}`} className={[field.wide ? "is-wide" : "", field.className].filter(Boolean).join(" ")}>
                   <dt>{field.label}</dt>
                   <dd>{renderReviewValue(field)}</dd>
                 </div>
@@ -2660,11 +2676,13 @@ export default function CommitteeDashboard() {
       requestData.abstract,
       f2WorkParts.abstract
     ));
+    const f2IssnIsbn = [requestData.issn, requestData.isbn].filter(hasReviewValue).join(" / ");
+    const isF2WorkAbstractLong = f2WorkAbstract.length > 360;
     const f2ScientificWorkFields = [
       createReviewField("Lloji i publikimit", hasReviewValue(requestData.publicationType) ? getPublicationTypeLabel(requestData.publicationType) : ""),
-      createReviewField("Titulli i punimit", f2WorkTitle, { wide: true }),
-      createReviewField("Abstrakti i punimit", f2WorkAbstract, { wide: true }),
-      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
+      createReviewField("Titulli i punimit", f2WorkTitle, { wide: true, className: "is-f2-title" }),
+      createReviewField("Abstrakti i punimit", f2WorkAbstract, { wide: true, className: "is-f2-abstract", expandable: isF2WorkAbstractLong }),
+      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "", displayValue: doiValue ? "Hap linkun" : "" }),
       createReviewField("Publikuar në", getFirstReviewValue(requestData.publishedIn, requestData.venue, requestData.journal)),
       createReviewField("Shtëpia botuese", requestData.publisher),
       createReviewField(
@@ -2672,16 +2690,15 @@ export default function CommitteeDashboard() {
         getFirstReviewValue(requestData.publicationDate, requestData.publicationYear),
         { format: requestData.publicationDate ? "date" : "" }
       ),
-      createReviewField("ISSN", requestData.issn),
-      createReviewField("ISBN", requestData.isbn),
+      createReviewField("ISSN / ISBN", f2IssnIsbn),
       createReviewField("Vëllimi", requestData.volume),
-      createReviewField("Numri i revistës (Issue)", requestData.issue),
+      createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),
       createReviewField("Autori kryesor", requestData.mainAuthor),
       createReviewField("Autori korrespondent", requestData.correspondingAuthor),
       createReviewField("Bashkautorët", getFirstReviewValue(requestData.coauthors, requestData.coParticipant), { wide: true }),
-      createReviewField("Affiliation", getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation), { wide: true }),
-      createReviewField("Platforma e indeksimit", requestData.indexingPlatform),
+      createReviewField("Përkatësia institucionale (Affiliation)", getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation), { wide: true }),
+      createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
       createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
       createReviewField("Kuartili", requestData.scopusQuartile),
       createReviewField("Impakt Faktori (IF)", requestData.impactFactor),
@@ -2692,9 +2709,21 @@ export default function CommitteeDashboard() {
       createReviewField("Vendi", requestData.location),
       createReviewField("Data e konferencës", requestData.conferenceDate, { format: "date" }),
       createReviewField("Organizatori", requestData.organizer, { wide: true }),
-      createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, { link: true, wide: true }),
-      createReviewField("Ftesa dhe programi", requestData.invitationProgram, { link: true, wide: true }),
-      createReviewField("Konfirmimi i pranimit", requestData.acceptanceConfirmation, { link: true, wide: true }),
+      createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, {
+        link: true,
+        wide: true,
+        displayValue: isUrlValue(requestData.eventPublicationLink) ? "Hap linkun" : "",
+      }),
+      createReviewField("Ftesa dhe programi", requestData.invitationProgram, {
+        link: true,
+        wide: true,
+        displayValue: isUrlValue(requestData.invitationProgram) ? "Hap ftesën/programin" : "",
+      }),
+      createReviewField("Konfirmimi i pranimit", requestData.acceptanceConfirmation, {
+        link: true,
+        wide: true,
+        displayValue: isUrlValue(requestData.acceptanceConfirmation) ? "Hap konfirmimin" : "",
+      }),
     ];
     const f2ParticipationFields = [
       createReviewField("Folës me kumtesë/poster", requestData.speakerWithPaperPoster),
@@ -2741,9 +2770,9 @@ export default function CommitteeDashboard() {
           {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
           {requestType === "conference" ? (
             <>
-              {renderReviewSection("Metadata e Punimit Shkencor", f2ScientificWorkFields)}
-              {renderReviewSection("Detajet e Konferencës / Simpoziumit", f2ConferenceFields)}
-              {renderReviewSection("Pjesëmarrja", f2ParticipationFields)}
+              {renderReviewSection("Metadata e Punimit Shkencor", f2ScientificWorkFields, { className: "is-f2-review-section is-f2-scientific-work" })}
+              {renderReviewSection("Detajet e Konferencës / Simpoziumit", f2ConferenceFields, { className: "is-f2-review-section" })}
+              {renderReviewSection("Pjesëmarrja", f2ParticipationFields, { className: "is-f2-review-section is-f2-participation" })}
             </>
           ) : (
             <>
@@ -2752,7 +2781,7 @@ export default function CommitteeDashboard() {
             </>
           )}
 
-          <section className="committee-review-section committee-review-shell-documents">
+          <section className={`committee-review-section committee-review-shell-documents ${requestType === "conference" ? "is-f2-review-section" : ""}`}>
             <div className="committee-review-section-head">
               <h4>Dokumentet mbështetëse</h4>
             </div>
@@ -2777,7 +2806,7 @@ export default function CommitteeDashboard() {
             )}
           </section>
 
-          {requestType === "conference" ? renderReviewSection("Të dhënat financiare", f2FinancialFields) : null}
+          {requestType === "conference" ? renderReviewSection("Të dhënat financiare", f2FinancialFields, { className: "is-f2-review-section is-f2-financial" }) : null}
 
         </section>
 

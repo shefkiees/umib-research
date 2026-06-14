@@ -1710,6 +1710,76 @@
 	grid-column: 1 / -1;
 }
 
+.committee-review-section.is-f2-review-section {
+	gap: 12px;
+	border-color: #d7e4f2;
+	box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+}
+
+.committee-review-section.is-f2-review-section + .committee-review-section.is-f2-review-section,
+.committee-review-section.is-f2-review-section + .committee-review-shell-documents,
+.committee-review-shell-documents.is-f2-review-section + .committee-review-section.is-f2-review-section {
+	margin-top: 4px;
+}
+
+.committee-review-section.is-f2-scientific-work {
+	padding: 14px;
+}
+
+.committee-review-section.is-f2-scientific-work .committee-review-fields {
+	gap: 9px;
+}
+
+.committee-review-section.is-f2-scientific-work .committee-review-fields div {
+	padding: 10px 11px;
+}
+
+.committee-review-section.is-f2-scientific-work .committee-review-fields .is-f2-title,
+.committee-review-section.is-f2-scientific-work .committee-review-fields .is-f2-abstract {
+	padding: 12px 13px;
+	background: #ffffff;
+}
+
+.committee-review-fields .is-f2-title dd {
+	font-size: 0.96rem;
+	line-height: 1.35;
+}
+
+.committee-review-expandable-value {
+	display: grid;
+	gap: 8px;
+}
+
+.committee-review-expandable-value span {
+	display: block;
+	color: #17324f;
+	font-weight: 650;
+	line-height: 1.45;
+}
+
+.committee-review-expandable-value span.is-clamped {
+	display: -webkit-box;
+	-webkit-line-clamp: 4;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.committee-review-expandable-value button {
+	justify-self: start;
+	border: 0;
+	background: transparent;
+	color: #1f5f99;
+	padding: 0;
+	font: inherit;
+	font-size: 0.82rem;
+	font-weight: 850;
+	cursor: pointer;
+}
+
+.committee-review-expandable-value button:hover {
+	text-decoration: underline;
+}
+
 .committee-review-shell-document-list {
 	display: grid;
 	gap: 10px;
@@ -1740,6 +1810,21 @@
 	color: #17324f;
 	font-weight: 700;
 	overflow-wrap: anywhere;
+}
+
+.committee-review-shell-documents.is-f2-review-section .committee-review-shell-document {
+	grid-template-columns: auto minmax(96px, 0.24fr) minmax(0, 1fr);
+}
+
+.committee-review-shell-documents.is-f2-review-section .committee-review-shell-document span {
+	color: #64748b;
+	font-size: 0.82rem;
+	font-weight: 800;
+}
+
+.committee-review-shell-documents.is-f2-review-section .committee-review-shell-document strong {
+	font-size: 0.94rem;
+	font-weight: 850;
 }
 
 .committee-review-checklist-section {
