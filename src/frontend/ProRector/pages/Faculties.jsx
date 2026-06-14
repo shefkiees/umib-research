@@ -188,16 +188,38 @@ function getPublicationDate(row = {}) {
   return row.publicationDate || row.publication_date || row.updatedAt || row.updated_at || row.createdAt || row.created_at || "";
 }
 
+function normalizeQuartile(value) {
+  const match = String(value || "").toUpperCase().match(/\bQ[1-4]\b/);
+  return match?.[0] || "";
+}
+
 function getPrimaryPublicationQuartile(row = {}) {
-  if (row.quartile) {
-    return row.quartile;
+  const directQuartile = normalizeQuartile(
+    row.quartile
+      || row.category
+      || row.indexingCategory
+      || row.indexing_category
+      || row.quartileCategory
+      || row.quartile_category
+  );
+
+  if (directQuartile) {
+    return directQuartile;
   }
 
   const indexedQuartile = Array.isArray(row.indexing)
-    ? row.indexing.find((item) => item.quartile)?.quartile
+    ? row.indexing.map((item) => normalizeQuartile(item.quartile || item.category || item.indexingCategory || item.indexing_category)).find(Boolean)
     : "";
 
   return indexedQuartile || "";
+}
+
+function getPublicationFaculty(row = {}) {
+  return row.owner?.faculty || row.faculty?.name || row.facultyName || row.faculty_name || "-";
+}
+
+function getPublicationDepartment(row = {}) {
+  return row.department?.name || row.departmentName || row.department_name || row.owner?.department || "-";
 }
 
 function countBy(rows, getKey) {
@@ -227,6 +249,14 @@ export default function FacultyDetails() {
   const [facultyRowsRaw, setFacultyRowsRaw] = useState([]);
   const [publicationRows, setPublicationRows] = useState([]);
   const [reimbursementRows, setReimbursementRows] = useState([]);
+  const [facultyAnalytics, setFacultyAnalytics] = useState({
+    totalPublications: 0,
+    quartileDistribution: [],
+    departments: [],
+    publicationTypes: [],
+    recentPublications: [],
+    attentionPublications: [],
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const routeId = decodeURIComponent(id || "");
@@ -248,10 +278,28 @@ export default function FacultyDetails() {
           throw new Error(data.message || "faculty_details_load_failed");
         }
 
+        console.log("[ProRector FacultyDetails API]", {
+          faculty: data.faculty,
+          totalPublications: data.totalPublications,
+          quartileDistribution: data.quartileDistribution,
+          departments: data.departments,
+          publicationTypes: data.publicationTypes,
+          recentPublications: data.recentPublications,
+          attentionPublications: data.attentionPublications,
+        });
+
         if (isMounted) {
           setFacultyRowsRaw(data.faculty ? [data.faculty] : []);
           setPublicationRows(Array.isArray(data.publications) ? data.publications : []);
           setReimbursementRows(Array.isArray(data.reimbursements) ? data.reimbursements : []);
+          setFacultyAnalytics({
+            totalPublications: toNumber(data.totalPublications),
+            quartileDistribution: Array.isArray(data.quartileDistribution) ? data.quartileDistribution : [],
+            departments: Array.isArray(data.departments) ? data.departments : [],
+            publicationTypes: Array.isArray(data.publicationTypes) ? data.publicationTypes : [],
+            recentPublications: Array.isArray(data.recentPublications) ? data.recentPublications : [],
+            attentionPublications: Array.isArray(data.attentionPublications) ? data.attentionPublications : [],
+          });
         }
       } catch (error) {
         console.error("Faculty details load failed:", error);
@@ -261,6 +309,14 @@ export default function FacultyDetails() {
           setFacultyRowsRaw([]);
           setPublicationRows([]);
           setReimbursementRows([]);
+          setFacultyAnalytics({
+            totalPublications: 0,
+            quartileDistribution: [],
+            departments: [],
+            publicationTypes: [],
+            recentPublications: [],
+            attentionPublications: [],
+          });
         }
       } finally {
         if (isMounted) {
@@ -300,28 +356,6 @@ export default function FacultyDetails() {
     [reimbursementRows, selectedFaculty]
   );
 
-  const filteredPublications = useMemo(() => {
-    const normalized = searchQuery.trim().toLowerCase();
-
-    if (!normalized) {
-      return facultyPublications;
-    }
-
-    return facultyPublications.filter((row) =>
-      [
-        row.title,
-        row.venue,
-        row.publisher,
-        row.doi,
-        row.status,
-        row.publicationType,
-        row.publication_type,
-        row.owner?.name,
-        row.owner?.department,
-      ].join(" ").toLowerCase().includes(normalized)
-    );
-  }, [facultyPublications, searchQuery]);
-
   const publicationTypeData = useMemo(
     () => countBy(facultyPublications, (row) => PUBLICATION_TYPE_LABELS[row.publicationType || row.publication_type] || "Të tjera"),
     [facultyPublications]
@@ -351,6 +385,78 @@ export default function FacultyDetails() {
 
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [facultyPublications, selectedFaculty]);
+
+  const publicationTypeChartData = useMemo(() => {
+    if (facultyAnalytics.publicationTypes.length) {
+      return facultyAnalytics.publicationTypes.map((row) => ({
+        name: PUBLICATION_TYPE_LABELS[row.type] || row.name || row.type || "TÃ« tjera",
+        value: toNumber(row.count ?? row.value),
+      }));
+    }
+
+    return publicationTypeData;
+  }, [facultyAnalytics.publicationTypes, publicationTypeData]);
+
+  const quartileChartData = useMemo(() => {
+    if (facultyAnalytics.quartileDistribution.length) {
+      const counts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+
+      facultyAnalytics.quartileDistribution.forEach((row) => {
+        const quartile = normalizeQuartile(row.quartile || row.name);
+        if (counts[quartile] !== undefined) {
+          counts[quartile] += toNumber(row.count ?? row.value);
+        }
+      });
+
+      return Object.entries(counts).map(([name, value]) => ({ name, value }));
+    }
+
+    return quartileData;
+  }, [facultyAnalytics.quartileDistribution, quartileData]);
+
+  const departmentData = useMemo(() => {
+    if (facultyAnalytics.departments.length) {
+      return facultyAnalytics.departments.map((row) => ({
+        departmentName: row.departmentName || row.department_name || row.name || "Pa departament",
+        publicationCount: toNumber(row.publicationCount ?? row.publication_count ?? row.count),
+        q1Count: toNumber(row.q1Count ?? row.q1_count ?? row.q1),
+        q2Count: toNumber(row.q2Count ?? row.q2_count ?? row.q2),
+        q3Count: toNumber(row.q3Count ?? row.q3_count ?? row.q3),
+        q4Count: toNumber(row.q4Count ?? row.q4_count ?? row.q4),
+      }));
+    }
+
+    return selectedFaculty?.departmentNames.map((departmentName) => ({
+      departmentName,
+      publicationCount: 0,
+      q1Count: 0,
+      q2Count: 0,
+      q3Count: 0,
+      q4Count: 0,
+    })) || [];
+  }, [facultyAnalytics.departments, selectedFaculty]);
+
+  const attentionPublications = useMemo(() => {
+    const sourceRows = facultyAnalytics.attentionPublications.length
+      ? facultyAnalytics.attentionPublications
+      : facultyPublications.filter((row) => ["needs_correction", "in_review", "submitted", "rejected"].includes(row.status || ""));
+    const normalized = searchQuery.trim().toLowerCase();
+    const rows = normalized
+      ? sourceRows.filter((row) =>
+        [
+          row.title,
+          getPublicationFaculty(row),
+          getPublicationDepartment(row),
+          row.publicationType,
+          row.publication_type,
+          getPrimaryPublicationQuartile(row),
+          row.status,
+        ].join(" ").toLowerCase().includes(normalized)
+      )
+      : sourceRows;
+
+    return rows.slice(0, 10);
+  }, [facultyAnalytics.attentionPublications, facultyPublications, searchQuery]);
 
   const monthlyTrendData = useMemo(() => {
     const monthFormatter = new Intl.DateTimeFormat("sq-AL", { month: "short" });
@@ -519,11 +625,11 @@ export default function FacultyDetails() {
                       </div>
                       <PieChartIcon size={20} />
                     </div>
-                    {publicationTypeData.length ? (
+                    {publicationTypeChartData.length ? (
                       <ResponsiveContainer width="100%" height={270}>
                         <PieChart>
-                          <Pie data={publicationTypeData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
-                            {publicationTypeData.map((entry, index) => (
+                          <Pie data={publicationTypeChartData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
+                            {publicationTypeChartData.map((entry, index) => (
                               <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                             ))}
                           </Pie>
@@ -569,9 +675,9 @@ export default function FacultyDetails() {
                       </div>
                       <BookOpen size={20} />
                     </div>
-                    {hasChartValues(quartileData) ? (
+                    {hasChartValues(quartileChartData) ? (
                       <ResponsiveContainer width="100%" height={270}>
-                        <BarChart data={quartileData} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
+                        <BarChart data={quartileChartData} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
                           <XAxis dataKey="name" tickLine={false} axisLine={false} />
                           <YAxis tickLine={false} axisLine={false} />
@@ -592,10 +698,18 @@ export default function FacultyDetails() {
                       </div>
                       <Building2 size={20} />
                     </div>
-                    {selectedFaculty.departmentNames.length ? (
-                      <div className="prorector-department-list">
-                        {selectedFaculty.departmentNames.map((department) => (
-                          <span key={department}>{department}</span>
+                    {departmentData.length ? (
+                      <div className="prorector-department-analytics-list">
+                        {departmentData.map((department) => (
+                          <article key={department.departmentName} className="prorector-department-analytics-row">
+                            <div>
+                              <strong>{department.departmentName}</strong>
+                              <span>{formatMetric(department.publicationCount)} publikime</span>
+                            </div>
+                            <small>
+                              Q1 {formatMetric(department.q1Count)} · Q2 {formatMetric(department.q2Count)} · Q3 {formatMetric(department.q3Count)} · Q4 {formatMetric(department.q4Count)}
+                            </small>
+                          </article>
                         ))}
                       </div>
                     ) : (
@@ -607,30 +721,51 @@ export default function FacultyDetails() {
                 <div className="prorector-faculty-detail-list">
                   <div className="prorector-card-head">
                     <div>
-                      <h3>Publikimet e fundit</h3>
-                      <p>Rezultatet filtrohen nga kërkimi në shiritin e sipërm.</p>
+                      <h3>Publikimet që kërkojnë vëmendje</h3>
+                      <p>Në shqyrtim, për korrigjim, të refuzuara dhe të aprovuara këtë muaj.</p>
                     </div>
                   </div>
-                  {filteredPublications.slice(0, 8).length ? (
-                    filteredPublications.slice(0, 8).map((row) => {
-                      const status = row.status || "draft";
-                      const type = row.publicationType || row.publication_type || "unknown";
+                  {attentionPublications.length ? (
+                    <div className="prorector-faculty-table-wrap prorector-attention-publications-wrap">
+                      <table className="prorector-table prorector-faculty-table prorector-attention-publications-table">
+                        <thead>
+                          <tr>
+                            <th>Titulli</th>
+                            <th>Fakulteti</th>
+                            <th>Departamenti</th>
+                            <th>Tipi</th>
+                            <th>Quartile</th>
+                            <th>Statusi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attentionPublications.map((row) => {
+                            const status = row.status || "draft";
+                            const type = row.publicationType || row.publication_type || "unknown";
 
-                      return (
-                        <article className="prorector-detail-publication-row" key={row.id}>
-                          <div>
-                            <strong>{row.title || "Publikim pa titull"}</strong>
-                            <span>{row.venue || row.publisher || row.doi || "Pa burim"}</span>
-                          </div>
-                          <span>{PUBLICATION_TYPE_LABELS[type] || "Të tjera"}</span>
-                          <span className={`status-badge status-${normalizeStatusClass(status)}`}>
-                            {PUBLICATION_STATUS_LABELS[status] || status}
-                          </span>
-                        </article>
-                      );
-                    })
+                            return (
+                              <tr key={row.id}>
+                                <td>
+                                  <strong>{row.title || "Publikim pa titull"}</strong>
+                                  <span className="prorector-table-muted">{row.venue || row.publisher || row.doi || "Pa burim"}</span>
+                                </td>
+                                <td>{getPublicationFaculty(row)}</td>
+                                <td>{getPublicationDepartment(row)}</td>
+                                <td>{PUBLICATION_TYPE_LABELS[type] || "Të tjera"}</td>
+                                <td>{getPrimaryPublicationQuartile(row) || "-"}</td>
+                                <td>
+                                  <span className={`status-badge status-${normalizeStatusClass(status)}`}>
+                                    {PUBLICATION_STATUS_LABELS[status] || status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : (
-                    <div className="prorector-faculty-empty">Nuk ka publikime për këtë fakultet.</div>
+                    <div className="prorector-faculty-empty">Nuk ka publikime që kërkojnë vëmendje për këtë fakultet.</div>
                   )}
                 </div>
               </>

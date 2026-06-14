@@ -104,6 +104,106 @@ function normalizeFacultyRouteKey(value) {
     .trim();
 }
 
+function normalizeQuartile(value) {
+  const match = normalizeText(value).toUpperCase().match(/\bQ[1-4]\b/);
+  return match?.[0] || "";
+}
+
+function getPublicationQuartile(publication = {}) {
+  return normalizeQuartile(
+    publication.quartile
+    || publication.category
+    || publication.indexingCategory
+    || publication.indexing_category
+    || publication.quartileCategory
+    || publication.quartile_category
+  );
+}
+
+function getPublicationTime(publication = {}) {
+  const value = publication.updatedAt || publication.updated_at || publication.publicationDate || publication.publication_date || publication.createdAt || publication.created_at;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function buildFacultyPublicationAnalytics(publications = []) {
+  const quartileCounts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+  const departmentRows = new Map();
+  const publicationTypeRows = new Map();
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const attentionPriority = {
+    needs_correction: 0,
+    in_review: 1,
+    submitted: 1,
+    rejected: 2,
+    approved: 3,
+  };
+
+  publications.forEach((publication) => {
+    const quartile = getPublicationQuartile(publication);
+    const type = publication.publicationType || publication.publication_type || "unknown";
+    const departmentName = normalizeText(
+      publication.department?.name
+      || publication.departmentName
+      || publication.department_name
+      || publication.owner?.department
+    ) || "Pa departament";
+
+    if (quartileCounts[quartile] !== undefined) {
+      quartileCounts[quartile] += 1;
+    }
+
+    publicationTypeRows.set(type, (publicationTypeRows.get(type) || 0) + 1);
+
+    if (!departmentRows.has(departmentName)) {
+      departmentRows.set(departmentName, {
+        departmentName,
+        publicationCount: 0,
+        q1Count: 0,
+        q2Count: 0,
+        q3Count: 0,
+        q4Count: 0,
+      });
+    }
+
+    const department = departmentRows.get(departmentName);
+    department.publicationCount += 1;
+
+    if (quartile === "Q1") department.q1Count += 1;
+    if (quartile === "Q2") department.q2Count += 1;
+    if (quartile === "Q3") department.q3Count += 1;
+    if (quartile === "Q4") department.q4Count += 1;
+  });
+
+  const recentPublications = [...publications]
+    .sort((first, second) => getPublicationTime(second) - getPublicationTime(first))
+    .slice(0, 10);
+  const attentionPublications = publications
+    .filter((publication) => {
+      const status = publication.status || "draft";
+      const approvedThisMonth = status === "approved" && String(publication.updatedAt || publication.updated_at || publication.createdAt || publication.created_at || "").startsWith(currentMonthKey);
+      return ["needs_correction", "in_review", "submitted", "rejected"].includes(status) || approvedThisMonth;
+    })
+    .sort((first, second) => {
+      const firstStatus = first.status || "draft";
+      const secondStatus = second.status || "draft";
+      const priorityDelta = (attentionPriority[firstStatus] ?? 9) - (attentionPriority[secondStatus] ?? 9);
+
+      return priorityDelta || getPublicationTime(second) - getPublicationTime(first);
+    })
+    .slice(0, 10);
+
+  return {
+    totalPublications: publications.length,
+    quartileDistribution: Object.entries(quartileCounts).map(([quartile, count]) => ({ quartile, count })),
+    departments: Array.from(departmentRows.values())
+      .sort((first, second) => second.publicationCount - first.publicationCount || first.departmentName.localeCompare(second.departmentName, "sq")),
+    publicationTypes: Array.from(publicationTypeRows, ([type, count]) => ({ type, count })),
+    recentPublications,
+    attentionPublications,
+  };
+}
+
 router.get("/faculties", requireProRectorAccess, async (req, res) => {
   try {
     const result = await db.query(
@@ -296,6 +396,11 @@ router.get("/faculties/:id", requireProRectorAccess, async (req, res) => {
              'publicationYear', p.publication_year,
              'publication_year', p.publication_year,
              'status', p.status,
+             'indexingCategory', p.indexing_category,
+             'indexing_category', p.indexing_category,
+             'category', p.indexing_category,
+             'quartileCategory', p.indexing_category,
+             'quartile_category', p.indexing_category,
              'quartile', coalesce(
                case
                  when p.indexing_category ~* '^Q[1-4]$' then upper(p.indexing_category)
@@ -368,18 +473,33 @@ router.get("/faculties/:id", requireProRectorAccess, async (req, res) => {
     const faculty = mapFaculty(row);
     const publications = Array.isArray(row.publications) ? row.publications : [];
     const reimbursements = Array.isArray(row.reimbursements) ? row.reimbursements : [];
-
-    res.json({
+    const publicationAnalytics = buildFacultyPublicationAnalytics(publications);
+    const payload = {
       faculty: {
         ...faculty,
-        q1Count: Number(row.q1_count || 0),
-        q2Count: Number(row.q2_count || 0),
-        q3Count: Number(row.q3_count || 0),
-        q4Count: Number(row.q4_count || 0),
+        q1Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q1")?.count || Number(row.q1_count || 0),
+        q2Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q2")?.count || Number(row.q2_count || 0),
+        q3Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q3")?.count || Number(row.q3_count || 0),
+        q4Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q4")?.count || Number(row.q4_count || 0),
       },
       publications,
       reimbursements,
+      ...publicationAnalytics,
+    };
+
+    console.log("[prorector:faculty-details]", {
+      facultyId: payload.faculty.id,
+      totalPublications: payload.totalPublications,
+      quartileDistribution: payload.quartileDistribution,
+      departments: payload.departments.map((department) => ({
+        departmentName: department.departmentName,
+        publicationCount: department.publicationCount,
+      })),
+      publicationTypes: payload.publicationTypes,
+      recentPublications: payload.recentPublications.length,
+      attentionPublications: payload.attentionPublications.length,
     });
+    res.json(payload);
   } catch (error) {
     console.error("GET /api/prorector/faculties/:id failed:", error);
     res.status(500).json({
