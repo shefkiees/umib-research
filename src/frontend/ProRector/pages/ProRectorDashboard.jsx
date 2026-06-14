@@ -81,6 +81,26 @@ function formatMetric(value) {
   return new Intl.NumberFormat("sq-AL").format(toNumber(value));
 }
 
+function getPayloadRows(payload = {}, fallbackKey = "") {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (fallbackKey && Array.isArray(payload[fallbackKey])) {
+    return payload[fallbackKey];
+  }
+
+  if (Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload.rows)) {
+    return payload.rows;
+  }
+
+  return [];
+}
+
 function getInitials(value) {
   return String(value || "")
     .split(/\s+/)
@@ -191,6 +211,32 @@ function getConferenceDate(row = {}) {
 
 function getConferenceStatusLabel(row = {}) {
   return CONFERENCE_STATUS_LABELS[row.status] || row.status || "-";
+}
+
+function getConferenceFacultyKey(row = {}) {
+  return normalizeFacultyKey(row.owner?.faculty || row.ownerFaculty || row.owner_faculty || row.faculty || "");
+}
+
+function isUpcomingConference(row = {}) {
+  const dateValue = getConferenceDate(row);
+  const conferenceDate = dateValue ? new Date(dateValue) : null;
+
+  return conferenceDate && !Number.isNaN(conferenceDate.getTime()) && conferenceDate >= new Date();
+}
+
+function isConferenceDeadlineSoon(row = {}) {
+  const deadlineValue = getConferenceDeadline(row);
+  const deadline = deadlineValue ? new Date(deadlineValue) : null;
+
+  if (!deadline || Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now);
+  sevenDaysFromNow.setDate(now.getDate() + 7);
+
+  return deadline >= now && deadline <= sevenDaysFromNow;
 }
 
 function getFacultyPresentation(row) {
@@ -373,7 +419,7 @@ export default function ProRectorDashboard() {
             throw new Error(data.message || "publications_load_failed");
           }
 
-          rows.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
+          rows.push(...getPayloadRows(data, "conferences"));
           totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
           page += 1;
         } while (page <= totalPages);
@@ -470,7 +516,7 @@ export default function ProRectorDashboard() {
             throw new Error(data.message || "conferences_load_failed");
           }
 
-          rows.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
+          rows.push(...getPayloadRows(data, "publications"));
           totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
           page += 1;
         } while (page <= totalPages);
@@ -524,6 +570,22 @@ export default function ProRectorDashboard() {
     });
   }, [facultyStats, normalizedQuery]);
 
+  const conferenceCountsByFaculty = useMemo(() => {
+    const counts = new Map();
+
+    conferenceStats.forEach((row) => {
+      const facultyKey = getConferenceFacultyKey(row);
+
+      if (!facultyKey) {
+        return;
+      }
+
+      counts.set(facultyKey, (counts.get(facultyKey) || 0) + 1);
+    });
+
+    return counts;
+  }, [conferenceStats]);
+
   const facultyDashboardRows = useMemo(() => {
     const groupedRows = new Map();
 
@@ -531,6 +593,7 @@ export default function ProRectorDashboard() {
       const presentation = getFacultyPresentation(row);
       const key = normalizeFacultyKey(presentation.name);
       const existing = groupedRows.get(key);
+      const conferenceCount = conferenceCountsByFaculty.get(key) || conferenceCountsByFaculty.get(normalizeFacultyKey(row.code)) || 0;
       const explicitCitationCount = row.citationCount ?? row.citations ?? row.totalCitations ?? 0;
       const explicitQ1 = row.q1Count ?? row.q1 ?? 0;
       const explicitQ2 = row.q2Count ?? row.q2 ?? 0;
@@ -542,6 +605,7 @@ export default function ProRectorDashboard() {
         activeUserCount: toNumber(row.activeUserCount),
         departmentCount: toNumber(row.departmentCount),
         publicationCount: toNumber(row.publicationCount),
+        conferenceCount: toNumber(row.conferenceCount ?? conferenceCount),
         reimbursementCount: toNumber(row.reimbursementCount),
         citationCount: toNumber(explicitCitationCount),
         q1Count: toNumber(explicitQ1),
@@ -560,6 +624,7 @@ export default function ProRectorDashboard() {
         activeUserCount: existing.activeUserCount + nextRow.activeUserCount,
         departmentCount: Math.max(existing.departmentCount, nextRow.departmentCount),
         publicationCount: existing.publicationCount + nextRow.publicationCount,
+        conferenceCount: existing.conferenceCount + nextRow.conferenceCount,
         reimbursementCount: existing.reimbursementCount + nextRow.reimbursementCount,
         citationCount: existing.citationCount + nextRow.citationCount,
         q1Count: existing.q1Count + nextRow.q1Count,
@@ -576,7 +641,7 @@ export default function ProRectorDashboard() {
 
       return secondTotal - firstTotal || first.name.localeCompare(second.name, "sq");
     });
-  }, [filteredFacultyStats]);
+  }, [conferenceCountsByFaculty, filteredFacultyStats]);
 
   const facultyPerformanceRows = useMemo(() => {
     return [...facultyDashboardRows].sort((first, second) => {
@@ -594,6 +659,7 @@ export default function ProRectorDashboard() {
         activeUserCount: totals.activeUserCount + row.activeUserCount,
         departmentCount: totals.departmentCount + row.departmentCount,
         publicationCount: totals.publicationCount + row.publicationCount,
+        conferenceCount: totals.conferenceCount + row.conferenceCount,
         reimbursementCount: totals.reimbursementCount + row.reimbursementCount,
         citationCount: totals.citationCount + row.citationCount,
         q1Count: totals.q1Count + row.q1Count,
@@ -606,6 +672,7 @@ export default function ProRectorDashboard() {
         activeUserCount: 0,
         departmentCount: 0,
         publicationCount: 0,
+        conferenceCount: 0,
         reimbursementCount: 0,
         citationCount: 0,
         q1Count: 0,
@@ -615,7 +682,7 @@ export default function ProRectorDashboard() {
       }
     );
 
-    const activityCount = totals.publicationCount + totals.reimbursementCount;
+    const activityCount = totals.publicationCount + totals.conferenceCount + totals.reimbursementCount;
     const averageActivity = totals.facultyCount > 0 ? Math.round(activityCount / totals.facultyCount) : 0;
 
     return {
@@ -649,6 +716,13 @@ export default function ProRectorDashboard() {
         tone: "is-gold",
       },
       {
+        label: "Konferencat dhe Simpoziumet",
+        value: facultyOverview.conferenceCount,
+        trend: conferenceStatsLoading ? "duke u sinkronizuar" : "aktivitete reale te regjistruara",
+        icon: LineChartIcon,
+        tone: "is-indigo",
+      },
+      {
         label: "Rimbursime totale",
         value: facultyOverview.reimbursementCount,
         trend: "kërkesa të regjistruara",
@@ -656,7 +730,7 @@ export default function ProRectorDashboard() {
         tone: "is-rose",
       },
     ],
-    [facultyOverview]
+    [conferenceStatsLoading, facultyOverview]
   );
 
   const filteredPublications = useMemo(() => {
@@ -760,6 +834,47 @@ export default function ProRectorDashboard() {
       ].join(" ").toLowerCase().includes(normalizedQuery)
     );
   }, [conferenceStats, normalizedQuery]);
+
+  const conferenceOverview = useMemo(() => {
+    return conferenceStats.reduce(
+      (totals, row) => {
+        const status = String(row.status || "").toLowerCase();
+
+        return {
+          ...totals,
+          total: totals.total + 1,
+          upcoming: totals.upcoming + (isUpcomingConference(row) ? 1 : 0),
+          deadlineSoon: totals.deadlineSoon + (isConferenceDeadlineSoon(row) ? 1 : 0),
+          accepted: totals.accepted + (["accepted", "attended", "completed"].includes(status) ? 1 : 0),
+        };
+      },
+      { total: 0, upcoming: 0, deadlineSoon: 0, accepted: 0 }
+    );
+  }, [conferenceStats]);
+
+  const conferencesByUnit = useMemo(() => {
+    const counts = new Map();
+
+    conferenceStats.forEach((row) => {
+      const unit = getConferenceUnit(row);
+      counts.set(unit, (counts.get(unit) || 0) + 1);
+    });
+
+    return Array.from(counts, ([unit, conferences]) => ({ unit, conferences }))
+      .sort((first, second) => second.conferences - first.conferences || first.unit.localeCompare(second.unit, "sq"))
+      .slice(0, 8);
+  }, [conferenceStats]);
+
+  const conferencesByStatus = useMemo(() => {
+    const counts = new Map();
+
+    conferenceStats.forEach((row) => {
+      const label = getConferenceStatusLabel(row);
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+
+    return Array.from(counts, ([name, value]) => ({ name, value }));
+  }, [conferenceStats]);
 
   const handleEditProfile = () => {
     setIsEditProfileOpen(true);
@@ -1163,6 +1278,7 @@ export default function ProRectorDashboard() {
                     <th>Kodi</th>
                     <th>Staf akademik</th>
                     <th>Artikuj</th>
+                    <th>Konferenca dhe Simpoziume</th>
                     <th>Rimbursime</th>
                     <th>Statusi</th>
                     <th>Veprime</th>
@@ -1182,6 +1298,7 @@ export default function ProRectorDashboard() {
                       <td data-label="Kodi"><span className="prorector-table-muted">{row.code || "-"}</span></td>
                       <td data-label="Staf akademik">{formatMetric(row.activeUserCount)}</td>
                       <td data-label="Artikuj">{formatMetric(row.publicationCount)}</td>
+                      <td data-label="Konferenca dhe Simpoziume">{formatMetric(row.conferenceCount)}</td>
                       <td data-label="Rimbursime">{formatMetric(row.reimbursementCount)}</td>
                       <td data-label="Statusi">
                         <span className="status-badge status-aprovuar">
@@ -1216,8 +1333,16 @@ export default function ProRectorDashboard() {
 
     if (activePage === "Konferenca") {
       return (
-        <div className="prorector-table-section">
-          <h2>Konferenca</h2>
+        <div className="prorector-table-section prorector-analytics-dashboard">
+          <div className="prorector-section-head">
+            <div>
+              <h2>Konferencat dhe Simpoziumet</h2>
+              <p>Aktivitete reale të regjistruara nga stafi akademik.</p>
+            </div>
+            <span className="prorector-section-pill">
+              {formatMetric(conferenceOverview.total)} aktivitete
+            </span>
+          </div>
           <p>Konferencat reale të regjistruara nga stafi akademik.</p>
 
           {conferenceStatsError ? (
@@ -1228,12 +1353,94 @@ export default function ProRectorDashboard() {
 
           {conferenceStatsLoading ? renderFacultySkeletons(3) : null}
 
+          {!conferenceStatsLoading ? (
+            <div className="prorector-kpi-grid" aria-label="Treguesit kryesore te konferencave dhe simpoziumeve">
+              {[
+                { label: "Gjithsej", value: conferenceOverview.total, trend: "aktivitete te regjistruara", icon: LineChartIcon, tone: "is-blue" },
+                { label: "Te ardhshme", value: conferenceOverview.upcoming, trend: "me date te planifikuar", icon: RefreshCw, tone: "is-green" },
+                { label: "Afati afer", value: conferenceOverview.deadlineSoon, trend: "brenda 7 diteve", icon: BadgeCheck, tone: "is-gold" },
+                { label: "Te pranuara/perfunduara", value: conferenceOverview.accepted, trend: "status akademik pozitiv", icon: CheckCircle2, tone: "is-indigo" },
+                { label: "Rezultate", value: filteredConferences.length, trend: "sipas kerkimit", icon: Search, tone: "is-rose" },
+              ].map((card) => {
+                const Icon = card.icon;
+
+                return (
+                  <article className={`prorector-kpi-card ${card.tone}`} key={card.label}>
+                    <div className="prorector-kpi-icon">
+                      <Icon size={22} />
+                    </div>
+                    <div>
+                      <strong>{formatMetric(card.value)}</strong>
+                      <span>{card.label}</span>
+                    </div>
+                    <small>
+                      <TrendingUp size={14} />
+                      {card.trend}
+                    </small>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {!conferenceStatsLoading ? (
+            <div className="prorector-analytics-grid">
+              <article className="prorector-analytics-card is-wide">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Aktivitete sipas njesise</h3>
+                    <p>Shperndarja reale sipas fakultetit ose departamentit.</p>
+                  </div>
+                  <BarChart3 size={20} />
+                </div>
+                {conferencesByUnit.length ? (
+                  <ResponsiveContainer width="100%" height={290}>
+                    <BarChart data={conferencesByUnit} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                      <XAxis dataKey="unit" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
+                      <Bar dataKey="conferences" name="Konferenca dhe Simpoziume" radius={[8, 8, 0, 0]} fill="#153a63" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka aktivitete te regjistruara per kete paraqitje.")
+                )}
+              </article>
+
+              <article className="prorector-analytics-card">
+                <div className="prorector-card-head">
+                  <div>
+                    <h3>Statusi i aktiviteteve</h3>
+                    <p>Gjendja aktuale e konferencave dhe simpoziumeve.</p>
+                  </div>
+                  <PieChartIcon size={20} />
+                </div>
+                {conferencesByStatus.length ? (
+                  <ResponsiveContainer width="100%" height={270}>
+                    <PieChart>
+                      <Pie data={conferencesByStatus} dataKey="value" nameKey="name" outerRadius={92}>
+                        {conferencesByStatus.map((entry, index) => (
+                          <Cell key={entry.name} fill={FACULTY_CHART_COLORS[index % FACULTY_CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  renderChartEmpty("Nuk ka te dhena statusi per raportim.")
+                )}
+              </article>
+            </div>
+          ) : null}
+
           {!conferenceStatsLoading && filteredConferences.length ? (
             <div className="prorector-faculty-table-wrap">
               <table className="prorector-table prorector-faculty-table">
                 <thead>
                   <tr>
-                    <th>Konferenca</th>
+                    <th>Konferenca / Simpoziumi</th>
                     <th>Njësia</th>
                     <th>Lokacioni</th>
                     <th>Afati</th>
