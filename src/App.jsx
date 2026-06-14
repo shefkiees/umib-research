@@ -6,6 +6,7 @@ import { apiUrl } from "./frontend/utils/api";
 import ProfessorDashboard from "./frontend/professor/pages/ProfessorDashboard";
 import ResetPasswordPage from "./frontend/auth/ResetPasswordPage";
 import ProRectorDashboard from "./frontend/ProRector/pages/ProRectorDashboard";
+import FacultyDetails from "./frontend/ProRector/pages/Faculties";
 import CommitteeDashboard from "./frontend/committee/pages/CommitteeDashboard";
 import NotificationsPage from "./frontend/committee/pages/NotificationsPage";
 import CommitteeSettings from "./frontend/committee/pages/CommitteeSettings";
@@ -32,6 +33,7 @@ function App() {
           <Route path="/auth/*" element={<GoogleAuthRedirect />} />
           <Route path="/professor/dashboard" element={<ProfessorDashboard />} />
           <Route path="/prorector/dashboard" element={<ProRectorDashboard />} />
+          <Route path="/prorector/faculties/:id" element={<FacultyDetails />} />
           <Route path="/committee/dashboard" element={<CommitteeDashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/committee/notifications" element={<NotificationsPage />} />

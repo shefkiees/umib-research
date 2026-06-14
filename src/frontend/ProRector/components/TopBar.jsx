@@ -143,14 +143,14 @@ export default function ProRectorTopBar({
                 setIsProfileOpen(false);
               }}>
                 <User size={18} className="prorector-popover-icon" />
-                <span>Edit Profile</span>
+                <span>Ndrysho profilin</span>
               </button>
               <button type="button" className="prorector-popover-item" onClick={() => {
                 onProfileAction?.("Settings");
                 setIsProfileOpen(false);
               }}>
                 <Settings size={18} className="prorector-popover-icon" />
-                <span>Settings</span>
+                <span>Cilësimet</span>
               </button>
               <button type="button" className="prorector-popover-item" onClick={() => {
                 onProfileAction?.("Integrime");
@@ -164,7 +164,7 @@ export default function ProRectorTopBar({
                 setIsProfileOpen(false);
               }}>
                 <ArrowRight size={18} className="prorector-popover-icon" />
-                <span>Logout</span>
+                <span>Dil</span>
               </button>
             </div>
           ) : null}
