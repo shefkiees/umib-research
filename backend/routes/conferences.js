@@ -21,6 +21,13 @@ const VALID_CONFERENCE_STATUSES = new Set([
 ]);
 const DEADLINE_STATUSES = new Set(["open", "closing_soon", "closed"]);
 const DEADLINE_FILTERS = new Set(["week", "month", "past", "none"]);
+const ROLE_ALIASES = {
+  administrator: "admin",
+  admin: "admin",
+  prorektor: "prorector",
+  prorector: "prorector",
+  prorektorat: "prorector",
+};
 
 function requireAuthenticatedUser(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -33,6 +40,15 @@ function requireAuthenticatedUser(req, res, next) {
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeRole(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/[\s_-]+/g, "");
+  return ROLE_ALIASES[normalized] || normalized;
+}
+
+function canViewAllConferences(user) {
+  return ["prorector", "admin"].includes(normalizeRole(user?.role));
 }
 
 function normalizeConferenceStatus(value) {
@@ -642,26 +658,38 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const q = normalizeText(req.query.q || req.query.search);
   const status = normalizeText(req.query.status);
   const deadline = normalizeText(req.query.deadline);
-  const filters = ["created_by = $1"];
-  const params = [req.user.id];
+  const scope = normalizeText(req.query.scope).toLowerCase();
+  const isAllScope = scope === "all";
+  const filters = [];
+  const params = [];
+
+  if (isAllScope && !canViewAllConferences(req.user)) {
+    res.status(403).json({ error: "forbidden", message: "Nuk keni leje per te pare te gjitha konferencat." });
+    return;
+  }
+
+  if (!isAllScope) {
+    params.push(req.user.id);
+    filters.push(`c.created_by = $${params.length}`);
+  }
 
   if (q) {
     params.push(`%${q}%`);
-    filters.push(`(title ilike $${params.length} or acronym ilike $${params.length} or field ilike $${params.length} or location ilike $${params.length} or website ilike $${params.length} or status ilike $${params.length})`);
+    filters.push(`(c.title ilike $${params.length} or c.acronym ilike $${params.length} or c.field ilike $${params.length} or c.location ilike $${params.length} or c.website ilike $${params.length} or c.status ilike $${params.length} or u.full_name ilike $${params.length} or u.faculty ilike $${params.length} or u.department ilike $${params.length})`);
   }
 
   if (status && status !== "all") {
     if (DEADLINE_STATUSES.has(status)) {
       if (status === "closed") {
-        filters.push("submission_deadline < current_date");
+        filters.push("c.submission_deadline < current_date");
       } else if (status === "closing_soon") {
-        filters.push("submission_deadline >= current_date and submission_deadline <= current_date + interval '7 days'");
+        filters.push("c.submission_deadline >= current_date and c.submission_deadline <= current_date + interval '7 days'");
       } else {
-        filters.push("submission_deadline > current_date + interval '7 days'");
+        filters.push("c.submission_deadline > current_date + interval '7 days'");
       }
     } else if (isKnownConferenceStatus(status)) {
       params.push(normalizeConferenceStatus(status));
-      filters.push(`status = $${params.length}`);
+      filters.push(`c.status = $${params.length}`);
     } else {
       res.status(400).json({ error: "invalid_status", message: "Statusi i konferences nuk eshte valid." });
       return;
@@ -675,17 +703,17 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     }
 
     if (deadline === "week") {
-      filters.push("submission_deadline >= current_date and submission_deadline <= current_date + interval '7 days'");
+      filters.push("c.submission_deadline >= current_date and c.submission_deadline <= current_date + interval '7 days'");
     } else if (deadline === "month") {
-      filters.push("submission_deadline >= current_date and submission_deadline <= current_date + interval '1 month'");
+      filters.push("c.submission_deadline >= current_date and c.submission_deadline <= current_date + interval '1 month'");
     } else if (deadline === "past") {
-      filters.push("submission_deadline < current_date");
+      filters.push("c.submission_deadline < current_date");
     } else if (deadline === "none") {
-      filters.push("submission_deadline is null");
+      filters.push("c.submission_deadline is null");
     }
   }
 
-  const whereClause = filters.join(" and ");
+  const whereClause = filters.length ? filters.join(" and ") : "true";
 
   try {
     const dataParams = [...params, limit, offset];
@@ -693,16 +721,19 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     const offsetParam = dataParams.length;
     const [listResult, countResult] = await Promise.all([
       db.query(
-        `select id, title, acronym, field, location, submission_deadline, conference_date, website, status, created_by, created_at, updated_at
-       from conferences
+        `select c.id, c.title, c.acronym, c.field, c.location, c.submission_deadline, c.conference_date, c.website, c.status, c.created_by, c.created_at, c.updated_at,
+                u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty, u.department as owner_department
+       from conferences c
+       left join users u on u.id = c.created_by
        where ${whereClause}
-       order by submission_deadline nulls last, created_at desc
+       order by c.submission_deadline nulls last, c.created_at desc
        limit $${limitParam} offset $${offsetParam}`,
         dataParams
       ),
       db.query(
         `select count(*)::int as total
-         from conferences
+         from conferences c
+         left join users u on u.id = c.created_by
          where ${whereClause}`,
         params
       ),
@@ -711,7 +742,32 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     const total = Number(countResult.rows[0]?.total || 0);
 
     res.json({
-      data: listResult.rows,
+      data: listResult.rows.map((row) => ({
+        id: row.id,
+        title: row.title || "",
+        acronym: row.acronym || "",
+        field: row.field || "",
+        location: row.location || "",
+        submissionDeadline: row.submission_deadline || null,
+        submission_deadline: row.submission_deadline || null,
+        conferenceDate: row.conference_date || null,
+        conference_date: row.conference_date || null,
+        website: row.website || "",
+        status: row.status || "Interested",
+        createdBy: row.created_by || null,
+        created_by: row.created_by || null,
+        createdAt: row.created_at || null,
+        created_at: row.created_at || null,
+        updatedAt: row.updated_at || null,
+        updated_at: row.updated_at || null,
+        owner: {
+          id: row.created_by || null,
+          name: row.owner_name || "",
+          email: row.owner_email || "",
+          faculty: row.owner_faculty || "",
+          department: row.owner_department || "",
+        },
+      })),
       pagination: {
         page,
         limit,

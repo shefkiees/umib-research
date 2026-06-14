@@ -36,12 +36,6 @@ import ProRectorTopBar from "../components/TopBar";
 import { apiUrl } from "../../utils/api";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 
-const conferenceRows = [
-  { id: "CF-032", event: "IEEE BalkanCom", unit: "FIMC", status: "Konfirmuar" },
-  { id: "CF-027", event: "EduTech Europe", unit: "FED", status: "Ne pritje" },
-  { id: "CF-018", event: "Legal Innovation Summit", unit: "FJ", status: "Konfirmuar" },
-];
-
 const KNOWN_FACULTY_PATTERNS = [
   {
     code: "FIMK",
@@ -102,6 +96,15 @@ function getFacultyRouteId(row = {}) {
 
 const FACULTY_CHART_COLORS = ["#153a63", "#2e6aa6", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
 const PRORECTOR_PUBLICATIONS_PAGE_SIZE = 50;
+const PRORECTOR_CONFERENCES_PAGE_SIZE = 50;
+const CONFERENCE_STATUS_LABELS = {
+  Interested: "I interesuar",
+  Planning: "Në planifikim",
+  Submitted: "Dorëzuar",
+  Accepted: "Pranuar",
+  Attended: "Pjesëmarrë",
+  Completed: "Përfunduar",
+};
 const PUBLICATION_STATUS_LABELS = {
   draft: "Draft",
   submitted: "Dorëzuar",
@@ -168,6 +171,26 @@ function getPrimaryPublicationQuartile(row) {
     : "";
 
   return indexedQuartile || "-";
+}
+
+function getConferenceTitle(row = {}) {
+  return row.title || row.event || row.acronym || "Konferencë pa titull";
+}
+
+function getConferenceUnit(row = {}) {
+  return row.owner?.faculty || row.owner?.department || row.field || "-";
+}
+
+function getConferenceDeadline(row = {}) {
+  return row.submissionDeadline || row.submission_deadline || "";
+}
+
+function getConferenceDate(row = {}) {
+  return row.conferenceDate || row.conference_date || "";
+}
+
+function getConferenceStatusLabel(row = {}) {
+  return CONFERENCE_STATUS_LABELS[row.status] || row.status || "-";
 }
 
 function getFacultyPresentation(row) {
@@ -267,6 +290,9 @@ export default function ProRectorDashboard() {
   const [publicationStats, setPublicationStats] = useState([]);
   const [publicationStatsLoading, setPublicationStatsLoading] = useState(true);
   const [publicationStatsError, setPublicationStatsError] = useState("");
+  const [conferenceStats, setConferenceStats] = useState([]);
+  const [conferenceStatsLoading, setConferenceStatsLoading] = useState(true);
+  const [conferenceStatsError, setConferenceStatsError] = useState("");
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -407,6 +433,70 @@ export default function ProRectorDashboard() {
     };
 
     loadPreferences();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadConferenceStats = async () => {
+      setConferenceStatsLoading(true);
+      setConferenceStatsError("");
+
+      try {
+        const rows = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const params = new URLSearchParams({
+            scope: "all",
+            limit: String(PRORECTOR_CONFERENCES_PAGE_SIZE),
+            page: String(page),
+          });
+          const response = await fetch(apiUrl(`/conferences?${params.toString()}`), {
+            credentials: "include",
+          });
+          const data = await response.json().catch(() => ({}));
+
+          if (response.status === 401) {
+            throw new Error("unauthorized");
+          }
+
+          if (!response.ok) {
+            throw new Error(data.message || "conferences_load_failed");
+          }
+
+          rows.push(...(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []));
+          totalPages = Math.max(Number(data.pagination?.totalPages || 1), 1);
+          page += 1;
+        } while (page <= totalPages);
+
+        if (isMounted) {
+          setConferenceStats(rows);
+        }
+      } catch (error) {
+        console.error("Pro rector conferences load failed:", error);
+
+        if (isMounted) {
+          setConferenceStats([]);
+          setConferenceStatsError(
+            error.message === "unauthorized"
+              ? "Konferencat nuk u ngarkuan sepse sesioni nuk është i vlefshëm."
+              : "Konferencat nuk u ngarkuan. Ju lutemi provoni përsëri."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setConferenceStatsLoading(false);
+        }
+      }
+    };
+
+    loadConferenceStats();
 
     return () => {
       isMounted = false;
@@ -651,13 +741,25 @@ export default function ProRectorDashboard() {
 
   const filteredConferences = useMemo(() => {
     if (!normalizedQuery) {
-      return conferenceRows;
+      return conferenceStats;
     }
 
-    return conferenceRows.filter((item) =>
-      `${item.id} ${item.event} ${item.unit} ${item.status}`.toLowerCase().includes(normalizedQuery)
+    return conferenceStats.filter((item) =>
+      [
+        item.id,
+        item.title,
+        item.acronym,
+        item.field,
+        item.location,
+        item.website,
+        item.status,
+        item.owner?.name,
+        item.owner?.email,
+        item.owner?.faculty,
+        item.owner?.department,
+      ].join(" ").toLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery]);
+  }, [conferenceStats, normalizedQuery]);
 
   const handleEditProfile = () => {
     setIsEditProfileOpen(true);
@@ -1116,31 +1218,57 @@ export default function ProRectorDashboard() {
       return (
         <div className="prorector-table-section">
           <h2>Konferenca</h2>
-          <p>Përmbledhje e konferencave akademike.</p>
-          <table className="prorector-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>EVENT</th>
-                <th>NJESIA</th>
-                <th>STATUSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredConferences.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td>{row.event}</td>
-                  <td>{row.unit}</td>
-                  <td>
-                    <span className={`status-badge status-${row.status.toLowerCase().replace(" ", "-")}`}>
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p>Konferencat reale të regjistruara nga stafi akademik.</p>
+
+          {conferenceStatsError ? (
+            <div className="prorector-inline-alert" role="alert">
+              {conferenceStatsError}
+            </div>
+          ) : null}
+
+          {conferenceStatsLoading ? renderFacultySkeletons(3) : null}
+
+          {!conferenceStatsLoading && filteredConferences.length ? (
+            <div className="prorector-faculty-table-wrap">
+              <table className="prorector-table prorector-faculty-table">
+                <thead>
+                  <tr>
+                    <th>Konferenca</th>
+                    <th>Njësia</th>
+                    <th>Lokacioni</th>
+                    <th>Afati</th>
+                    <th>Data</th>
+                    <th>Statusi</th>
+                    <th>Krijuar nga</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredConferences.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong className="prorector-faculty-name">{getConferenceTitle(row)}</strong>
+                        <span className="prorector-table-muted">{row.acronym || row.field || row.website || "-"}</span>
+                      </td>
+                      <td>{getConferenceUnit(row)}</td>
+                      <td>{row.location || "-"}</td>
+                      <td>{formatDate(getConferenceDeadline(row))}</td>
+                      <td>{formatDate(getConferenceDate(row))}</td>
+                      <td>
+                        <span className={`status-badge status-${normalizeStatusClass(row.status)}`}>
+                          {getConferenceStatusLabel(row)}
+                        </span>
+                      </td>
+                      <td>{row.owner?.name || row.owner?.email || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {!conferenceStatsLoading && !filteredConferences.length ? (
+            <div className="prorector-faculty-empty">Nuk u gjet asnjë konferencë reale për kërkimin aktual.</div>
+          ) : null}
         </div>
       );
     }
