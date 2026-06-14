@@ -1484,10 +1484,12 @@ export default function ProRectorDashboard() {
       return (
         <ReimbursementReviewPanel
           role="prorector"
-          scope="final"
+          scope="all"
           searchQuery={searchQuery}
-          title="Rimbursime për aprovim final"
-          description="Kërkesat reale që janë aprovuar nga komisioni dhe presin vendimin final të prorektorit."
+          title="Statistika të rimbursimeve"
+          description="Pasqyrë reale e të gjitha kërkesave për rimbursim, shumave dhe statusit aktual në workflow."
+          showReviewFilters
+          showActions={false}
         />
       );
     }

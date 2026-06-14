@@ -57,6 +57,39 @@ function formatAmount(request) {
   return `${request.amount} ${request.currency || "EUR"}`;
 }
 
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatCurrency(value, currency = "EUR") {
+  return new Intl.NumberFormat("sq-AL", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(toNumber(value));
+}
+
+function groupRequests(requests, getKey, getLabel) {
+  const counts = new Map();
+
+  requests.forEach((request) => {
+    const key = getKey(request) || "unknown";
+    const existing = counts.get(key) || {
+      key,
+      label: getLabel(request, key),
+      count: 0,
+      amount: 0,
+    };
+
+    existing.count += 1;
+    existing.amount += toNumber(request.amount);
+    counts.set(key, existing);
+  });
+
+  return Array.from(counts.values()).sort((first, second) => second.count - first.count || first.label.localeCompare(second.label, "sq"));
+}
+
 function getActions(role, status, canApprove = true) {
   if (role === "committee") {
     return [
@@ -107,6 +140,8 @@ export default function ReimbursementReviewPanel({
   title = "Rimbursime",
   description = "Kerkesat akademike per shqyrtim institucional.",
   showReviewFilters = false,
+  showAnalytics = true,
+  showActions = true,
   canApprove = true,
   onStatusUpdated,
 }) {
@@ -137,6 +172,49 @@ export default function ReimbursementReviewPanel({
       return matchesStatus && matchesForm && matchesQuery;
     });
   }, [formFilter, normalizedQuery, requests, statusFilter]);
+
+  const dashboardStats = useMemo(() => {
+    const sourceStats = stats || {};
+    const fallback = requests.reduce(
+      (totals, request) => {
+        totals.total += 1;
+        totals.pending += ["submitted", "received", "in_review", "needs_correction", "committee_approved"].includes(request.status) ? 1 : 0;
+        totals.approved += ["committee_approved", "approved", "paid"].includes(request.status) ? 1 : 0;
+        totals.rejected += request.status === "rejected" ? 1 : 0;
+        totals.paid += request.status === "paid" ? 1 : 0;
+        totals.totalAmount += toNumber(request.amount);
+        return totals;
+      },
+      { total: 0, pending: 0, approved: 0, rejected: 0, paid: 0, totalAmount: 0 }
+    );
+
+    return {
+      total: toNumber(sourceStats.total ?? fallback.total),
+      pending: toNumber(sourceStats.pending ?? fallback.pending),
+      approved: toNumber(sourceStats.approved ?? fallback.approved),
+      rejected: toNumber(sourceStats.rejected ?? fallback.rejected),
+      paid: toNumber(sourceStats.paid ?? fallback.paid),
+      totalAmount: toNumber(sourceStats.total_amount ?? sourceStats.totalAmount ?? fallback.totalAmount),
+    };
+  }, [requests, stats]);
+
+  const statusBreakdown = useMemo(
+    () => groupRequests(
+      requests,
+      (request) => request.status,
+      (request, key) => request.statusLabel || STATUS_LABELS[key] || key
+    ),
+    [requests]
+  );
+
+  const formBreakdown = useMemo(
+    () => groupRequests(
+      requests,
+      (request) => request.requestType || request.requestData?.requestType,
+      (request, key) => request.requestTypeLabel || key || "Pa kategori"
+    ),
+    [requests]
+  );
 
   const loadData = async () => {
     setIsLoading(true);
@@ -278,11 +356,12 @@ export default function ReimbursementReviewPanel({
 
   const renderStats = () => {
     const rows = [
-      ["Total", stats?.total || 0],
-      ["Ne pritje", stats?.pending || 0],
-      ["Aprovuar", stats?.approved || 0],
-      ["Refuzuar", stats?.rejected || 0],
-      ["Paguar", stats?.paid || 0],
+      ["Total", dashboardStats.total],
+      ["Ne pritje", dashboardStats.pending],
+      ["Aprovuar", dashboardStats.approved],
+      ["Refuzuar", dashboardStats.rejected],
+      ["Paguar", dashboardStats.paid],
+      ["Shuma totale", formatCurrency(dashboardStats.totalAmount)],
     ];
 
     return (
@@ -294,6 +373,34 @@ export default function ReimbursementReviewPanel({
           </article>
         ))}
       </div>
+    );
+  };
+
+  const renderBreakdown = (heading, rows) => {
+    const maxCount = Math.max(...rows.map((row) => row.count), 1);
+
+    return (
+      <article className="review-breakdown-card">
+        <h3>{heading}</h3>
+        {rows.length ? (
+          <div className="review-breakdown-list">
+            {rows.map((row) => (
+              <div className="review-breakdown-row" key={row.key}>
+                <div className="review-breakdown-label">
+                  <span>{row.label}</span>
+                  <strong>{row.count}</strong>
+                </div>
+                <div className="review-breakdown-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.max((row.count / maxCount) * 100, 6)}%` }} />
+                </div>
+                <small>{formatCurrency(row.amount)}</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="review-empty">Nuk ka te dhena per statistika.</div>
+        )}
+      </article>
     );
   };
 
@@ -331,6 +438,13 @@ export default function ReimbursementReviewPanel({
 
       {renderStats()}
 
+      {showAnalytics ? (
+        <div className="review-analytics-grid" aria-label="Statistikat e rimbursimeve">
+          {renderBreakdown("Sipas statusit", statusBreakdown)}
+          {renderBreakdown("Sipas formularit", formBreakdown)}
+        </div>
+      ) : null}
+
       {showReviewFilters ? (
         <div className="review-filters" aria-label="Filtrat e shqyrtimit">
           {renderFilterGroup("Statusi", REVIEW_STATUS_FILTERS, statusFilter, setStatusFilter)}
@@ -349,7 +463,7 @@ export default function ReimbursementReviewPanel({
       ) : visibleRequests.length ? (
         <div className="review-list">
           {visibleRequests.map((request) => {
-            const actions = getActions(role, request.status, canApprove);
+            const actions = showActions ? getActions(role, request.status, canApprove) : [];
 
             return (
               <article className="review-item" key={request.id}>
