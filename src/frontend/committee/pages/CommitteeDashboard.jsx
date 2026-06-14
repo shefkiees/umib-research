@@ -2221,6 +2221,38 @@ export default function CommitteeDashboard() {
       return value !== null && value !== undefined && String(value).trim() !== "";
     };
     const getFirstReviewValue = (...values) => values.find(hasReviewValue) || "";
+    const cleanReviewText = (value) => {
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      return String(value)
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+    const splitReviewTitleAbstract = (value) => {
+      if (!hasReviewValue(value)) {
+        return { title: "", abstract: "" };
+      }
+
+      const parts = String(value)
+        .replace(/\r\n/g, "\n")
+        .split(/\n\s*\n+/)
+        .map(cleanReviewText)
+        .filter(Boolean);
+
+      return {
+        title: parts[0] || "",
+        abstract: parts.slice(1).join(" "),
+      };
+    };
     const isUrlValue = (value) => /^https?:\/\//i.test(String(value || "").trim());
     const normalizeDoi = (value) => String(value || "")
       .trim()
@@ -2618,6 +2650,16 @@ export default function CommitteeDashboard() {
       createReviewField("Data e pranimit", requestData.acceptanceDate, { format: "date" }),
       createReviewField("Dëshmia në databazën UIBM", requestData.uibmDatabaseEvidence, { link: true, wide: true }),
     ];
+    const f2WorkParts = splitReviewTitleAbstract(requestData.abstractTitle);
+    const f2WorkTitle = cleanReviewText(getFirstReviewValue(
+      requestData.publicationTitle,
+      requestData.title,
+      f2WorkParts.title
+    ));
+    const f2WorkAbstract = cleanReviewText(getFirstReviewValue(
+      requestData.abstract,
+      f2WorkParts.abstract
+    ));
     const f2MetadataFields = [
       createReviewField("Emërtimi i ngjarjes", requestData.conferenceTitle, { wide: true }),
       createReviewField("Vendi", requestData.location),
@@ -2625,7 +2667,8 @@ export default function CommitteeDashboard() {
       createReviewField("Vendi dhe data", requestData.eventPlaceDate),
       createReviewField("Organizatori", requestData.organizer, { wide: true }),
       createReviewField("Ftesa dhe programi", requestData.invitationProgram, { link: true, wide: true }),
-      createReviewField("Abstrakti dhe titulli i punimit", requestData.abstractTitle, { wide: true }),
+      createReviewField("Titulli i punimit", f2WorkTitle, { wide: true }),
+      createReviewField("Abstrakti i punimit", f2WorkAbstract, { wide: true }),
       createReviewField("Konfirmimi i pranimit", requestData.acceptanceConfirmation, { link: true, wide: true }),
       createReviewField("Autorët dhe affiliation", requestData.authorsAffiliation, { wide: true }),
       createReviewField("Autori kryesor", requestData.mainAuthor),
