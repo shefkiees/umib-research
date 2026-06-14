@@ -2571,7 +2571,6 @@ export default function CommitteeDashboard() {
       createReviewField("Publikuar në", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
       createReviewField("Shtëpia botuese", requestData.publisher),
       createReviewField("Publikuar më", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
-      createReviewField("Linku i publikimit", requestData.publicationLink, { link: true, wide: true, displayValue: getPublicationLinkLabel(requestData.publicationLink) }),
       createReviewField("Autori kryesor", requestData.mainAuthor),
       createReviewField("Autori korrespondent", requestData.correspondingAuthor),
       createReviewField("Bashkautorët", requestData.coauthors, { wide: true }),
