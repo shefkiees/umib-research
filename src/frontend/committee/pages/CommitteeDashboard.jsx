@@ -2660,25 +2660,51 @@ export default function CommitteeDashboard() {
       requestData.abstract,
       f2WorkParts.abstract
     ));
-    const f2MetadataFields = [
+    const f2ScientificWorkFields = [
+      createReviewField("Lloji i publikimit", hasReviewValue(requestData.publicationType) ? getPublicationTypeLabel(requestData.publicationType) : ""),
+      createReviewField("Titulli i punimit", f2WorkTitle, { wide: true }),
+      createReviewField("Abstrakti i punimit", f2WorkAbstract, { wide: true }),
+      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
+      createReviewField("Publikuar në", getFirstReviewValue(requestData.publishedIn, requestData.venue, requestData.journal)),
+      createReviewField("Shtëpia botuese", requestData.publisher),
+      createReviewField(
+        "Data e publikimit",
+        getFirstReviewValue(requestData.publicationDate, requestData.publicationYear),
+        { format: requestData.publicationDate ? "date" : "" }
+      ),
+      createReviewField("ISSN", requestData.issn),
+      createReviewField("ISBN", requestData.isbn),
+      createReviewField("Vëllimi", requestData.volume),
+      createReviewField("Numri i revistës (Issue)", requestData.issue),
+      createReviewField("Faqet", requestData.pages),
+      createReviewField("Autori kryesor", requestData.mainAuthor),
+      createReviewField("Autori korrespondent", requestData.correspondingAuthor),
+      createReviewField("Bashkautorët", getFirstReviewValue(requestData.coauthors, requestData.coParticipant), { wide: true }),
+      createReviewField("Affiliation", getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation), { wide: true }),
+      createReviewField("Platforma e indeksimit", requestData.indexingPlatform),
+      createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
+      createReviewField("Kuartili", requestData.scopusQuartile),
+      createReviewField("Impakt Faktori (IF)", requestData.impactFactor),
+      createReviewField("CiteScore", getFirstReviewValue(requestData.citeScore, requestData.cite_score, requestData.citescore)),
+    ];
+    const f2ConferenceFields = [
       createReviewField("Emërtimi i ngjarjes", requestData.conferenceTitle, { wide: true }),
       createReviewField("Vendi", requestData.location),
       createReviewField("Data e konferencës", requestData.conferenceDate, { format: "date" }),
-      createReviewField("Vendi dhe data", requestData.eventPlaceDate),
       createReviewField("Organizatori", requestData.organizer, { wide: true }),
+      createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, { link: true, wide: true }),
       createReviewField("Ftesa dhe programi", requestData.invitationProgram, { link: true, wide: true }),
-      createReviewField("Titulli i punimit", f2WorkTitle, { wide: true }),
-      createReviewField("Abstrakti i punimit", f2WorkAbstract, { wide: true }),
       createReviewField("Konfirmimi i pranimit", requestData.acceptanceConfirmation, { link: true, wide: true }),
-      createReviewField("Autorët dhe affiliation", requestData.authorsAffiliation, { wide: true }),
-      createReviewField("Autori kryesor", requestData.mainAuthor),
-      createReviewField("Bashkëpjesëmarrësi", requestData.coParticipant, { wide: true }),
+    ];
+    const f2ParticipationFields = [
       createReviewField("Folës me kumtesë/poster", requestData.speakerWithPaperPoster),
       createReviewField("Kryesues/panelist", requestData.chairPanelist),
       createReviewField("Ngjarje artistike/sportive", requestData.artisticSportEvent),
-      createReviewField("Linku i publikimit të ngjarjes", requestData.eventPublicationLink, { link: true, wide: true }),
     ];
-    const metadataFields = requestType === "conference" ? f2MetadataFields : f1MetadataFields;
+    const f2FinancialFields = [
+      createReviewField("Shuma", amount, { alwaysShow: true }),
+      ...bankingFields,
+    ];
     const checklistDrawerSubtitle = requestType === "conference"
       ? "Konferencë dhe Simpozium (F2) • Panel për verifikimin e kërkesës"
       : "Artikull Shkencor (F1) • Panel për verifikimin e kërkesës";
@@ -2713,8 +2739,18 @@ export default function CommitteeDashboard() {
           ) : null}
 
           {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
-          {renderReviewSection("Të dhënat e kërkesës", requestFields)}
-          {renderReviewSection("Metadata akademike", metadataFields)}
+          {requestType === "conference" ? (
+            <>
+              {renderReviewSection("Metadata e Punimit Shkencor", f2ScientificWorkFields)}
+              {renderReviewSection("Detajet e Konferencës / Simpoziumit", f2ConferenceFields)}
+              {renderReviewSection("Pjesëmarrja", f2ParticipationFields)}
+            </>
+          ) : (
+            <>
+              {renderReviewSection("Të dhënat e kërkesës", requestFields)}
+              {renderReviewSection("Metadata akademike", f1MetadataFields)}
+            </>
+          )}
 
           <section className="committee-review-section committee-review-shell-documents">
             <div className="committee-review-section-head">
@@ -2740,6 +2776,8 @@ export default function CommitteeDashboard() {
               <p className="committee-empty">Nuk ka dokumente mbështetëse të lidhura me këtë kërkesë.</p>
             )}
           </section>
+
+          {requestType === "conference" ? renderReviewSection("Të dhënat financiare", f2FinancialFields) : null}
 
         </section>
 
