@@ -1569,44 +1569,81 @@ export default function CommitteeDashboard() {
     }).length,
   }), [metadataQueueItems, metadataReviews, pendingSubmissions.length, reviewRequests]);
 
-  const recentDashboardRows = useMemo(() => {
-    const activeRequests = reviewRequests
-      .filter((item) => ["submitted", "received", "in_review", "needs_correction"].includes(item.status))
+  const committeeOverviewSummary = useMemo(() => ({
+    pending: reviewRequests.filter((item) => item.status === "submitted").length,
+    inReview: reviewRequests.filter((item) => ["received", "in_review"].includes(item.status)).length,
+    corrections: reviewRequests.filter((item) => item.status === "needs_correction").length,
+    forApproval: reviewRequests.filter((item) => item.status === "committee_approved").length,
+  }), [reviewRequests]);
+
+  const committeeOverviewTypeChartData = useMemo(() => {
+    const totalsByType = reviewRequests.reduce(
+      (acc, request) => {
+        const requestType = getRequestType(request);
+
+        if (requestType === "publication") {
+          acc.f1 += 1;
+        } else if (requestType === "conference") {
+          acc.f2 += 1;
+        }
+
+        return acc;
+      },
+      { f1: 0, f2: 0 }
+    );
+
+    return [
+      { type: "F1", label: "Artikull shkencor", total: totalsByType.f1 },
+      { type: "F2", label: "Konferencë / Simpozium", total: totalsByType.f2 },
+    ];
+  }, [reviewRequests]);
+
+  const committeeOverviewFacultyChartData = useMemo(() => {
+    const facultyMap = new Map();
+
+    reviewRequests.forEach((request) => {
+      const unit = getRequestUnit(request);
+      const key = normalizeForSearch(unit) || "pa-njesi";
+      const existing = facultyMap.get(key) || {
+        faculty: getShortUnitLabel(unit),
+        department: unit,
+        total: 0,
+      };
+
+      existing.total += 1;
+      facultyMap.set(key, existing);
+    });
+
+    return Array.from(facultyMap.values())
+      .sort((first, second) => second.total - first.total)
+      .slice(0, 8);
+  }, [reviewRequests]);
+
+  const committeeOverviewPriorityRows = useMemo(() => {
+    const priorityOrder = {
+      submitted: 1,
+      needs_correction: 2,
+      received: 3,
+      in_review: 4,
+      committee_approved: 5,
+    };
+
+    return reviewRequests
+      .filter((item) => ["submitted", "received", "in_review", "needs_correction", "committee_approved"].includes(item.status))
       .map((item) => ({
-        id: item.documentNumber || item.id,
-        title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
-        type: item.requestTypeLabel || "Rimbursim",
-        owner: item.owner?.name || item.owner?.email || "-",
-        status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
-        statusKey: item.status,
-        date: item.updatedAt || item.submittedAt || item.createdAt,
-      }));
+        ...item,
+        priorityRank: priorityOrder[item.status] || 99,
+        sortDate: item.updatedAt || item.submittedAt || item.createdAt,
+      }))
+      .sort((first, second) => {
+        if (first.priorityRank !== second.priorityRank) {
+          return first.priorityRank - second.priorityRank;
+        }
 
-    const metadataIssues = metadataQueueItems
-      .filter((item) => {
-        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
-        const completeness = getReviewCompleteness(review, item);
-        return !hasMetadataIdentifier(item) || !hasUibmAffiliation(item) || !completeness.isComplete || review.status === "correction";
+        return getDateTimestamp(second.sortDate) - getDateTimestamp(first.sortDate);
       })
-      .map((item) => {
-        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
-        const statusConfig = getReviewStatusConfig(review.status);
-
-        return {
-          id: item.id,
-          title: item.title || item.doi || "Publikim pa titull",
-          type: getMetadataItemTypeLabel(item),
-          owner: item.owner?.name || item.owner?.email || getPublicationAuthors(item).map((author) => getAuthorName(author)).filter(Boolean).join(", ") || "-",
-          status: statusConfig.label,
-          statusKey: review.status,
-          date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
-        };
-      });
-
-    return [...activeRequests, ...metadataIssues]
-      .sort((first, second) => getDateTimestamp(second.date) - getDateTimestamp(first.date))
       .slice(0, 6);
-  }, [metadataQueueItems, metadataReviews, reviewRequests]);
+  }, [reviewRequests]);
 
   const generatedNotifications = useMemo(() => {
     const rows = [];
@@ -2113,17 +2150,13 @@ export default function CommitteeDashboard() {
       <section className="committee-overview-hero">
         <div>
           <span className="committee-hero-tag">Komisioni</span>
-          <h2>Përmbledhje operative</h2>
-          <p>Gjendja aktuale e dorëzimeve, metadata-s, vendimeve dhe rasteve që kërkojnë veprim.</p>
+          <h2>Përmbledhje e Komisionit</h2>
+          <p>Qendër kontrolli për kërkesat F1/F2 që presin veprim, shqyrtim ose aprovim nga Komisioni.</p>
         </div>
         <div className="committee-overview-actions">
           <button type="button" className="committee-primary-btn" onClick={() => setActivePage("Shqyrtimi")}>
             <FileText size={18} />
             Shqyrto kërkesat
-          </button>
-          <button type="button" className="committee-secondary-btn" onClick={() => setActivePage("Metadata")}>
-            <Database size={18} />
-            Kontrollo metadata
           </button>
         </div>
       </section>
@@ -2131,72 +2164,102 @@ export default function CommitteeDashboard() {
       <section className="committee-overview-stats">
         <button type="button" onClick={() => setActivePage("Dorëzimet në Pritje")}>
           <span>Dorëzime në pritje</span>
-          <strong>{dashboardSummary.pending}</strong>
+          <strong>{committeeOverviewSummary.pending}</strong>
           <small>Kërkojnë pranim nga komisioni</small>
         </button>
         <button type="button" onClick={() => setActivePage("Shqyrtimi")}>
           <span>Në shqyrtim</span>
-          <strong>{dashboardSummary.inReview}</strong>
+          <strong>{committeeOverviewSummary.inReview}</strong>
           <small>Raste aktive në workflow</small>
         </button>
-        <button type="button" onClick={() => setActivePage("Metadata")}>
-          <span>Metadata me vëmendje</span>
-          <strong>{dashboardSummary.metadataIssues}</strong>
-          <small>DOI, UIBM ose checklist</small>
+        <button type="button" onClick={() => setActivePage("Vendimet")}>
+          <span>Për korrigjim</span>
+          <strong>{committeeOverviewSummary.corrections}</strong>
+          <small>Të kthyera për plotësim</small>
         </button>
         <button type="button" onClick={() => setActivePage("Vendimet")}>
-          <span>Korrigjime</span>
-          <strong>{dashboardSummary.corrections}</strong>
-          <small>Të kthyera për plotësim</small>
+          <span>Për aprovim</span>
+          <strong>{committeeOverviewSummary.forApproval}</strong>
+          <small>Aprovuar nga komisioni</small>
         </button>
       </section>
 
       <section className="committee-overview-grid">
         <article className="committee-page-card committee-overview-chart">
           <div className="committee-page-head">
-            <h3>Ngarkesa sipas njësive</h3>
-            <p>Publikime, projekte dhe rimbursime nga të dhënat aktuale.</p>
+            <h3>F1 vs F2</h3>
+            <p>Kërkesat sipas llojit nga dorëzimet aktuale.</p>
           </div>
-          {filteredFacultyStats.length ? (
+          {committeeOverviewTypeChartData.some((item) => item.total > 0) ? (
             <ResponsiveContainer width="100%" height={270}>
-              <BarChart data={filteredFacultyStats.slice(0, 8)} barGap={8} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
+              <BarChart data={committeeOverviewTypeChartData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} />
+                <XAxis dataKey="type" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
-                <Legend wrapperStyle={{ paddingTop: "14px" }} />
-                <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-                <Bar dataKey="projekte" name="Projekte" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-                <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
+                <Bar dataKey="total" name="Kërkesa" radius={[10, 10, 0, 0]} fill="#2e6aa6" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="committee-empty">Nuk ka ende të dhëna për raportim.</p>
+            <p className="committee-empty">Nuk ka ende kërkesa F1/F2 për raportim.</p>
           )}
         </article>
 
-        <article className="committee-page-card committee-overview-queue">
+        <article className="committee-page-card committee-overview-chart">
           <div className="committee-page-head">
-            <h3>Rastet prioritare</h3>
-            <p>Rastet më të fundit që kërkojnë kontroll ose vendim.</p>
+            <h3>Kërkesat sipas fakultetit</h3>
+            <p>Shpërndarja e kërkesave aktive dhe historike sipas njësisë akademike.</p>
           </div>
-          <div className="committee-priority-list">
-            {recentDashboardRows.map((row) => (
-              <div key={`${row.type}-${row.id}`} className="committee-priority-row">
-                <div>
-                  <strong>{row.title}</strong>
-                  <span>{[row.type, row.owner].filter(Boolean).join(" • ")}</span>
-                </div>
-                <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
-                  {row.status}
-                </span>
-              </div>
-            ))}
-          </div>
-          {recentDashboardRows.length === 0 ? (
-            <p className="committee-empty">Nuk ka raste urgjente për momentin.</p>
-          ) : null}
+          {committeeOverviewFacultyChartData.length ? (
+            <ResponsiveContainer width="100%" height={270}>
+              <BarChart data={committeeOverviewFacultyChartData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
+                <Bar dataKey="total" name="Kërkesa" radius={[10, 10, 0, 0]} fill="#1f4f84" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="committee-empty">Nuk ka ende të dhëna sipas fakultetit.</p>
+          )}
         </article>
+      </section>
+
+      <section className="committee-page-card committee-overview-queue">
+        <div className="committee-page-head">
+          <h3>Rastet prioritare</h3>
+          <p>Kërkesat që kërkojnë veprim të shpejtë nga Komisioni.</p>
+        </div>
+        <div className="committee-priority-list">
+          {committeeOverviewPriorityRows.map((row) => {
+            const typeDisplay = getPendingRequestTypeDisplay(row);
+
+            return (
+              <article key={row.id} className="committee-priority-card">
+                <div className="committee-priority-card-main">
+                  <span className={`committee-request-type-badge ${typeDisplay.className}`}>
+                    <strong>{typeDisplay.badge}</strong>
+                    <span>{typeDisplay.label}</span>
+                  </span>
+                  <strong className="committee-priority-title">{row.title || row.requestTypeLabel || "-"}</strong>
+                  <span className="committee-priority-applicant">{row.owner?.name || row.owner?.email || "-"}</span>
+                </div>
+                <div className="committee-priority-card-side">
+                  <span className={`committee-decision-status ${getDecisionStatusClass(row.status)}`}>
+                    {row.statusLabel || reimbursementStatusLabels[row.status] || row.status || "-"}
+                  </span>
+                  <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
+                    Shqyrto
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {committeeOverviewPriorityRows.length === 0 ? (
+          <p className="committee-empty">Nuk ka raste prioritare për momentin.</p>
+        ) : null}
       </section>
     </div>
   );
@@ -3636,7 +3699,7 @@ export default function CommitteeDashboard() {
     </section>
   );
 
-  let resultCount = recentDashboardRows.length;
+  let resultCount = committeeOverviewPriorityRows.length;
   let content = renderOverview();
 
   if (activePage === "Dorëzimet në Pritje") {
