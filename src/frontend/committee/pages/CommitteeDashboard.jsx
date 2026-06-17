@@ -1498,17 +1498,22 @@ export default function CommitteeDashboard() {
   const committeeDecisionRows = useMemo(() => {
     const reimbursementRows = reviewRequests
       .filter((item) => item.status && item.status !== "submitted")
-      .map((item) => ({
-        id: item.documentNumber || item.id,
-        title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
-        category: item.requestTypeLabel || "Rimbursim",
-        actor: item.owner?.name || item.owner?.email || "-",
-        unit: item.owner?.faculty || item.owner?.department || "-",
-        status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
-        statusKey: item.status,
-        date: item.updatedAt || item.submittedAt || item.createdAt,
-        source: "Rimbursim",
-      }));
+      .map((item) => {
+        const typeDisplay = getPendingRequestTypeDisplay(item);
+
+        return {
+          id: item.documentNumber || item.id,
+          title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
+          category: item.requestTypeLabel || "Rimbursim",
+          actor: item.owner?.name || item.owner?.email || "-",
+          unit: item.owner?.faculty || item.owner?.department || "-",
+          status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
+          statusKey: item.status,
+          date: item.updatedAt || item.submittedAt || item.createdAt,
+          source: "Rimbursim",
+          typeDisplay,
+        };
+      });
 
     const metadataRows = metadataQueueItems
       .map((item) => {
@@ -1518,6 +1523,14 @@ export default function CommitteeDashboard() {
           .map((author) => getAuthorName(author))
           .filter(Boolean)
           .join(", ");
+
+        const typeDisplay = item.sourceType === "reimbursement"
+          ? getPendingRequestTypeDisplay(item)
+          : {
+              badge: "M",
+              label: getMetadataItemTypeLabel(item),
+              className: "is-neutral",
+            };
 
         return {
           id: item.id,
@@ -1529,6 +1542,7 @@ export default function CommitteeDashboard() {
           statusKey: review.status,
           date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
           source: item.sourceType === "reimbursement" ? "Metadata / Rimbursim" : "Metadata",
+          typeDisplay,
         };
       })
       .filter((item) => item.statusKey !== "unchecked");
@@ -3392,7 +3406,6 @@ export default function CommitteeDashboard() {
           <h3>Vendimet e komisionit</h3>
           <p>Statuset reale nga rimbursimet dhe kontrolli i metadata-s se publikimeve.</p>
         </div>
-        <span className="committee-api-chip">Te dhena reale</span>
       </div>
 
       <div className="committee-decision-summary">
@@ -3430,11 +3443,15 @@ export default function CommitteeDashboard() {
             {committeeDecisionRows.map((row) => (
               <tr key={`${row.source}-${row.id}`}>
                 <td>
-                  <span className="committee-decision-source">{row.source}</span>
-                  <span className="committee-metadata-muted">{row.category}</span>
+                  <span className="committee-decision-type">
+                    <span className={`committee-decision-source ${row.typeDisplay?.className || "is-neutral"}`}>
+                      {row.typeDisplay?.badge || row.source}
+                    </span>
+                    <span className="committee-decision-type-label">{row.typeDisplay?.label || row.category}</span>
+                  </span>
                 </td>
                 <td>
-                  <strong className="committee-metadata-title">{row.title}</strong>
+                  <strong className="committee-metadata-title committee-decision-title" title={row.title}>{row.title}</strong>
                   <span className="committee-metadata-muted">{row.id}</span>
                 </td>
                 <td>{row.actor}</td>
