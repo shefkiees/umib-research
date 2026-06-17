@@ -2423,27 +2423,6 @@ a.committee-review-checklist-value:hover {
 	font-weight: 700;
 }
 
-.committee-audit-section {
-	display: grid;
-	gap: 18px;
-}
-
-.committee-audit-table {
-	min-width: 1120px;
-}
-
-.committee-audit-table td:nth-child(5) {
-	color: #475569;
-	font-weight: 600;
-	white-space: normal;
-	min-width: 220px;
-}
-
-.committee-audit-table td:last-child {
-	color: #64748b;
-	font-weight: 700;
-}
-
 .committee-decision-source,
 .committee-decision-status {
 	display: inline-flex;

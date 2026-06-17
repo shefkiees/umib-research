@@ -18,7 +18,7 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet", "Auditimi", "Raporte"];
+const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet", "Raporte"];
 
 const publicationStatusLabels = {
   draft: "Draft",
@@ -1652,77 +1652,6 @@ export default function CommitteeDashboard() {
 
   const getReviewForPublication = (publication) =>
     metadataReviews[publication.id] || mapMetadataReviewFromPublication(publication);
-
-  const auditRows = useMemo(() => {
-    const reimbursementRows = reviewRequests.flatMap((request) => {
-      const history = Array.isArray(request.statusHistory) && request.statusHistory.length
-        ? request.statusHistory
-        : [{
-            id: `${request.id}-${request.status || "current"}`,
-            status: request.status,
-            statusLabel: request.statusLabel || reimbursementStatusLabels[request.status] || request.status,
-            actorName: request.owner?.name || request.owner?.email || "Sistemi",
-            actorRoleLabel: "Rimbursim",
-            createdAt: request.updatedAt || request.submittedAt || request.createdAt,
-            note: "",
-          }];
-
-      return history.map((entry) => ({
-        id: `reimbursement-${request.id}-${entry.id || entry.status}-${entry.createdAt || ""}`,
-        source: "Rimbursim",
-        title: request.title || request.requestTypeLabel || request.documentNumber || request.id,
-        status: entry.statusLabel || reimbursementStatusLabels[entry.status] || entry.status || "-",
-        statusKey: entry.status || request.status,
-        actor: [entry.actorRoleLabel || entry.actorRole, entry.actorName].filter(Boolean).join(" / ") || "-",
-        note: entry.note || "",
-        date: entry.createdAt || request.updatedAt || request.createdAt,
-      }));
-    });
-
-    const metadataRows = metadataQueueItems.flatMap((publication) => {
-      const review = getReviewForPublication(publication);
-      const history = Array.isArray(review.history) && review.history.length
-        ? review.history
-        : review.status !== "unchecked"
-          ? [{
-              id: `${publication.id}-${review.status}`,
-              status: review.status,
-              statusLabel: getReviewStatusConfig(review.status).label,
-              actor: "Komisioni",
-              comment: review.comment,
-              createdAt: publication.updatedAt || publication.updated_at || publication.createdAt || publication.created_at,
-            }]
-          : [];
-
-      return history.map((entry) => ({
-        id: `metadata-${publication.id}-${entry.id || entry.status}-${entry.createdAt || ""}`,
-        source: "Metadata",
-        title: publication.title || publication.doi || publication.id,
-        status: entry.statusLabel || getReviewStatusConfig(entry.status).label,
-        statusKey: entry.status,
-        actor: entry.actor || "Komisioni",
-        note: entry.comment || "",
-        date: entry.createdAt || publication.updatedAt || publication.updated_at,
-      }));
-    });
-
-    const rows = [...reimbursementRows, ...metadataRows]
-      .sort((first, second) => getDateTimestamp(second.date) - getDateTimestamp(first.date));
-
-    if (!normalizedQuery) {
-      return rows;
-    }
-
-    return rows.filter((item) =>
-      normalizeForSearch([
-        item.source,
-        item.title,
-        item.status,
-        item.actor,
-        item.note,
-      ].join(" ")).includes(normalizedQuery)
-    );
-  }, [getReviewForPublication, metadataQueueItems, normalizedQuery, reviewRequests]);
 
   const syncPendingSubmissionStatus = (updatedRequest) => {
     if (!updatedRequest?.id) {
@@ -3516,60 +3445,6 @@ export default function CommitteeDashboard() {
     </section>
   );
 
-  const renderAudit = () => (
-    <section className="committee-page-card committee-stats-only-card committee-audit-section">
-      <div className="committee-page-head committee-decisions-head">
-        <div>
-          <h3>Auditimi i komisionit</h3>
-          <p>Historiku i veprimeve nga rimbursimet dhe kontrolli i metadata-s.</p>
-        </div>
-        <span className="committee-api-chip">Historik real</span>
-      </div>
-
-      <div className="committee-table-wrap">
-        <table className="committee-table committee-audit-table">
-          <thead>
-            <tr>
-              <th>Burimi</th>
-              <th>Rasti</th>
-              <th>Veprimi</th>
-              <th>Aktori</th>
-              <th>Komenti</th>
-              <th>Data</th>
-            </tr>
-          </thead>
-          <tbody>
-            {auditRows.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <span className="committee-decision-source">{row.source}</span>
-                </td>
-                <td>
-                  <strong className="committee-metadata-title">{row.title}</strong>
-                </td>
-                <td>
-                  <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
-                    {row.status}
-                  </span>
-                </td>
-                <td>{row.actor}</td>
-                <td>{row.note || "-"}</td>
-                <td>{formatReviewDate(row.date)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {auditRows.length === 0 ? (
-        <div className="committee-metadata-empty">
-          <strong>Nuk ka historik për filtrin aktual.</strong>
-          <span>Veprimet shfaqen pasi komisioni pranon, shqyrton, aprovon ose kërkon korrigjim.</span>
-        </div>
-      ) : null}
-    </section>
-  );
-
   const renderStatistics = () => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-stats-head">
@@ -3681,11 +3556,6 @@ export default function CommitteeDashboard() {
   if (activePage === "Vendimet") {
     resultCount = committeeDecisionRows.length;
     content = renderDecisions();
-  }
-
-  if (activePage === "Auditimi") {
-    resultCount = auditRows.length;
-    content = renderAudit();
   }
 
   if (activePage === "Raporte") {
