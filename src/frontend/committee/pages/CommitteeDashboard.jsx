@@ -281,13 +281,16 @@ const correctionExamples = [
 
 function normalizeCommitteeProfile(user = {}) {
   const displayName = user.name || user.displayName || user.full_name || user.fullName || user.email || "Komision";
+  const systemRole = String(user.role || "").trim().toLowerCase();
+  const displayRole = systemRole === "committee" ? "Komision" : (user.role || "Komision");
 
   return {
     name: displayName,
-    role: "Komision",
-    systemRole: String(user.role || "").trim().toLowerCase(),
+    role: displayRole,
+    systemRole,
     email: user.email || "",
     unit: user.department || user.faculty || "Komision",
+    avatarUrl: user.avatarUrl || user.avatar_url || user.profileImage || user.profile_image || user.photo || user.picture || "",
   };
 }
 
@@ -1167,6 +1170,7 @@ export default function CommitteeDashboard() {
     systemRole: "",
     email: "",
     unit: "Komision",
+    avatarUrl: "",
   });
   const [committeeDraft, setCommitteeDraft] = useState({
     name: "Komision",
@@ -1174,6 +1178,7 @@ export default function CommitteeDashboard() {
     systemRole: "",
     email: "",
     unit: "Komision",
+    avatarUrl: "",
   });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);

@@ -46,7 +46,8 @@ export default function CommitteeTopBar({
 
 	const title = "UMIBRes";
 	const profileName = profile?.name || "Komision";
-	const profileRole = "Komision";
+	const profileRole = profile?.role || "Komision";
+	const profileAvatarUrl = profile?.avatarUrl || profile?.avatar_url || profile?.profileImage || profile?.profile_image || "";
 	const initials = profileName
 		.split(" ")
 		.map((part) => part[0])
@@ -135,7 +136,9 @@ export default function CommitteeTopBar({
 							<h4>{profileName}</h4>
 							<p>{profileRole}</p>
 						</div>
-						<span className="committee-avatar">{initials}</span>
+						<span className="committee-avatar">
+							{profileAvatarUrl ? <img src={profileAvatarUrl} alt="" /> : initials}
+						</span>
 					</button>
 
 					{isProfileOpen ? (
