@@ -2034,19 +2034,6 @@ export default function CommitteeDashboard() {
     setIsEditProfileOpen(false);
   };
 
-  const totals = useMemo(() => {
-    return filteredFacultyStats.reduce(
-      (acc, item) => {
-        acc.artikuj += item.artikuj;
-        acc.konferenca += item.konferenca;
-        acc.rimbursime += item.rimbursime;
-        acc.vendime += item.aprovime + item.refuzime + item.korrigjime;
-        return acc;
-      },
-      { artikuj: 0, konferenca: 0, rimbursime: 0, vendime: 0 }
-    );
-  }, [filteredFacultyStats]);
-
   const renderSimpleTable = (title, description, columns, rows) => (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head">
@@ -2126,33 +2113,8 @@ export default function CommitteeDashboard() {
 
   const renderAcademicUnitReport = () => (
     <section className="committee-page-card committee-stats-only-card committee-overview-report">
-      <div className="committee-page-head committee-stats-head">
-        <div className="committee-stats-title-wrap">
-          <div>
-            <h3>Raporte sipas njësive akademike</h3>
-            <p>Pamje krahasuese nga ngarkesa F1/F2, rimbursimet dhe vendimet aktuale.</p>
-          </div>
-        </div>
-        <span className="committee-api-chip">Të dhëna reale</span>
-      </div>
-
-      <div className="committee-summary-grid">
-        <article className="committee-summary-card">
-          <span>Artikuj Shkencorë</span>
-          <strong>{totals.artikuj}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Konferenca &amp; Simpoziume</span>
-          <strong>{totals.konferenca}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Rimbursime Totale</span>
-          <strong>{totals.rimbursime}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Vendime Totale</span>
-          <strong>{totals.vendime}</strong>
-        </article>
+      <div className="committee-page-head">
+        <h3>Raporte sipas njësive akademike</h3>
       </div>
 
       <div className="committee-table-wrap committee-dept-table-wrap">
