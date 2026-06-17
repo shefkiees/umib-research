@@ -154,17 +154,14 @@ const f2CommitteeChecklistGroups = [
       "Formulari F2 DOCX",
       "Programi i ngjarjes",
       "Letra e pranimit / ftesa",
-      "Dëshmia e pranimit të abstraktit / punimit",
-      "Dokumentet shtesë",
+      "Dëshmia e prezantimit / pjesëmarrjes",
+      "Dokumente shtesë",
     ],
   },
   {
     title: "Verifikimi Financiar",
     items: [
-      "Biletat e udhëtimit",
-      "Faturat e biletave",
-      "Fatura e akomodimit",
-      "Fatura e regjistrimit",
+      "Dokumentet financiare",
       "Emri në bankë",
       "Banka",
       "Numri i llogarisë / IBAN",
@@ -2386,13 +2383,27 @@ export default function CommitteeDashboard() {
     };
     const getChecklistItemValue = (label) => {
       const additionalDocuments = attachmentItems.map(getAttachmentFilename).filter(Boolean);
+      const findAttachmentByDocumentType = (documentType) => attachmentItems.find((attachment) =>
+        (attachment.documentType || attachment.document_type) === documentType
+      );
+      const getAttachmentDocumentValue = (attachment) => (
+        attachment
+          ? createChecklistDocumentValue(getAttachmentUrl(attachment), {
+              displayValue: getAttachmentFilename(attachment),
+              href: getAttachmentUrl(attachment) ? getCommitteeDocumentUrl(getAttachmentUrl(attachment)) : "",
+            })
+          : null
+      );
+      const getAttachmentsByDocumentType = (documentType) => attachmentItems
+        .filter((attachment) => (attachment.documentType || attachment.document_type) === documentType)
+        .map(getAttachmentFilename)
+        .filter(Boolean);
       const articleAttachment = findAttachmentByKeywords(["artikull", "article", "publication", "publikim"]);
-      const programAttachment = findAttachmentByKeywords(["program", "ftes", "invitation"]);
-      const acceptanceAttachment = findAttachmentByKeywords(["pranim", "acceptance", "letter", "ftes"]);
-      const travelTicketAttachment = findAttachmentByKeywords(["bilet", "ticket"]);
-      const ticketInvoiceAttachment = findAttachmentByKeywords(["fature bilete", "ticket invoice", "invoice ticket"]);
-      const accommodationInvoiceAttachment = findAttachmentByKeywords(["akomod", "hotel", "accommodation"]);
-      const registrationInvoiceAttachment = findAttachmentByKeywords(["regjistrim", "registration", "fee"]);
+      const programAttachment = findAttachmentByDocumentType("conference_program") || findAttachmentByKeywords(["program"]);
+      const acceptanceAttachment = findAttachmentByDocumentType("acceptance_letter") || findAttachmentByKeywords(["pranim", "acceptance", "letter", "ftes"]);
+      const presentationAttachment = findAttachmentByDocumentType("presentation_evidence");
+      const financialDocuments = getAttachmentsByDocumentType("financial_document");
+      const otherDocuments = getAttachmentsByDocumentType("other");
       const participationType = [
         requestData.speakerWithPaperPoster,
         requestData.chairPanelist,
@@ -2428,7 +2439,9 @@ export default function CommitteeDashboard() {
           ? createChecklistDocumentValue(getAttachmentUrl(articleAttachment), { displayValue: getAttachmentFilename(articleAttachment), href: getAttachmentUrl(articleAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(articleAttachment)) : "" })
           : createChecklistDocumentValue(requestData.publicationLink),
         "Regjistrimi në UIBM": hasReviewValue(requestData.uibmDatabaseEvidence) ? createChecklistDocumentValue(requestData.uibmDatabaseEvidence) : createChecklistValue("Nuk është ngarkuar"),
-        "Dokumente shtesë": createChecklistValue(additionalDocuments.length ? additionalDocuments : "Nuk ka dokumente shtesë"),
+        "Dokumente shtesë": requestType === "conference"
+          ? createChecklistValue(otherDocuments.length ? otherDocuments : "Nuk ka dokumente shtesë")
+          : createChecklistValue(additionalDocuments.length ? additionalDocuments : "Nuk ka dokumente shtesë"),
         "Emri në bankë": createChecklistValue(requestData.bankApplicantName),
         Banka: createChecklistValue(getFirstReviewValue(requestData.bankName, requestData.bankNameOther)),
         "Numri i llogarisë / IBAN": createChecklistValue(getFirstReviewValue(requestData.iban, requestData.bankAccountNumber)),
@@ -2436,34 +2449,20 @@ export default function CommitteeDashboard() {
         "Shuma e kërkuar": createChecklistValue(amount),
         "Emri i konferencës / simpoziumit": createChecklistValue(requestData.conferenceTitle),
         Organizatori: createChecklistValue(requestData.organizer),
-        Lokacioni: createChecklistValue(getFirstReviewValue(requestData.location, requestData.conferenceLocation)),
+        Lokacioni: createChecklistValue(getFirstReviewValue(requestData.location, requestData.conferenceLocation, requestData.eventPlaceDate)),
         "Data e ngjarjes": createChecklistValue(requestData.conferenceDate ? formatDate(requestData.conferenceDate) : requestData.eventPlaceDate),
         "Faqja zyrtare / linku i ngjarjes": createChecklistDocumentValue(getFirstReviewValue(requestData.eventPublicationLink, requestData.conferenceLink)),
         "Titulli i punimit / abstraktit": createChecklistValue(requestData.abstractTitle),
         "Abstrakti / prezantimi": createChecklistValue(getFirstReviewValue(requestData.abstract, requestData.abstractTitle)),
         Bashkëpjesëmarrësit: createChecklistValue(requestData.coParticipant),
         "Lloji i pjesëmarrjes": createChecklistValue(participationType),
+        "Affiliation UIBM": createChecklistValue(getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation)),
         "Formulari F2 PDF": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
         "Formulari F2 DOCX": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
-        "Programi i ngjarjes": programAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(programAttachment), { displayValue: getAttachmentFilename(programAttachment), href: getAttachmentUrl(programAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(programAttachment)) : "" })
-          : createChecklistDocumentValue(requestData.invitationProgram),
-        "Letra e pranimit / ftesa": acceptanceAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(acceptanceAttachment), { displayValue: getAttachmentFilename(acceptanceAttachment), href: getAttachmentUrl(acceptanceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(acceptanceAttachment)) : "" })
-          : createChecklistDocumentValue(getFirstReviewValue(requestData.acceptanceConfirmation, requestData.invitationProgram)),
-        "Dëshmia e pranimit të abstraktit / punimit": createChecklistDocumentValue(requestData.acceptanceConfirmation),
-        "Biletat e udhëtimit": travelTicketAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(travelTicketAttachment), { displayValue: getAttachmentFilename(travelTicketAttachment), href: getAttachmentUrl(travelTicketAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(travelTicketAttachment)) : "" })
-          : createChecklistValue(requestData.travelTickets),
-        "Faturat e biletave": ticketInvoiceAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(ticketInvoiceAttachment), { displayValue: getAttachmentFilename(ticketInvoiceAttachment), href: getAttachmentUrl(ticketInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(ticketInvoiceAttachment)) : "" })
-          : createChecklistValue(requestData.ticketInvoices),
-        "Fatura e akomodimit": accommodationInvoiceAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(accommodationInvoiceAttachment), { displayValue: getAttachmentFilename(accommodationInvoiceAttachment), href: getAttachmentUrl(accommodationInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(accommodationInvoiceAttachment)) : "" })
-          : createChecklistValue(requestData.accommodationInvoice),
-        "Fatura e regjistrimit": registrationInvoiceAttachment
-          ? createChecklistDocumentValue(getAttachmentUrl(registrationInvoiceAttachment), { displayValue: getAttachmentFilename(registrationInvoiceAttachment), href: getAttachmentUrl(registrationInvoiceAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(registrationInvoiceAttachment)) : "" })
-          : createChecklistValue(requestData.registrationInvoice),
+        "Programi i ngjarjes": getAttachmentDocumentValue(programAttachment) || createChecklistDocumentValue(requestData.invitationProgram),
+        "Letra e pranimit / ftesa": getAttachmentDocumentValue(acceptanceAttachment) || createChecklistDocumentValue(requestData.acceptanceConfirmation),
+        "Dëshmia e prezantimit / pjesëmarrjes": getAttachmentDocumentValue(presentationAttachment) || createChecklistValue("Nuk është ngarkuar"),
+        "Dokumentet financiare": createChecklistValue(financialDocuments.length ? financialDocuments : "Nuk janë ngarkuar"),
       };
 
       return valuesByLabel[label] || createChecklistValue("");
