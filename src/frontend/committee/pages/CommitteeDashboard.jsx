@@ -1576,13 +1576,6 @@ export default function CommitteeDashboard() {
     }).length,
   }), [metadataQueueItems, metadataReviews, pendingSubmissions.length, reviewRequests]);
 
-  const committeeOverviewSummary = useMemo(() => ({
-    pending: reviewRequests.filter((item) => item.status === "submitted").length,
-    inReview: reviewRequests.filter((item) => ["received", "in_review"].includes(item.status)).length,
-    corrections: reviewRequests.filter((item) => item.status === "needs_correction").length,
-    forApproval: reviewRequests.filter((item) => item.status === "committee_approved").length,
-  }), [reviewRequests]);
-
   const committeeOverviewTypeChartData = useMemo(() => {
     const totalsByType = filteredOverviewRequests.reduce(
       (acc, request) => {
@@ -2151,29 +2144,6 @@ export default function CommitteeDashboard() {
 
   const renderOverview = () => (
     <div className="committee-overview">
-      <section className="committee-overview-stats">
-        <button type="button" onClick={() => setActivePage("Dorëzimet në Pritje")}>
-          <span>Dorëzime në pritje</span>
-          <strong>{committeeOverviewSummary.pending}</strong>
-          <small>Kërkojnë pranim nga komisioni</small>
-        </button>
-        <button type="button" onClick={() => setActivePage("Shqyrtimi")}>
-          <span>Në shqyrtim</span>
-          <strong>{committeeOverviewSummary.inReview}</strong>
-          <small>Raste aktive në workflow</small>
-        </button>
-        <button type="button" onClick={() => setActivePage("Vendimet")}>
-          <span>Për korrigjim</span>
-          <strong>{committeeOverviewSummary.corrections}</strong>
-          <small>Të kthyera për plotësim</small>
-        </button>
-        <button type="button" onClick={() => setActivePage("Vendimet")}>
-          <span>Për aprovim</span>
-          <strong>{committeeOverviewSummary.forApproval}</strong>
-          <small>Aprovuar nga komisioni</small>
-        </button>
-      </section>
-
       <section className="committee-overview-grid">
         {renderOverviewPieChart({
           title: "Shpërndarja F1 / F2",

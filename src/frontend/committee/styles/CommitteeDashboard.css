@@ -4225,50 +4225,6 @@ a.committee-review-checklist-value:hover {
 	gap: 22px;
 }
 
-.committee-overview-stats {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.committee-overview-stats button {
-	border: 1px solid #d5e4f4;
-	border-radius: 14px;
-	background: #ffffff;
-	box-shadow: 0 12px 26px rgba(31, 79, 132, 0.07);
-	padding: 12px 14px;
-	text-align: left;
-	display: grid;
-	gap: 3px;
-	cursor: pointer;
-	transition: var(--transition);
-}
-
-.committee-overview-stats button:hover {
-	transform: translateY(-2px);
-	border-color: #a9c8ea;
-	box-shadow: 0 16px 30px rgba(31, 79, 132, 0.12);
-}
-
-.committee-overview-stats span {
-	color: #64748b;
-	font-size: 0.8rem;
-	font-weight: 800;
-	text-transform: uppercase;
-}
-
-.committee-overview-stats strong {
-	color: #12233a;
-	font-size: 1.55rem;
-	line-height: 1;
-}
-
-.committee-overview-stats small {
-	color: #64748b;
-	font-weight: 600;
-	line-height: 1.25;
-}
-
 .committee-overview-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4408,10 +4364,6 @@ a.committee-review-checklist-value:hover {
 
 @media (max-width: 1360px) {
 	.committee-stats-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.committee-overview-stats {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
