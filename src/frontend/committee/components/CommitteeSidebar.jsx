@@ -1,5 +1,5 @@
 import React from "react";
-import { Inbox, FileText, CheckCircle, BarChart3 as ReportsIcon, LayoutDashboard } from "lucide-react";
+import { Inbox, FileText, CheckCircle, LayoutDashboard } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
@@ -8,7 +8,6 @@ const mainItems = [
 	{ label: "Dorëzimet në Pritje", route: "Dorëzimet në Pritje", icon: Inbox },
 	{ label: "Shqyrtimi", route: "Shqyrtimi", icon: FileText },
 	{ label: "Vendimet", route: "Vendimet", icon: CheckCircle },
-	{ label: "Raporte", route: "Raporte", icon: ReportsIcon },
 ];
 
 export default function CommitteeSidebar({ activePage, onNavigate, navLabels }) {

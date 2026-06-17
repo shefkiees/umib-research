@@ -1,15 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, BarChart3, Bell, BookOpen, CheckCircle2, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle2, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
 import {
-  Bar,
-  CartesianGrid,
-  Legend,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
-  BarChart,
 } from "recharts";
 import "../styles/CommitteeDashboard.css";
 import CommitteeSidebar from "../components/CommitteeSidebar";
@@ -18,7 +15,22 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet", "Raporte"];
+const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet"];
+
+const overviewTypeColors = {
+  F1: "#1f4f84",
+  F2: "#c9a24f",
+};
+
+const overviewStatusColors = {
+  submitted: "#2e6aa6",
+  in_review: "#6f7fb7",
+  needs_correction: "#b45309",
+  committee_approved: "#1f7a4d",
+  approved: "#15803d",
+  rejected: "#b42318",
+  paid: "#64748b",
+};
 
 const publicationStatusLabels = {
   draft: "Draft",
@@ -1582,56 +1594,52 @@ export default function CommitteeDashboard() {
     );
 
     return [
-      { type: "F1", label: "Artikull shkencor", total: totalsByType.f1 },
-      { type: "F2", label: "Konferencë / Simpozium", total: totalsByType.f2 },
+      { key: "F1", type: "F1", label: "Artikull shkencor", total: totalsByType.f1, color: overviewTypeColors.F1 },
+      { key: "F2", type: "F2", label: "Konferencë / Simpozium", total: totalsByType.f2, color: overviewTypeColors.F2 },
     ];
   }, [filteredOverviewRequests]);
 
-  const committeeOverviewFacultyChartData = useMemo(() => {
-    const facultyMap = new Map();
-
-    filteredOverviewRequests.forEach((request) => {
-      const unit = getRequestUnit(request);
-      const key = normalizeForSearch(unit) || "pa-njesi";
-      const existing = facultyMap.get(key) || {
-        faculty: getShortUnitLabel(unit),
-        department: unit,
-        total: 0,
-      };
-
-      existing.total += 1;
-      facultyMap.set(key, existing);
-    });
-
-    return Array.from(facultyMap.values())
-      .sort((first, second) => second.total - first.total)
-      .slice(0, 8);
-  }, [filteredOverviewRequests]);
-
-  const committeeOverviewPriorityRows = useMemo(() => {
-    const priorityOrder = {
-      submitted: 1,
-      needs_correction: 2,
-      received: 3,
-      in_review: 4,
-      committee_approved: 5,
-    };
-
-    return filteredOverviewRequests
-      .filter((item) => ["submitted", "received", "in_review", "needs_correction", "committee_approved"].includes(item.status))
-      .map((item) => ({
-        ...item,
-        priorityRank: priorityOrder[item.status] || 99,
-        sortDate: item.updatedAt || item.submittedAt || item.createdAt,
-      }))
-      .sort((first, second) => {
-        if (first.priorityRank !== second.priorityRank) {
-          return first.priorityRank - second.priorityRank;
+  const committeeOverviewStatusChartData = useMemo(() => {
+    const totalsByStatus = filteredOverviewRequests.reduce(
+      (totals, request) => {
+        if (request.status === "submitted") {
+          totals.submitted += 1;
+        } else if (["received", "in_review"].includes(request.status)) {
+          totals.in_review += 1;
+        } else if (request.status === "needs_correction") {
+          totals.needs_correction += 1;
+        } else if (request.status === "committee_approved") {
+          totals.committee_approved += 1;
+        } else if (request.status === "approved") {
+          totals.approved += 1;
+        } else if (request.status === "rejected") {
+          totals.rejected += 1;
+        } else if (request.status === "paid") {
+          totals.paid += 1;
         }
 
-        return getDateTimestamp(second.sortDate) - getDateTimestamp(first.sortDate);
-      })
-      .slice(0, 6);
+        return totals;
+      },
+      {
+        submitted: 0,
+        in_review: 0,
+        needs_correction: 0,
+        committee_approved: 0,
+        approved: 0,
+        rejected: 0,
+        paid: 0,
+      }
+    );
+
+    return [
+      { key: "submitted", label: "Dorëzuar", total: totalsByStatus.submitted, color: overviewStatusColors.submitted },
+      { key: "in_review", label: "Në shqyrtim", total: totalsByStatus.in_review, color: overviewStatusColors.in_review },
+      { key: "needs_correction", label: "Për korrigjim", total: totalsByStatus.needs_correction, color: overviewStatusColors.needs_correction },
+      { key: "committee_approved", label: "Për aprovim", total: totalsByStatus.committee_approved, color: overviewStatusColors.committee_approved },
+      { key: "approved", label: "Aprovuar", total: totalsByStatus.approved, color: overviewStatusColors.approved },
+      { key: "rejected", label: "Refuzuar", total: totalsByStatus.rejected, color: overviewStatusColors.rejected },
+      { key: "paid", label: "Paguar", total: totalsByStatus.paid, color: overviewStatusColors.paid },
+    ];
   }, [filteredOverviewRequests]);
 
   const generatedNotifications = useMemo(() => {
@@ -2063,6 +2071,114 @@ export default function CommitteeDashboard() {
     </section>
   );
 
+  const renderOverviewPieChart = ({ title, description, data, emptyText }) => {
+    const visibleData = data.filter((item) => Number(item.total) > 0);
+
+    return (
+      <article className="committee-page-card committee-overview-chart committee-pie-card">
+        <div className="committee-page-head">
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+        {visibleData.length ? (
+          <div className="committee-pie-layout">
+            <div className="committee-pie-chart-wrap">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={visibleData}
+                    dataKey="total"
+                    nameKey="label"
+                    innerRadius={62}
+                    outerRadius={92}
+                    paddingAngle={2}
+                  >
+                    {visibleData.map((item) => (
+                      <Cell key={item.key} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [value, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="committee-pie-legend">
+              {visibleData.map((item) => (
+                <div key={item.key} className="committee-pie-legend-item">
+                  <span style={{ backgroundColor: item.color }} />
+                  <strong>{item.label}</strong>
+                  <em>{item.total}</em>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="committee-empty">{emptyText}</p>
+        )}
+      </article>
+    );
+  };
+
+  const renderAcademicUnitReport = () => (
+    <section className="committee-page-card committee-stats-only-card committee-overview-report">
+      <div className="committee-page-head committee-stats-head">
+        <div className="committee-stats-title-wrap">
+          <div>
+            <h3>Raporte sipas njësive akademike</h3>
+            <p>Pamje krahasuese nga publikimet, projektet, rimbursimet dhe korrigjimet aktuale.</p>
+          </div>
+        </div>
+        <span className="committee-api-chip">Të dhëna reale</span>
+      </div>
+
+      <div className="committee-summary-grid">
+        <article className="committee-summary-card">
+          <span>Publikime Totale</span>
+          <strong>{totals.publikime}</strong>
+        </article>
+        <article className="committee-summary-card">
+          <span>Projekte Aktive</span>
+          <strong>{totals.projekte}</strong>
+        </article>
+        <article className="committee-summary-card">
+          <span>Rimbursime</span>
+          <strong>{totals.rimbursime}</strong>
+        </article>
+        <article className="committee-summary-card">
+          <span>Korrigjime</span>
+          <strong>{totals.korrigjime}</strong>
+        </article>
+      </div>
+
+      <div className="committee-table-wrap committee-dept-table-wrap">
+        <table className="committee-table">
+          <thead>
+            <tr>
+              <th>Fakulteti</th>
+              <th>Departamenti</th>
+              <th>Publikime</th>
+              <th>Projekte</th>
+              <th>Rimbursime</th>
+              <th>Korrigjime</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredFacultyStats.map((item) => (
+              <tr key={item.faculty}>
+                <td>{item.faculty}</td>
+                <td>{item.department}</td>
+                <td>{item.publikime}</td>
+                <td>{item.projekte}</td>
+                <td>{item.rimbursime}</td>
+                <td>{item.korrigjime}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {filteredFacultyStats.length === 0 ? <p className="committee-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
+    </section>
+  );
+
   const renderOverview = () => (
     <div className="committee-overview">
       <section className="committee-overview-hero">
@@ -2103,82 +2219,21 @@ export default function CommitteeDashboard() {
       </section>
 
       <section className="committee-overview-grid">
-        <article className="committee-page-card committee-overview-chart">
-          <div className="committee-page-head">
-            <h3>F1 vs F2</h3>
-            <p>Kërkesat sipas llojit nga dorëzimet aktuale.</p>
-          </div>
-          {committeeOverviewTypeChartData.some((item) => item.total > 0) ? (
-            <ResponsiveContainer width="100%" height={270}>
-              <BarChart data={committeeOverviewTypeChartData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                <XAxis dataKey="type" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
-                <Bar dataKey="total" name="Kërkesa" radius={[10, 10, 0, 0]} fill="#2e6aa6" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="committee-empty">Nuk ka ende kërkesa F1/F2 për raportim.</p>
-          )}
-        </article>
-
-        <article className="committee-page-card committee-overview-chart">
-          <div className="committee-page-head">
-            <h3>Kërkesat sipas fakultetit</h3>
-            <p>Shpërndarja e kërkesave aktive dhe historike sipas njësisë akademike.</p>
-          </div>
-          {committeeOverviewFacultyChartData.length ? (
-            <ResponsiveContainer width="100%" height={270}>
-              <BarChart data={committeeOverviewFacultyChartData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-                <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{ fill: "rgba(15, 23, 42, 0.05)" }} />
-                <Bar dataKey="total" name="Kërkesa" radius={[10, 10, 0, 0]} fill="#1f4f84" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="committee-empty">Nuk ka ende të dhëna sipas fakultetit.</p>
-          )}
-        </article>
+        {renderOverviewPieChart({
+          title: "Shpërndarja F1 / F2",
+          description: "Kërkesat sipas formularit nga dorëzimet aktuale.",
+          data: committeeOverviewTypeChartData,
+          emptyText: "Nuk ka ende kërkesa F1/F2 për raportim.",
+        })}
+        {renderOverviewPieChart({
+          title: "Statuset e kërkesave",
+          description: "Gjendja aktuale e kërkesave në workflow-in e komisionit.",
+          data: committeeOverviewStatusChartData,
+          emptyText: "Nuk ka ende statuse kërkesash për raportim.",
+        })}
       </section>
 
-      <section className="committee-page-card committee-overview-queue">
-        <div className="committee-page-head">
-          <h3>Rastet prioritare</h3>
-          <p>Kërkesat që kërkojnë veprim të shpejtë nga Komisioni.</p>
-        </div>
-        <div className="committee-priority-list">
-          {committeeOverviewPriorityRows.map((row) => {
-            const typeDisplay = getPendingRequestTypeDisplay(row);
-
-            return (
-              <article key={row.id} className="committee-priority-card">
-                <div className="committee-priority-card-main">
-                  <span className={`committee-request-type-badge ${typeDisplay.className}`}>
-                    <strong>{typeDisplay.badge}</strong>
-                    <span>{typeDisplay.label}</span>
-                  </span>
-                  <strong className="committee-priority-title">{row.title || row.requestTypeLabel || "-"}</strong>
-                  <span className="committee-priority-applicant">{row.owner?.name || row.owner?.email || "-"}</span>
-                </div>
-                <div className="committee-priority-card-side">
-                  <span className={`committee-decision-status ${getDecisionStatusClass(row.status)}`}>
-                    {row.statusLabel || reimbursementStatusLabels[row.status] || row.status || "-"}
-                  </span>
-                  <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
-                    Shqyrto
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-        {committeeOverviewPriorityRows.length === 0 ? (
-          <p className="committee-empty">Nuk ka raste prioritare për momentin.</p>
-        ) : null}
-      </section>
+      {renderAcademicUnitReport()}
     </div>
   );
 
@@ -3479,91 +3534,7 @@ export default function CommitteeDashboard() {
     </section>
   );
 
-  const renderStatistics = () => (
-    <section className="committee-page-card committee-stats-only-card">
-      <div className="committee-page-head committee-stats-head">
-        <div className="committee-stats-title-wrap">
-          <span className="committee-stats-icon">
-            <BarChart3 size={20} />
-          </span>
-          <div>
-            <h3>Raporte sipas njësive akademike</h3>
-            <p>Pamje krahasuese nga publikimet, projektet, rimbursimet dhe korrigjimet aktuale.</p>
-          </div>
-        </div>
-        <span className="committee-api-chip">Të dhëna reale</span>
-      </div>
-
-      <div className="committee-chart-wrap">
-        {filteredFacultyStats.length ? (
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={filteredFacultyStats} barGap={8} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
-              <XAxis dataKey="faculty" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} />
-              <Tooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
-              <Legend wrapperStyle={{ paddingTop: "20px" }} />
-              <Bar dataKey="publikime" name="Publikime" radius={[8, 8, 0, 0]} fill="#153a63" />
-              <Bar dataKey="projekte" name="Projekte" radius={[8, 8, 0, 0]} fill="#2e6aa6" />
-              <Bar dataKey="rimbursime" name="Rimbursime" radius={[8, 8, 0, 0]} fill="#c9a24f" />
-              <Bar dataKey="korrigjime" name="Korrigjime" radius={[8, 8, 0, 0]} fill="#b45309" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="committee-empty">Nuk ka ende të dhëna për raportim.</p>
-        )}
-      </div>
-
-      <div className="committee-summary-grid">
-        <article className="committee-summary-card">
-          <span>Publikime Totale</span>
-          <strong>{totals.publikime}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Projekte Aktive</span>
-          <strong>{totals.projekte}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Rimbursime</span>
-          <strong>{totals.rimbursime}</strong>
-        </article>
-        <article className="committee-summary-card">
-          <span>Korrigjime</span>
-          <strong>{totals.korrigjime}</strong>
-        </article>
-      </div>
-
-      <div className="committee-table-wrap committee-dept-table-wrap">
-        <table className="committee-table">
-          <thead>
-            <tr>
-              <th>Fakulteti</th>
-              <th>Departamenti</th>
-              <th>Publikime</th>
-              <th>Projekte</th>
-              <th>Rimbursime</th>
-              <th>Korrigjime</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFacultyStats.map((item) => (
-              <tr key={item.faculty}>
-                <td>{item.faculty}</td>
-                <td>{item.department}</td>
-                <td>{item.publikime}</td>
-                <td>{item.projekte}</td>
-                <td>{item.rimbursime}</td>
-                <td>{item.korrigjime}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {filteredFacultyStats.length === 0 ? <p className="committee-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
-    </section>
-  );
-
-  let resultCount = committeeOverviewPriorityRows.length;
+  let resultCount = reviewRequests.length;
   let content = renderOverview();
 
   if (activePage === "Dorëzimet në Pritje") {
@@ -3590,11 +3561,6 @@ export default function CommitteeDashboard() {
   if (activePage === "Vendimet") {
     resultCount = committeeDecisionRows.length;
     content = renderDecisions();
-  }
-
-  if (activePage === "Raporte") {
-    resultCount = filteredFacultyStats.length;
-    content = renderStatistics();
   }
 
   if (activePage === "Njoftime") {

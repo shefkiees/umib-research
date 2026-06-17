@@ -4310,87 +4310,60 @@ a.committee-review-checklist-value:hover {
 }
 
 .committee-overview-chart,
-.committee-overview-queue {
+.committee-overview-report {
 	min-width: 0;
 }
 
-.committee-priority-list {
+.committee-pie-card {
+	display: grid;
+	gap: 14px;
+}
+
+.committee-pie-layout {
+	display: grid;
+	grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.8fr);
+	align-items: center;
+	gap: 18px;
+}
+
+.committee-pie-chart-wrap {
+	min-width: 0;
+	height: 250px;
+}
+
+.committee-pie-legend {
 	display: grid;
 	gap: 10px;
 }
 
-.committee-priority-card {
-	border: 1px solid #dbe8f7;
-	border-radius: 12px;
-	background: #f8fbff;
-	padding: 14px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
-	min-width: 0;
-}
-
-.committee-priority-card-main {
-	min-width: 0;
+.committee-pie-legend-item {
 	display: grid;
+	grid-template-columns: 12px minmax(0, 1fr) auto;
+	align-items: center;
 	gap: 8px;
+	color: #475569;
+	font-size: 0.9rem;
+	line-height: 1.25;
 }
 
-.committee-priority-title {
+.committee-pie-legend-item span {
+	width: 12px;
+	height: 12px;
+	border-radius: 999px;
+}
+
+.committee-pie-legend-item strong {
 	color: #12233a;
-	font-size: 0.98rem;
-	line-height: 1.32;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-}
-
-.committee-priority-applicant {
-	color: #64748b;
-	font-size: 0.88rem;
-	font-weight: 650;
-	line-height: 1.35;
+	font-weight: 750;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.committee-priority-card-side {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: 10px;
-	flex: 0 0 auto;
-}
-
-.committee-priority-row {
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	background: #f8fbff;
-	padding: 12px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-}
-
-.committee-priority-row div {
-	min-width: 0;
-	display: grid;
-	gap: 4px;
-}
-
-.committee-priority-row strong {
-	color: #12233a;
-	line-height: 1.35;
-}
-
-.committee-priority-row span:not(.committee-decision-status) {
+.committee-pie-legend-item em {
 	color: #64748b;
-	font-size: 0.84rem;
-	line-height: 1.35;
+	font-style: normal;
+	font-weight: 800;
 }
 
 .committee-settings-grid {
@@ -4487,14 +4460,6 @@ a.committee-review-checklist-value:hover {
 	cursor: pointer;
 }
 
-.committee-chart-wrap {
-	margin-top: 18px;
-	background: #f9fbfd;
-	border: 1px solid #dce4f0;
-	border-radius: 16px;
-	padding: 24px;
-}
-
 .committee-summary-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4538,6 +4503,14 @@ a.committee-review-checklist-value:hover {
 
 	.committee-overview-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.committee-pie-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.committee-pie-chart-wrap {
+		height: 230px;
 	}
 
 	.committee-decision-summary {
@@ -4655,16 +4628,6 @@ a.committee-review-checklist-value:hover {
 	.committee-metadata-summary article:nth-child(3),
 	.committee-metadata-summary article:nth-child(4) {
 		border-bottom: 1px solid #e2e8f0;
-	}
-
-	.committee-priority-card {
-		align-items: flex-start;
-		flex-direction: column;
-	}
-
-	.committee-priority-card-side {
-		width: 100%;
-		justify-content: space-between;
 	}
 
 	.committee-review-checklist-summary {
