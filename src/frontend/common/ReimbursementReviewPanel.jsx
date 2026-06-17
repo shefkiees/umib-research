@@ -83,6 +83,43 @@ function formatCurrency(value, currency = "EUR") {
   }).format(toNumber(value));
 }
 
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getRequestSearchText(request = {}) {
+  const data = request.requestData || {};
+
+  return normalizeSearchText([
+    request.documentNumber,
+    request.id,
+    request.title,
+    request.requestTypeLabel,
+    request.status,
+    request.statusLabel,
+    request.owner?.name,
+    request.owner?.email,
+    request.owner?.faculty,
+    request.owner?.department,
+    request.requestType,
+    data.requestType,
+    data.doi,
+    data.publicationLink,
+    data.publicationTitle,
+    data.articleTitle,
+    data.paperTitle,
+    data.abstractTitle,
+    data.conferenceName,
+    data.journalName,
+    data.publishedIn,
+    data.coauthors,
+    data.coParticipant,
+  ].filter(Boolean).join(" "));
+}
+
 function groupRequests(requests, getKey, getLabel) {
   const counts = new Map();
 
@@ -175,18 +212,14 @@ export default function ReimbursementReviewPanel({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = normalizeSearchText(searchQuery.trim());
 
   const visibleRequests = useMemo(() => {
     return requests.filter((request) => {
       const matchesStatus = statusFilter === "all" || request.status === statusFilter;
       const requestType = request.requestType || request.requestData?.requestType || "";
       const matchesForm = formFilter === "all" || requestType === formFilter;
-      const matchesQuery =
-        !normalizedQuery ||
-        `${request.title} ${request.requestTypeLabel} ${request.owner?.name} ${request.owner?.faculty} ${request.statusLabel}`
-          .toLowerCase()
-          .includes(normalizedQuery);
+      const matchesQuery = !normalizedQuery || getRequestSearchText(request).includes(normalizedQuery);
 
       return matchesStatus && matchesForm && matchesQuery;
     });

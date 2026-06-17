@@ -403,6 +403,37 @@ function getPendingRequestTypeDisplay(request = {}) {
   };
 }
 
+function getCommitteeRequestSearchText(request = {}) {
+  const data = request.requestData || {};
+
+  return normalizeForSearch([
+    request.documentNumber,
+    request.id,
+    request.title,
+    request.requestTypeLabel,
+    request.status,
+    request.statusLabel,
+    request.owner?.name,
+    request.owner?.email,
+    request.owner?.faculty,
+    request.owner?.department,
+    getRequestType(request),
+    data.doi,
+    data.publicationLink,
+    data.publicationTitle,
+    data.articleTitle,
+    data.paperTitle,
+    data.abstractTitle,
+    data.conferenceName,
+    data.coauthors,
+    data.coParticipant,
+    data.journalName,
+    data.publishedIn,
+    data.faculty,
+    data.department,
+  ].filter(Boolean).join(" "));
+}
+
 function splitMetadataNames(value) {
   return String(value || "")
     .split(/;|\r?\n|,/)
@@ -1242,22 +1273,20 @@ export default function CommitteeDashboard() {
       return pendingSubmissions;
     }
 
-    return pendingSubmissions.filter((item) => {
-      const row = [
-        item.documentNumber,
-        item.id,
-        item.title,
-        item.requestTypeLabel,
-        item.owner?.name,
-        item.owner?.email,
-        item.owner?.faculty,
-        item.owner?.department,
-        item.statusLabel,
-      ].filter(Boolean).join(" ").toLowerCase();
-
-      return row.includes(normalizedQuery);
-    });
+    return pendingSubmissions.filter((item) =>
+      getCommitteeRequestSearchText(item).includes(normalizedQuery)
+    );
   }, [normalizedQuery, pendingSubmissions]);
+
+  const filteredOverviewRequests = useMemo(() => {
+    if (!normalizedQuery) {
+      return reviewRequests;
+    }
+
+    return reviewRequests.filter((item) =>
+      getCommitteeRequestSearchText(item).includes(normalizedQuery)
+    );
+  }, [normalizedQuery, reviewRequests]);
 
   const reimbursementMetadataItems = useMemo(() =>
     reviewRequests
@@ -1532,7 +1561,7 @@ export default function CommitteeDashboard() {
   }), [reviewRequests]);
 
   const committeeOverviewTypeChartData = useMemo(() => {
-    const totalsByType = reviewRequests.reduce(
+    const totalsByType = filteredOverviewRequests.reduce(
       (acc, request) => {
         const requestType = getRequestType(request);
 
@@ -1551,12 +1580,12 @@ export default function CommitteeDashboard() {
       { type: "F1", label: "Artikull shkencor", total: totalsByType.f1 },
       { type: "F2", label: "Konferencë / Simpozium", total: totalsByType.f2 },
     ];
-  }, [reviewRequests]);
+  }, [filteredOverviewRequests]);
 
   const committeeOverviewFacultyChartData = useMemo(() => {
     const facultyMap = new Map();
 
-    reviewRequests.forEach((request) => {
+    filteredOverviewRequests.forEach((request) => {
       const unit = getRequestUnit(request);
       const key = normalizeForSearch(unit) || "pa-njesi";
       const existing = facultyMap.get(key) || {
@@ -1572,7 +1601,7 @@ export default function CommitteeDashboard() {
     return Array.from(facultyMap.values())
       .sort((first, second) => second.total - first.total)
       .slice(0, 8);
-  }, [reviewRequests]);
+  }, [filteredOverviewRequests]);
 
   const committeeOverviewPriorityRows = useMemo(() => {
     const priorityOrder = {
@@ -1583,7 +1612,7 @@ export default function CommitteeDashboard() {
       committee_approved: 5,
     };
 
-    return reviewRequests
+    return filteredOverviewRequests
       .filter((item) => ["submitted", "received", "in_review", "needs_correction", "committee_approved"].includes(item.status))
       .map((item) => ({
         ...item,
@@ -1598,7 +1627,7 @@ export default function CommitteeDashboard() {
         return getDateTimestamp(second.sortDate) - getDateTimestamp(first.sortDate);
       })
       .slice(0, 6);
-  }, [reviewRequests]);
+  }, [filteredOverviewRequests]);
 
   const generatedNotifications = useMemo(() => {
     const rows = [];
