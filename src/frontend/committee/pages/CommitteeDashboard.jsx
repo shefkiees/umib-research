@@ -1094,6 +1094,7 @@ export default function CommitteeDashboard() {
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
+  const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
 
   useEffect(() => {
     if (!isReviewChecklistDrawerOpen) {
@@ -2364,20 +2365,38 @@ export default function CommitteeDashboard() {
       const displayValue = options.displayValue || (href ? getUrlFilename(value) : value);
       return createChecklistValue(displayValue, { href });
     };
-    const renderChecklistValue = (item) => {
+    const renderChecklistValue = (item, options = {}) => {
       const value = item?.value || "-";
+      const displayValue = Array.isArray(value) ? value.join(", ") : String(value);
+      const isExpandable = Boolean(options.expandable)
+        && !item?.href
+        && displayValue !== "-"
+        && (displayValue.length > 260 || displayValue.split(/\r?\n/).length > 5);
 
       if (item?.href) {
         return (
           <a className="committee-review-checklist-value" href={item.href} target="_blank" rel="noreferrer">
-            {Array.isArray(value) ? value.join(", ") : String(value)}
+            {displayValue}
           </a>
+        );
+      }
+
+      if (isExpandable) {
+        return (
+          <span className="committee-review-checklist-expandable">
+            <span className={`committee-review-checklist-value ${isChecklistAbstractExpanded ? "" : "is-clamped"}`}>
+              {displayValue}
+            </span>
+            <button type="button" onClick={() => setIsChecklistAbstractExpanded((current) => !current)}>
+              {isChecklistAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            </button>
+          </span>
         );
       }
 
       return (
         <span className="committee-review-checklist-value">
-          {Array.isArray(value) ? value.join(", ") : String(value)}
+          {displayValue}
         </span>
       );
     };
@@ -2569,7 +2588,9 @@ export default function CommitteeDashboard() {
                         <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
                           <div className="committee-review-checklist-item-main">
                             <strong>{label}</strong>
-                            {renderChecklistValue(getChecklistItemValue(label))}
+                            {renderChecklistValue(getChecklistItemValue(label), {
+                              expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
+                            })}
                           </div>
                           <select
                             value={selectedStatus}
