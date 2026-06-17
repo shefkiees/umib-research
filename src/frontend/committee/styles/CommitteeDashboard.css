@@ -4228,7 +4228,7 @@ a.committee-review-checklist-value:hover {
 .committee-overview-stats {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 14px;
+	gap: 12px;
 }
 
 .committee-overview-stats button {
@@ -4236,10 +4236,10 @@ a.committee-review-checklist-value:hover {
 	border-radius: 14px;
 	background: #ffffff;
 	box-shadow: 0 12px 26px rgba(31, 79, 132, 0.07);
-	padding: 16px;
+	padding: 12px 14px;
 	text-align: left;
 	display: grid;
-	gap: 6px;
+	gap: 3px;
 	cursor: pointer;
 	transition: var(--transition);
 }
@@ -4259,14 +4259,14 @@ a.committee-review-checklist-value:hover {
 
 .committee-overview-stats strong {
 	color: #12233a;
-	font-size: 1.8rem;
+	font-size: 1.55rem;
 	line-height: 1;
 }
 
 .committee-overview-stats small {
 	color: #64748b;
 	font-weight: 600;
-	line-height: 1.35;
+	line-height: 1.25;
 }
 
 .committee-overview-grid {
@@ -4278,6 +4278,11 @@ a.committee-review-checklist-value:hover {
 .committee-overview-chart,
 .committee-overview-report {
 	min-width: 0;
+}
+
+.committee-overview-report {
+	display: grid;
+	gap: 20px;
 }
 
 .committee-pie-card {
