@@ -2481,6 +2481,11 @@ router.get("/:id/history", requireAuthenticatedUser, async (req, res) => {
 });
 
 router.patch("/:id/metadata-review", requireAuthenticatedUser, async (req, res) => {
+  if (req) {
+    res.status(410).json({ error: "metadata_review_removed", message: "Kontrolli i metadata-s nga komisioni eshte larguar." });
+    return;
+  }
+
   const actor = await loadCurrentUser(req.user.id);
 
   if (!actor || !canManageReimbursements(actor)) {

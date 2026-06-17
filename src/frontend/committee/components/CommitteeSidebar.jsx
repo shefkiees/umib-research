@@ -1,5 +1,5 @@
 import React from "react";
-import { Inbox, FileText, Database, CheckCircle, Shield, BarChart3 as ReportsIcon, LayoutDashboard } from "lucide-react";
+import { Inbox, FileText, CheckCircle, Shield, BarChart3 as ReportsIcon, LayoutDashboard } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
@@ -7,7 +7,6 @@ const mainItems = [
 	{ label: "Përmbledhje", route: "Përmbledhje", icon: LayoutDashboard },
 	{ label: "Dorëzimet në Pritje", route: "Dorëzimet në Pritje", icon: Inbox },
 	{ label: "Shqyrtimi", route: "Shqyrtimi", icon: FileText },
-	{ label: "Metadata", route: "Metadata", icon: Database },
 	{ label: "Vendimet", route: "Vendimet", icon: CheckCircle },
 	{ label: "Auditimi", route: "Auditimi", icon: Shield },
 	{ label: "Raporte", route: "Raporte", icon: ReportsIcon },

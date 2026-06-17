@@ -18,7 +18,7 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Metadata", "Vendimet", "Auditimi", "Raporte"];
+const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet", "Auditimi", "Raporte"];
 
 const publicationStatusLabels = {
   draft: "Draft",
@@ -1236,51 +1236,6 @@ export default function CommitteeDashboard() {
   useEffect(() => {
     window.localStorage.setItem(METADATA_REVIEW_STORAGE_KEY, JSON.stringify(metadataReviews));
   }, [metadataReviews]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMetadataPublications = async () => {
-      setIsMetadataLoading(true);
-      setMetadataError("");
-
-      try {
-        const response = await fetch(apiUrl("/publications?scope=review&limit=50"), {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data.message || "Metadata e publikimeve nuk u ngarkua.");
-        }
-
-        if (isMounted) {
-          const rows = Array.isArray(data.data) ? data.data : [];
-          setMetadataPublications(rows);
-          setMetadataReviews((prev) => rows.reduce((reviews, publication) => ({
-            ...reviews,
-            [publication.id]: mapMetadataReviewFromPublication(publication),
-          }), prev));
-        }
-      } catch (error) {
-        if (isMounted) {
-          setMetadataPublications([]);
-          setMetadataError(error.message || "Metadata e publikimeve nuk u ngarkua.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsMetadataLoading(false);
-        }
-      }
-    };
-
-    loadMetadataPublications();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const filteredPendingSubmissions = useMemo(() => {
     if (!normalizedQuery) {
@@ -3721,11 +3676,6 @@ export default function CommitteeDashboard() {
         onStatusUpdated={syncPendingSubmissionStatus}
       />
     );
-  }
-
-  if (activePage === "Metadata") {
-    resultCount = filteredMetadataPublications.length;
-    content = renderMetadata();
   }
 
   if (activePage === "Vendimet") {
