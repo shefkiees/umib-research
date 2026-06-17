@@ -1433,9 +1433,11 @@ export default function CommitteeDashboard() {
         unitMap.set(key, {
           faculty: getShortUnitLabel(department),
           department,
-          publikime: 0,
-          projekte: 0,
+          artikuj: 0,
+          konferenca: 0,
           rimbursime: 0,
+          aprovime: 0,
+          refuzime: 0,
           korrigjime: 0,
         });
       }
@@ -1445,10 +1447,23 @@ export default function CommitteeDashboard() {
 
     reviewRequests.forEach((request) => {
       const unit = ensureUnit(getRequestUnit(request));
+      const requestType = getRequestType(request);
       unit.rimbursime += 1;
 
-      if (getRequestType(request) === "project") {
-        unit.projekte += 1;
+      if (requestType === "publication") {
+        unit.artikuj += 1;
+      }
+
+      if (requestType === "conference") {
+        unit.konferenca += 1;
+      }
+
+      if (request.status === "approved" || request.status === "committee_approved") {
+        unit.aprovime += 1;
+      }
+
+      if (request.status === "rejected") {
+        unit.refuzime += 1;
       }
 
       if (request.status === "needs_correction") {
@@ -1456,21 +1471,10 @@ export default function CommitteeDashboard() {
       }
     });
 
-    metadataPublications.forEach((publication) => {
-      const unit = ensureUnit(getPublicationUnit(publication));
-      const review = metadataReviews[publication.id] || createInitialReview(publication);
-
-      unit.publikime += 1;
-
-      if (review.status === "correction") {
-        unit.korrigjime += 1;
-      }
-    });
-
     return Array.from(unitMap.values()).sort((first, second) =>
-      (second.publikime + second.rimbursime + second.projekte) - (first.publikime + first.rimbursime + first.projekte)
+      (second.artikuj + second.konferenca + second.rimbursime) - (first.artikuj + first.konferenca + first.rimbursime)
     );
-  }, [metadataPublications, metadataReviews, reviewRequests]);
+  }, [reviewRequests]);
 
   const filteredFacultyStats = useMemo(() => {
     if (!normalizedQuery) {
@@ -1481,9 +1485,11 @@ export default function CommitteeDashboard() {
       normalizeForSearch([
         item.faculty,
         item.department,
-        item.publikime,
-        item.projekte,
+        item.artikuj,
+        item.konferenca,
         item.rimbursime,
+        item.aprovime,
+        item.refuzime,
         item.korrigjime,
       ].join(" ")).includes(normalizedQuery)
     );
@@ -2031,13 +2037,13 @@ export default function CommitteeDashboard() {
   const totals = useMemo(() => {
     return filteredFacultyStats.reduce(
       (acc, item) => {
-        acc.publikime += item.publikime;
-        acc.projekte += item.projekte;
+        acc.artikuj += item.artikuj;
+        acc.konferenca += item.konferenca;
         acc.rimbursime += item.rimbursime;
-        acc.korrigjime += item.korrigjime;
+        acc.vendime += item.aprovime + item.refuzime + item.korrigjime;
         return acc;
       },
-      { publikime: 0, projekte: 0, rimbursime: 0, korrigjime: 0 }
+      { artikuj: 0, konferenca: 0, rimbursime: 0, vendime: 0 }
     );
   }, [filteredFacultyStats]);
 
@@ -2124,7 +2130,7 @@ export default function CommitteeDashboard() {
         <div className="committee-stats-title-wrap">
           <div>
             <h3>Raporte sipas njësive akademike</h3>
-            <p>Pamje krahasuese nga publikimet, projektet, rimbursimet dhe korrigjimet aktuale.</p>
+            <p>Pamje krahasuese nga ngarkesa F1/F2, rimbursimet dhe vendimet aktuale.</p>
           </div>
         </div>
         <span className="committee-api-chip">Të dhëna reale</span>
@@ -2132,20 +2138,20 @@ export default function CommitteeDashboard() {
 
       <div className="committee-summary-grid">
         <article className="committee-summary-card">
-          <span>Publikime Totale</span>
-          <strong>{totals.publikime}</strong>
+          <span>Artikuj Shkencorë</span>
+          <strong>{totals.artikuj}</strong>
         </article>
         <article className="committee-summary-card">
-          <span>Projekte Aktive</span>
-          <strong>{totals.projekte}</strong>
+          <span>Konferenca &amp; Simpoziume</span>
+          <strong>{totals.konferenca}</strong>
         </article>
         <article className="committee-summary-card">
-          <span>Rimbursime</span>
+          <span>Rimbursime Totale</span>
           <strong>{totals.rimbursime}</strong>
         </article>
         <article className="committee-summary-card">
-          <span>Korrigjime</span>
-          <strong>{totals.korrigjime}</strong>
+          <span>Vendime Totale</span>
+          <strong>{totals.vendime}</strong>
         </article>
       </div>
 
@@ -2155,9 +2161,10 @@ export default function CommitteeDashboard() {
             <tr>
               <th>Fakulteti</th>
               <th>Departamenti</th>
-              <th>Publikime</th>
-              <th>Projekte</th>
-              <th>Rimbursime</th>
+              <th>Artikuj</th>
+              <th>Konferenca</th>
+              <th>Aprovime</th>
+              <th>Refuzime</th>
               <th>Korrigjime</th>
             </tr>
           </thead>
@@ -2166,9 +2173,10 @@ export default function CommitteeDashboard() {
               <tr key={item.faculty}>
                 <td>{item.faculty}</td>
                 <td>{item.department}</td>
-                <td>{item.publikime}</td>
-                <td>{item.projekte}</td>
-                <td>{item.rimbursime}</td>
+                <td>{item.artikuj}</td>
+                <td>{item.konferenca}</td>
+                <td>{item.aprovime}</td>
+                <td>{item.refuzime}</td>
                 <td>{item.korrigjime}</td>
               </tr>
             ))}
