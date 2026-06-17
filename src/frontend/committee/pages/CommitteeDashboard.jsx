@@ -139,12 +139,12 @@ const f2CommitteeChecklistGroups = [
   {
     title: "Verifikimi i Punimit dhe Pjesëmarrjes",
     items: [
-      "Titulli i punimit / abstraktit",
+      "Titulli i punimit",
       "Abstrakti / prezantimi",
       "Autori kryesor",
       "Bashkëpjesëmarrësit",
       "Lloji i pjesëmarrjes",
-      "Affiliation UIBM",
+      "Afiliacioni",
     ],
   },
   {
@@ -2404,6 +2404,21 @@ export default function CommitteeDashboard() {
       const presentationAttachment = findAttachmentByDocumentType("presentation_evidence");
       const financialDocuments = getAttachmentsByDocumentType("financial_document");
       const otherDocuments = getAttachmentsByDocumentType("other");
+      const f2ChecklistWorkParts = splitReviewTitleAbstract(requestData.abstractTitle);
+      const f2ChecklistWorkTitle = cleanReviewText(getFirstReviewValue(
+        requestData.publicationTitle,
+        requestData.title,
+        f2ChecklistWorkParts.abstract ? f2ChecklistWorkParts.title : ""
+      ));
+      const f2ChecklistWorkAbstract = cleanReviewText(getFirstReviewValue(
+        requestData.abstract,
+        f2ChecklistWorkParts.abstract,
+        f2ChecklistWorkTitle ? "" : requestData.abstractTitle
+      ));
+      const f2EventLink = isUrlValue(requestData.eventPublicationLink)
+        ? createChecklistDocumentValue(requestData.eventPublicationLink)
+        : createChecklistValue("Nuk është dhënë");
+      const missingDocumentValue = createChecklistValue("Nuk është ngarkuar");
       const participationType = [
         requestData.speakerWithPaperPoster,
         requestData.chairPanelist,
@@ -2451,17 +2466,17 @@ export default function CommitteeDashboard() {
         Organizatori: createChecklistValue(requestData.organizer),
         Lokacioni: createChecklistValue(getFirstReviewValue(requestData.location, requestData.conferenceLocation, requestData.eventPlaceDate)),
         "Data e ngjarjes": createChecklistValue(requestData.conferenceDate ? formatDate(requestData.conferenceDate) : requestData.eventPlaceDate),
-        "Faqja zyrtare / linku i ngjarjes": createChecklistDocumentValue(getFirstReviewValue(requestData.eventPublicationLink, requestData.conferenceLink)),
-        "Titulli i punimit / abstraktit": createChecklistValue(requestData.abstractTitle),
-        "Abstrakti / prezantimi": createChecklistValue(getFirstReviewValue(requestData.abstract, requestData.abstractTitle)),
+        "Faqja zyrtare / linku i ngjarjes": f2EventLink,
+        "Titulli i punimit": createChecklistValue(f2ChecklistWorkTitle),
+        "Abstrakti / prezantimi": createChecklistValue(f2ChecklistWorkAbstract),
         Bashkëpjesëmarrësit: createChecklistValue(requestData.coParticipant),
         "Lloji i pjesëmarrjes": createChecklistValue(participationType),
-        "Affiliation UIBM": createChecklistValue(getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation)),
+        Afiliacioni: createChecklistValue(getFirstReviewValue(requestData.authorsAffiliation, requestData.affiliation)),
         "Formulari F2 PDF": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
         "Formulari F2 DOCX": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
-        "Programi i ngjarjes": getAttachmentDocumentValue(programAttachment) || createChecklistDocumentValue(requestData.invitationProgram),
-        "Letra e pranimit / ftesa": getAttachmentDocumentValue(acceptanceAttachment) || createChecklistDocumentValue(requestData.acceptanceConfirmation),
-        "Dëshmia e prezantimit / pjesëmarrjes": getAttachmentDocumentValue(presentationAttachment) || createChecklistValue("Nuk është ngarkuar"),
+        "Programi i ngjarjes": getAttachmentDocumentValue(programAttachment) || (hasReviewValue(requestData.invitationProgram) ? createChecklistDocumentValue(requestData.invitationProgram) : missingDocumentValue),
+        "Letra e pranimit / ftesa": getAttachmentDocumentValue(acceptanceAttachment) || (hasReviewValue(requestData.acceptanceConfirmation) ? createChecklistDocumentValue(requestData.acceptanceConfirmation) : missingDocumentValue),
+        "Dëshmia e prezantimit / pjesëmarrjes": getAttachmentDocumentValue(presentationAttachment) || missingDocumentValue,
         "Dokumentet financiare": createChecklistValue(financialDocuments.length ? financialDocuments : "Nuk janë ngarkuar"),
       };
 
