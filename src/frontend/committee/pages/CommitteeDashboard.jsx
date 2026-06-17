@@ -2181,20 +2181,6 @@ export default function CommitteeDashboard() {
 
   const renderOverview = () => (
     <div className="committee-overview">
-      <section className="committee-overview-hero">
-        <div>
-          <span className="committee-hero-tag">Komisioni</span>
-          <h2>Përmbledhje e Komisionit</h2>
-          <p>Qendër kontrolli për kërkesat F1/F2 që presin veprim, shqyrtim ose aprovim nga Komisioni.</p>
-        </div>
-        <div className="committee-overview-actions">
-          <button type="button" className="committee-primary-btn" onClick={() => setActivePage("Shqyrtimi")}>
-            <FileText size={18} />
-            Shqyrto kërkesat
-          </button>
-        </div>
-      </section>
-
       <section className="committee-overview-stats">
         <button type="button" onClick={() => setActivePage("Dorëzimet në Pritje")}>
           <span>Dorëzime në pritje</span>
