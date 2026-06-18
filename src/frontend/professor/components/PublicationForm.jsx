@@ -1172,15 +1172,30 @@ const PublicationForm = ({
       {showPublicationFields ? (
         <>
       <div className="prof-form-grid">
-        <label className="prof-form-field reimbursement-wide">
-          <span>{t("professor.dashboard.publicationForm.title")}</span>
-          <input value={value.title} onChange={updateField("title")} required readOnly={isFieldLocked("title")} />
-        </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.publicationType")}</span>
           <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isFieldLocked("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
           </select>
+        </label>
+        <label className="prof-form-field reimbursement-wide">
+          <span>{t("professor.dashboard.publicationForm.title")}</span>
+          <input value={value.title} onChange={updateField("title")} required readOnly={isFieldLocked("title")} />
+        </label>
+        <label className="prof-form-field">
+          <span>DOI</span>
+          <input
+            value={value.doi || ""}
+            onChange={updateField("doi")}
+            onBlur={(event) => {
+              const normalizedDoi = normalizeDoiInput(event.target.value);
+              if (normalizedDoi !== event.target.value) {
+                updateField("doi")({ target: { value: normalizedDoi } });
+              }
+            }}
+            placeholder="10.xxxx/xxxxx ose https://doi.org/10.xxxx/xxxxx"
+            readOnly={isFieldLocked("doi")}
+          />
         </label>
         <label className="prof-form-field">
           <span>{t(venueLabelKey)}</span>
