@@ -24,6 +24,20 @@ export const PUBLICATION_TYPES = PUBLICATION_TYPE_VALUES.map((value) => ({
 const INDEXING_PLATFORM_OPTIONS = ["", ...INDEXING_PLATFORM_VALUES];
 const QUARTILE_OPTIONS = ["", ...QUARTILE_VALUES];
 
+function normalizeDoiInput(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "")
+    .replace(/^doi:\s*/i, "")
+    .split(/[?#]/)[0]
+    .replace(/[.,;:]+$/g, "")
+    .trim();
+}
+
+function isValidDoiInput(value) {
+  return value.toLowerCase().startsWith("10.") && value.includes("/");
+}
+
 const EMPTY_AUTHOR = {
   fullName: "",
   givenName: "",
@@ -938,15 +952,21 @@ const PublicationForm = ({
   };
 
   const lookupDoi = async () => {
-    const doi = doiLookupValue.trim() || value.doi.trim();
+    const doi = normalizeDoiInput(doiLookupValue || value.doi);
 
     if (!doi) {
       setDoiError(t("professor.dashboard.publicationForm.doiRequired"));
       return;
     }
 
+    if (!isValidDoiInput(doi)) {
+      setDoiError(t("professor.doi.invalid"));
+      return;
+    }
+
     setIsLookingUpDoi(true);
     setDoiError("");
+    setDoiLookupValue(doi);
 
     try {
       const response = await fetch(apiUrl(`/doi/${encodeURIComponent(doi)}`));
