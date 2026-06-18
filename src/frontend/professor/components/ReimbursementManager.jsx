@@ -751,8 +751,8 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createDisplayField("Lloji i publikimit", typeLabel),
       createDisplayField("Emri i Revistës", form.venue || form.journal),
       createDisplayField("Shtëpia botuese", form.publisher),
-      createDisplayField("Data e Publikimit", form.publicationDate || form.publicationYear, { format: "date" }),
       createDisplayField("Data e Pranimit", form.acceptanceDate, { format: "date" }),
+      createDisplayField("Data e Publikimit", form.publicationDate || form.publicationYear, { format: "date" }),
       createDisplayField("Vëllimi", form.volume),
       createDisplayField("Numri i revistës / Issue", form.issue),
       createDisplayField("Faqet", form.pages),
@@ -2975,6 +2975,15 @@ export default function ReimbursementManager({
             <span className="reimbursement-coauthor-chip" key={item}>{item}</span>
           ))}
         </div>
+      ) : field.variant === "issn" ? (
+        <strong>
+          {field.value.split("\n").map((line, index) => (
+            <React.Fragment key={line}>
+              {index > 0 ? <br /> : null}
+              {line}
+            </React.Fragment>
+          ))}
+        </strong>
       ) : field.href ? (
         <a href={field.href} target="_blank" rel="noreferrer">{field.value}</a>
       ) : (
