@@ -698,7 +698,7 @@ export const translations = {
         profileTitle: "Të dhënat e profilit",
         academicTitle: "Te dhenat akademike",
         academicDescription: "{{type}}: fushat shfaqen sipas formularit zyrtar perkates.",
-        financeBankTitle: "Te dhenat bankare dhe financiare",
+        financeBankTitle: "Të dhënat bankare dhe financiare",
         financeTitle: "Te dhenat financiare",
         financeBankDescription: "Shuma, banka dhe SWIFT validohen para dergimit final.",
         financeDescription: "F3 ruan vetem te dhenat financiare qe ka formulari zyrtar.",
