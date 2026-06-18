@@ -260,6 +260,8 @@ const PUBLICATION_READ_ONLY_FIELDS = new Set([
   "issue",
   "pages",
   "issn",
+  "eIssn",
+  "e_issn",
   "isbn",
   "abstract",
 ]);
@@ -1090,6 +1092,8 @@ function applyPublicationToForm(prev, publication) {
     issue: publication.issue || "",
     pages: publication.pages || "",
     issn: publication.issn || "",
+    eIssn: publication.eIssn || publication.e_issn || publication.eissn || "",
+    e_issn: publication.e_issn || publication.eIssn || publication.eissn || "",
     isbn: publication.isbn || "",
     mainAuthor: authors.mainAuthor,
     correspondingAuthor: authors.correspondingAuthor,
