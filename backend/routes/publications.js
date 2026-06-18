@@ -705,6 +705,26 @@ function normalizeIndexing(value) {
     .filter((item) => item.source || item.category || item.webOfScienceIndex || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
 }
 
+function normalizeEIssn(value) {
+  return normalizeText(value);
+}
+
+function extractIssnByType(raw = {}, targetType = "") {
+  const target = normalizeText(targetType).toLowerCase();
+  const values = [
+    raw["issn-type"],
+    raw["ISSN-type"],
+    raw._crossref?.["issn-type"],
+    raw._crossref?.["ISSN-type"],
+  ].flatMap((value) => (Array.isArray(value) ? value : [value]));
+  const match = values.find((item) => {
+    const type = normalizeText(item?.type || item?.issnType || item?.issn_type).toLowerCase();
+    return type === target;
+  });
+
+  return normalizeText(match?.value || match?.issn);
+}
+
 function normalizeComparableAffiliation(value) {
   return normalizeText(value)
     .toLowerCase()
@@ -814,6 +834,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     pageStart: createFieldSource(values.pageStart || values.pagesStart || values.page_start || values.pages_start, baseSource),
     pageEnd: createFieldSource(values.pageEnd || values.pagesEnd || values.page_end || values.pages_end, baseSource),
     issn: createFieldSource(values.issn, baseSource),
+    eIssn: createFieldSource(values.eIssn || values.e_issn, baseSource),
     isbn: createFieldSource(values.isbn, baseSource),
     abstract: createFieldSource(values.abstract, baseSource),
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
@@ -1181,7 +1202,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
       issue: isBookPublication ? "" : normalizeText(body.issue),
       pages: nullableConferenceText(publicationType, body.pages),
       issn: isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
-      isbn: nullableConferenceText(publicationType, body.isbn),
+      eIssn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
+      e_issn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
+      isbn: publicationType === "journal_article" ? "" : nullableConferenceText(publicationType, body.isbn),
       authorAffiliation,
       indexingPlatform,
       customIndexingPlatform,
@@ -1326,7 +1349,9 @@ function mapPublication(row) {
     pageStart: conferencePageRange.pageStart || "",
     pageEnd: conferencePageRange.pageEnd || "",
     issn: hideJournalSpecificFields ? "" : nullableConferenceText(publicationType, row.issn),
-    isbn: nullableConferenceText(publicationType, row.isbn),
+    eIssn: publicationType === "journal_article" ? normalizeEIssn(row.e_issn) : "",
+    e_issn: publicationType === "journal_article" ? normalizeEIssn(row.e_issn) : "",
+    isbn: publicationType === "journal_article" ? "" : nullableConferenceText(publicationType, row.isbn),
     authorAffiliation,
     proceedingsTitle: conferenceProceedingsTitle,
     eventDate: conferenceEventDate,
@@ -1392,7 +1417,9 @@ function mapPublication(row) {
     pagesEnd: conferencePageRange.pagesEnd || "",
     pages_end: conferencePageRange.pages_end || "",
     issn: hideJournalSpecificFields ? "" : row.issn || "",
-    isbn: row.isbn || "",
+    eIssn: publicationType === "journal_article" ? row.e_issn || "" : "",
+    e_issn: publicationType === "journal_article" ? row.e_issn || "" : "",
+    isbn: publicationType === "journal_article" ? "" : row.isbn || "",
     authorAffiliation,
     author_affiliation: authorAffiliation,
     affiliation: authorAffiliation,
@@ -1516,7 +1543,7 @@ function mapPublication(row) {
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
-  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform,
+  p.issue, p.pages, p.issn, p.e_issn, p.isbn, p.author_affiliation, p.indexing_platform,
   p.custom_indexing_platform, p.web_of_science_index, p.indexing_category,
   p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
@@ -1630,6 +1657,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'issue',
          'pages',
          'issn',
+         'e_issn',
          'isbn',
          'author_affiliation',
          'indexing_platform',
@@ -1650,7 +1678,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 22 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 23 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1719,6 +1747,7 @@ async function replacePublicationChildren(client, publicationId, values) {
   const identifiers = [
     ["doi", values.doi],
     ["issn", values.issn],
+    ["e_issn", values.eIssn || values.e_issn],
     ["isbn", values.isbn],
   ].filter(([, value]) => value);
 
@@ -1789,6 +1818,9 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications alter column pages drop default;
     alter table publications alter column issn drop not null;
     alter table publications alter column issn drop default;
+    alter table publications add column if not exists e_issn text;
+    alter table publications alter column e_issn drop not null;
+    alter table publications alter column e_issn drop default;
     alter table publications alter column isbn drop not null;
     alter table publications alter column isbn drop default;
     alter table publications alter column author_affiliation drop not null;
@@ -2006,7 +2038,8 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
 
 function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const raw = metadata.raw_json || {};
-  const issn = metadata.issn || extractFirstArrayValue(raw.ISSN || raw.issn);
+  const eIssn = metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(raw, "electronic") || raw.eISSN || raw.eissn || raw.EISSN || "";
+  const issn = metadata.issn || extractIssnByType(raw, "print") || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
   const publicationType = normalizePublicationType(metadata.type);
   const publicationSubtype = normalizePublicationSubtype(metadata.publicationSubtype || metadata.publication_subtype || getPublicationSubtypeFromRaw(raw));
@@ -2065,7 +2098,9 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     pagesEnd: pageRange.pagesEnd || "",
     pages_end: pageRange.pages_end || "",
     issn: nullableConferenceText(publicationType, issn),
-    isbn: nullableConferenceText(publicationType, isbn),
+    eIssn: publicationType === "journal_article" ? normalizeEIssn(eIssn) : "",
+    e_issn: publicationType === "journal_article" ? normalizeEIssn(eIssn) : "",
+    isbn: publicationType === "journal_article" ? "" : nullableConferenceText(publicationType, isbn),
     authorAffiliation: null,
     indexingPlatform: deriveIndexingPlatform(indexing),
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
@@ -2197,10 +2232,10 @@ async function createPublication(client, ownerId, values) {
   const { rows } = await client.query(
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, acceptance_date, publication_date,
-      conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
+      conference_location, publication_year, source_url, volume, issue, pages, issn, e_issn, isbn, status,
       author_affiliation, indexing_platform, custom_indexing_platform, web_of_science_index, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
      returning id`,
     [
       ownerId,
@@ -2219,6 +2254,7 @@ async function createPublication(client, ownerId, values) {
       values.issue,
       values.pages,
       values.issn,
+      values.eIssn || values.e_issn,
       values.isbn,
       values.status,
       values.authorAffiliation,
@@ -2504,18 +2540,19 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                issue = $15,
                pages = $16,
                issn = $17,
-               isbn = $18,
-               status = $19,
-               author_affiliation = $20,
-               indexing_platform = $21,
-               custom_indexing_platform = $22,
-               web_of_science_index = $23,
-               indexing_category = $24,
-               indexing_verified = $25,
-               indexing_source = $26,
-               metadata_source = $27,
-               metadata_verified = $28,
-               external_metadata_id = $29,
+               e_issn = $18,
+               isbn = $19,
+               status = $20,
+               author_affiliation = $21,
+               indexing_platform = $22,
+               custom_indexing_platform = $23,
+               web_of_science_index = $24,
+               indexing_category = $25,
+               indexing_verified = $26,
+               indexing_source = $27,
+               metadata_source = $28,
+               metadata_verified = $29,
+               external_metadata_id = $30,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -2538,6 +2575,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.issue,
             values.pages,
             values.issn,
+            values.eIssn || values.e_issn,
             values.isbn,
             values.status,
             values.authorAffiliation,

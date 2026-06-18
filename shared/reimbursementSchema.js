@@ -98,6 +98,7 @@ export const REIMBURSEMENT_SCHEMAS = {
           { field: "issue", label: "Numri i revistës / Issue", source: "publication", readOnly: true },
           { field: "pages", label: "Pages", source: "publication", readOnly: true },
           { field: "issn", label: "ISSN", source: "publication", readOnly: true },
+          { field: "eIssn", label: "E-ISSN", source: "publication", readOnly: true },
           { field: "isbn", label: "ISBN", source: "publication", readOnly: true },
           { field: "abstract", label: "Abstrakti", wide: true, type: "textarea", rows: 3, source: "publication", readOnly: true },
           { field: "indexingPlatform", label: "Indeksimi në platformë", source: "publication", readOnly: true },

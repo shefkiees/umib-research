@@ -131,6 +131,8 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "issue",
   "pages",
   "issn",
+  "eIssn",
+  "e_issn",
   "isbn",
   "abstract",
   "authors",
@@ -727,6 +729,8 @@ function mapPublicationRow(row) {
     issue: row.issue || "",
     pages: row.pages || "",
     issn: row.issn || "",
+    eIssn: row.e_issn || row.eIssn || row.eissn || "",
+    e_issn: row.e_issn || row.eIssn || row.eissn || "",
     isbn: row.isbn || "",
     authors,
     indexing,
@@ -759,6 +763,7 @@ async function hasPublicationContextColumns(dbOrClient) {
          'issue',
          'pages',
          'issn',
+         'e_issn',
          'isbn'
        )`
   );
@@ -770,7 +775,7 @@ async function hasPublicationContextColumns(dbOrClient) {
   );
 
   publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 11
+    Number(rows[0]?.count || 0) === 12
     && Number(tableResult.rows[0]?.count || 0) === 4;
   return publicationContextSchemaCache;
 }
@@ -905,6 +910,8 @@ function publicationToReadOnlyRequestData(publication) {
     issue: normalizeText(publication.issue),
     pages: normalizeText(publication.pages),
     issn: normalizeText(publication.issn),
+    eIssn: normalizeText(publication.eIssn || publication.e_issn || publication.eissn),
+    e_issn: normalizeText(publication.e_issn || publication.eIssn || publication.eissn),
     isbn: normalizeText(publication.isbn),
     abstract: normalizeText(publication.abstract),
     mainAuthor: mainAuthorName,
@@ -950,6 +957,8 @@ function publicationToConferenceRequestData(publication) {
     issue: publicationData.issue,
     pages: publicationData.pages,
     issn: publicationData.issn,
+    eIssn: publicationData.eIssn,
+    e_issn: publicationData.e_issn,
     isbn: publicationData.isbn,
     abstract: publicationData.abstract,
     mainAuthor: publicationData.mainAuthor,
@@ -1072,7 +1081,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
     ? await dbOrClient.query(
         `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
-                p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
+                p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 coalesce(
                   (
                     select json_agg(
@@ -1155,7 +1164,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
         `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.isbn
+                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.id = $1
@@ -1860,7 +1869,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
     const publicationsQuery = hasPublicationColumns
       ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.publication_date, p.publication_year, p.status,
-                p.source_url, p.volume, p.issue, p.pages, p.issn, p.isbn,
+                p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 coalesce(
                   (
                     select json_agg(
@@ -1940,7 +1949,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.isbn,
+                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
                 coalesce(
                   (
                     select json_agg(

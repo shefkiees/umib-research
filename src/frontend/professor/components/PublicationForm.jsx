@@ -73,6 +73,8 @@ export const createEmptyPublicationDraft = () => ({
   pageStart: "",
   pageEnd: "",
   issn: "",
+  eIssn: "",
+  e_issn: "",
   isbn: "",
   authorAffiliation: "",
   indexingPlatform: "",
@@ -118,6 +120,7 @@ function hasPublicationDraftContent(value = {}) {
     || String(value.pages || "").trim()
     || String(value.isbn || "").trim()
     || String(value.issn || "").trim()
+    || String(value.eIssn || value.e_issn || "").trim()
     || (Array.isArray(value.authors) && value.authors.length > 0)
   );
 }
@@ -205,6 +208,30 @@ function normalizeIndexingPlatform(value) {
 
 function normalizeCustomIndexingPlatform(value) {
   return String(value || "").trim();
+}
+
+function firstTextValue(value) {
+  if (Array.isArray(value)) {
+    return firstTextValue(value[0]);
+  }
+
+  return String(value || "").trim();
+}
+
+function extractIssnByType(raw = {}, targetType = "") {
+  const target = String(targetType || "").trim().toLowerCase();
+  const values = [
+    raw["issn-type"],
+    raw["ISSN-type"],
+    raw._crossref?.["issn-type"],
+    raw._crossref?.["ISSN-type"],
+  ].flatMap((value) => (Array.isArray(value) ? value : [value]));
+  const match = values.find((item) => {
+    const type = String(item?.type || item?.issnType || item?.issn_type || "").trim().toLowerCase();
+    return type === target;
+  });
+
+  return String(match?.value || match?.issn || "").trim();
 }
 
 function normalizeIndexingCategory(value) {
@@ -389,7 +416,9 @@ export function publicationToDraft(publication = {}) {
     pageStart: publication.pageStart || publication.page_start || publication.pagesStart || publication.pages_start || "",
     pageEnd: publication.pageEnd || publication.page_end || publication.pagesEnd || publication.pages_end || "",
     issn: hideJournalSpecificFields ? "" : publication.issn || "",
-    isbn: publication.isbn || "",
+    eIssn: publicationType === "journal_article" ? publication.eIssn || publication.e_issn || publication.eissn || "" : "",
+    e_issn: publicationType === "journal_article" ? publication.e_issn || publication.eIssn || publication.eissn || "" : "",
+    isbn: publicationType === "journal_article" ? "" : publication.isbn || "",
     authorAffiliation: "",
     indexingPlatform: hasIndexing ? normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
     customIndexingPlatform: hasIndexing ? normalizeCustomIndexingPlatform(publication.customIndexingPlatform || publication.custom_indexing_platform || "") : "",
@@ -537,6 +566,8 @@ function getBookPublicationReset() {
     volume: "",
     issue: "",
     issn: "",
+    eIssn: "",
+    e_issn: "",
     indexingPlatform: "",
     customIndexingPlatform: "",
     custom_indexing_platform: "",
@@ -816,8 +847,10 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     pages: metadata.pages || "",
     pageStart: isConferencePaper ? metadata.pageStart || metadata.page_start || metadata.pagesStart || metadata.pages_start || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start || "" : "",
     pageEnd: isConferencePaper ? metadata.pageEnd || metadata.page_end || metadata.pagesEnd || metadata.pages_end || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end || "" : "",
-    issn: isBookPublication ? "" : metadata.issn || metadata.raw_json?.ISSN?.[0] || "",
-    isbn: metadata.isbn || metadata.raw_json?.ISBN?.[0] || "",
+    issn: isBookPublication ? "" : metadata.issn || extractIssnByType(metadata.raw_json, "print") || firstTextValue(metadata.raw_json?.ISSN || metadata.raw_json?.issn),
+    eIssn: publicationType === "journal_article" ? metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || firstTextValue(metadata.raw_json?.eISSN || metadata.raw_json?.eissn || metadata.raw_json?.EISSN) : "",
+    e_issn: publicationType === "journal_article" ? metadata.e_issn || metadata.eIssn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || firstTextValue(metadata.raw_json?.eISSN || metadata.raw_json?.eissn || metadata.raw_json?.EISSN) : "",
+    isbn: publicationType === "journal_article" ? "" : metadata.isbn || firstTextValue(metadata.raw_json?.ISBN || metadata.raw_json?.isbn),
     authorAffiliation: "",
     indexingPlatform,
     indexingCategory,
@@ -887,6 +920,7 @@ const PublicationForm = ({
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const isConferencePaper = isConferencePaperType(value.publicationType);
+  const isJournalArticle = value.publicationType === "journal_article";
   const isBookPublication = isBookPublicationType(value.publicationType);
   const isBookChapter = isBookChapterPublication(value.publicationType, value.publicationSubtype || value.publication_subtype);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
@@ -899,13 +933,13 @@ const PublicationForm = ({
   const showIndexingFields = supportsQuartile(value.publicationType);
   const showIdentifierField = isConferencePaper
     ? hasValue("issn") || hasValue("isbn")
-    : isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("isbn"));
+    : isJournalArticle || isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("eIssn") || hasValue("e_issn") || hasValue("isbn"));
   const showIssnInput = isConferencePaper
     ? hasValue("issn")
-    : !isBookPublication && (!isDoiImported || hasValue("issn"));
+    : isJournalArticle || (!isBookPublication && (!isDoiImported || hasValue("issn")));
   const showIsbnInput = isConferencePaper
     ? hasValue("isbn")
-    : isBookPublication || !isDoiImported || hasValue("isbn");
+    : isBookPublication || (!isJournalArticle && (!isDoiImported || hasValue("isbn")));
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const hasFormDoi = Boolean(normalizeDoiInput(value.doi));
@@ -972,6 +1006,8 @@ const PublicationForm = ({
     value.pages,
     value.isbn,
     value.issn,
+    value.eIssn,
+    value.e_issn,
     value.authors,
   ]);
 
@@ -987,13 +1023,14 @@ const PublicationForm = ({
         : isBookPublicationType(nextValue)
           ? getBookPublicationReset()
           : !supportsQuartile(nextValue)
-            ? { quartile: "", indexing: [] }
+            ? { eIssn: "", e_issn: "", quartile: "", indexing: [] }
             : {}
       : {};
 
     onChange({
       ...value,
       [field]: nextValue,
+      ...(field === "eIssn" ? { e_issn: nextValue } : {}),
       ...typeReset,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
@@ -1556,7 +1593,30 @@ const PublicationForm = ({
             ) : null}
           </>
         ) : null}
-        {showIdentifierField ? (
+        {showIdentifierField && isJournalArticle ? (
+          <>
+            <label className="prof-form-field">
+              <span>ISSN</span>
+              <input
+                value={value.issn}
+                onChange={updateField("issn")}
+                placeholder="ISSN"
+                aria-label="ISSN"
+                readOnly={isFieldLocked("issn")}
+              />
+            </label>
+            <label className="prof-form-field">
+              <span>E-ISSN</span>
+              <input
+                value={value.eIssn || value.e_issn || ""}
+                onChange={updateField("eIssn")}
+                placeholder="E-ISSN"
+                aria-label="E-ISSN"
+                readOnly={isFieldLocked("eIssn")}
+              />
+            </label>
+          </>
+        ) : showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
             <span>{isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>
             <div className="publication-identifier-inputs">

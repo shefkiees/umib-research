@@ -234,6 +234,7 @@ create table if not exists publication_metadata (
   issue text not null default '',
   pages text not null default '',
   issn text not null default '',
+  e_issn text not null default '',
   isbn text not null default '',
   type text not null default '',
   abstract text not null default '',
@@ -244,6 +245,7 @@ create table if not exists publication_metadata (
 );
 
 alter table publication_metadata add column if not exists issn text not null default '';
+alter table publication_metadata add column if not exists e_issn text not null default '';
 alter table publication_metadata add column if not exists isbn text not null default '';
 alter table publication_metadata add column if not exists volume text not null default '';
 alter table publication_metadata add column if not exists issue text not null default '';
@@ -257,6 +259,8 @@ alter table publication_metadata alter column pages drop not null;
 alter table publication_metadata alter column pages drop default;
 alter table publication_metadata alter column issn drop not null;
 alter table publication_metadata alter column issn drop default;
+alter table publication_metadata alter column e_issn drop not null;
+alter table publication_metadata alter column e_issn drop default;
 alter table publication_metadata alter column isbn drop not null;
 alter table publication_metadata alter column isbn drop default;
 
@@ -286,6 +290,7 @@ create table if not exists publications (
   issue text not null default '',
   pages text not null default '',
   issn text not null default '',
+  e_issn text not null default '',
   isbn text not null default '',
   metadata_source text not null default 'manual',
   metadata_verified boolean not null default false,
@@ -308,6 +313,7 @@ alter table publications add column if not exists volume text not null default '
 alter table publications add column if not exists issue text not null default '';
 alter table publications add column if not exists pages text not null default '';
 alter table publications add column if not exists issn text not null default '';
+alter table publications add column if not exists e_issn text not null default '';
 alter table publications add column if not exists isbn text not null default '';
 alter table publications add column if not exists author_affiliation text not null default '';
 alter table publications add column if not exists indexing_platform text not null default '';
@@ -340,6 +346,8 @@ alter table publications alter column pages drop not null;
 alter table publications alter column pages drop default;
 alter table publications alter column issn drop not null;
 alter table publications alter column issn drop default;
+alter table publications alter column e_issn drop not null;
+alter table publications alter column e_issn drop default;
 alter table publications alter column isbn drop not null;
 alter table publications alter column isbn drop default;
 alter table publications alter column author_affiliation drop not null;
@@ -364,6 +372,7 @@ set
   issue = coalesce(nullif(p.issue, ''), m.issue, ''),
   pages = coalesce(nullif(p.pages, ''), m.pages, ''),
   issn = coalesce(nullif(p.issn, ''), m.issn, ''),
+  e_issn = coalesce(nullif(p.e_issn, ''), m.e_issn, ''),
   isbn = coalesce(nullif(p.isbn, ''), m.isbn, ''),
   metadata_source = case when p.metadata_source = 'manual' and p.doi is not null then 'doi' else p.metadata_source end,
   metadata_verified = case when p.doi is not null then true else p.metadata_verified end,

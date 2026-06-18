@@ -34,31 +34,51 @@ function getRawIdentifierValue(raw = {}, key) {
   return "";
 }
 
+function extractIssnByType(raw = {}, targetType = "") {
+  const target = normalizeText(targetType).toLowerCase();
+  const values = [
+    raw?.["issn-type"],
+    raw?.["ISSN-type"],
+    raw?._crossref?.["issn-type"],
+    raw?._crossref?.["ISSN-type"],
+    raw?._doi_org?.["issn-type"],
+    raw?._doi_org?.["ISSN-type"],
+  ].flatMap((value) => (Array.isArray(value) ? value : [value]));
+  const match = values.find((item) => {
+    const type = normalizeText(item?.type || item?.issnType || item?.issn_type).toLowerCase();
+    return type === target;
+  });
+
+  return normalizeText(match?.value || match?.issn);
+}
+
 async function backfillPublicationMetadata(client) {
   const { rows } = await client.query(
-    `select doi, title, issn, isbn, raw_json
+    `select doi, title, issn, e_issn, isbn, raw_json
      from publication_metadata
-     where (issn = '' or isbn = '')
+     where (issn = '' or e_issn = '' or isbn = '')
        and raw_json <> '{}'::jsonb
      order by doi`
   );
   const repaired = [];
 
   for (const row of rows) {
-    const nextIssn = row.issn || getRawIdentifierValue(row.raw_json, "ISSN");
+    const nextIssn = row.issn || extractIssnByType(row.raw_json, "print") || getRawIdentifierValue(row.raw_json, "ISSN");
+    const nextEIssn = row.e_issn || extractIssnByType(row.raw_json, "electronic") || getRawIdentifierValue(row.raw_json, "EISSN");
     const nextIsbn = row.isbn || getRawIdentifierValue(row.raw_json, "ISBN");
 
-    if (nextIssn === row.issn && nextIsbn === row.isbn) {
+    if (nextIssn === row.issn && nextEIssn === row.e_issn && nextIsbn === row.isbn) {
       continue;
     }
 
     await client.query(
       `update publication_metadata
        set issn = $2,
-           isbn = $3,
+           e_issn = $3,
+           isbn = $4,
            updated_at = now()
        where doi = $1`,
-      [row.doi, nextIssn, nextIsbn]
+      [row.doi, nextIssn, nextEIssn, nextIsbn]
     );
 
     repaired.push({
@@ -66,6 +86,8 @@ async function backfillPublicationMetadata(client) {
       title: row.title || "",
       issnBefore: row.issn || "",
       issnAfter: nextIssn || "",
+      eIssnBefore: row.e_issn || "",
+      eIssnAfter: nextEIssn || "",
       isbnBefore: row.isbn || "",
       isbnAfter: nextIsbn || "",
     });
@@ -78,15 +100,17 @@ async function backfillPublications(client) {
   const { rows } = await client.query(
     `update publications p
      set issn = coalesce(nullif(p.issn, ''), m.issn, ''),
+         e_issn = coalesce(nullif(p.e_issn, ''), m.e_issn, ''),
          isbn = coalesce(nullif(p.isbn, ''), m.isbn, ''),
          updated_at = now()
      from publication_metadata m
      where m.doi = coalesce(p.external_metadata_id, p.doi)
        and (
          (p.issn = '' and m.issn <> '')
+         or (p.e_issn = '' and m.e_issn <> '')
          or (p.isbn = '' and m.isbn <> '')
        )
-     returning p.id, p.doi, p.title, p.issn, p.isbn`
+     returning p.id, p.doi, p.title, p.issn, p.e_issn, p.isbn`
   );
 
   return rows.map((row) => ({
@@ -94,16 +118,18 @@ async function backfillPublications(client) {
     doi: row.doi || "",
     title: row.title || "",
     issn: row.issn || "",
+    eIssn: row.e_issn || "",
     isbn: row.isbn || "",
   }));
 }
 
 async function insertMissingPublicationIdentifiers(client) {
   const { rows: publications } = await client.query(
-    `select id, doi, issn, isbn
+    `select id, doi, issn, e_issn, isbn
      from publications
      where coalesce(doi, '') <> ''
         or issn <> ''
+        or e_issn <> ''
         or isbn <> ''
      order by id`
   );
@@ -113,6 +139,7 @@ async function insertMissingPublicationIdentifiers(client) {
     const identifiers = [
       ["doi", publication.doi],
       ["issn", publication.issn],
+      ["e_issn", publication.e_issn],
       ["isbn", publication.isbn],
     ].filter(([, value]) => normalizeText(value));
 
@@ -165,6 +192,7 @@ async function repairDoiIdentifiers() {
       publicationMetadata: {
         repairedRows: metadataRows.length,
         recoveredIssn: countRecovered(metadataRows, "issn"),
+        recoveredEIssn: countRecovered(metadataRows, "eIssn"),
         recoveredIsbn: countRecovered(metadataRows, "isbn"),
         rows: metadataRows,
       },
@@ -175,6 +203,7 @@ async function repairDoiIdentifiers() {
       publicationIdentifiers: {
         insertedRows: identifierRows.length,
         insertedIssn: identifierRows.filter((row) => row.type === "issn").length,
+        insertedEIssn: identifierRows.filter((row) => row.type === "e_issn").length,
         insertedIsbn: identifierRows.filter((row) => row.type === "isbn").length,
         insertedDoi: identifierRows.filter((row) => row.type === "doi").length,
         rows: identifierRows,

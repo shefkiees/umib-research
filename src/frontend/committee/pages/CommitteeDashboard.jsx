@@ -712,7 +712,7 @@ function inferChecklistValue(publication, key) {
     case "documentsOk":
       return hasDocument;
     case "issnOk":
-      return Boolean(publication?.issn || publication?.eissn || publication?.eIssn);
+      return Boolean(publication?.issn || publication?.eissn || publication?.eIssn || publication?.e_issn);
     case "volumeIssuePagesOk":
       return Boolean(publication?.volume || publication?.issue || publication?.pages || publication?.pageStart || publication?.page_start || publication?.pageEnd || publication?.page_end);
     case "abstractOk":
@@ -890,6 +890,8 @@ function mapReimbursementToMetadataItem(request = {}) {
     issue: data.issue || "",
     pages: data.pages || "",
     issn: data.issn || "",
+    eIssn: data.eIssn || data.e_issn || data.eissn || "",
+    e_issn: data.e_issn || data.eIssn || data.eissn || "",
     isbn: data.isbn || "",
     indexingPlatform: data.indexingPlatform || "",
     indexingCategory: data.indexingCategory || "",
@@ -980,7 +982,7 @@ function getChecklistEvidenceText(publication = {}, key) {
     case "documentsOk":
       return documentCount ? `${documentCount} dokument/e mbështetëse` : "Mungon dokument mbështetës";
     case "issnOk":
-      return publication.issn || publication.eissn || publication.eIssn ? `ISSN/eISSN: ${publication.issn || publication.eissn || publication.eIssn}` : "Mungon ISSN/eISSN";
+      return publication.issn || publication.eissn || publication.eIssn || publication.e_issn ? `ISSN/eISSN: ${publication.issn || publication.eissn || publication.eIssn || publication.e_issn}` : "Mungon ISSN/eISSN";
     case "volumeIssuePagesOk":
       return publication.volume || publication.issue || publication.pages || publication.pageStart || publication.page_start || publication.pageEnd || publication.page_end
         ? [publication.volume ? `Vol. ${publication.volume}` : "", publication.issue ? `Issue ${publication.issue}` : "", publication.pages || publication.pageStart || publication.page_start ? `Faqe ${publication.pages || [publication.pageStart || publication.page_start, publication.pageEnd || publication.page_end].filter(Boolean).join("-")}` : ""].filter(Boolean).join(" | ")
@@ -2437,7 +2439,7 @@ export default function CommitteeDashboard() {
         "Autori korrespondent": createChecklistValue(requestData.correspondingAuthor),
         "Bashkëautorët": createChecklistValue(requestData.coauthors),
         "Përkatësia institucionale (Affiliation)": createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
-        "ISSN / ISBN": createChecklistValue(getFirstReviewValue(requestData.issn, requestData.isbn)),
+        "ISSN / ISBN": createChecklistValue(getFirstReviewValue(requestData.issn, requestData.eIssn, requestData.e_issn, requestData.isbn)),
         "Indeksimi në platformë": createChecklistValue(requestData.indexingPlatform),
         "Kategoria e indeksimit": createChecklistValue(requestData.indexingCategory),
         Kuartili: createChecklistValue(requestData.scopusQuartile),
@@ -2668,6 +2670,7 @@ export default function CommitteeDashboard() {
       createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),
       createReviewField("ISSN", requestData.issn),
+      createReviewField("E-ISSN", requestData.eIssn || requestData.e_issn),
       createReviewField("ISBN", requestData.isbn),
       createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
       createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
@@ -2687,7 +2690,7 @@ export default function CommitteeDashboard() {
       requestData.abstract,
       f2WorkParts.abstract
     ));
-    const f2IssnIsbn = [requestData.issn, requestData.isbn].filter(hasReviewValue).join(" / ");
+    const f2IssnIsbn = [requestData.issn, requestData.eIssn || requestData.e_issn, requestData.isbn].filter(hasReviewValue).join(" / ");
     const isF2WorkAbstractLong = f2WorkAbstract.length > 360;
     const f2ScientificWorkFields = [
       createReviewField("Lloji i publikimit", hasReviewValue(requestData.publicationType) ? getPublicationTypeLabel(requestData.publicationType) : ""),

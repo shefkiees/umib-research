@@ -169,6 +169,23 @@ function getMetadataIssns(metadata = {}) {
   return uniqueValues(values.map(normalizeIssn));
 }
 
+function extractIssnByType(raw = {}, targetType = "") {
+  const target = normalizeText(targetType).toLowerCase();
+  const crossref = raw._crossref || {};
+  const values = [
+    raw["issn-type"],
+    raw["ISSN-type"],
+    crossref["issn-type"],
+    crossref["ISSN-type"],
+  ].flatMap((value) => (Array.isArray(value) ? value : [value]));
+  const match = values.find((item) => {
+    const type = normalizeText(item?.type || item?.issnType || item?.issn_type).toLowerCase();
+    return type === target;
+  });
+
+  return normalizeText(match?.value || match?.issn);
+}
+
 function uniqueValues(values = []) {
   return [...new Set(values.map(normalizeText).filter(Boolean))];
 }
@@ -1056,7 +1073,8 @@ function buildMetadataFieldSources(metadata = {}) {
     pages: createFieldSource(metadata.pages),
     pageStart: createFieldSource(metadata.pagesStart || metadata.pageStart || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start),
     pageEnd: createFieldSource(metadata.pagesEnd || metadata.pageEnd || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end),
-    issn: createFieldSource(metadata.issn || getRawIdentifierValue(metadata.raw_json, "ISSN")),
+    issn: createFieldSource(metadata.issn || extractIssnByType(metadata.raw_json, "print") || getRawIdentifierValue(metadata.raw_json, "ISSN")),
+    eIssn: createFieldSource(metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || getRawIdentifierValue(metadata.raw_json, "EISSN")),
     isbn: createFieldSource(metadata.isbn || getRawIdentifierValue(metadata.raw_json, "ISBN")),
     abstract: createFieldSource(metadata.abstract),
     conferenceLocation: createFieldSource(metadata.conferenceLocation || metadata.conference_location),
@@ -1650,6 +1668,8 @@ function mergeMetadata(primary, fallback) {
     pages: preferText(primary.pages, fallback.pages),
     ...((mergedIsBookChapter || mergedIsConferencePaper) ? mergedPageRange : {}),
     issn: preferText(primary.issn, fallback.issn),
+    eIssn: preferText(primary.eIssn || primary.e_issn || primary.eissn, fallback.eIssn || fallback.e_issn || fallback.eissn),
+    e_issn: preferText(primary.e_issn || primary.eIssn || primary.eissn, fallback.e_issn || fallback.eIssn || fallback.eissn),
     isbn: preferText(primary.isbn, fallback.isbn),
     conferenceLocation: preferText(primary.conferenceLocation, fallback.conferenceLocation),
     conference_location: preferText(primary.conference_location, fallback.conference_location),
@@ -2666,7 +2686,9 @@ function mapMetadata(data, doi) {
     issue: normalizeText(data.issue),
     pages: normalizeText(data.page),
     ...(shouldKeepPageRange ? pageRange : {}),
-    issn: Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN),
+    issn: extractIssnByType(data, "print") || (Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN)),
+    eIssn: extractIssnByType(data, "electronic") || "",
+    e_issn: extractIssnByType(data, "electronic") || "",
     isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type,
     proceedingsTitle,
@@ -2729,6 +2751,9 @@ async function ensurePublicationMetadataNullableSchema(db) {
     alter table if exists publication_metadata alter column pages drop default;
     alter table if exists publication_metadata alter column issn drop not null;
     alter table if exists publication_metadata alter column issn drop default;
+    alter table if exists publication_metadata add column if not exists e_issn text;
+    alter table if exists publication_metadata alter column e_issn drop not null;
+    alter table if exists publication_metadata alter column e_issn drop default;
     alter table if exists publication_metadata alter column isbn drop not null;
     alter table if exists publication_metadata alter column isbn drop default;
   `);
@@ -2744,15 +2769,15 @@ async function hasPublicationMetadataIdentifierColumns(db) {
      from information_schema.columns
      where table_schema = current_schema()
        and table_name = 'publication_metadata'
-       and column_name in ('issn', 'isbn')`
+       and column_name in ('issn', 'e_issn', 'isbn')`
   );
 
-  return Number(rows[0]?.count || 0) === 2;
+  return Number(rows[0]?.count || 0) === 3;
 }
 
 export async function getCachedDoiMetadata(db, doi) {
   const hasIdentifierColumns = await hasPublicationMetadataIdentifierColumns(db);
-  const identifierColumns = hasIdentifierColumns ? ", issn, isbn" : "";
+  const identifierColumns = hasIdentifierColumns ? ", issn, e_issn, isbn" : "";
 
   const { rows } = await db.query(
     `select doi, title, authors, container_title, publisher, published_date, year,
@@ -2769,6 +2794,7 @@ export async function getCachedDoiMetadata(db, doi) {
 
   const metadata = {
     issn: "",
+    e_issn: "",
     isbn: "",
     ...rows[0],
     abstract: normalizeAbstractText(rows[0].abstract),
@@ -2810,22 +2836,27 @@ export async function getCachedDoiMetadata(db, doi) {
     return metadata;
   }
 
-  const rawIssn = getRawIdentifierValue(metadata.raw_json, "ISSN");
+  const rawIssn = extractIssnByType(metadata.raw_json, "print") || getRawIdentifierValue(metadata.raw_json, "ISSN");
+  const rawEIssn = extractIssnByType(metadata.raw_json, "electronic") || getRawIdentifierValue(metadata.raw_json, "EISSN");
   const rawIsbn = getRawIdentifierValue(metadata.raw_json, "ISBN");
   const nextIssn = hasText(metadata.issn) ? metadata.issn : rawIssn;
+  const nextEIssn = hasText(metadata.e_issn) ? metadata.e_issn : rawEIssn;
   const nextIsbn = hasText(metadata.isbn) ? metadata.isbn : rawIsbn;
 
-  if (nextIssn !== metadata.issn || nextIsbn !== metadata.isbn) {
+  if (nextIssn !== metadata.issn || nextEIssn !== metadata.e_issn || nextIsbn !== metadata.isbn) {
     await db.query(
       `update publication_metadata
        set issn = $2,
-           isbn = $3,
+           e_issn = $3,
+           isbn = $4,
            updated_at = now()
        where doi = $1`,
-      [doi, nextIssn, nextIsbn]
+      [doi, nextIssn, nextEIssn, nextIsbn]
     );
 
     metadata.issn = nextIssn;
+    metadata.eIssn = nextEIssn;
+    metadata.e_issn = nextEIssn;
     metadata.isbn = nextIsbn;
   }
 
@@ -2839,8 +2870,8 @@ export async function upsertDoiMetadata(dbOrClient, metadata) {
   if (hasIdentifierColumns) {
     await dbOrClient.query(
       `insert into publication_metadata
-       (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, issn, isbn, type, abstract, source_url, raw_json)
-       values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)
+       (doi, title, authors, container_title, publisher, published_date, year, volume, issue, pages, issn, e_issn, isbn, type, abstract, source_url, raw_json)
+       values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)
        on conflict (doi) do update set
          title = excluded.title,
          authors = excluded.authors,
@@ -2852,6 +2883,7 @@ export async function upsertDoiMetadata(dbOrClient, metadata) {
          issue = excluded.issue,
          pages = excluded.pages,
          issn = excluded.issn,
+         e_issn = excluded.e_issn,
          isbn = excluded.isbn,
          type = excluded.type,
          abstract = excluded.abstract,
@@ -2870,6 +2902,7 @@ export async function upsertDoiMetadata(dbOrClient, metadata) {
         metadata.issue,
         metadata.pages,
         metadata.issn,
+        metadata.eIssn || metadata.e_issn || metadata.eissn || "",
         metadata.isbn,
         metadata.type,
         metadata.abstract,
