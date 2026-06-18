@@ -694,6 +694,8 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
   const typeLabel = getPublicationTypeLabel(form.publicationType);
   const coauthors = splitCoauthors(form.coauthors);
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
+  const articleLink = cleanDisplayValue(form.publicationLink || form.sourceUrl || form.source_url);
+  const articleLinkField = createDisplayField("Linku i Artikullit", articleLink, { href: articleLink });
   const correspondingAuthor = cleanDisplayValue(form.correspondingAuthor || options.correspondingAuthor);
   const citeScore = cleanDisplayValue(options.citeScore);
   const issnDisplay = formatIssnDisplay(form.issn, form.eIssn || form.e_issn);
@@ -762,6 +764,7 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createAuthorListDisplayField("Bashkautorët", coauthors),
       createDisplayField("Affiliation", form.affiliation),
       doiField,
+      articleLinkField,
       createDisplayField("Indeksimi në platformë", form.indexingPlatform),
       createDisplayField("Kategoria e indeksimit", form.indexingCategory),
       createDisplayField("Impact Factor", form.impactFactor),
