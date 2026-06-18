@@ -52,18 +52,8 @@ const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
     {
       id: "article_pdf",
-      label: "Punimi shkencor (PDF)",
-      description: "Ngarkoni versionin PDF të punimit shkencor.",
-    },
-    {
-      id: "uibm_database_evidence",
-      label: "Dëshmia e regjistrimit në databazën e UIBM",
-      description: "Ngarkoni dëshminë që punimi është regjistruar në databazën e UIBM.",
-    },
-    {
-      id: "other",
-      label: "Dokument tjetër",
-      description: "Ngarkoni dokumente shtesë që mbështesin kërkesën.",
+      label: "Artikull Shkencor (PDF)",
+      description: "Ngarkoni versionin PDF të artikullit shkencor.",
     },
   ],
   conference: [
@@ -2610,11 +2600,14 @@ export default function ReimbursementManager({
 
   const handleFileChange = (documentType, event) => {
     const files = Array.from(event.target.files || []);
-    const validFiles = files.filter((file) => ALLOWED_ATTACHMENT_TYPES.includes(file.type));
+    const isF1ArticlePdf = selectedType === "publication" && documentType === "article_pdf";
+    const validFiles = files.filter((file) => (
+      isF1ArticlePdf ? file.type === "application/pdf" : ALLOWED_ATTACHMENT_TYPES.includes(file.type)
+    ));
     const remainingSlots = Math.max(MAX_SELECTED_ATTACHMENTS - selectedFiles.length, 0);
 
     if (validFiles.length !== files.length) {
-      setError("Lejohen vetem PDF, JPG, PNG dhe DOCX.");
+      setError(isF1ArticlePdf ? "Lejohet vetëm artikulli shkencor në formatin PDF." : "Lejohen vetem PDF, JPG, PNG dhe DOCX.");
     } else if (validFiles.length > remainingSlots) {
       setError(`Maksimum ${MAX_SELECTED_ATTACHMENTS} file gjithsej.`);
     }
@@ -3624,16 +3617,18 @@ export default function ReimbursementManager({
 
     return (
       <div className="reimbursement-upload-box">
-        <div className="reimbursement-upload-summary">
-          <div>
-            <span>Dokumentet e lejuara</span>
-            <strong>PDF, JPG, PNG, DOCX</strong>
+        {selectedType !== "publication" ? (
+          <div className="reimbursement-upload-summary">
+            <div>
+              <span>Dokumentet e lejuara</span>
+              <strong>PDF, JPG, PNG, DOCX</strong>
+            </div>
+            <div>
+              <span>Maksimumi</span>
+              <strong>{MAX_SELECTED_ATTACHMENTS} dokumente gjithsej</strong>
+            </div>
           </div>
-          <div>
-            <span>Maksimumi</span>
-            <strong>{MAX_SELECTED_ATTACHMENTS} dokumente gjithsej</strong>
-          </div>
-        </div>
+        ) : null}
         <div className={`reimbursement-document-grid reimbursement-document-grid--${selectedType}`}>
         {documentTypes.map((documentType) => {
           const filesForType = selectedFiles.filter((item) => item.documentType === documentType.id);
@@ -3654,7 +3649,9 @@ export default function ReimbursementManager({
                 <input
                   type="file"
                   multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept={selectedType === "publication"
+                    ? ".pdf,application/pdf"
+                    : ".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
                   onChange={(event) => handleFileChange(documentType.id, event)}
                   disabled={selectedFiles.length >= MAX_SELECTED_ATTACHMENTS}
                 />
