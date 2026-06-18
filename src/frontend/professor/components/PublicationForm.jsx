@@ -60,6 +60,7 @@ export const createEmptyPublicationDraft = () => ({
   edition: "",
   proceedingsTitle: "",
   eventDate: "",
+  acceptanceDate: "",
   publicationDate: "",
   publicationYear: "",
   doi: "",
@@ -356,6 +357,7 @@ export function publicationToDraft(publication = {}) {
     edition: publication.edition || "",
     proceedingsTitle: publication.proceedingsTitle || publication.proceedings_title || "",
     eventDate: publication.eventDate || publication.event_date || "",
+    acceptanceDate: (publication.acceptanceDate || publication.acceptance_date || "").slice(0, 10),
     publicationDate: isBookPublication && !isBookChapter ? "" : (publication.publicationDate || publication.publication_date || "").slice(0, 10),
     publicationYear: isBookPublication && !isBookChapter ? "" : publication.publicationYear || publication.publication_year || publication.year || "",
     doi: publication.doi || "",
@@ -552,6 +554,72 @@ function formatPublishedValue(dateValue, yearValue) {
   return date || year;
 }
 
+function getMetadataDateParts(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value?.["date-parts"])) {
+    return Array.isArray(value["date-parts"][0]) ? value["date-parts"][0] : value["date-parts"];
+  }
+
+  if (Array.isArray(value)) {
+    return Array.isArray(value[0]) ? value[0] : value;
+  }
+
+  if (typeof value === "object") {
+    return [value.year, value.month, value.day].filter((part) => part !== undefined && part !== null && part !== "");
+  }
+
+  const text = String(value).trim();
+  const isoDate = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const dayMonthYear = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+
+  if (isoDate) {
+    return [isoDate[1], isoDate[2], isoDate[3]];
+  }
+
+  if (dayMonthYear) {
+    return [dayMonthYear[3], dayMonthYear[2], dayMonthYear[1]];
+  }
+
+  return [];
+}
+
+function formatMetadataDate(value) {
+  const parts = getMetadataDateParts(value);
+  const [year, month, day] = parts.map((part) => Number(part));
+
+  if (!year || !month || !day) {
+    return "";
+  }
+
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function getMetadataAcceptanceDate(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const candidates = [
+    metadata.acceptanceDate,
+    metadata.acceptance_date,
+    raw.acceptanceDate,
+    raw.acceptance_date,
+    raw.accepted,
+    raw["accepted-date"],
+    raw["date-accepted"],
+    crossref.accepted,
+    crossref["accepted-date"],
+    crossref["date-accepted"],
+    doiOrg.accepted,
+    doiOrg["accepted-date"],
+    doiOrg["date-accepted"],
+  ];
+
+  return candidates.map(formatMetadataDate).find(Boolean) || "";
+}
+
 function parsePublishedValue(input) {
   const value = String(input || "").trim();
   const dayMonthYear = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
@@ -669,6 +737,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     edition: metadata.edition || metadata.raw_json?.edition || "",
     proceedingsTitle: isConferencePaper ? metadata.proceedingsTitle || metadata.proceedings_title || metadata.raw_json?.proceedings_title || "" : "",
     eventDate: isConferencePaper ? metadata.eventDate || metadata.event_date || metadata.raw_json?.event_date || "" : "",
+    acceptanceDate: publicationType === "journal_article" ? getMetadataAcceptanceDate(metadata) : "",
     publicationDate: (!isBookPublication || isBookChapter) && /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
@@ -772,6 +841,7 @@ const PublicationForm = ({
     : isBookPublication || !isDoiImported || hasValue("isbn");
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
+  const hasFormDoi = Boolean(normalizeDoiInput(value.doi));
   const editorsValue = formatContributorList(value.editors || value.editor);
   const bookSeriesTitleValue = value.bookSeriesTitle || value.book_series_title || value.seriesTitle || value.series_title || "";
   const editionValue = value.edition || "";
@@ -1051,6 +1121,8 @@ const PublicationForm = ({
     ? "professor.dashboard.publicationForm.conferenceName"
     : value.publicationType === "book"
       ? "professor.dashboard.publicationForm.bookTitle"
+      : value.publicationType === "journal_article"
+        ? "professor.dashboard.publicationForm.journalName"
     : "professor.dashboard.publicationForm.publishedIn";
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
   const mainAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isMainAuthor ?? author.is_main_author)) || authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
@@ -1128,6 +1200,7 @@ const PublicationForm = ({
 
   return (
     <form className="publication-form" onSubmit={submit} ref={formRef}>
+      {!hasFormDoi ? (
       <div className="publication-doi-card">
         <div className="publication-doi-card-copy">
           <p>{t("professor.dashboard.publicationForm.doiLookupDescription")}</p>
@@ -1167,6 +1240,7 @@ const PublicationForm = ({
           <span>{t("professor.dashboard.publicationForm.doiHint")}</span>
         </div>
       </div>
+      ) : null}
 
       {doiError ? <p className="publication-form-message error">{doiError}</p> : null}
       {showPublicationFields ? (
@@ -1257,6 +1331,17 @@ const PublicationForm = ({
               onChange={updatePublishedField}
               placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
               readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+            />
+          </label>
+        ) : null}
+        {value.publicationType === "journal_article" ? (
+          <label className="prof-form-field">
+            <span>{t("professor.dashboard.publicationForm.acceptanceDate")}</span>
+            <input
+              type="date"
+              value={value.acceptanceDate || ""}
+              onChange={updateField("acceptanceDate")}
+              readOnly={isFieldLocked("acceptanceDate")}
             />
           </label>
         ) : null}

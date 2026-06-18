@@ -393,6 +393,27 @@ function getConferenceEventDateFromRaw(raw = {}) {
   return "";
 }
 
+function getAcceptanceDateFromRaw(raw = {}) {
+  const sources = [raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}, raw._publisher_html_metadata || {}];
+  const candidates = sources.flatMap((source) => [
+    source.acceptanceDate,
+    source.acceptance_date,
+    source.accepted,
+    source["accepted-date"],
+    source["date-accepted"],
+  ]);
+
+  for (const candidate of candidates) {
+    const formatted = formatRawDateParts(getDatePartsFromRaw(candidate));
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(formatted)) {
+      return formatted;
+    }
+  }
+
+  return "";
+}
+
 function parsePageRange(value) {
   const text = normalizeText(value);
 
@@ -748,6 +769,7 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     editors: createFieldSource(Array.isArray(values.editors) ? values.editors.map((editor) => editor?.fullName || editor?.full_name || editor?.name).filter(Boolean) : [], baseSource),
     bookSeriesTitle: createFieldSource(values.bookSeriesTitle || values.book_series_title || values.seriesTitle || values.series_title, baseSource),
     edition: createFieldSource(values.edition, baseSource),
+    acceptanceDate: createFieldSource(values.acceptanceDate || values.acceptance_date, baseSource),
     publicationDate: createFieldSource(values.publicationDate || values.publication_date, baseSource),
     publicationYear: createFieldSource(values.publicationYear || values.publication_year || values.year, baseSource),
     sourceUrl: createFieldSource(values.sourceUrl || values.source_url, baseSource),
@@ -894,6 +916,9 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const publicationYear = normalizeYear(body.publicationYear ?? body.publication_year);
   const publicationDate = normalizeOptionalDate(body.publicationDate || body.publication_date);
+  const acceptanceDate = publicationType === "journal_article"
+    ? normalizeOptionalDate(body.acceptanceDate || body.acceptance_date)
+    : null;
   const status = normalizeText(body.status || "draft");
   const sourceUrl = normalizeUrl(body.sourceUrl || body.source_url);
   const indexedMetadataSource = normalizeText(body.metadataSource || body.metadata_source);
@@ -918,6 +943,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
 
   if ((body.publicationDate || body.publication_date) && !publicationDate) {
     errors.push({ field: "publicationDate", message: "Data e publikimit nuk eshte valide." });
+  }
+
+  if ((body.acceptanceDate || body.acceptance_date) && !acceptanceDate) {
+    errors.push({ field: "acceptanceDate", message: "Data e pranimit nuk eshte valide." });
   }
 
   if (doi && !isValidDoi(doi)) {
@@ -1077,6 +1106,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
       conferenceLocation: publicationType === "conference_paper" ? normalizeText(body.conferenceLocation ?? body.conference_location) : "",
       publisher: normalizeText(body.publisher),
+      acceptanceDate,
       publicationDate: isBookPublication && !isBookChapter ? null : publicationDate,
       publicationYear: isBookPublication && !isBookChapter ? null : publicationYear,
       sourceUrl,
@@ -1207,6 +1237,7 @@ function mapPublication(row) {
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
     publicationSubtype,
+    acceptanceDate: publicationType === "journal_article" ? row.acceptance_date || null : null,
     publicationDate: isBookPublication && !isBookChapter ? null : row.publication_date || null,
     publicationYear: isBookPublication && !isBookChapter ? "" : row.publication_year || row.year || "",
     sourceUrl: row.source_url || "",
@@ -1248,6 +1279,8 @@ function mapPublication(row) {
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
     conference_location: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
+    acceptanceDate: publicationType === "journal_article" ? row.acceptance_date || null : null,
+    acceptance_date: publicationType === "journal_article" ? row.acceptance_date || null : null,
     editors: bookChapterEditors,
     editor: bookChapterEditors,
     bookSeriesTitle: bookChapterSeriesTitle,
@@ -1397,7 +1430,7 @@ function mapPublication(row) {
 
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-  p.publisher, p.publication_date, p.publication_year, p.source_url, p.volume,
+  p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform, p.indexing_category,
   p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
@@ -1503,6 +1536,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'publication_type',
          'conference_location',
          'publisher',
+         'acceptance_date',
          'publication_date',
          'source_url',
          'volume',
@@ -1527,7 +1561,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 19 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 20 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1645,6 +1679,7 @@ async function ensurePublicationReviewSchema(client) {
   await client.query(`
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
     alter table publications add column if not exists conference_location text not null default '';
+    alter table publications add column if not exists acceptance_date date;
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
     alter table publications add column if not exists indexing_category text not null default '';
@@ -1918,6 +1953,8 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     proceedings_title: proceedingsTitle,
     eventDate,
     event_date: eventDate,
+    acceptanceDate: publicationType === "journal_article" ? metadata.acceptanceDate || metadata.acceptance_date || getAcceptanceDateFromRaw(raw) : "",
+    acceptance_date: publicationType === "journal_article" ? metadata.acceptanceDate || metadata.acceptance_date || getAcceptanceDateFromRaw(raw) : "",
     publicationDate: /^\d{4}-\d{1,2}-\d{1,2}$/.test(metadata.published_date || "")
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
@@ -2066,11 +2103,11 @@ async function createPublication(client, ownerId, values) {
   const externalMetadataId = await resolveExistingExternalMetadataId(client, values.externalMetadataId);
   const { rows } = await client.query(
     `insert into publications
-     (owner_id, doi, title, abstract, publication_type, venue, publisher, publication_date,
+     (owner_id, doi, title, abstract, publication_type, venue, publisher, acceptance_date, publication_date,
       conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
       author_affiliation, indexing_platform, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
      returning id`,
     [
       ownerId,
@@ -2080,6 +2117,7 @@ async function createPublication(client, ownerId, values) {
       values.publicationType,
       values.venue || null,
       values.publisher,
+      values.acceptanceDate,
       values.publicationDate,
       values.conferenceLocation,
       values.publicationYear,
@@ -2363,23 +2401,24 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                venue = $7,
                conference_location = $8,
                publisher = $9,
-               publication_date = $10::date,
-               publication_year = $11,
-               source_url = $12,
-               volume = $13,
-               issue = $14,
-               pages = $15,
-               issn = $16,
-               isbn = $17,
-               status = $18,
-               author_affiliation = $19,
-               indexing_platform = $20,
-               indexing_category = $21,
-               indexing_verified = $22,
-               indexing_source = $23,
-               metadata_source = $24,
-               metadata_verified = $25,
-               external_metadata_id = $26,
+               acceptance_date = $10::date,
+               publication_date = $11::date,
+               publication_year = $12,
+               source_url = $13,
+               volume = $14,
+               issue = $15,
+               pages = $16,
+               issn = $17,
+               isbn = $18,
+               status = $19,
+               author_affiliation = $20,
+               indexing_platform = $21,
+               indexing_category = $22,
+               indexing_verified = $23,
+               indexing_source = $24,
+               metadata_source = $25,
+               metadata_verified = $26,
+               external_metadata_id = $27,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -2394,6 +2433,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.venue || null,
             values.conferenceLocation,
             values.publisher,
+            values.acceptanceDate,
             values.publicationDate,
             values.publicationYear,
             values.sourceUrl,

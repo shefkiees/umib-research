@@ -1320,6 +1320,7 @@ export default function ProfessorDashboard() {
     const indexingPlatform = supportsIndexing ? draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "" : "";
     const indexingCategory = supportsIndexing ? draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "" : "";
     const publicationDate = isBookPublication && !isBookChapter ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
+    const acceptanceDate = publicationType === "journal_article" ? normalizePublicationDateForPayload(draft.acceptanceDate || draft.acceptance_date) : "";
     const quartile = supportsIndexing ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
     const sjr = supportsIndexing ? draft.sjr || selectedIndexing.sjr || "" : "";
     const citeScore = supportsIndexing ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
@@ -1387,6 +1388,8 @@ export default function ProfessorDashboard() {
       conferenceLocation: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
       conference_location: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
       publisher: draft.publisher || "",
+      acceptanceDate,
+      acceptance_date: acceptanceDate,
       publicationDate,
       publication_date: publicationDate,
       publicationYear: isBookPublication && !isBookChapter ? "" : draft.publicationYear || draft.publication_year || "",
