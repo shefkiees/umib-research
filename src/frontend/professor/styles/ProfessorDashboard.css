@@ -3796,6 +3796,15 @@ body {
   font-size: 0.8rem;
 }
 
+.reimbursement-publication-summary .reimbursement-publication-info-row.is-issn {
+  padding-block: 5px;
+  gap: 1px;
+}
+
+.reimbursement-publication-summary .reimbursement-publication-info-row.is-issn strong {
+  line-height: 1.2;
+}
+
 .reimbursement-publication-summary .reimbursement-publication-inline-chips {
   min-height: 0;
   padding: 2px 0 0;

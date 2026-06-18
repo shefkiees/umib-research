@@ -547,7 +547,11 @@ function formatIssnDisplay(issn, eIssn) {
     return [`ISSN: ${printIssn}`, `E-ISSN: ${electronicIssn}`].join("\n");
   }
 
-  return uniqueValues[0] || "";
+  if (printIssn) {
+    return `ISSN: ${printIssn}`;
+  }
+
+  return electronicIssn ? `E-ISSN: ${electronicIssn}` : uniqueValues[0] || "";
 }
 
 function createDisplayField(label, value, options = {}) {
@@ -748,10 +752,11 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createDisplayField("Emri i Revistës", form.venue || form.journal),
       createDisplayField("Shtëpia botuese", form.publisher),
       createDisplayField("Data e Publikimit", form.publicationDate || form.publicationYear, { format: "date" }),
+      createDisplayField("Data e Pranimit", form.acceptanceDate, { format: "date" }),
       createDisplayField("Vëllimi", form.volume),
       createDisplayField("Numri i revistës / Issue", form.issue),
       createDisplayField("Faqet", form.pages),
-      createDisplayField("ISSN / E-ISSN", issnDisplay),
+      createDisplayField("ISSN / E-ISSN", issnDisplay, { variant: "issn" }),
       createDisplayField("Autori kryesor", form.mainAuthor),
       createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
@@ -762,7 +767,6 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("CiteScore", citeScore),
       createDisplayField("Kuartili", form.scopusQuartile),
-      createDisplayField("Data e Pranimit", form.acceptanceDate, { format: "date" }),
     ].filter(Boolean),
   };
 }
@@ -2959,7 +2963,11 @@ export default function ReimbursementManager({
     selectedTypeSchema.sections.find((section) => section.id === sectionId)?.fields || [];
 
   const renderPublicationDisplayField = (field) => (
-    <div className="reimbursement-publication-info-row" style={field.style} key={`${field.label}-${field.value}`}>
+    <div
+      className={`reimbursement-publication-info-row ${field.variant === "issn" ? "is-issn" : ""}`.trim()}
+      style={field.style}
+      key={`${field.label}-${field.value}`}
+    >
       <span>{field.label}</span>
       {field.variant === "chips" ? (
         <div className="reimbursement-coauthor-list reimbursement-publication-inline-chips">
