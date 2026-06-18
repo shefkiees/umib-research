@@ -3353,10 +3353,6 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.academicTitle}</span>
                   <select value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")}>
-                    <option value="">{settingsText.academicTitlePlaceholder}</option>
-                    {profileDraft.academicTitle && !ACADEMIC_TITLE_OPTIONS.includes(profileDraft.academicTitle) ? (
-                      <option value={profileDraft.academicTitle}>{profileDraft.academicTitle}</option>
-                    ) : null}
                     {ACADEMIC_TITLE_OPTIONS.map((title) => (
                       <option key={title} value={title}>{title}</option>
                     ))}
@@ -3365,10 +3361,6 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.scientificTitle}</span>
                   <select value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")}>
-                    <option value="">{settingsText.scientificTitlePlaceholder}</option>
-                    {profileDraft.scientificTitle && !SCIENTIFIC_TITLE_OPTIONS.includes(profileDraft.scientificTitle) ? (
-                      <option value={profileDraft.scientificTitle}>{profileDraft.scientificTitle}</option>
-                    ) : null}
                     {SCIENTIFIC_TITLE_OPTIONS.map((title) => (
                       <option key={title} value={title}>{title}</option>
                     ))}
