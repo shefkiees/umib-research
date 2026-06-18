@@ -35,6 +35,38 @@ function firstValue(value) {
   return String(values.find((item) => String(item || "").trim()) || "").trim();
 }
 
+function nthValue(value, index = 0) {
+  const values = Array.isArray(value) ? value : [value];
+  return String(values[index] || "").trim();
+}
+
+function uniqueTextValues(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function formatIssnPair(issn, eIssn) {
+  const printIssn = String(issn || "").trim();
+  const electronicIssn = String(eIssn || "").trim();
+
+  return [
+    printIssn ? `${printIssn} (Print)` : "",
+    electronicIssn ? `${electronicIssn} (Online)` : "",
+  ].filter(Boolean).join(", ") || uniqueTextValues([printIssn, electronicIssn]).join(", ");
+}
+
+function getMetadataIssnValues(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const issn = metadata.issn || extractIssnByType(raw, "print") || firstValue(raw.ISSN || raw.issn);
+  const eIssn = metadata.eIssn
+    || metadata.e_issn
+    || metadata.eissn
+    || extractIssnByType(raw, "electronic")
+    || firstValue(raw.eISSN || raw.eissn || raw.EISSN)
+    || nthValue(raw.ISSN || raw.issn, 1);
+
+  return { issn, eIssn };
+}
+
 function extractIssnByType(raw = {}, targetType = "") {
   const target = String(targetType || "").trim().toLowerCase();
   const values = [
@@ -99,8 +131,8 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
   const eventDate = metadata.eventDate || metadata.event_date || metadata.raw_json?.event_date || "";
   const pageStart = metadata.pageStart || metadata.page_start || metadata.pagesStart || metadata.pages_start || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start || "";
   const pageEnd = metadata.pageEnd || metadata.page_end || metadata.pagesEnd || metadata.pages_end || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end || "";
-  const issn = metadata.issn || extractIssnByType(metadata.raw_json, "print") || firstValue(metadata.raw_json?.ISSN || metadata.raw_json?.issn);
-  const eIssn = metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || firstValue(metadata.raw_json?.eISSN || metadata.raw_json?.eissn || metadata.raw_json?.EISSN);
+  const { issn, eIssn } = getMetadataIssnValues(metadata);
+  const journalIssns = formatIssnPair(issn, eIssn);
   const isbn = isJournalArticle ? "" : metadata.isbn || firstValue(metadata.raw_json?.ISBN || metadata.raw_json?.isbn);
   const quartile = Array.isArray(metadata.indexing)
     ? metadata.indexing.find((item) => item?.quartile)?.quartile
@@ -251,8 +283,8 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
         {showConferenceFields && eventDate ? renderField(t("professor.dashboard.publicationForm.eventDate"), eventDate) : null}
         {showConferenceFields && pageStart ? renderField(t("professor.dashboard.publicationForm.pageStart"), pageStart) : null}
         {showConferenceFields && pageEnd ? renderField(t("professor.dashboard.publicationForm.pageEnd"), pageEnd) : null}
-        {(showConferenceFields || isJournalArticle) && issn ? renderField("ISSN", issn) : null}
-        {isJournalArticle && eIssn ? renderField("E-ISSN", eIssn) : null}
+        {showConferenceFields && issn ? renderField("ISSN", issn) : null}
+        {isJournalArticle && journalIssns ? renderField("ISSN / E-ISSN", journalIssns) : null}
         {showConferenceFields && isbn ? renderField("ISBN", isbn) : null}
         {showBookChapterFields && editors ? renderField(t("professor.dashboard.publicationForm.editors"), editors) : null}
         {showBookChapterFields && bookSeriesTitle ? renderField(t("professor.dashboard.publicationForm.bookSeriesTitle"), bookSeriesTitle) : null}

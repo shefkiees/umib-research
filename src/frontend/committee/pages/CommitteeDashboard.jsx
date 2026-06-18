@@ -982,7 +982,9 @@ function getChecklistEvidenceText(publication = {}, key) {
     case "documentsOk":
       return documentCount ? `${documentCount} dokument/e mbështetëse` : "Mungon dokument mbështetës";
     case "issnOk":
-      return publication.issn || publication.eissn || publication.eIssn || publication.e_issn ? `ISSN/eISSN: ${publication.issn || publication.eissn || publication.eIssn || publication.e_issn}` : "Mungon ISSN/eISSN";
+      return publication.issn || publication.eissn || publication.eIssn || publication.e_issn
+        ? `ISSN/eISSN: ${[publication.issn, publication.eissn || publication.eIssn || publication.e_issn].filter(Boolean).join(", ")}`
+        : "Mungon ISSN/eISSN";
     case "volumeIssuePagesOk":
       return publication.volume || publication.issue || publication.pages || publication.pageStart || publication.page_start || publication.pageEnd || publication.page_end
         ? [publication.volume ? `Vol. ${publication.volume}` : "", publication.issue ? `Issue ${publication.issue}` : "", publication.pages || publication.pageStart || publication.page_start ? `Faqe ${publication.pages || [publication.pageStart || publication.page_start, publication.pageEnd || publication.page_end].filter(Boolean).join("-")}` : ""].filter(Boolean).join(" | ")
@@ -2216,6 +2218,8 @@ export default function CommitteeDashboard() {
         .replace(/\s+/g, " ")
         .trim();
     };
+    const uniqueReviewValues = (values = []) => [...new Set(values.map(cleanReviewText).filter(Boolean))];
+    const formatReviewIssns = (issn, eIssn) => uniqueReviewValues([issn, eIssn]).join(", ");
     const splitReviewTitleAbstract = (value) => {
       if (!hasReviewValue(value)) {
         return { title: "", abstract: "" };
@@ -2239,6 +2243,9 @@ export default function CommitteeDashboard() {
       .replace(/^doi:\s*/i, "")
       .trim();
     const doiValue = normalizeDoi(requestData.doi);
+    const normalizedPublicationType = String(requestData.publicationType || requestData.publication_type || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
+    const isJournalArticle = normalizedPublicationType === "journal_article" || normalizedPublicationType === "article_journal";
+    const requestIssns = formatReviewIssns(requestData.issn, requestData.eIssn || requestData.e_issn);
     const getPublicationLinkLabel = (value) => {
       if (!hasReviewValue(value)) {
         return "";
@@ -2284,7 +2291,7 @@ export default function CommitteeDashboard() {
       return Array.isArray(value) ? value.join(", ") : String(value);
     };
     const renderReviewSection = (title, fields, options = {}) => {
-      const visibleFields = fields.filter((field) => field.alwaysShow || hasReviewValue(field.value));
+      const visibleFields = fields.filter((field) => field && (field.alwaysShow || hasReviewValue(field.value)));
 
       return (
         <section className={`committee-review-section ${options.placeholder ? "is-placeholder" : ""} ${options.className || ""}`}>
@@ -2439,7 +2446,7 @@ export default function CommitteeDashboard() {
         "Autori korrespondent": createChecklistValue(requestData.correspondingAuthor),
         "Bashkëautorët": createChecklistValue(requestData.coauthors),
         "Përkatësia institucionale (Affiliation)": createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
-        "ISSN / ISBN": createChecklistValue(getFirstReviewValue(requestData.issn, requestData.eIssn, requestData.e_issn, requestData.isbn)),
+        [isJournalArticle ? "ISSN / E-ISSN" : "ISSN / ISBN"]: createChecklistValue(isJournalArticle ? requestIssns : getFirstReviewValue(requestData.issn, requestData.eIssn, requestData.e_issn, requestData.isbn)),
         "Indeksimi në platformë": createChecklistValue(requestData.indexingPlatform),
         "Kategoria e indeksimit": createChecklistValue(requestData.indexingCategory),
         Kuartili: createChecklistValue(requestData.scopusQuartile),
@@ -2669,9 +2676,8 @@ export default function CommitteeDashboard() {
       createReviewField("Vëllimi", requestData.volume),
       createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),
-      createReviewField("ISSN", requestData.issn),
-      createReviewField("E-ISSN", requestData.eIssn || requestData.e_issn),
-      createReviewField("ISBN", requestData.isbn),
+      isJournalArticle ? createReviewField("ISSN / E-ISSN", requestIssns) : createReviewField("ISSN", requestData.issn),
+      isJournalArticle ? null : createReviewField("ISBN", requestData.isbn),
       createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
       createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
       createReviewField("Impakt Faktori (IF)", requestData.impactFactor),
@@ -2690,7 +2696,9 @@ export default function CommitteeDashboard() {
       requestData.abstract,
       f2WorkParts.abstract
     ));
-    const f2IssnIsbn = [requestData.issn, requestData.eIssn || requestData.e_issn, requestData.isbn].filter(hasReviewValue).join(" / ");
+    const f2IssnIsbn = isJournalArticle
+      ? requestIssns
+      : [requestData.issn, requestData.eIssn || requestData.e_issn, requestData.isbn].filter(hasReviewValue).join(" / ");
     const isF2WorkAbstractLong = f2WorkAbstract.length > 360;
     const f2ScientificWorkFields = [
       createReviewField("Lloji i publikimit", hasReviewValue(requestData.publicationType) ? getPublicationTypeLabel(requestData.publicationType) : ""),
@@ -2704,7 +2712,7 @@ export default function CommitteeDashboard() {
         getFirstReviewValue(requestData.publicationDate, requestData.publicationYear),
         { format: requestData.publicationDate ? "date" : "" }
       ),
-      createReviewField("ISSN / ISBN", f2IssnIsbn),
+      createReviewField(isJournalArticle ? "ISSN / E-ISSN" : "ISSN / ISBN", f2IssnIsbn),
       createReviewField("Vëllimi", requestData.volume),
       createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),

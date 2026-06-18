@@ -530,6 +530,14 @@ function cleanDisplayValue(value) {
   return stripMarkup(value);
 }
 
+function uniqueDisplayValues(values = []) {
+  return [...new Set(values.map(cleanDisplayValue).filter(Boolean))];
+}
+
+function formatIssnDisplay(issn, eIssn) {
+  return uniqueDisplayValues([issn, eIssn]).join(", ");
+}
+
 function createDisplayField(label, value, options = {}) {
   const cleanValue = options.format === "date"
     ? formatDisplayDate(value)
@@ -584,6 +592,7 @@ function createAuthorListDisplayField(label, values) {
 function getPublicationDisplaySections(form) {
   const publicationType = normalizePublicationType(form.publicationType);
   const typeLabel = getPublicationTypeLabel(form.publicationType);
+  const issnDisplay = formatIssnDisplay(form.issn, form.eIssn || form.e_issn);
   const baseFields = [
     createDisplayField("Titulli i artikullit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
@@ -644,8 +653,7 @@ function getPublicationDisplaySections(form) {
       fields: [
         createDisplayField("Publikuar në", form.venue || form.journal),
         createDisplayField("Shtëpia botuese", form.publisher),
-        createDisplayField("ISSN", form.issn),
-        createDisplayField("E-ISSN", form.eIssn || form.e_issn),
+        createDisplayField("ISSN / E-ISSN", issnDisplay),
         createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
         createDisplayField("Vëllimi", form.volume),
         createDisplayField("Numri i revistës / Issue", form.issue),
@@ -672,6 +680,7 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
   const correspondingAuthor = cleanDisplayValue(form.correspondingAuthor || options.correspondingAuthor);
   const citeScore = cleanDisplayValue(options.citeScore);
+  const issnDisplay = formatIssnDisplay(form.issn, form.eIssn || form.e_issn);
   const commonStart = [
     createDisplayField("Titulli i artikullit", form.publicationTitle),
     createDisplayField("Lloji i publikimit", typeLabel),
@@ -679,10 +688,9 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
     createDisplayField("Shtëpia botuese", form.publisher),
     createDisplayField("Publikuar më", form.publicationDate || form.publicationYear, { format: "date" }),
     createDisplayField("Faqet", form.pages),
-    createDisplayField("ISSN", form.issn),
-    createDisplayField("E-ISSN", form.eIssn || form.e_issn),
-    createDisplayField("ISBN", form.isbn),
-  ];
+    publicationType === "journal_article" ? createDisplayField("ISSN / E-ISSN", issnDisplay) : createDisplayField("ISSN", form.issn),
+    publicationType === "journal_article" ? null : createDisplayField("ISBN", form.isbn),
+  ].filter(Boolean);
 
   if (publicationType === "book") {
     return {
@@ -731,9 +739,7 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       createDisplayField("Vëllimi", form.volume),
       createDisplayField("Numri i revistës / Issue", form.issue),
       createDisplayField("Faqet", form.pages),
-      createDisplayField("ISSN", form.issn),
-      createDisplayField("E-ISSN", form.eIssn || form.e_issn),
-      createDisplayField("ISBN", form.isbn),
+      createDisplayField("ISSN / E-ISSN", issnDisplay),
       createDisplayField("Autori kryesor", form.mainAuthor),
       createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
       createAuthorListDisplayField("Bashkautorët", coauthors),
@@ -3057,7 +3063,9 @@ export default function ReimbursementManager({
     const indexing = getPublicationIndexingFields(selectedPublication);
     const venue = selectedPublication.venue || selectedPublication.publishedIn || selectedPublication.published_in || selectedPublication.journal || "";
     const publicationType = selectedPublication.publicationType || selectedPublication.publication_type || "";
-    const showIndexingMetadata = normalizePublicationType(publicationType) === "journal_article";
+    const normalizedPublicationType = normalizePublicationType(publicationType);
+    const showIndexingMetadata = normalizedPublicationType === "journal_article";
+    const selectedIssnDisplay = formatIssnDisplay(selectedPublication.issn, selectedPublication.eIssn || selectedPublication.e_issn || selectedPublication.eissn);
     const coauthors = splitCoauthors(form.coParticipant || authorFields.coauthors);
     const doi = cleanDisplayValue(selectedPublication.doi);
     const affiliationText = cleanDisplayValue(form.affiliation || authorFields.affiliation || form.authorsAffiliation);
@@ -3073,9 +3081,8 @@ export default function ReimbursementManager({
         createDisplayField("Vëllimi", selectedPublication.volume),
         createDisplayField("Numri i revistës / Issue", selectedPublication.issue),
         createDisplayField("Faqet", selectedPublication.pages),
-        createDisplayField("ISSN", selectedPublication.issn),
-        createDisplayField("E-ISSN", selectedPublication.eIssn || selectedPublication.e_issn || selectedPublication.eissn),
-        createDisplayField("ISBN", selectedPublication.isbn),
+        normalizedPublicationType === "journal_article" ? createDisplayField("ISSN / E-ISSN", selectedIssnDisplay) : createDisplayField("ISSN", selectedPublication.issn),
+        normalizedPublicationType === "journal_article" ? null : createDisplayField("ISBN", selectedPublication.isbn),
         createDisplayField("Autori kryesor", form.mainAuthor || authorFields.mainAuthor),
         createCompactAuthorDisplayField("Autori korrespondent", form.correspondingAuthor || authorFields.correspondingAuthor),
         createAuthorListDisplayField("Bashkautorët", coauthors),

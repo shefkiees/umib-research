@@ -218,6 +218,55 @@ function firstTextValue(value) {
   return String(value || "").trim();
 }
 
+function nthTextValue(value, index = 0) {
+  const values = Array.isArray(value) ? value : [value];
+  return String(values[index] || "").trim();
+}
+
+function uniqueTextValues(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function formatIssnPair(issn, eIssn, options = {}) {
+  const { includeLabels = false } = options;
+  const printIssn = String(issn || "").trim();
+  const electronicIssn = String(eIssn || "").trim();
+
+  if (includeLabels) {
+    return [
+      printIssn ? `${printIssn} (Print)` : "",
+      electronicIssn ? `${electronicIssn} (Online)` : "",
+    ].filter(Boolean).join(", ");
+  }
+
+  return uniqueTextValues([printIssn, electronicIssn]).join(", ");
+}
+
+function getMetadataIssnValues(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const issn = metadata.issn || extractIssnByType(raw, "print") || firstTextValue(raw.ISSN || raw.issn);
+  const eIssn = metadata.eIssn
+    || metadata.e_issn
+    || metadata.eissn
+    || extractIssnByType(raw, "electronic")
+    || firstTextValue(raw.eISSN || raw.eissn || raw.EISSN)
+    || nthTextValue(raw.ISSN || raw.issn, 1);
+
+  return { issn, eIssn };
+}
+
+function splitIssnPair(value = "") {
+  const cleaned = String(value || "")
+    .replace(/\((?:print|online|electronic|e-?issn|p-?issn)\)/gi, "")
+    .trim();
+  const parts = uniqueTextValues(cleaned.split(/\s*(?:,|\/|;|\|)\s*/));
+
+  return {
+    issn: parts[0] || "",
+    eIssn: parts[1] || "",
+  };
+}
+
 function extractIssnByType(raw = {}, targetType = "") {
   const target = String(targetType || "").trim().toLowerCase();
   const values = [
@@ -847,9 +896,9 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     pages: metadata.pages || "",
     pageStart: isConferencePaper ? metadata.pageStart || metadata.page_start || metadata.pagesStart || metadata.pages_start || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start || "" : "",
     pageEnd: isConferencePaper ? metadata.pageEnd || metadata.page_end || metadata.pagesEnd || metadata.pages_end || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end || "" : "",
-    issn: isBookPublication ? "" : metadata.issn || extractIssnByType(metadata.raw_json, "print") || firstTextValue(metadata.raw_json?.ISSN || metadata.raw_json?.issn),
-    eIssn: publicationType === "journal_article" ? metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || firstTextValue(metadata.raw_json?.eISSN || metadata.raw_json?.eissn || metadata.raw_json?.EISSN) : "",
-    e_issn: publicationType === "journal_article" ? metadata.e_issn || metadata.eIssn || metadata.eissn || extractIssnByType(metadata.raw_json, "electronic") || firstTextValue(metadata.raw_json?.eISSN || metadata.raw_json?.eissn || metadata.raw_json?.EISSN) : "",
+    issn: isBookPublication ? "" : getMetadataIssnValues(metadata).issn,
+    eIssn: publicationType === "journal_article" ? getMetadataIssnValues(metadata).eIssn : "",
+    e_issn: publicationType === "journal_article" ? getMetadataIssnValues(metadata).eIssn : "",
     isbn: publicationType === "journal_article" ? "" : metadata.isbn || firstTextValue(metadata.raw_json?.ISBN || metadata.raw_json?.isbn),
     authorAffiliation: "",
     indexingPlatform,
@@ -941,6 +990,7 @@ const PublicationForm = ({
     ? hasValue("isbn")
     : isBookPublication || (!isJournalArticle && (!isDoiImported || hasValue("isbn")));
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
+  const journalIssnDisplayValue = formatIssnPair(value.issn, value.eIssn || value.e_issn);
   const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
   const hasFormDoi = Boolean(normalizeDoiInput(value.doi));
   const editorsValue = formatContributorList(value.editors || value.editor);
@@ -1032,6 +1082,18 @@ const PublicationForm = ({
       [field]: nextValue,
       ...(field === "eIssn" ? { e_issn: nextValue } : {}),
       ...typeReset,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+  };
+
+  const updateJournalIssnField = (event) => {
+    const nextIssns = splitIssnPair(event.target.value);
+
+    onChange({
+      ...value,
+      issn: nextIssns.issn,
+      eIssn: nextIssns.eIssn,
+      e_issn: nextIssns.eIssn,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
   };
@@ -1594,28 +1656,16 @@ const PublicationForm = ({
           </>
         ) : null}
         {showIdentifierField && isJournalArticle ? (
-          <>
-            <label className="prof-form-field">
-              <span>ISSN</span>
-              <input
-                value={value.issn}
-                onChange={updateField("issn")}
-                placeholder="ISSN"
-                aria-label="ISSN"
-                readOnly={isFieldLocked("issn")}
-              />
-            </label>
-            <label className="prof-form-field">
-              <span>E-ISSN</span>
-              <input
-                value={value.eIssn || value.e_issn || ""}
-                onChange={updateField("eIssn")}
-                placeholder="E-ISSN"
-                aria-label="E-ISSN"
-                readOnly={isFieldLocked("eIssn")}
-              />
-            </label>
-          </>
+          <label className="prof-form-field">
+            <span>ISSN / E-ISSN</span>
+            <input
+              value={journalIssnDisplayValue}
+              onChange={updateJournalIssnField}
+              placeholder="2576-8484 (Print), 2576-8492 (Online)"
+              aria-label="ISSN / E-ISSN"
+              readOnly={isFieldLocked("issn") || isFieldLocked("eIssn")}
+            />
+          </label>
         ) : showIdentifierField ? (
           <div className="prof-form-field publication-identifier-field">
             <span>{isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>

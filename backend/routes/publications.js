@@ -1982,6 +1982,10 @@ function extractFirstArrayValue(value) {
   return Array.isArray(value) ? normalizeText(value[0]) : normalizeText(value);
 }
 
+function extractNthArrayValue(value, index = 0) {
+  return Array.isArray(value) ? normalizeText(value[index]) : "";
+}
+
 function normalizeComparableName(value) {
   return normalizeText(value)
     .toLowerCase()
@@ -2038,7 +2042,7 @@ function metadataAuthorToPublicationAuthor(author, index, currentUser = {}, main
 
 function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const raw = metadata.raw_json || {};
-  const eIssn = metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(raw, "electronic") || raw.eISSN || raw.eissn || raw.EISSN || "";
+  const eIssn = metadata.eIssn || metadata.e_issn || metadata.eissn || extractIssnByType(raw, "electronic") || raw.eISSN || raw.eissn || raw.EISSN || extractNthArrayValue(raw.ISSN || raw.issn, 1) || "";
   const issn = metadata.issn || extractIssnByType(raw, "print") || extractFirstArrayValue(raw.ISSN || raw.issn);
   const isbn = metadata.isbn || extractFirstArrayValue(raw.ISBN || raw.isbn);
   const publicationType = normalizePublicationType(metadata.type);

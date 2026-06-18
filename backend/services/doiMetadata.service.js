@@ -108,6 +108,11 @@ function firstTextValue(value) {
   return normalizeText(values.find((item) => normalizeText(item)) || "");
 }
 
+function nthTextValue(value, index = 0) {
+  const values = Array.isArray(value) ? value : [value];
+  return normalizeText(values[index] || "");
+}
+
 function getRawIdentifierValue(raw = {}, key) {
   const upperKey = key.toUpperCase();
   const lowerKey = key.toLowerCase();
@@ -2668,6 +2673,8 @@ function mapMetadata(data, doi) {
   const proceedingsTitle = type === "conference_paper" ? getConferenceProceedingsTitle(data, conferenceName || containerTitle) : "";
   const eventDate = type === "conference_paper" ? getConferenceEventDate(data) : "";
   const shouldKeepPageRange = isBookChapter || type === "conference_paper";
+  const issn = extractIssnByType(data, "print") || (Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN));
+  const eIssn = extractIssnByType(data, "electronic") || nthTextValue(data.ISSN, 1);
   const metadata = {
     doi,
     title: normalizeText(title),
@@ -2686,10 +2693,10 @@ function mapMetadata(data, doi) {
     issue: normalizeText(data.issue),
     pages: normalizeText(data.page),
     ...(shouldKeepPageRange ? pageRange : {}),
-    issn: extractIssnByType(data, "print") || (Array.isArray(data.ISSN) ? normalizeText(data.ISSN[0]) : normalizeText(data.ISSN)),
-    eIssn: extractIssnByType(data, "electronic") || "",
-    e_issn: extractIssnByType(data, "electronic") || "",
-    isbn: Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
+    issn,
+    eIssn,
+    e_issn: eIssn,
+    isbn: type === "journal_article" ? "" : Array.isArray(data.ISBN) ? normalizeText(data.ISBN[0]) : normalizeText(data.ISBN),
     type,
     proceedingsTitle,
     proceedings_title: proceedingsTitle,
@@ -2837,7 +2844,7 @@ export async function getCachedDoiMetadata(db, doi) {
   }
 
   const rawIssn = extractIssnByType(metadata.raw_json, "print") || getRawIdentifierValue(metadata.raw_json, "ISSN");
-  const rawEIssn = extractIssnByType(metadata.raw_json, "electronic") || getRawIdentifierValue(metadata.raw_json, "EISSN");
+  const rawEIssn = extractIssnByType(metadata.raw_json, "electronic") || getRawIdentifierValue(metadata.raw_json, "EISSN") || nthTextValue(metadata.raw_json?.ISSN || metadata.raw_json?.issn, 1);
   const rawIsbn = getRawIdentifierValue(metadata.raw_json, "ISBN");
   const nextIssn = hasText(metadata.issn) ? metadata.issn : rawIssn;
   const nextEIssn = hasText(metadata.e_issn) ? metadata.e_issn : rawEIssn;
@@ -3080,6 +3087,8 @@ function mapOpenAlexWork(data = {}, doi) {
     issue: "",
     pages: "",
     issn: issnValues[0] || "",
+    eIssn: type === "journal_article" ? issnValues[1] || "" : "",
+    e_issn: type === "journal_article" ? issnValues[1] || "" : "",
     isbn: "",
     type,
     proceedingsTitle: type === "conference_paper" ? normalizeText(source.display_name || hostVenue.display_name) : "",
