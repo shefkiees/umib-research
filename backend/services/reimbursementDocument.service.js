@@ -1185,6 +1185,33 @@ function formatPublicationPdfCoauthors(value) {
   return coauthors.length > 1 ? coauthors.join(", ") : text;
 }
 
+function formatPublicationPdfDate(value) {
+  const text = normalizeText(value);
+
+  if (!text || text === EMPTY_VALUE) {
+    return text;
+  }
+
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(text);
+
+  if (!isoDate) {
+    return text;
+  }
+
+  const [, year, month, day] = isoDate;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+
+  if (
+    date.getUTCFullYear() !== Number(year)
+    || date.getUTCMonth() !== Number(month) - 1
+    || date.getUTCDate() !== Number(day)
+  ) {
+    return text;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
 function isConferencePaperPublication(data) {
   return valueOf(data, "publicationType") === "conference_paper";
 }
@@ -1209,6 +1236,23 @@ function getPublicationPdfField(field, value, data) {
 
   if (field.field === "affiliation") {
     nextField.label = "Përkatësia institucionale (Affiliation)";
+  }
+
+  if (!isBook && !isConferencePaper && field.field === "venue") {
+    nextField.label = "Emri i Revistës";
+  }
+
+  if (field.field === "publicationDate") {
+    nextField.label = "Data e Publikimit";
+    nextValue = formatPublicationPdfDate(value);
+  }
+
+  if (field.field === "acceptanceDate") {
+    nextValue = formatPublicationPdfDate(value);
+  }
+
+  if (field.field === "publicationLink") {
+    nextField.label = "Linku i Artikullit";
   }
 
   if (isBook && field.field === "publicationTitle") {
