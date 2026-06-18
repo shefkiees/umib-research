@@ -116,6 +116,8 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "journal",
   "publishedIn",
   "publisher",
+  "acceptanceDate",
+  "acceptance_date",
   "publicationDate",
   "publicationYear",
   "publicationLink",
@@ -718,6 +720,8 @@ function mapPublicationRow(row) {
     conferenceLocation: row.conference_location || row.conferenceLocation || "",
     conference_location: row.conference_location || row.conferenceLocation || "",
     publisher: row.publisher || "",
+    acceptanceDate: formatDate(row.acceptance_date || row.acceptanceDate),
+    acceptance_date: formatDate(row.acceptance_date || row.acceptanceDate),
     publicationDate: formatDate(row.publication_date || row.publicationDate || row.published_date),
     publication_date: formatDate(row.publication_date || row.publicationDate || row.published_date),
     publicationYear: row.publication_year || row.year || "",
@@ -757,6 +761,7 @@ async function hasPublicationContextColumns(dbOrClient) {
          'publication_type',
          'conference_location',
          'publisher',
+         'acceptance_date',
          'publication_date',
          'source_url',
          'volume',
@@ -775,7 +780,7 @@ async function hasPublicationContextColumns(dbOrClient) {
   );
 
   publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 12
+    Number(rows[0]?.count || 0) === 13
     && Number(tableResult.rows[0]?.count || 0) === 4;
   return publicationContextSchemaCache;
 }
@@ -903,6 +908,8 @@ function publicationToReadOnlyRequestData(publication) {
     publishedIn: venue,
     conferenceLocation: normalizeText(publication.conferenceLocation || publication.conference_location),
     publisher: normalizeText(publication.publisher),
+    acceptanceDate: formatDate(publication.acceptanceDate || publication.acceptance_date),
+    acceptance_date: formatDate(publication.acceptance_date || publication.acceptanceDate),
     publicationDate: formatDate(publication.publicationDate || publication.publication_date),
     publicationYear: normalizeText(publication.publicationYear || publication.publication_year || publication.year),
     publicationLink: normalizeText(publication.sourceUrl || publication.source_url),
@@ -1080,7 +1087,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
   const result = hasPublicationColumns
     ? await dbOrClient.query(
         `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.publication_date, p.publication_year, p.status,
+                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 coalesce(
                   (
@@ -1868,7 +1875,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
     const hasPublicationColumns = await hasPublicationContextColumns(db);
     const publicationsQuery = hasPublicationColumns
       ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.publication_date, p.publication_year, p.status,
+                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 coalesce(
                   (
