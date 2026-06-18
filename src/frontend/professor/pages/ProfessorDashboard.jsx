@@ -1789,6 +1789,7 @@ export default function ProfessorDashboard() {
       bankApplicantName: profileDraft.name || profile.name || "",
       bankAccountNumber: accountIdentifier,
       iban: accountIdentifier,
+      currency: accountId ? bankAccountDraft.currency || "EUR" : "EUR",
       bankCountry: bankAccountDraft.bankCountry || "Kosovë",
     };
 
@@ -3495,14 +3496,6 @@ export default function ProfessorDashboard() {
                     <label className="prof-form-field">
                       <span>{settingsText.bankCountry}</span>
                       <input value={bankAccountDraft.bankCountry} onChange={handleBankAccountDraftChange("bankCountry")} />
-                    </label>
-                    <label className="prof-form-field">
-                      <span>{settingsText.bankCurrency}</span>
-                      <select value={bankAccountDraft.currency} onChange={handleBankAccountDraftChange("currency")}>
-                        {["EUR", "USD", "GBP", "CHF"].map((currency) => (
-                          <option value={currency} key={currency}>{currency}</option>
-                        ))}
-                      </select>
                     </label>
                   </div>
                   <label className="prof-bank-default-toggle">
