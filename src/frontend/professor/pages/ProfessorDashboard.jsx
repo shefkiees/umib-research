@@ -3088,10 +3088,6 @@ export default function ProfessorDashboard() {
                     <span className="prorector-settings-label">{settingsText.orcidSchool}</span>
                     <strong className="prorector-settings-value">{profile.school || settingsText.noPublicData}</strong>
                   </div>
-                  <div className="prorector-settings-item">
-                    <span className="prorector-settings-label">{settingsText.orcidAffiliation}</span>
-                    <strong className="prorector-settings-value">{profile.currentAffiliation || settingsText.noPublicData}</strong>
-                  </div>
                   <button className="prorector-settings-edit-btn" onClick={() => handleMenuAction("EditProfile")}>
                     {settingsText.updateProfile}
                   </button>
@@ -3338,10 +3334,6 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.orcidId}</span>
                   <input value={profileDraft.orcidId || settingsText.notConnected} readOnly aria-readonly="true" />
-                </label>
-                <label className="prof-form-field">
-                  <span>{settingsText.orcidAffiliation}</span>
-                  <input value={profileDraft.currentAffiliation || ""} onChange={handleProfileFieldChange("currentAffiliation")} placeholder={settingsText.affiliationPlaceholder} />
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.faculty}</span>
