@@ -48,6 +48,7 @@ import {
 } from "../../../../shared/banking.js";
 import {
   PUBLICATION_REVIEW_ROLE_VALUES,
+  WEB_OF_SCIENCE_INDEX_VALUES,
 } from "../../../../shared/publicationConstants.js";
 
 import {
@@ -287,6 +288,25 @@ const normalizeQuartileValue = (value) => {
   const match = String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/);
 
   return match?.[0] || "";
+};
+
+const normalizeIndexingPlatformValue = (value) => {
+  const text = String(value || "").trim();
+  const comparable = text.toLowerCase();
+
+  if (!text) return "";
+  if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
+  if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
+  if (comparable === "other") return "Other";
+
+  return text;
+};
+
+const normalizeWebOfScienceIndexValue = (value) => {
+  const normalized = String(value || "").trim().toUpperCase();
+
+  return WEB_OF_SCIENCE_INDEX_VALUES.includes(normalized) ? normalized : "";
 };
 
 const normalizeIndexingSourceKey = (value) => {
@@ -1317,14 +1337,16 @@ export default function ProfessorDashboard() {
     const draftIndexing = supportsIndexing && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = null;
-    const indexingPlatform = supportsIndexing ? draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "" : "";
-    const indexingCategory = supportsIndexing ? draft.indexingCategory || draft.indexing_category || selectedIndexing.category || draftIndexing.find((item) => item?.category)?.category || "" : "";
+    const indexingPlatform = supportsIndexing ? normalizeIndexingPlatformValue(draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "") : "";
+    const customIndexingPlatform = supportsIndexing && indexingPlatform === "Other" ? String(draft.customIndexingPlatform || draft.custom_indexing_platform || "").trim() : "";
+    const webOfScienceIndex = supportsIndexing && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndexValue(draft.webOfScienceIndex || draft.web_of_science_index || selectedIndexing.webOfScienceIndex || selectedIndexing.web_of_science_index || selectedIndexing.category || "") : "";
+    const indexingCategory = webOfScienceIndex;
     const publicationDate = isBookPublication && !isBookChapter ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
     const acceptanceDate = publicationType === "journal_article" ? normalizePublicationDateForPayload(draft.acceptanceDate || draft.acceptance_date) : "";
-    const quartile = supportsIndexing ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
-    const sjr = supportsIndexing ? draft.sjr || selectedIndexing.sjr || "" : "";
-    const citeScore = supportsIndexing ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
-    const impactFactor = supportsIndexing ? draft.impactFactor || draft.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "";
+    const quartile = supportsIndexing && indexingPlatform === "Scopus" ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
+    const sjr = supportsIndexing && indexingPlatform === "Scopus" ? draft.sjr || selectedIndexing.sjr || "" : "";
+    const citeScore = supportsIndexing && indexingPlatform === "Scopus" ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
+    const impactFactor = supportsIndexing && indexingPlatform === "Web of Science" ? draft.impactFactor || draft.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "";
     const quartileVerificationStatus = supportsIndexing ? draft.quartileVerificationStatus || draft.quartile_verification_status || selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status || (quartile ? "manual" : "empty") : "empty";
     const normalizedQuartileVerificationStatus = String(quartileVerificationStatus || "").toLowerCase();
     const quartileVerified = supportsIndexing && normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified);
@@ -1365,10 +1387,10 @@ export default function ProfessorDashboard() {
     });
     const indexing = draftIndexing.length
       ? draftIndexing.map((item, index) => index === 0
-        ? { ...item, source: item.source || indexingPlatform, platform: item.platform || item.source || indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: item.category || indexingCategory, quartile: item.quartile || quartile, quartileVerified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource: item.quartileSource || item.quartile_source || quartileSource, quartile_source: item.quartileSource || item.quartile_source || quartileSource, quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr: item.sjr || sjr, citeScore: item.citeScore || item.cite_score || citeScore, impactFactor: item.impactFactor || item.impact_factor || impactFactor, impact_factor: item.impact_factor || item.impactFactor || impactFactor }
+        ? { ...item, source: indexingPlatform, platform: indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile, quartileVerified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr, citeScore, impactFactor, impact_factor: impactFactor }
         : item)
       : indexingPlatform || indexingCategory || quartile || sjr || citeScore || impactFactor
-        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore, impactFactor, impact_factor: impactFactor }]
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore, impactFactor, impact_factor: impactFactor }]
         : [];
 
     delete payload.attachments;
@@ -1412,6 +1434,10 @@ export default function ProfessorDashboard() {
       author_affiliation: authorAffiliation,
       indexingPlatform,
       indexing_platform: indexingPlatform,
+      customIndexingPlatform,
+      custom_indexing_platform: customIndexingPlatform,
+      webOfScienceIndex,
+      web_of_science_index: webOfScienceIndex,
       indexingCategory,
       indexing_category: indexingCategory,
       indexingVerified,

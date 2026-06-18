@@ -311,6 +311,8 @@ alter table publications add column if not exists issn text not null default '';
 alter table publications add column if not exists isbn text not null default '';
 alter table publications add column if not exists author_affiliation text not null default '';
 alter table publications add column if not exists indexing_platform text not null default '';
+alter table publications add column if not exists custom_indexing_platform text not null default '';
+alter table publications add column if not exists web_of_science_index text not null default '';
 alter table publications add column if not exists indexing_category text not null default '';
 alter table publications add column if not exists indexing_verified boolean not null default false;
 alter table publications add column if not exists indexing_source text not null default 'manual';
@@ -461,6 +463,7 @@ create table if not exists publication_indexing (
   source text not null default '',
   source_key text not null default 'manual',
   category text not null default '',
+  web_of_science_index text not null default '',
   quartile text not null default '',
   impact_factor text not null default '',
   sjr text not null default '',
@@ -472,6 +475,7 @@ create table if not exists publication_indexing (
 
 alter table publication_indexing add column if not exists source_key text not null default 'manual';
 alter table publication_indexing add column if not exists category text not null default '';
+alter table publication_indexing add column if not exists web_of_science_index text not null default '';
 alter table publication_indexing add column if not exists sjr text not null default '';
 alter table publication_indexing add column if not exists cite_score text;
 alter table publication_indexing alter column cite_score drop not null;

@@ -17,6 +17,7 @@ import {
   PUBLICATION_REVIEW_ROLE_VALUES,
   PUBLICATION_STATUS_VALUES,
   PUBLICATION_TYPE_VALUES,
+  WEB_OF_SCIENCE_INDEX_VALUES,
 } from "../../shared/publicationConstants.js";
 
 const router = express.Router();
@@ -574,10 +575,14 @@ function normalizeIndexingPlatform(value) {
   if (comparable.includes("openalex")) return "OpenAlex";
   if (comparable.includes("doaj")) return "DOAJ";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
-  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
 
   return text;
+}
+
+function normalizeCustomIndexingPlatform(value) {
+  return normalizeText(value);
 }
 
 function normalizeIndexingCategory(value) {
@@ -586,11 +591,17 @@ function normalizeIndexingCategory(value) {
 
   if (!text) return "";
   if (/^q[1-4]$/i.test(text)) return text.toUpperCase();
-  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return text.toUpperCase();
   if (["book/chapter", "bookchapter", "book", "chapter"].includes(comparable)) return "Book/Chapter";
   if (comparable === "other") return "Other";
 
   return text;
+}
+
+function normalizeWebOfScienceIndex(value) {
+  const normalized = normalizeIndexingCategory(value);
+
+  return WEB_OF_SCIENCE_INDEX_VALUES.includes(normalized) ? normalized : "";
 }
 
 function normalizeQuartile(value) {
@@ -675,6 +686,8 @@ function normalizeIndexing(value) {
       sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
       source_key: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
       category: normalizeText(item.category),
+      webOfScienceIndex: normalizeWebOfScienceIndex(item.webOfScienceIndex || item.web_of_science_index || item.category),
+      web_of_science_index: normalizeWebOfScienceIndex(item.web_of_science_index || item.webOfScienceIndex || item.category),
       quartile: normalizeQuartile(item.quartile),
       impactFactor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor),
       sjr: normalizeText(item.sjr),
@@ -689,7 +702,7 @@ function normalizeIndexing(value) {
       quartileSelectionReason: normalizeText(item.quartileSelectionReason || item.quartile_selection_reason),
       quartile_selection_reason: normalizeText(item.quartileSelectionReason || item.quartile_selection_reason),
     }))
-    .filter((item) => item.source || item.category || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
+    .filter((item) => item.source || item.category || item.webOfScienceIndex || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
 }
 
 function normalizeComparableAffiliation(value) {
@@ -807,6 +820,8 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     proceedingsTitle: createFieldSource(values.proceedingsTitle || values.proceedings_title, baseSource),
     eventDate: createFieldSource(values.eventDate || values.event_date, baseSource),
     indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || selectedIndexing.source, indexingSource),
+    customIndexingPlatform: createFieldSource(values.customIndexingPlatform || values.custom_indexing_platform, indexingSource),
+    webOfScienceIndex: createFieldSource(values.webOfScienceIndex || values.web_of_science_index || selectedIndexing.webOfScienceIndex || selectedIndexing.web_of_science_index, indexingSource),
     indexingCategory: createFieldSource(values.indexingCategory || values.indexing_category || selectedIndexing.category, indexingSource),
     quartile: createFieldSource(values.quartile || selectedIndexing.quartile, quartileSource),
     sjr: createFieldSource(values.sjr || selectedIndexing.sjr, indexingSource),
@@ -921,8 +936,14 @@ function normalizePublicationPayload(body = {}, options = {}) {
     || Object.prototype.hasOwnProperty.call(body, "quartile")
     || Object.prototype.hasOwnProperty.call(body, "indexingPlatform")
     || Object.prototype.hasOwnProperty.call(body, "indexing_platform")
+    || Object.prototype.hasOwnProperty.call(body, "customIndexingPlatform")
+    || Object.prototype.hasOwnProperty.call(body, "custom_indexing_platform")
+    || Object.prototype.hasOwnProperty.call(body, "webOfScienceIndex")
+    || Object.prototype.hasOwnProperty.call(body, "web_of_science_index")
     || Object.prototype.hasOwnProperty.call(body, "indexingCategory")
     || Object.prototype.hasOwnProperty.call(body, "indexing_category")
+    || Object.prototype.hasOwnProperty.call(body, "citeScore")
+    || Object.prototype.hasOwnProperty.call(body, "cite_score")
     || Object.prototype.hasOwnProperty.call(body, "impactFactor")
     || Object.prototype.hasOwnProperty.call(body, "impact_factor");
   const hasEvidenceLinksInput =
@@ -1007,21 +1028,32 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const bodyImpactFactor = canIndexPublication ? normalizeImpactFactorValue(body.impactFactor || body.impact_factor) : "";
+  const requestedIndexingPlatform = canIndexPublication ? normalizeIndexingPlatform(body.indexingPlatform || body.indexing_platform) : "";
+  const bodyCustomIndexingPlatform = canIndexPublication && requestedIndexingPlatform === "Other"
+    ? normalizeCustomIndexingPlatform(body.customIndexingPlatform || body.custom_indexing_platform)
+    : "";
+  const bodyWebOfScienceIndex = canIndexPublication && requestedIndexingPlatform === "Web of Science"
+    ? normalizeWebOfScienceIndex(body.webOfScienceIndex || body.web_of_science_index || body.indexingCategory || body.indexing_category)
+    : "";
+  const bodyImpactFactor = canIndexPublication && requestedIndexingPlatform === "Web of Science" ? normalizeImpactFactorValue(body.impactFactor || body.impact_factor) : "";
+  const bodyQuartile = canIndexPublication && requestedIndexingPlatform === "Scopus" ? normalizeQuartile(body.quartile) : "";
+  const bodyCiteScore = canIndexPublication && requestedIndexingPlatform === "Scopus" ? normalizeText(body.citeScore || body.cite_score || body.citescore) : "";
   const rawIndexing = canIndexPublication
     ? Array.isArray(body.indexing) && body.indexing.length
       ? body.indexing
-      : (body.quartile || body.indexingPlatform || body.indexing_platform || body.indexingCategory || body.indexing_category || bodyImpactFactor)
+      : (bodyQuartile || requestedIndexingPlatform || bodyCustomIndexingPlatform || bodyWebOfScienceIndex || bodyCiteScore || bodyImpactFactor)
         ? [{
-            source: body.indexingPlatform || body.indexing_platform || body.indexingSource || body.indexing_source,
+            source: requestedIndexingPlatform || body.indexingSource || body.indexing_source,
             sourceKey: body.indexingSource || body.indexing_source,
-            category: body.indexingCategory || body.indexing_category,
-            quartile: body.quartile,
+            category: bodyWebOfScienceIndex,
+            webOfScienceIndex: bodyWebOfScienceIndex,
+            web_of_science_index: bodyWebOfScienceIndex,
+            quartile: bodyQuartile,
             quartileVerified: body.quartileVerified ?? body.quartile_verified,
             quartileSource: body.quartileSource || body.quartile_source,
-            quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"),
+            quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty"),
             sjr: body.sjr,
-            citeScore: body.citeScore || body.cite_score || body.citescore,
+            citeScore: bodyCiteScore,
             impactFactor: bodyImpactFactor,
           }]
         : Array.isArray(body.indexing)
@@ -1033,7 +1065,13 @@ function normalizePublicationPayload(body = {}, options = {}) {
     : undefined;
   const authorAffiliation = null;
   const indexingPlatform = canIndexPublication ? deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform) : "";
-  const indexingCategory = canIndexPublication ? deriveIndexingCategory(indexing, publicationType, body.indexingCategory || body.indexing_category) : "";
+  const customIndexingPlatform = canIndexPublication && indexingPlatform === "Other"
+    ? normalizeCustomIndexingPlatform(body.customIndexingPlatform || body.custom_indexing_platform || bodyCustomIndexingPlatform)
+    : "";
+  const webOfScienceIndex = canIndexPublication && indexingPlatform === "Web of Science"
+    ? normalizeWebOfScienceIndex(body.webOfScienceIndex || body.web_of_science_index || bodyWebOfScienceIndex || deriveIndexingCategory(indexing, publicationType))
+    : "";
+  const indexingCategory = webOfScienceIndex;
   const evidenceLinks = hasEvidenceLinksInput
     ? normalizeEvidenceLinks(body.evidenceLinks || body.evidence_links || body.attachments, errors)
     : undefined;
@@ -1047,13 +1085,16 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const indexingSource = indexingVerified ? requestedIndexingSource : "manual";
   const hasIndexingClaim = canIndexPublication && Boolean(
     indexingCategory
-    || normalizeQuartile(body.quartile)
+    || customIndexingPlatform
+    || bodyQuartile
     || normalizeText(body.sjr)
-    || normalizeText(body.citeScore || body.cite_score || body.citescore)
+    || bodyCiteScore
     || bodyImpactFactor
     || indexingVerified
     || indexing?.some((item) =>
       item.category
+      || item.webOfScienceIndex
+      || item.web_of_science_index
       || item.quartile
       || item.sjr
       || item.citeScore
@@ -1094,26 +1135,30 @@ function normalizePublicationPayload(body = {}, options = {}) {
       ? indexing.map((item, index) => index === 0
         ? {
             ...item,
-            source: item.source || indexingPlatform,
-            platform: item.platform || item.source || indexingPlatform,
+            source: indexingPlatform,
+            platform: indexingPlatform,
             sourceKey: item.sourceKey || item.source_key || indexingSource,
             source_key: item.source_key || item.sourceKey || indexingSource,
-            category: item.category || indexingCategory,
-            quartile: item.quartile || normalizeQuartile(body.quartile),
+            category: indexingCategory,
+            webOfScienceIndex,
+            web_of_science_index: webOfScienceIndex,
+            quartile: bodyQuartile,
             quartileVerified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
             quartile_verified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
             quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
             quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
-            quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile || body.quartile ? "manual" : "empty"),
-            quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (item.quartile || body.quartile ? "manual" : "empty"),
+            quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (bodyQuartile ? "manual" : "empty"),
+            quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (bodyQuartile ? "manual" : "empty"),
             quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
             quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
-            impactFactor: normalizeImpactFactorValue(item.impactFactor || item.impact_factor || bodyImpactFactor),
-            impact_factor: normalizeImpactFactorValue(item.impact_factor || item.impactFactor || bodyImpactFactor),
+            impactFactor: bodyImpactFactor,
+            impact_factor: bodyImpactFactor,
+            citeScore: bodyCiteScore,
+            cite_score: bodyCiteScore,
           }
         : item)
       : hasIndexingClaim || indexingPlatform
-        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, quartile: normalizeQuartile(body.quartile), quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (body.quartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: bodyImpactFactor, impact_factor: bodyImpactFactor, sjr: normalizeText(body.sjr), citeScore: normalizeText(body.citeScore || body.cite_score || body.citescore), indexedUrl: "" }]
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile: bodyQuartile, quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: bodyImpactFactor, impact_factor: bodyImpactFactor, sjr: indexingPlatform === "Scopus" ? normalizeText(body.sjr) : "", citeScore: bodyCiteScore, indexedUrl: "" }]
         : []
     : undefined;
 
@@ -1139,6 +1184,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
       isbn: nullableConferenceText(publicationType, body.isbn),
       authorAffiliation,
       indexingPlatform,
+      customIndexingPlatform,
+      custom_indexing_platform: customIndexingPlatform,
+      webOfScienceIndex,
+      web_of_science_index: webOfScienceIndex,
       indexingCategory,
       indexingVerified,
       indexingSource,
@@ -1156,6 +1205,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
         ...body,
         authorAffiliation,
         indexingPlatform,
+        customIndexingPlatform,
+        custom_indexing_platform: customIndexingPlatform,
+        webOfScienceIndex,
+        web_of_science_index: webOfScienceIndex,
         indexingCategory,
         indexingVerified,
         indexingSource,
@@ -1209,6 +1262,8 @@ function mapPublication(row) {
     sourceKey: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
     source_key: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
     category: item.category || "",
+    webOfScienceIndex: normalizeWebOfScienceIndex(item.web_of_science_index || item.webOfScienceIndex || item.category),
+    web_of_science_index: normalizeWebOfScienceIndex(item.web_of_science_index || item.webOfScienceIndex || item.category),
     quartile: normalizeQuartile(item.quartile),
     quartileVerified: normalizeBoolean(item.quartile_verified ?? item.quartileVerified),
     quartile_verified: normalizeBoolean(item.quartile_verified ?? item.quartileVerified),
@@ -1229,7 +1284,9 @@ function mapPublication(row) {
   })) : [];
   const authorAffiliation = null;
   const indexingPlatform = supportsPublicationIndexing(publicationType) ? row.indexing_platform || deriveIndexingPlatform(indexing) : "";
-  const indexingCategory = supportsPublicationIndexing(publicationType) ? row.indexing_category || deriveIndexingCategory(indexing, publicationType) : "";
+  const customIndexingPlatform = supportsPublicationIndexing(publicationType) && indexingPlatform === "Other" ? normalizeCustomIndexingPlatform(row.custom_indexing_platform) : "";
+  const webOfScienceIndex = supportsPublicationIndexing(publicationType) && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndex(row.web_of_science_index || deriveIndexingCategory(indexing, publicationType)) : "";
+  const indexingCategory = supportsPublicationIndexing(publicationType) ? webOfScienceIndex : "";
   const indexingVerified = supportsPublicationIndexing(publicationType) && Boolean(row.indexing_verified);
   const indexingSource = supportsPublicationIndexing(publicationType) ? normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source) : "manual";
   const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
@@ -1274,6 +1331,8 @@ function mapPublication(row) {
     proceedingsTitle: conferenceProceedingsTitle,
     eventDate: conferenceEventDate,
     indexingPlatform,
+    customIndexingPlatform,
+    webOfScienceIndex,
     indexingCategory,
     indexingVerified,
     indexingSource,
@@ -1339,6 +1398,10 @@ function mapPublication(row) {
     affiliation: authorAffiliation,
     indexingPlatform,
     indexing_platform: indexingPlatform,
+    customIndexingPlatform,
+    custom_indexing_platform: customIndexingPlatform,
+    webOfScienceIndex,
+    web_of_science_index: webOfScienceIndex,
     indexingCategory,
     indexing_category: indexingCategory,
     indexingVerified,
@@ -1453,7 +1516,8 @@ function mapPublication(row) {
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
-  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform, p.indexing_category,
+  p.issue, p.pages, p.issn, p.isbn, p.author_affiliation, p.indexing_platform,
+  p.custom_indexing_platform, p.web_of_science_index, p.indexing_category,
   p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
@@ -1481,6 +1545,7 @@ const PUBLICATION_SELECT_SQL = `
       'platform', pi.source,
       'source_key', pi.source_key,
       'category', pi.category,
+      'web_of_science_index', pi.web_of_science_index,
       'quartile', pi.quartile,
       'quartile_verified', pi.quartile_verified,
       'quartile_source', pi.quartile_source,
@@ -1568,6 +1633,8 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'isbn',
          'author_affiliation',
          'indexing_platform',
+         'custom_indexing_platform',
+         'web_of_science_index',
          'indexing_category',
          'indexing_verified',
          'indexing_source',
@@ -1583,7 +1650,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 20 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 22 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1619,13 +1686,14 @@ async function replacePublicationChildren(client, publicationId, values) {
   for (const item of values.indexing || []) {
     await client.query(
       `insert into publication_indexing
-       (publication_id, source, source_key, category, quartile, quartile_verified, quartile_source, quartile_verification_status, quartile_selection_reason, impact_factor, sjr, cite_score, indexed_url)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+       (publication_id, source, source_key, category, web_of_science_index, quartile, quartile_verified, quartile_source, quartile_verification_status, quartile_selection_reason, impact_factor, sjr, cite_score, indexed_url)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         publicationId,
         item.source,
         item.sourceKey || item.source_key || values.indexingSource,
         item.category,
+        item.webOfScienceIndex || item.web_of_science_index || "",
         item.quartile,
         Boolean(item.quartileVerified ?? item.quartile_verified),
         item.quartileSource || item.quartile_source || "manual",
@@ -1704,6 +1772,8 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists acceptance_date date;
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
+    alter table publications add column if not exists custom_indexing_platform text not null default '';
+    alter table publications add column if not exists web_of_science_index text not null default '';
     alter table publications add column if not exists indexing_category text not null default '';
     alter table publications add column if not exists indexing_verified boolean not null default false;
     alter table publications add column if not exists indexing_source text not null default 'manual';
@@ -1727,6 +1797,7 @@ async function ensurePublicationReviewSchema(client) {
     alter table if exists publication_authors alter column affiliation drop default;
     alter table if exists publication_indexing add column if not exists source_key text not null default 'manual';
     alter table if exists publication_indexing add column if not exists category text not null default '';
+    alter table if exists publication_indexing add column if not exists web_of_science_index text not null default '';
     alter table if exists publication_indexing add column if not exists sjr text not null default '';
     alter table if exists publication_indexing add column if not exists cite_score text;
     alter table if exists publication_indexing alter column cite_score drop not null;
@@ -2127,9 +2198,9 @@ async function createPublication(client, ownerId, values) {
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, acceptance_date, publication_date,
       conference_location, publication_year, source_url, volume, issue, pages, issn, isbn, status,
-      author_affiliation, indexing_platform, indexing_category, indexing_verified, indexing_source,
+      author_affiliation, indexing_platform, custom_indexing_platform, web_of_science_index, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
      returning id`,
     [
       ownerId,
@@ -2152,6 +2223,8 @@ async function createPublication(client, ownerId, values) {
       values.status,
       values.authorAffiliation,
       values.indexingPlatform,
+      values.customIndexingPlatform,
+      values.webOfScienceIndex,
       values.indexingCategory,
       values.indexingVerified,
       values.indexingSource,
@@ -2435,12 +2508,14 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                status = $19,
                author_affiliation = $20,
                indexing_platform = $21,
-               indexing_category = $22,
-               indexing_verified = $23,
-               indexing_source = $24,
-               metadata_source = $25,
-               metadata_verified = $26,
-               external_metadata_id = $27,
+               custom_indexing_platform = $22,
+               web_of_science_index = $23,
+               indexing_category = $24,
+               indexing_verified = $25,
+               indexing_source = $26,
+               metadata_source = $27,
+               metadata_verified = $28,
+               external_metadata_id = $29,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -2467,6 +2542,8 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.status,
             values.authorAffiliation,
             values.indexingPlatform,
+            values.customIndexingPlatform,
+            values.webOfScienceIndex,
             values.indexingCategory,
             values.indexingVerified,
             values.indexingSource,

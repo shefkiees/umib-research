@@ -35,15 +35,11 @@ export const METADATA_REVIEW_STATUS_VALUES = [
 
 export const INDEXING_PLATFORM_VALUES = [
   "Scopus",
-  "SCImago",
-  "OpenAlex",
-  "DOAJ",
   "Web of Science",
-  "SCIE",
-  "SSCI",
-  "AHCI",
   "Other",
 ];
+
+export const WEB_OF_SCIENCE_INDEX_VALUES = ["SCIE", "SSCI", "AHCI", "ESCI"];
 
 export const INDEXING_SOURCE_VALUES = [
   "scopus",

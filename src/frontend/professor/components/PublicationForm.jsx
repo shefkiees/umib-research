@@ -7,6 +7,7 @@ import {
   PUBLICATION_STATUS_VALUES,
   PUBLICATION_TYPE_VALUES,
   QUARTILE_VALUES,
+  WEB_OF_SCIENCE_INDEX_VALUES,
 } from "../../../../shared/publicationConstants.js";
 
 const PUBLICATION_TYPE_LABEL_KEYS = {
@@ -23,6 +24,7 @@ export const PUBLICATION_TYPES = PUBLICATION_TYPE_VALUES.map((value) => ({
 
 const INDEXING_PLATFORM_OPTIONS = ["", ...INDEXING_PLATFORM_VALUES];
 const QUARTILE_OPTIONS = ["", ...QUARTILE_VALUES];
+const WEB_OF_SCIENCE_INDEX_OPTIONS = ["", ...WEB_OF_SCIENCE_INDEX_VALUES];
 
 function normalizeDoiInput(value) {
   return String(value || "")
@@ -74,6 +76,10 @@ export const createEmptyPublicationDraft = () => ({
   isbn: "",
   authorAffiliation: "",
   indexingPlatform: "",
+  customIndexingPlatform: "",
+  custom_indexing_platform: "",
+  webOfScienceIndex: "",
+  web_of_science_index: "",
   indexingCategory: "",
   quartile: "",
   quartileVerified: false,
@@ -191,10 +197,14 @@ function normalizeIndexingPlatform(value) {
   if (comparable.includes("openalex")) return "OpenAlex";
   if (comparable.includes("doaj")) return "DOAJ";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
-  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
 
   return INDEXING_PLATFORM_OPTIONS.includes(text) ? text : "";
+}
+
+function normalizeCustomIndexingPlatform(value) {
+  return String(value || "").trim();
 }
 
 function normalizeIndexingCategory(value) {
@@ -203,11 +213,17 @@ function normalizeIndexingCategory(value) {
 
   if (!text) return "";
   if (/^q[1-4]$/i.test(text)) return text.toUpperCase();
-  if (["scie", "ssci", "ahci"].includes(comparable)) return text.toUpperCase();
+  if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return text.toUpperCase();
   if (["book/chapter", "bookchapter", "book", "chapter"].includes(comparable)) return "Book/Chapter";
   if (comparable === "other") return "Other";
 
   return text;
+}
+
+function normalizeWebOfScienceIndex(value) {
+  const normalized = normalizeIndexingCategory(value);
+
+  return WEB_OF_SCIENCE_INDEX_VALUES.includes(normalized) ? normalized : "";
 }
 
 function normalizeQuartile(value) {
@@ -324,6 +340,8 @@ export function publicationToDraft(publication = {}) {
     platform: normalizeIndexingPlatform(item.platform || item.source),
     sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
     category: item.category || "",
+    webOfScienceIndex: normalizeWebOfScienceIndex(item.webOfScienceIndex || item.web_of_science_index || item.category),
+    web_of_science_index: normalizeWebOfScienceIndex(item.web_of_science_index || item.webOfScienceIndex || item.category),
     quartile: normalizeQuartile(item.quartile),
     quartileVerified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
     quartile_verified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
@@ -374,6 +392,10 @@ export function publicationToDraft(publication = {}) {
     isbn: publication.isbn || "",
     authorAffiliation: "",
     indexingPlatform: hasIndexing ? normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
+    customIndexingPlatform: hasIndexing ? normalizeCustomIndexingPlatform(publication.customIndexingPlatform || publication.custom_indexing_platform || "") : "",
+    custom_indexing_platform: hasIndexing ? normalizeCustomIndexingPlatform(publication.custom_indexing_platform || publication.customIndexingPlatform || "") : "",
+    webOfScienceIndex: hasIndexing ? normalizeWebOfScienceIndex(publication.webOfScienceIndex || publication.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "") : "",
+    web_of_science_index: hasIndexing ? normalizeWebOfScienceIndex(publication.web_of_science_index || publication.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.category || "") : "",
     indexingCategory: hasIndexing ? normalizeIndexingCategory(publication.indexingCategory || publication.indexing_category || primaryIndexing.category || "") : "",
     quartile: hasIndexing ? normalizeQuartile(publication.quartile || displayablePrimaryQuartile) : "",
     quartileVerified: hasIndexing && normalizeBoolean(publication.quartileVerified ?? publication.quartile_verified ?? primaryIndexing.quartileVerified ?? primaryIndexing.quartile_verified),
@@ -487,6 +509,10 @@ function formatContributorList(value = []) {
 function getConferencePaperReset() {
   return {
     indexingPlatform: "",
+    customIndexingPlatform: "",
+    custom_indexing_platform: "",
+    webOfScienceIndex: "",
+    web_of_science_index: "",
     indexingCategory: "",
     indexingVerified: false,
     indexingSource: "manual",
@@ -512,6 +538,10 @@ function getBookPublicationReset() {
     issue: "",
     issn: "",
     indexingPlatform: "",
+    customIndexingPlatform: "",
+    custom_indexing_platform: "",
+    webOfScienceIndex: "",
+    web_of_science_index: "",
     indexingCategory: "",
     indexingVerified: false,
     indexingSource: "manual",
@@ -903,13 +933,20 @@ const PublicationForm = ({
     return isTrustedSource(field);
   };
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const hasIndexingPlatform = String(value.indexingPlatform || primaryIndexing.source || "").trim();
+  const selectedIndexingPlatform = normalizeIndexingPlatform(value.indexingPlatform || primaryIndexing.source || "");
+  const isScopusIndexing = selectedIndexingPlatform === "Scopus";
+  const isWebOfScienceIndexing = selectedIndexingPlatform === "Web of Science";
+  const isOtherIndexing = selectedIndexingPlatform === "Other";
+  const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "");
+  const selectedCustomIndexingPlatform = normalizeCustomIndexingPlatform(value.customIndexingPlatform || value.custom_indexing_platform || "");
+  const hasIndexingPlatform = String(selectedIndexingPlatform).trim();
   const hasIndexingDetails = Boolean(
-    String(value.indexingCategory || primaryIndexing.category || "").trim()
-    || normalizeQuartile(displayableQuartile)
-    || String(value.sjr || primaryIndexing.sjr || "").trim()
-    || String(value.citeScore || getIndexingCiteScore(primaryIndexing)).trim()
-    || String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()
+    (isWebOfScienceIndexing && selectedWebOfScienceIndex)
+    || (isOtherIndexing && selectedCustomIndexingPlatform)
+    || (isScopusIndexing && normalizeQuartile(displayableQuartile))
+    || (isScopusIndexing && String(value.sjr || primaryIndexing.sjr || "").trim())
+    || (isScopusIndexing && String(value.citeScore || getIndexingCiteScore(primaryIndexing)).trim())
+    || (isWebOfScienceIndexing && String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim())
     || normalizeBoolean(value.indexingVerified ?? value.indexing_verified)
   );
 
@@ -1012,12 +1049,26 @@ const PublicationForm = ({
     const nextValue = event.target.value;
     const indexing = Array.isArray(value.indexing) ? value.indexing : [];
     const [firstIndexing = {}, ...restIndexing] = indexing;
-    const nextPlatform = field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "";
-    const nextCategory = field === "indexingCategory" ? nextValue : value.indexingCategory || primaryIndexing.category || "";
-    const nextQuartile = field === "quartile" ? normalizeQuartile(nextValue) : normalizeQuartile(displayableQuartile || "");
-    const nextSjr = field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "";
-    const nextCiteScore = field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(primaryIndexing);
-    const nextImpactFactor = field === "impactFactor" ? nextValue : value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "";
+    const nextPlatform = normalizeIndexingPlatform(field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "");
+    const nextCustomIndexingPlatform = nextPlatform === "Other"
+      ? field === "customIndexingPlatform"
+        ? normalizeCustomIndexingPlatform(nextValue)
+        : selectedCustomIndexingPlatform
+      : "";
+    const nextWebOfScienceIndex = nextPlatform === "Web of Science"
+      ? field === "webOfScienceIndex"
+        ? normalizeWebOfScienceIndex(nextValue)
+        : selectedWebOfScienceIndex
+      : "";
+    const nextCategory = nextPlatform === "Web of Science" ? nextWebOfScienceIndex : "";
+    const nextQuartile = nextPlatform === "Scopus"
+      ? field === "quartile"
+        ? normalizeQuartile(nextValue)
+        : normalizeQuartile(displayableQuartile || "")
+      : "";
+    const nextSjr = nextPlatform === "Scopus" ? field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "" : "";
+    const nextCiteScore = nextPlatform === "Scopus" ? field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(primaryIndexing) : "";
+    const nextImpactFactor = nextPlatform === "Web of Science" ? field === "impactFactor" ? nextValue : value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "";
     const nextQuartileStatus = field === "quartile" && nextQuartile
       ? "manual"
       : primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
@@ -1027,6 +1078,8 @@ const PublicationForm = ({
       platform: nextPlatform,
       sourceKey: "manual",
       category: nextCategory,
+      webOfScienceIndex: nextWebOfScienceIndex,
+      web_of_science_index: nextWebOfScienceIndex,
       quartile: nextQuartile,
       quartileVerified: false,
       quartile_verified: false,
@@ -1048,6 +1101,14 @@ const PublicationForm = ({
     onChange({
       ...value,
       [field]: nextValue,
+      indexingPlatform: nextPlatform,
+      indexing_platform: nextPlatform,
+      customIndexingPlatform: nextCustomIndexingPlatform,
+      custom_indexing_platform: nextCustomIndexingPlatform,
+      webOfScienceIndex: nextWebOfScienceIndex,
+      web_of_science_index: nextWebOfScienceIndex,
+      indexingCategory: nextCategory,
+      indexing_category: nextCategory,
       quartile: nextQuartile,
       quartileVerified: false,
       quartileSource: "manual",
@@ -1417,7 +1478,7 @@ const PublicationForm = ({
             <label className="prof-form-field">
               <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
               <select
-                value={value.indexingPlatform || primaryIndexing.source || ""}
+                value={selectedIndexingPlatform}
                 onChange={updateIndexingField("indexingPlatform")}
                 required
                 disabled={isFieldLocked("indexingPlatform")}
@@ -1429,38 +1490,70 @@ const PublicationForm = ({
                 ))}
               </select>
             </label>
-            <label className="prof-form-field">
-              <span className="publication-quartile-label">
-                <span>{t("professor.dashboard.publicationForm.quartile")}</span>
-              </span>
-              <select
-                value={displayableQuartile}
-                onChange={updateIndexingField("quartile")}
-                disabled={isFieldLocked("quartile") || submitting}
-              >
-                {QUARTILE_OPTIONS.map((option) => (
-                  <option key={option || "empty-quartile"} value={option}>
-                    {option || t("professor.dashboard.publicationForm.selectQuartile")}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="prof-form-field">
-              <span>{t("professor.dashboard.publicationForm.citeScore")}</span>
-              <input
-                value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
-                onChange={updateIndexingField("citeScore")}
-                readOnly={isFieldLocked("citeScore")}
-              />
-            </label>
-            <label className="prof-form-field">
-              <span>{t("professor.dashboard.publicationForm.impactFactor")}</span>
-              <input
-                value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
-                onChange={updateIndexingField("impactFactor")}
-                readOnly={isFieldLocked("impactFactor")}
-              />
-            </label>
+            {isOtherIndexing ? (
+              <label className="prof-form-field">
+                <span>{t("professor.dashboard.publicationForm.customIndexingPlatform")}</span>
+                <input
+                  value={selectedCustomIndexingPlatform}
+                  onChange={updateIndexingField("customIndexingPlatform")}
+                  readOnly={isFieldLocked("customIndexingPlatform")}
+                />
+              </label>
+            ) : null}
+            {isScopusIndexing ? (
+              <>
+                <label className="prof-form-field">
+                  <span className="publication-quartile-label">
+                    <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+                  </span>
+                  <select
+                    value={displayableQuartile}
+                    onChange={updateIndexingField("quartile")}
+                    disabled={isFieldLocked("quartile") || submitting}
+                  >
+                    {QUARTILE_OPTIONS.map((option) => (
+                      <option key={option || "empty-quartile"} value={option}>
+                        {option || t("professor.dashboard.publicationForm.selectQuartile")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="prof-form-field">
+                  <span>{t("professor.dashboard.publicationForm.citeScore")}</span>
+                  <input
+                    value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
+                    onChange={updateIndexingField("citeScore")}
+                    readOnly={isFieldLocked("citeScore")}
+                  />
+                </label>
+              </>
+            ) : null}
+            {isWebOfScienceIndexing ? (
+              <>
+                <label className="prof-form-field">
+                  <span>{t("professor.dashboard.publicationForm.webOfScienceIndex")}</span>
+                  <select
+                    value={selectedWebOfScienceIndex}
+                    onChange={updateIndexingField("webOfScienceIndex")}
+                    disabled={isFieldLocked("webOfScienceIndex") || submitting}
+                  >
+                    {WEB_OF_SCIENCE_INDEX_OPTIONS.map((option) => (
+                      <option key={option || "empty-wos-index"} value={option}>
+                        {option || t("professor.dashboard.publicationForm.selectWebOfScienceIndex")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="prof-form-field">
+                  <span>{t("professor.dashboard.publicationForm.impactFactor")}</span>
+                  <input
+                    value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
+                    onChange={updateIndexingField("impactFactor")}
+                    readOnly={isFieldLocked("impactFactor")}
+                  />
+                </label>
+              </>
+            ) : null}
           </>
         ) : null}
         {showIdentifierField ? (
