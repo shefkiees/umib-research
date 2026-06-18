@@ -47,11 +47,13 @@ function uniqueTextValues(values = []) {
 function formatIssnPair(issn, eIssn) {
   const printIssn = String(issn || "").trim();
   const electronicIssn = String(eIssn || "").trim();
+  const uniqueValues = uniqueTextValues([printIssn, electronicIssn]);
 
-  return [
-    printIssn ? `${printIssn} (Print)` : "",
-    electronicIssn ? `${electronicIssn} (Online)` : "",
-  ].filter(Boolean).join(", ") || uniqueTextValues([printIssn, electronicIssn]).join(", ");
+  if (printIssn && electronicIssn && printIssn !== electronicIssn) {
+    return [`ISSN: ${printIssn}`, `E-ISSN: ${electronicIssn}`].join("\n");
+  }
+
+  return uniqueValues[0] || "";
 }
 
 function getMetadataIssnValues(metadata = {}) {
@@ -181,6 +183,7 @@ const DoiMetadataCard = ({ metadata, actions = null }) => {
   const valueStyle = {
     color: "#0f172a",
     wordBreak: "break-word",
+    whiteSpace: "pre-line",
     lineHeight: 1.45,
     fontSize: "14px",
   };

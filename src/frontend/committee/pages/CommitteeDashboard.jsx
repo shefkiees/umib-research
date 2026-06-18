@@ -983,7 +983,10 @@ function getChecklistEvidenceText(publication = {}, key) {
       return documentCount ? `${documentCount} dokument/e mbështetëse` : "Mungon dokument mbështetës";
     case "issnOk":
       return publication.issn || publication.eissn || publication.eIssn || publication.e_issn
-        ? `ISSN/eISSN: ${[publication.issn, publication.eissn || publication.eIssn || publication.e_issn].filter(Boolean).join(", ")}`
+        ? `ISSN / E-ISSN: ${[
+          publication.issn ? `ISSN: ${publication.issn}` : "",
+          publication.eissn || publication.eIssn || publication.e_issn ? `E-ISSN: ${publication.eissn || publication.eIssn || publication.e_issn}` : "",
+        ].filter(Boolean).join(" | ")}`
         : "Mungon ISSN/eISSN";
     case "volumeIssuePagesOk":
       return publication.volume || publication.issue || publication.pages || publication.pageStart || publication.page_start || publication.pageEnd || publication.page_end
@@ -2219,7 +2222,17 @@ export default function CommitteeDashboard() {
         .trim();
     };
     const uniqueReviewValues = (values = []) => [...new Set(values.map(cleanReviewText).filter(Boolean))];
-    const formatReviewIssns = (issn, eIssn) => uniqueReviewValues([issn, eIssn]).join(", ");
+    const formatReviewIssns = (issn, eIssn) => {
+      const printIssn = cleanReviewText(issn);
+      const electronicIssn = cleanReviewText(eIssn);
+      const uniqueValues = uniqueReviewValues([printIssn, electronicIssn]);
+
+      if (printIssn && electronicIssn && printIssn !== electronicIssn) {
+        return [`ISSN: ${printIssn}`, `E-ISSN: ${electronicIssn}`].join("\n");
+      }
+
+      return uniqueValues[0] || "";
+    };
     const splitReviewTitleAbstract = (value) => {
       if (!hasReviewValue(value)) {
         return { title: "", abstract: "" };

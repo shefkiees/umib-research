@@ -107,6 +107,8 @@ export const createEmptyPublicationDraft = () => ({
   correspondingAuthorReason: "",
 });
 
+const REQUIRED_FIELD_MESSAGE = "Kjo fushë është e detyrueshme.";
+
 function hasPublicationDraftContent(value = {}) {
   return Boolean(
     String(value.title || "").trim()
@@ -227,19 +229,16 @@ function uniqueTextValues(values = []) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
-function formatIssnPair(issn, eIssn, options = {}) {
-  const { includeLabels = false } = options;
+function formatIssnPair(issn, eIssn) {
   const printIssn = String(issn || "").trim();
   const electronicIssn = String(eIssn || "").trim();
+  const uniqueValues = uniqueTextValues([printIssn, electronicIssn]);
 
-  if (includeLabels) {
-    return [
-      printIssn ? `${printIssn} (Print)` : "",
-      electronicIssn ? `${electronicIssn} (Online)` : "",
-    ].filter(Boolean).join(", ");
+  if (printIssn && electronicIssn && printIssn !== electronicIssn) {
+    return [`ISSN: ${printIssn}`, `E-ISSN: ${electronicIssn}`].join("\n");
   }
 
-  return uniqueTextValues([printIssn, electronicIssn]).join(", ");
+  return uniqueValues[0] || "";
 }
 
 function getMetadataIssnValues(metadata = {}) {
@@ -258,8 +257,9 @@ function getMetadataIssnValues(metadata = {}) {
 function splitIssnPair(value = "") {
   const cleaned = String(value || "")
     .replace(/\((?:print|online|electronic|e-?issn|p-?issn)\)/gi, "")
+    .replace(/\b(?:e-?issn|issn)\s*:\s*/gi, "")
     .trim();
-  const parts = uniqueTextValues(cleaned.split(/\s*(?:,|\/|;|\|)\s*/));
+  const parts = uniqueTextValues(cleaned.split(/\s*(?:,|\/|;|\||\n)\s*/));
 
   return {
     issn: parts[0] || "",
@@ -957,6 +957,7 @@ const PublicationForm = ({
   const [showPublicationFields, setShowPublicationFields] = useState(() => mode === "edit" || hasPublicationDraftContent(value));
   const [doiError, setDoiError] = useState("");
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
@@ -965,11 +966,11 @@ const PublicationForm = ({
   const isBookPublication = isBookPublicationType(value.publicationType);
   const isBookChapter = isBookChapterPublication(value.publicationType, value.publicationSubtype || value.publication_subtype);
   const hasValue = (field) => String(value[field] || "").trim() !== "";
-  const showPublisherField = isConferencePaper ? hasValue("publisher") : true;
-  const showPublishedDateField = !isBookPublication || isBookChapter;
+  const showPublisherField = true;
+  const showPublishedDateField = true;
   const showVolumeField = isConferencePaper
     ? hasValue("volume")
-    : (!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"));
+    : isJournalArticle || ((!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume")));
   const showIssueField = isConferencePaper ? hasValue("issue") : !isBookPublication;
   const showIndexingFields = supportsQuartile(value.publicationType);
   const showIdentifierField = isConferencePaper
@@ -1015,15 +1016,19 @@ const PublicationForm = ({
   const isOtherIndexing = selectedIndexingPlatform === "Other";
   const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "");
   const selectedCustomIndexingPlatform = normalizeCustomIndexingPlatform(value.customIndexingPlatform || value.custom_indexing_platform || "");
-  const hasIndexingPlatform = String(selectedIndexingPlatform).trim();
-  const hasIndexingDetails = Boolean(
-    (isWebOfScienceIndexing && selectedWebOfScienceIndex)
-    || (isOtherIndexing && selectedCustomIndexingPlatform)
-    || (isScopusIndexing && normalizeQuartile(displayableQuartile))
-    || (isScopusIndexing && String(value.sjr || primaryIndexing.sjr || "").trim())
-    || (isScopusIndexing && String(value.citeScore || getIndexingCiteScore(primaryIndexing)).trim())
-    || (isWebOfScienceIndexing && String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim())
-    || normalizeBoolean(value.indexingVerified ?? value.indexing_verified)
+  const hasAuthorValue = (author = {}) => Boolean(String(author.fullName || "").trim());
+  const hasAffiliationValue = (author = {}) => Boolean(String(author.affiliation || "").trim());
+  const isCorrespondingAuthor = (author = {}) => normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author);
+  const hasJournalIssnValue = Boolean(String(value.issn || value.eIssn || value.e_issn || "").trim());
+  const requiredClassName = (field) => (fieldErrors[field] ? " has-error" : "");
+  const requiredLabel = (label, required = true) => (
+    <>
+      {label}
+      {required ? <span className="publication-required-mark" aria-hidden="true"> *</span> : null}
+    </>
+  );
+  const renderFieldError = (field) => (
+    fieldErrors[field] ? <p className="publication-field-error">{fieldErrors[field]}</p> : null
   );
 
   useEffect(() => {
@@ -1057,6 +1062,18 @@ const PublicationForm = ({
     setDoiLookupValue(event.target.value);
   };
 
+  const clearFieldError = (...fields) => {
+    setFieldErrors((current) => {
+      const nextErrors = { ...current };
+
+      fields.forEach((field) => {
+        delete nextErrors[field];
+      });
+
+      return nextErrors;
+    });
+  };
+
   const updateField = (field) => (event) => {
     const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
     const typeReset = field === "publicationType"
@@ -1076,6 +1093,7 @@ const PublicationForm = ({
       ...typeReset,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+    clearFieldError(field);
   };
 
   const updateJournalIssnField = (event) => {
@@ -1088,6 +1106,7 @@ const PublicationForm = ({
       e_issn: nextIssns.eIssn,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+    clearFieldError("issn", "eIssn", "e_issn");
   };
 
   const updatePublishedField = (event) => {
@@ -1099,6 +1118,7 @@ const PublicationForm = ({
       publicationYear: nextValue ? nextValue.slice(0, 4) : "",
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+    clearFieldError("publicationDate");
   };
 
   const openPublicationDatePicker = () => {
@@ -1137,6 +1157,33 @@ const PublicationForm = ({
       authors: nextAuthors,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+    setFormError("");
+    clearFieldError("mainAuthor", "authorAffiliation", `author-${index}`, `author-affiliation-${index}`, "correspondingAuthor");
+  };
+
+  const setCorrespondingAuthor = (index, isChecked) => {
+    const nextAuthors = [...(value.authors || [])];
+
+    while (nextAuthors.length <= index) {
+      nextAuthors.push({ ...EMPTY_AUTHOR });
+    }
+
+    const nextValue = Boolean(isChecked);
+
+    nextAuthors.forEach((author, authorIndex) => {
+      nextAuthors[authorIndex] = {
+        ...author,
+        isCorrespondingAuthor: nextValue && authorIndex === index,
+        is_corresponding_author: nextValue && authorIndex === index,
+      };
+    });
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    clearFieldError("correspondingAuthor");
     setFormError("");
   };
 
@@ -1238,6 +1285,7 @@ const PublicationForm = ({
       indexingSource: "manual",
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+    clearFieldError(field, "indexingPlatform", "quartile", "webOfScienceIndex", "customIndexingPlatform");
   };
 
   const lookupDoi = async () => {
@@ -1293,35 +1341,89 @@ const PublicationForm = ({
     }, 0);
   };
 
+  const validatePublicationForm = () => {
+    const errors = {};
+    const normalizedAuthors = (value.authors || []).length ? value.authors : [{ ...EMPTY_AUTHOR }];
+    const mainAuthor = normalizedAuthors[0] || {};
+    const completedAuthors = normalizedAuthors.filter(hasAuthorValue);
+    const hasCorrespondingAuthor = completedAuthors.some(isCorrespondingAuthor);
+    const requireField = (field, condition = true) => {
+      if (condition && !String(value[field] || "").trim()) {
+        errors[field] = REQUIRED_FIELD_MESSAGE;
+      }
+    };
+
+    requireField("publicationType");
+    requireField("title");
+    requireField("venue");
+    requireField("publisher");
+    requireField("publicationDate", showPublishedDateField);
+    requireField("pages");
+
+    if (isJournalArticle) {
+      requireField("volume");
+      requireField("issue");
+
+      if (!hasJournalIssnValue) {
+        errors.issn = REQUIRED_FIELD_MESSAGE;
+      }
+
+      if (!selectedIndexingPlatform) {
+        errors.indexingPlatform = REQUIRED_FIELD_MESSAGE;
+      }
+
+      if (selectedIndexingPlatform === "Scopus" && !displayableQuartile) {
+        errors.quartile = REQUIRED_FIELD_MESSAGE;
+      }
+
+      if (selectedIndexingPlatform === "Web of Science" && !selectedWebOfScienceIndex) {
+        errors.webOfScienceIndex = REQUIRED_FIELD_MESSAGE;
+      }
+
+      if (selectedIndexingPlatform === "Other" && !selectedCustomIndexingPlatform) {
+        errors.customIndexingPlatform = REQUIRED_FIELD_MESSAGE;
+      }
+    }
+
+    if (isConferencePaper) {
+      requireField("conferenceLocation");
+    }
+
+    if (isBookPublication) {
+      requireField("isbn");
+    }
+
+    if (!hasAuthorValue(mainAuthor)) {
+      errors.mainAuthor = REQUIRED_FIELD_MESSAGE;
+    }
+
+    if (!hasCorrespondingAuthor) {
+      errors.correspondingAuthor = REQUIRED_FIELD_MESSAGE;
+    }
+
+    normalizedAuthors.forEach((author, index) => {
+      const isRequiredAuthor = index === 0;
+
+      if ((isRequiredAuthor || hasAuthorValue(author)) && !hasAffiliationValue(author)) {
+        errors[index === 0 ? "authorAffiliation" : `author-affiliation-${index}`] = REQUIRED_FIELD_MESSAGE;
+      }
+    });
+
+    return errors;
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    const validAuthors = (value.authors || []).filter((author) => String(author.fullName || "").trim());
 
-    if (value.publicationType === "conference_paper" && !String(value.venue || "").trim()) {
-      setFormError(t("professor.dashboard.publicationForm.conferenceNameRequired"));
+    const errors = validatePublicationForm();
+
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setFormError(REQUIRED_FIELD_MESSAGE);
       return;
     }
 
-    if (value.publicationType !== "conference_paper" && !String(value.venue || "").trim()) {
-      setFormError(t("professor.dashboard.publicationForm.publishedInRequired"));
-      return;
-    }
-
-    if (value.publicationType === "journal_article" && hasIndexingDetails && !hasIndexingPlatform) {
-      setFormError(t("professor.dashboard.publicationForm.indexingPlatformRequiredWhenIndexed"));
-      return;
-    }
-
-    if (value.publicationType === "conference_paper" && !String(value.conferenceLocation || "").trim()) {
-      setFormError(t("professor.dashboard.publicationForm.conferenceLocationRequired"));
-      return;
-    }
-
-    if (!validAuthors.length) {
-      setFormError(t("professor.dashboard.publicationForm.authorRequired"));
-      return;
-    }
-
+    setFieldErrors({});
     setFormError("");
     await onSubmit();
   };
@@ -1344,47 +1446,51 @@ const PublicationForm = ({
         ? "professor.dashboard.publicationForm.journalName"
     : "professor.dashboard.publicationForm.publishedIn";
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
-  const mainAuthorEntry = authorEntries.find(({ author }) => normalizeBoolean(author.isMainAuthor ?? author.is_main_author)) || authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
-  const correspondingAuthorEntry = authorEntries.find(({ author, index }) =>
-    index !== mainAuthorEntry.index
-    && normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)
-  );
-  const coauthorEntries = authorEntries.filter(({ author, index }) =>
-    index !== mainAuthorEntry.index
-    && index !== correspondingAuthorEntry?.index
-    && !normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author)
-  );
+  const mainAuthorEntry = authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
+  const coauthorEntries = authorEntries.filter(({ index }) => index !== mainAuthorEntry.index);
   const renderAuthorFields = (author, index, { showRemove = false, required = false } = {}) => {
-    const authorsLocked = isFieldLocked("authors");
-    const orcidLocked = authorsLocked && isTrustedAuthorFieldSource(author.orcidSource || author.orcid_source);
+    const orcidLocked = isTrustedAuthorFieldSource(author.orcidSource || author.orcid_source);
     const hasOrcid = Boolean(String(author.orcid || "").trim());
+    const nameFieldKey = index === mainAuthorEntry.index ? "mainAuthor" : `author-${index}`;
+    const affiliationFieldKey = index === mainAuthorEntry.index ? "authorAffiliation" : `author-affiliation-${index}`;
 
     return (
       <div className="publication-author-row" key={`publication-author-${index}`}>
         <div className="publication-author-field publication-author-name-field">
-          {authorsLocked ? (
-            <span className="publication-author-name" title={author.fullName || ""}>
-              {author.fullName || "-"}
-            </span>
-          ) : (
+          <label className={`publication-author-inline-field${fieldErrors[nameFieldKey] ? " has-error" : ""}`}>
+            <span className="publication-author-field-label">{requiredLabel(t("professor.dashboard.publicationForm.author"), required)}</span>
             <input
               value={author.fullName || ""}
               onChange={(event) => setAuthorField(index, "fullName", event.target.value)}
               placeholder={t("professor.dashboard.publicationForm.fullNamePlaceholder")}
               aria-label={t("professor.dashboard.publicationForm.author")}
-              required={required}
+              aria-invalid={Boolean(fieldErrors[nameFieldKey])}
             />
-          )}
+            {renderFieldError(nameFieldKey)}
+          </label>
         </div>
         <div className="publication-author-field publication-author-affiliation-field">
-          <span className="publication-author-field-label">{t("professor.dashboard.publicationForm.affiliation")}</span>
-          <input
-            value={author.affiliation || ""}
-            onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
-            placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
-            aria-label={t("professor.dashboard.publicationForm.affiliation")}
-          />
+          <label className={`publication-author-inline-field${fieldErrors[affiliationFieldKey] ? " has-error" : ""}`}>
+            <span className="publication-author-field-label">{requiredLabel(t("professor.dashboard.publicationForm.affiliation"), required || hasAuthorValue(author))}</span>
+            <input
+              value={author.affiliation || ""}
+              onChange={(event) => setAuthorField(index, "affiliation", event.target.value)}
+              placeholder={t("professor.dashboard.publicationForm.affiliationPlaceholder")}
+              aria-label={t("professor.dashboard.publicationForm.affiliation")}
+              aria-invalid={Boolean(fieldErrors[affiliationFieldKey])}
+            />
+            {renderFieldError(affiliationFieldKey)}
+          </label>
         </div>
+        <label className={`publication-author-corresponding-field${fieldErrors.correspondingAuthor ? " has-error" : ""}`}>
+          <input
+            type="checkbox"
+            checked={isCorrespondingAuthor(author)}
+            onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
+            aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
+          />
+          <span>{requiredLabel(t("professor.dashboard.publicationForm.correspondingAuthor"), true)}</span>
+        </label>
         <div className="publication-author-field publication-author-orcid-field">
           <span className="publication-author-field-label">ORCID</span>
           {orcidLocked && hasOrcid ? (
@@ -1400,7 +1506,7 @@ const PublicationForm = ({
             />
           )}
         </div>
-        {showRemove && !authorsLocked ? (
+        {showRemove ? (
           <div className="publication-author-inline-actions">
             <button
               type="button"
@@ -1418,7 +1524,7 @@ const PublicationForm = ({
   };
 
   return (
-    <form className="publication-form" onSubmit={submit} ref={formRef}>
+    <form className="publication-form" onSubmit={submit} ref={formRef} noValidate>
       {!showPublicationFields && !hasFormDoi ? (
       <div className="publication-doi-card">
         <div className="publication-doi-card-copy">
@@ -1465,15 +1571,17 @@ const PublicationForm = ({
       {showPublicationFields ? (
         <>
       <div className="prof-form-grid">
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.publicationType")}</span>
+        <label className={`prof-form-field${requiredClassName("publicationType")}`}>
+          <span>{requiredLabel(t("professor.dashboard.publicationForm.publicationType"))}</span>
           <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isFieldLocked("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
           </select>
+          {renderFieldError("publicationType")}
         </label>
-        <label className="prof-form-field reimbursement-wide">
-          <span>{t("professor.dashboard.publicationForm.title")}</span>
-          <input value={value.title} onChange={updateField("title")} required readOnly={isFieldLocked("title")} />
+        <label className={`prof-form-field reimbursement-wide${requiredClassName("title")}`}>
+          <span>{requiredLabel(t("professor.dashboard.publicationForm.title"))}</span>
+          <input value={value.title} onChange={updateField("title")} readOnly={isFieldLocked("title")} aria-invalid={Boolean(fieldErrors.title)} />
+          {renderFieldError("title")}
         </label>
         <label className="prof-form-field">
           <span>DOI</span>
@@ -1490,9 +1598,10 @@ const PublicationForm = ({
             readOnly={isFieldLocked("doi")}
           />
         </label>
-        <label className="prof-form-field">
-          <span>{t(venueLabelKey)}</span>
-          <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} required readOnly={isFieldLocked("venue")} />
+        <label className={`prof-form-field${requiredClassName("venue")}`}>
+          <span>{requiredLabel(t(venueLabelKey))}</span>
+          <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} readOnly={isFieldLocked("venue")} aria-invalid={Boolean(fieldErrors.venue)} />
+          {renderFieldError("venue")}
         </label>
         <label className="prof-form-field">
           <span>{t("professor.dashboard.publicationForm.sourceUrl")}</span>
@@ -1504,21 +1613,23 @@ const PublicationForm = ({
           />
         </label>
         {value.publicationType === "conference_paper" ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.conferenceLocation")}</span>
+          <label className={`prof-form-field${requiredClassName("conferenceLocation")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.conferenceLocation"))}</span>
             <input
               value={value.conferenceLocation || ""}
               onChange={updateField("conferenceLocation")}
               placeholder="Berlin, Germany"
-              required
               readOnly={isFieldLocked("conferenceLocation")}
+              aria-invalid={Boolean(fieldErrors.conferenceLocation)}
             />
+            {renderFieldError("conferenceLocation")}
           </label>
         ) : null}
         {showPublisherField ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.publisher")}</span>
-            <input value={value.publisher} onChange={updateField("publisher")} readOnly={isFieldLocked("publisher")} />
+          <label className={`prof-form-field${requiredClassName("publisher")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.publisher"))}</span>
+            <input value={value.publisher} onChange={updateField("publisher")} readOnly={isFieldLocked("publisher")} aria-invalid={Boolean(fieldErrors.publisher)} />
+            {renderFieldError("publisher")}
           </label>
         ) : null}
         {showConferenceProceedingsTitle ? (
@@ -1552,8 +1663,8 @@ const PublicationForm = ({
           </label>
         ) : null}
         {showPublishedDateField ? (
-          <label className="prof-form-field">
-            <span>{t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}</span>
+          <label className={`prof-form-field${requiredClassName("publicationDate")}`}>
+            <span>{requiredLabel(t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt"))}</span>
             <div className="publication-date-picker-field">
               <input
                 ref={publicationDateInputRef}
@@ -1565,6 +1676,7 @@ const PublicationForm = ({
                 onPaste={(event) => event.preventDefault()}
                 readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
                 aria-label={t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}
+                aria-invalid={Boolean(fieldErrors.publicationDate)}
               />
               <button
                 type="button"
@@ -1576,6 +1688,7 @@ const PublicationForm = ({
                 <CalendarDays size={18} aria-hidden="true" />
               </button>
             </div>
+            {renderFieldError("publicationDate")}
           </label>
         ) : null}
         {value.publicationType === "journal_article" ? (
@@ -1590,26 +1703,33 @@ const PublicationForm = ({
           </label>
         ) : null}
         {showVolumeField ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.volume")}</span>
-            <input value={value.volume} onChange={updateField("volume")} readOnly={isFieldLocked("volume")} />
+          <label className={`prof-form-field${requiredClassName("volume")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.volume"), isJournalArticle)}</span>
+            <input value={value.volume} onChange={updateField("volume")} readOnly={isFieldLocked("volume")} aria-invalid={Boolean(fieldErrors.volume)} />
+            {renderFieldError("volume")}
           </label>
         ) : null}
         {showIssueField ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.issue")}</span>
-            <input value={value.issue} onChange={updateField("issue")} readOnly={isFieldLocked("issue")} />
+          <label className={`prof-form-field${requiredClassName("issue")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.issue"), isJournalArticle)}</span>
+            <input value={value.issue} onChange={updateField("issue")} readOnly={isFieldLocked("issue")} aria-invalid={Boolean(fieldErrors.issue)} />
+            {renderFieldError("issue")}
           </label>
         ) : null}
+        <label className={`prof-form-field${requiredClassName("pages")}`}>
+          <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"))}</span>
+          <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} aria-invalid={Boolean(fieldErrors.pages)} />
+          {renderFieldError("pages")}
+        </label>
         {showIndexingFields ? (
           <>
-            <label className="prof-form-field">
-              <span>{t("professor.dashboard.publicationForm.indexingPlatform")}</span>
+            <label className={`prof-form-field${requiredClassName("indexingPlatform")}`}>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"))}</span>
               <select
                 value={selectedIndexingPlatform}
                 onChange={updateIndexingField("indexingPlatform")}
-                required
                 disabled={isFieldLocked("indexingPlatform")}
+                aria-invalid={Boolean(fieldErrors.indexingPlatform)}
               >
                 {INDEXING_PLATFORM_OPTIONS.map((option) => (
                   <option key={option || "empty-platform"} value={option}>
@@ -1617,27 +1737,31 @@ const PublicationForm = ({
                   </option>
                 ))}
               </select>
+              {renderFieldError("indexingPlatform")}
             </label>
             {isOtherIndexing ? (
-              <label className="prof-form-field">
-                <span>{t("professor.dashboard.publicationForm.customIndexingPlatform")}</span>
+              <label className={`prof-form-field${requiredClassName("customIndexingPlatform")}`}>
+                <span>{requiredLabel(t("professor.dashboard.publicationForm.customIndexingPlatform"))}</span>
                 <input
                   value={selectedCustomIndexingPlatform}
                   onChange={updateIndexingField("customIndexingPlatform")}
                   readOnly={isFieldLocked("customIndexingPlatform")}
+                  aria-invalid={Boolean(fieldErrors.customIndexingPlatform)}
                 />
+                {renderFieldError("customIndexingPlatform")}
               </label>
             ) : null}
             {isScopusIndexing ? (
               <>
-                <label className="prof-form-field">
+                <label className={`prof-form-field${requiredClassName("quartile")}`}>
                   <span className="publication-quartile-label">
-                    <span>{t("professor.dashboard.publicationForm.quartile")}</span>
+                    <span>{requiredLabel(t("professor.dashboard.publicationForm.quartile"))}</span>
                   </span>
                   <select
                     value={displayableQuartile}
                     onChange={updateIndexingField("quartile")}
                     disabled={isFieldLocked("quartile") || submitting}
+                    aria-invalid={Boolean(fieldErrors.quartile)}
                   >
                     {QUARTILE_OPTIONS.map((option) => (
                       <option key={option || "empty-quartile"} value={option}>
@@ -1645,6 +1769,7 @@ const PublicationForm = ({
                       </option>
                     ))}
                   </select>
+                  {renderFieldError("quartile")}
                 </label>
                 <label className="prof-form-field">
                   <span>{t("professor.dashboard.publicationForm.citeScore")}</span>
@@ -1658,12 +1783,13 @@ const PublicationForm = ({
             ) : null}
             {isWebOfScienceIndexing ? (
               <>
-                <label className="prof-form-field">
-                  <span>{t("professor.dashboard.publicationForm.webOfScienceIndex")}</span>
+                <label className={`prof-form-field${requiredClassName("webOfScienceIndex")}`}>
+                  <span>{requiredLabel(t("professor.dashboard.publicationForm.webOfScienceIndex"))}</span>
                   <select
                     value={selectedWebOfScienceIndex}
                     onChange={updateIndexingField("webOfScienceIndex")}
                     disabled={isFieldLocked("webOfScienceIndex") || submitting}
+                    aria-invalid={Boolean(fieldErrors.webOfScienceIndex)}
                   >
                     {WEB_OF_SCIENCE_INDEX_OPTIONS.map((option) => (
                       <option key={option || "empty-wos-index"} value={option}>
@@ -1671,6 +1797,7 @@ const PublicationForm = ({
                       </option>
                     ))}
                   </select>
+                  {renderFieldError("webOfScienceIndex")}
                 </label>
                 <label className="prof-form-field">
                   <span>{t("professor.dashboard.publicationForm.impactFactor")}</span>
@@ -1685,19 +1812,21 @@ const PublicationForm = ({
           </>
         ) : null}
         {showIdentifierField && isJournalArticle ? (
-          <label className="prof-form-field">
-            <span>ISSN / E-ISSN</span>
-            <input
+          <label className={`prof-form-field publication-issn-field${requiredClassName("issn")}`}>
+            <span>{requiredLabel("ISSN / E-ISSN")}</span>
+            <textarea
               value={journalIssnDisplayValue}
               onChange={updateJournalIssnField}
-              placeholder="2576-8484 (Print), 2576-8492 (Online)"
+              rows={journalIssnDisplayValue.includes("\n") ? 2 : 1}
               aria-label="ISSN / E-ISSN"
               readOnly={isFieldLocked("issn") || isFieldLocked("eIssn")}
+              aria-invalid={Boolean(fieldErrors.issn)}
             />
+            {renderFieldError("issn")}
           </label>
         ) : showIdentifierField ? (
-          <div className="prof-form-field publication-identifier-field">
-            <span>{isBookPublication ? "ISBN" : "ISSN / ISBN"}</span>
+          <div className={`prof-form-field publication-identifier-field${requiredClassName("isbn")}`}>
+            <span>{requiredLabel(isBookPublication ? "ISBN" : "ISSN / ISBN", isBookPublication)}</span>
             <div className="publication-identifier-inputs">
               {showIssnInput ? (
                 <input
@@ -1715,9 +1844,11 @@ const PublicationForm = ({
                   placeholder="ISBN"
                   aria-label="ISBN"
                   readOnly={isFieldLocked("isbn")}
+                  aria-invalid={Boolean(fieldErrors.isbn)}
                 />
               ) : null}
             </div>
+            {renderFieldError("isbn")}
           </div>
         ) : null}
         {showAbstractField ? (
@@ -1744,17 +1875,11 @@ const PublicationForm = ({
             <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-groups ${isFieldLocked("authors") ? "publication-authors-groups--readonly" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
+        <div className={`publication-authors-groups${fieldErrors.correspondingAuthor || fieldErrors.authorAffiliation ? " has-error" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
           <section className="publication-author-group">
-            <h5>{t("professor.dashboard.publicationForm.mainAuthor")}</h5>
+            <h5>{requiredLabel(t("professor.dashboard.publicationForm.mainAuthor"))}</h5>
             {renderAuthorFields(mainAuthorEntry.author, mainAuthorEntry.index, { required: true })}
           </section>
-          {correspondingAuthorEntry ? (
-            <section className="publication-author-group">
-              <h5>{t("professor.dashboard.publicationForm.correspondingAuthor")}</h5>
-              {renderAuthorFields(correspondingAuthorEntry.author, correspondingAuthorEntry.index)}
-            </section>
-          ) : null}
           <section className="publication-author-group">
             <h5>{t("professor.dashboard.publicationForm.coauthors")}</h5>
             <div className="publication-coauthors-list">
@@ -1765,12 +1890,11 @@ const PublicationForm = ({
               )}
             </div>
           </section>
-          {!isFieldLocked("authors") ? (
-            <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
-              <Plus size={14} aria-hidden="true" />
-              {t("professor.dashboard.publicationForm.addCoauthor")}
-            </button>
-          ) : null}
+          {fieldErrors.correspondingAuthor ? <p className="publication-field-error">{fieldErrors.correspondingAuthor}</p> : null}
+          <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
+            <Plus size={14} aria-hidden="true" />
+            {t("professor.dashboard.publicationForm.addCoauthor")}
+          </button>
         </div>
         {formError ? <p className="publication-form-message error" role="alert">{formError}</p> : null}
       </div>

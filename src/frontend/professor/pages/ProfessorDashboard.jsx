@@ -1370,11 +1370,9 @@ export default function ProfessorDashboard() {
       ? draft.indexingSource || draft.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
     const publishedIn = draft.venue || draft.publishedIn || draft.published_in || "";
-    const mainAuthorIndex = authors.findIndex((author) => normalizeLooseBoolean(author?.isMainAuthor ?? author?.is_main_author));
-    const resolvedMainAuthorIndex = mainAuthorIndex >= 0 ? mainAuthorIndex : 0;
-    const correspondingAuthorIndex = authors.findIndex((author, index) =>
-      index !== resolvedMainAuthorIndex
-      && normalizeLooseBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
+    const resolvedMainAuthorIndex = 0;
+    const correspondingAuthorIndex = authors.findIndex((author) =>
+      normalizeLooseBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
     );
     const normalizedAuthors = authors.map((author, index) => {
       const authorPayload = { ...(author || {}) };
@@ -1392,6 +1390,8 @@ export default function ProfessorDashboard() {
       return {
         ...authorPayload,
         affiliation: authorPayload.affiliation || "",
+        isMainAuthor: index === resolvedMainAuthorIndex,
+        is_main_author: index === resolvedMainAuthorIndex,
         isCorrespondingAuthor,
         is_corresponding_author: isCorrespondingAuthor,
       };

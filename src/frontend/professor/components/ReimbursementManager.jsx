@@ -535,7 +535,15 @@ function uniqueDisplayValues(values = []) {
 }
 
 function formatIssnDisplay(issn, eIssn) {
-  return uniqueDisplayValues([issn, eIssn]).join(", ");
+  const printIssn = cleanDisplayValue(issn);
+  const electronicIssn = cleanDisplayValue(eIssn);
+  const uniqueValues = uniqueDisplayValues([printIssn, electronicIssn]);
+
+  if (printIssn && electronicIssn && printIssn !== electronicIssn) {
+    return [`ISSN: ${printIssn}`, `E-ISSN: ${electronicIssn}`].join("\n");
+  }
+
+  return uniqueValues[0] || "";
 }
 
 function createDisplayField(label, value, options = {}) {

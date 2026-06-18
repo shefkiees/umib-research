@@ -2203,6 +2203,27 @@ body {
   color: #b42318;
 }
 
+.publication-required-mark {
+  color: #b42318;
+  font-weight: 900;
+}
+
+.publication-field-error {
+  margin: -3px 0 0;
+  color: #b42318;
+  font-size: 0.76rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.prof-form-field.has-error input,
+.prof-form-field.has-error select,
+.prof-form-field.has-error textarea,
+.publication-author-inline-field.has-error input {
+  border-color: #d92d20;
+  background: #fffafa;
+}
+
 .publication-form-message.hint {
   color: #475569;
   font-weight: 700;
@@ -2224,6 +2245,13 @@ body {
 
 .publication-abstract-field {
   align-items: flex-start;
+}
+
+.publication-issn-field textarea {
+  width: 100%;
+  min-height: 48px;
+  resize: none;
+  line-height: 1.45;
 }
 
 .publication-abstract-field textarea {
@@ -2294,7 +2322,7 @@ body {
 
 .publication-author-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.35fr) minmax(140px, 0.8fr) max-content;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.25fr) minmax(150px, 0.85fr) minmax(140px, 0.75fr) max-content;
   gap: 10px;
   align-items: end;
   padding: 7px 0;
@@ -2313,6 +2341,34 @@ body {
   display: grid;
   gap: 4px;
   align-items: stretch;
+}
+
+.publication-author-inline-field {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+}
+
+.publication-author-corresponding-field {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.publication-author-corresponding-field input {
+  width: 16px;
+  height: 16px;
+  accent-color: #1d4d7d;
+  flex: 0 0 auto;
+}
+
+.publication-author-corresponding-field.has-error {
+  color: #b42318;
 }
 
 .publication-author-field-label {
@@ -3563,6 +3619,10 @@ body {
   font-weight: 750;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.reimbursement-publication-info-row strong {
+  white-space: pre-line;
 }
 
 .reimbursement-publication-info-row a {
