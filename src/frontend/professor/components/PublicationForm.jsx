@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { CalendarDays, FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -667,6 +667,24 @@ function formatPublishedValue(dateValue, yearValue) {
   return date || year;
 }
 
+function getDatePickerValue(value) {
+  const text = String(value || "").trim();
+  const isoDate = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const dayMonthYear = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+
+  if (isoDate) {
+    const [, year, month, day] = isoDate;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  if (dayMonthYear) {
+    const [, day, month, year] = dayMonthYear;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return "";
+}
+
 function getMetadataDateParts(value) {
   if (!value) {
     return [];
@@ -765,33 +783,6 @@ function getMetadataArticleLink(metadata = {}) {
   const articleUrl = urls.find((candidate) => !/^https?:\/\/(?:dx\.)?doi\.org\//i.test(candidate)) || urls[0];
 
   return articleUrl || (metadata.doi ? `https://doi.org/${metadata.doi}` : "");
-}
-
-function parsePublishedValue(input) {
-  const value = String(input || "").trim();
-  const dayMonthYear = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  const unknownDayMonthYear = value.match(/^x{2}-x{2}-(\d{4})$/i);
-
-  if (/^\d{4}$/.test(value)) {
-    return { publicationDate: "", publicationYear: value };
-  }
-
-  if (unknownDayMonthYear) {
-    return { publicationDate: "", publicationYear: unknownDayMonthYear[1] };
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return { publicationDate: value, publicationYear: value.slice(0, 4) };
-  }
-
-  if (dayMonthYear) {
-    return {
-      publicationDate: `${dayMonthYear[3]}-${dayMonthYear[2]}-${dayMonthYear[1]}`,
-      publicationYear: dayMonthYear[3],
-    };
-  }
-
-  return { publicationDate: value, publicationYear: "" };
 }
 
 function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthorIndex = 0) {
@@ -961,6 +952,7 @@ const PublicationForm = ({
 }) => {
   const { t } = useLanguage();
   const formRef = useRef(null);
+  const publicationDateInputRef = useRef(null);
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
   const [showPublicationFields, setShowPublicationFields] = useState(() => mode === "edit" || hasPublicationDraftContent(value));
   const [doiError, setDoiError] = useState("");
@@ -991,7 +983,7 @@ const PublicationForm = ({
     : isBookPublication || (!isJournalArticle && (!isDoiImported || hasValue("isbn")));
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const journalIssnDisplayValue = formatIssnPair(value.issn, value.eIssn || value.e_issn);
-  const publishedValue = formatPublishedValue(value.publicationDate, value.publicationYear);
+  const publicationDatePickerValue = getDatePickerValue(value.publicationDate);
   const hasFormDoi = Boolean(normalizeDoiInput(value.doi));
   const editorsValue = formatContributorList(value.editors || value.editor);
   const bookSeriesTitleValue = value.bookSeriesTitle || value.book_series_title || value.seriesTitle || value.series_title || "";
@@ -1099,11 +1091,36 @@ const PublicationForm = ({
   };
 
   const updatePublishedField = (event) => {
+    const nextValue = event.target.value;
+
     onChange({
       ...value,
-      ...parsePublishedValue(event.target.value),
+      publicationDate: nextValue,
+      publicationYear: nextValue ? nextValue.slice(0, 4) : "",
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
+  };
+
+  const openPublicationDatePicker = () => {
+    const input = publicationDateInputRef.current;
+
+    if (!input || input.readOnly || input.disabled) {
+      return;
+    }
+
+    input.focus();
+
+    try {
+      input.showPicker?.();
+    } catch {
+      // Some browsers only allow the native picker from direct input interaction.
+    }
+  };
+
+  const preventManualDateEntry = (event) => {
+    if (!["Tab", "Shift", "Escape"].includes(event.key)) {
+      event.preventDefault();
+    }
   };
 
   const setAuthorField = (index, field, nextValue) => {
@@ -1537,12 +1554,28 @@ const PublicationForm = ({
         {showPublishedDateField ? (
           <label className="prof-form-field">
             <span>{t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}</span>
-            <input
-              value={publishedValue}
-              onChange={updatePublishedField}
-              placeholder={t("professor.dashboard.publicationForm.publishedAtPlaceholder")}
-              readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
-            />
+            <div className="publication-date-picker-field">
+              <input
+                ref={publicationDateInputRef}
+                type="date"
+                value={publicationDatePickerValue}
+                onChange={updatePublishedField}
+                onClick={openPublicationDatePicker}
+                onKeyDown={preventManualDateEntry}
+                onPaste={(event) => event.preventDefault()}
+                readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+                aria-label={t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}
+              />
+              <button
+                type="button"
+                className="publication-date-picker-button"
+                onClick={openPublicationDatePicker}
+                disabled={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+                aria-label={t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}
+              >
+                <CalendarDays size={18} aria-hidden="true" />
+              </button>
+            </div>
           </label>
         ) : null}
         {value.publicationType === "journal_article" ? (
@@ -1568,10 +1601,6 @@ const PublicationForm = ({
             <input value={value.issue} onChange={updateField("issue")} readOnly={isFieldLocked("issue")} />
           </label>
         ) : null}
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.pages")}</span>
-          <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} />
-        </label>
         {showIndexingFields ? (
           <>
             <label className="prof-form-field">
