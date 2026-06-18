@@ -77,6 +77,13 @@ const pickOrcidTitle = (items = []) => {
 };
 
 const PROFILE_PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ACADEMIC_TITLE_OPTIONS = [
+  "Asistent",
+  "Profesor Asistent",
+  "Profesor i Asociuar",
+  "Profesor i Rregullt",
+];
+const SCIENTIFIC_TITLE_OPTIONS = ["MSc", "PhD"];
 const PROFILE_PHOTO_MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 const PROFILE_PHOTO_MAX_DATA_URL_LENGTH = 180000;
 const PROFILE_PHOTO_RENDER_ATTEMPTS = [
@@ -3345,11 +3352,27 @@ export default function ProfessorDashboard() {
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.academicTitle}</span>
-                  <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} placeholder={settingsText.academicTitlePlaceholder} />
+                  <select value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")}>
+                    <option value="">{settingsText.academicTitlePlaceholder}</option>
+                    {profileDraft.academicTitle && !ACADEMIC_TITLE_OPTIONS.includes(profileDraft.academicTitle) ? (
+                      <option value={profileDraft.academicTitle}>{profileDraft.academicTitle}</option>
+                    ) : null}
+                    {ACADEMIC_TITLE_OPTIONS.map((title) => (
+                      <option key={title} value={title}>{title}</option>
+                    ))}
+                  </select>
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.scientificTitle}</span>
-                  <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} placeholder={settingsText.scientificTitlePlaceholder} />
+                  <select value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")}>
+                    <option value="">{settingsText.scientificTitlePlaceholder}</option>
+                    {profileDraft.scientificTitle && !SCIENTIFIC_TITLE_OPTIONS.includes(profileDraft.scientificTitle) ? (
+                      <option value={profileDraft.scientificTitle}>{profileDraft.scientificTitle}</option>
+                    ) : null}
+                    {SCIENTIFIC_TITLE_OPTIONS.map((title) => (
+                      <option key={title} value={title}>{title}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <div className="prof-orcid-details">
