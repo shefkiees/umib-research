@@ -414,6 +414,28 @@ function getAcceptanceDateFromRaw(raw = {}) {
   return "";
 }
 
+function getArticleLinkFromMetadata(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const sources = [metadata, raw, raw._crossref || {}, raw._doi_org || {}, raw._datacite || {}, raw._publisher_html_metadata || {}];
+  const candidates = sources.flatMap((source) => [
+    source.source_url,
+    source.sourceUrl,
+    source.URL,
+    source.url,
+    source.link?.[0]?.URL,
+    source.link?.[0]?.url,
+    source.resource?.primary?.URL,
+    source.resource?.primary?.url,
+    source.publisherUrl,
+    source.publisher_url,
+  ]);
+  const urls = candidates.map(normalizeText).filter((candidate) => /^https?:\/\//i.test(candidate));
+  const articleUrl = urls.find((candidate) => !/^https?:\/\/(?:dx\.)?doi\.org\//i.test(candidate)) || urls[0];
+  const doi = normalizeDoi(metadata.doi || raw.DOI || raw.doi);
+
+  return articleUrl || (doi ? `https://doi.org/${doi}` : "");
+}
+
 function parsePageRange(value) {
   const text = normalizeText(value);
 
@@ -1959,7 +1981,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
       ? metadata.published_date.split("-").map((part) => part.padStart(2, "0")).join("-")
       : "",
     publicationYear: metadata.year || "",
-    sourceUrl: metadata.source_url || "",
+    sourceUrl: getArticleLinkFromMetadata(metadata),
     volume: metadata.volume || "",
     issue: metadata.issue || "",
     pages: nullableConferenceText(publicationType, metadata.pages),

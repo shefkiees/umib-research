@@ -102,8 +102,11 @@ export const createEmptyPublicationDraft = () => ({
 function hasPublicationDraftContent(value = {}) {
   return Boolean(
     String(value.title || "").trim()
+    || String(value.doi || "").trim()
     || String(value.publicationType || "").trim()
     || String(value.venue || "").trim()
+    || String(value.sourceUrl || value.source_url || "").trim()
+    || String(value.acceptanceDate || value.acceptance_date || "").trim()
     || String(value.abstract || "").trim()
     || String(value.publisher || "").trim()
     || String(value.pages || "").trim()
@@ -620,6 +623,40 @@ function getMetadataAcceptanceDate(metadata = {}) {
   return candidates.map(formatMetadataDate).find(Boolean) || "";
 }
 
+function getMetadataArticleLink(metadata = {}) {
+  const raw = metadata.raw_json || {};
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const candidates = [
+    metadata.source_url,
+    metadata.sourceUrl,
+    raw.source_url,
+    raw.sourceUrl,
+    raw.URL,
+    raw.url,
+    raw.link?.[0]?.URL,
+    raw.link?.[0]?.url,
+    raw.resource?.primary?.URL,
+    raw.publisherUrl,
+    raw.publisher_url,
+    crossref.URL,
+    crossref.url,
+    crossref.link?.[0]?.URL,
+    crossref.resource?.primary?.URL,
+    crossref.publisherUrl,
+    crossref.publisher_url,
+    doiOrg.URL,
+    doiOrg.url,
+    doiOrg.link?.[0]?.URL,
+    doiOrg.publisherUrl,
+    doiOrg.publisher_url,
+  ];
+  const urls = candidates.map((candidate) => String(candidate || "").trim()).filter((candidate) => /^https?:\/\//i.test(candidate));
+  const articleUrl = urls.find((candidate) => !/^https?:\/\/(?:dx\.)?doi\.org\//i.test(candidate)) || urls[0];
+
+  return articleUrl || (metadata.doi ? `https://doi.org/${metadata.doi}` : "");
+}
+
 function parsePublishedValue(input) {
   const value = String(input || "").trim();
   const dayMonthYear = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
@@ -743,7 +780,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
       : "",
     publicationYear: isBookPublication && !isBookChapter ? "" : metadata.year || "",
     doi: metadata.doi || "",
-    sourceUrl: metadata.source_url || "",
+    sourceUrl: getMetadataArticleLink(metadata),
     volume: isBookPublication && !isBookChapter ? "" : metadata.volume || "",
     issue: isBookPublication ? "" : metadata.issue || "",
     pages: metadata.pages || "",
@@ -886,8 +923,13 @@ const PublicationForm = ({
   }, [
     mode,
     value.title,
+    value.doi,
     value.publicationType,
     value.venue,
+    value.sourceUrl,
+    value.source_url,
+    value.acceptanceDate,
+    value.acceptance_date,
     value.abstract,
     value.publisher,
     value.pages,
@@ -1200,7 +1242,7 @@ const PublicationForm = ({
 
   return (
     <form className="publication-form" onSubmit={submit} ref={formRef}>
-      {!hasFormDoi ? (
+      {!showPublicationFields && !hasFormDoi ? (
       <div className="publication-doi-card">
         <div className="publication-doi-card-copy">
           <p>{t("professor.dashboard.publicationForm.doiLookupDescription")}</p>
@@ -1274,6 +1316,15 @@ const PublicationForm = ({
         <label className="prof-form-field">
           <span>{t(venueLabelKey)}</span>
           <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} required readOnly={isFieldLocked("venue")} />
+        </label>
+        <label className="prof-form-field">
+          <span>{t("professor.dashboard.publicationForm.sourceUrl")}</span>
+          <input
+            value={value.sourceUrl || ""}
+            onChange={updateField("sourceUrl")}
+            placeholder="https://..."
+            readOnly={isFieldLocked("sourceUrl")}
+          />
         </label>
         {value.publicationType === "conference_paper" ? (
           <label className="prof-form-field">
