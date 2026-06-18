@@ -2405,14 +2405,6 @@ export default function ProfessorDashboard() {
         icon: <BookOpen size={22} />,
       },
       {
-        label: t("professor.dashboard.citationsFromMetadata"),
-        value: summary.citationsAvailable ? summary.citationsTotal : t("common.noData"),
-        change: summary.citationsAvailable
-          ? t("professor.dashboard.citationsDescription")
-          : t("professor.dashboard.citationsUnavailable"),
-        icon: <CheckCircle2 size={22} />,
-      },
-      {
         label: t("professor.dashboard.totalConferencesCard"),
         value: summary.conferencesTotal,
         change: "",
