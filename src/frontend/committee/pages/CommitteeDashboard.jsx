@@ -2363,14 +2363,6 @@ export default function CommitteeDashboard() {
     const isJournalArticle = normalizedPublicationType === "journal_article" || normalizedPublicationType === "article_journal";
     const requestIssns = formatReviewIssns(requestData.issn, requestData.eIssn || requestData.e_issn);
     const f1Indexing = getF1FinancingIndexing(requestData);
-    const getPublicationLinkLabel = (value) => {
-      if (!hasReviewValue(value)) {
-        return "";
-      }
-
-      const normalizedLinkDoi = normalizeDoi(value);
-      return doiValue && normalizedLinkDoi === doiValue ? "Hap DOI" : "Hap linkun";
-    };
     const createReviewField = (label, value, options = {}) => ({
       label,
       value,
@@ -2799,7 +2791,7 @@ export default function CommitteeDashboard() {
       createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
       createReviewField("Linku i Artikullit", requestData.publicationLink, {
         href: isUrlValue(requestData.publicationLink) ? requestData.publicationLink : "",
-        displayValue: isUrlValue(requestData.publicationLink) ? getPublicationLinkLabel(requestData.publicationLink) : "",
+        className: "is-article-link",
       }),
       createReviewField("Indeksimi në platformë", f1Indexing.platform),
       createReviewField("Kategoria e indeksimit", f1Indexing.category),

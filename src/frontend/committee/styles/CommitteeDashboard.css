@@ -21,13 +21,20 @@
 .committee-layout {
 	display: flex;
 	min-height: 100vh;
+	min-height: 100dvh;
 	background: var(--bg-light);
 	color: var(--text-dark);
 	font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	overflow: visible;
 }
 
 .committee-sidebar {
 	width: 295px;
+	flex: 0 0 295px;
+	position: sticky;
+	top: 0;
+	align-self: flex-start;
+	height: 100vh;
 	min-height: 100vh;
 	background: linear-gradient(180deg, #eef4fb 0%, #f6f9fd 100%);
     color: var(--text-dark);
@@ -38,7 +45,15 @@
 	border-right: 1px solid #e3e8f0;
 	display: flex;
 	flex-direction: column;
-	min-height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.committee-sidebar::-webkit-scrollbar {
+	width: 0;
+	height: 0;
 }
 
 .committee-brand {
@@ -1724,6 +1739,13 @@
 
 .committee-review-fields dd a:hover {
 	text-decoration: underline;
+}
+
+.committee-review-fields .is-article-link a {
+	display: inline-block;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .committee-review-fields .is-wide {
@@ -4472,7 +4494,11 @@ a.committee-review-checklist-value:hover {
 
 	.committee-sidebar {
 		width: 100%;
+		flex: none;
+		position: static;
+		height: auto;
 		min-height: auto;
+		overflow: visible;
 	}
 
 	.committee-nav {
