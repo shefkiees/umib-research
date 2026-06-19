@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   BookOpen,
   CalendarDays,
   Camera,
@@ -9,7 +10,6 @@ import {
   Link2,
   Pencil,
   RefreshCw,
-  Save,
   Send,
   Settings,
   ShieldX,
@@ -18,7 +18,6 @@ import {
   ChevronsUpDown,
   Trash2,
   Wallet,
-  X,
 } from "lucide-react";
 import {
   Bar,
@@ -2175,6 +2174,11 @@ export default function ProfessorDashboard() {
     setPublicationDraft(createEmptyPublicationDraft());
   };
 
+  const cancelPublicationEditAndReturn = () => {
+    cancelPublicationEdit();
+    setActivePage("Lista e Publikimeve");
+  };
+
   const resetManualPublicationDraft = () => {
     setManualPublicationDraft(createEmptyPublicationDraft());
   };
@@ -2231,6 +2235,7 @@ export default function ProfessorDashboard() {
       }
 
       cancelPublicationEdit();
+      setActivePage("Lista e Publikimeve");
       await loadPublications({ page: publicationsPage, query: searchQuery });
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
@@ -2737,42 +2742,6 @@ export default function ProfessorDashboard() {
   };
 
   const renderPublicationActions = (row) => {
-    if (editingPublicationId === row.id) {
-      return (
-        <div className="publication-row-actions">
-          <button
-            type="button"
-            className="prof-btn-primary publication-action-btn publication-action-btn--primary"
-            onClick={() => savePublicationEdit(row.id)}
-            disabled={publicationActionId === row.id}
-            aria-label={t("common.save")}
-          >
-            <Save size={15} /> {t("common.save")}
-          </button>
-          <button
-            type="button"
-            className="prof-btn-secondary publication-action-btn publication-action-btn--secondary"
-            onClick={cancelPublicationEdit}
-            disabled={publicationActionId === row.id}
-            aria-label={t("professor.dashboard.cancelEdit")}
-          >
-            <X size={15} /> {t("common.cancel")}
-          </button>
-          {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
-            <button
-              type="button"
-              className="prof-btn-primary publication-action-btn publication-action-btn--review"
-              onClick={() => resubmitPublication(row.id)}
-              disabled={publicationActionId === row.id}
-              aria-label="Ridergo"
-            >
-              <Send size={15} /> Ridergo
-            </button>
-          ) : null}
-        </div>
-      );
-    }
-
     return (
       <div className="publication-row-actions">
         <button
@@ -2914,34 +2883,22 @@ export default function ProfessorDashboard() {
       case "Publikime":
         return (
           <section className="publications-page-shell">
-            <article className="prof-card publication-form-card">
-              <div className="prof-card-header">
-                <div>
-                  <h3>{t("professor.dashboard.addPublicationTitle")}</h3>
-                </div>
-              </div>
-
-              <PublicationForm
-                value={manualPublicationDraft}
-                onChange={setManualPublicationDraft}
-                onSubmit={saveManualPublication}
-                submitLabel={t("professor.dashboard.savePublication")}
-                submitting={publicationActionId === "manual"}
-                canReview={canReviewPublications}
-                currentUserAuthor={{
-                  name: profile.name,
-                  orcid: profile.orcidId,
-                  affiliation: profile.currentAffiliation || profile.faculty,
-                }}
-              />
-            </article>
-
             {editingPublicationId ? (
-              <article className="prof-card publication-form-card" id="publication-edit-form">
-                <div className="prof-card-header">
+              <article className="prof-card publication-form-card publication-edit-page-card" id="publication-edit-form">
+                <div className="publication-edit-page-header">
+                  <button
+                    type="button"
+                    className="prof-btn-secondary publication-edit-back-btn"
+                    onClick={cancelPublicationEditAndReturn}
+                    disabled={publicationActionId === editingPublicationId}
+                  >
+                    <ArrowLeft size={16} aria-hidden="true" />
+                    {t("common.back")}
+                  </button>
                   <div>
+                    <span className="publication-edit-kicker">{getPublicationTypeLabel(publicationDraft)}</span>
                     <h3>{t("professor.dashboard.editPublicationTitle")}</h3>
-                    <p>{t("professor.dashboard.editPublicationDescription")}</p>
+                    <p>{publicationDraft.title || t("professor.dashboard.editPublicationDescription")}</p>
                   </div>
                 </div>
                 {renderRevisionNotice(publications.find((item) => item.id === editingPublicationId) || publicationDraft)}
@@ -2949,7 +2906,7 @@ export default function ProfessorDashboard() {
                   value={publicationDraft}
                   onChange={setPublicationDraft}
                   onSubmit={() => savePublicationEdit(editingPublicationId)}
-                  onCancel={cancelPublicationEdit}
+                  onCancel={cancelPublicationEditAndReturn}
                   submitLabel={t("professor.dashboard.saveChanges")}
                   submitting={publicationActionId === editingPublicationId}
                   mode="edit"
@@ -2961,7 +2918,29 @@ export default function ProfessorDashboard() {
                   }}
                 />
               </article>
-            ) : null}
+            ) : (
+              <article className="prof-card publication-form-card">
+                <div className="prof-card-header">
+                  <div>
+                    <h3>{t("professor.dashboard.addPublicationTitle")}</h3>
+                  </div>
+                </div>
+
+                <PublicationForm
+                  value={manualPublicationDraft}
+                  onChange={setManualPublicationDraft}
+                  onSubmit={saveManualPublication}
+                  submitLabel={t("professor.dashboard.savePublication")}
+                  submitting={publicationActionId === "manual"}
+                  canReview={canReviewPublications}
+                  currentUserAuthor={{
+                    name: profile.name,
+                    orcid: profile.orcidId,
+                    affiliation: profile.currentAffiliation || profile.faculty,
+                  }}
+                />
+              </article>
+            )}
           </section>
         );
 

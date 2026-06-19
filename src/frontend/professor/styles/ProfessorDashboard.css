@@ -2017,6 +2017,51 @@ body {
   font-size: 0.86rem;
 }
 
+.publication-edit-page-card {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.publication-edit-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 20px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.publication-edit-page-header h3 {
+  margin: 4px 0 6px;
+  color: #0f172a;
+  font-size: 1.45rem;
+}
+
+.publication-edit-page-header p {
+  margin: 0;
+  max-width: 760px;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.publication-edit-kicker {
+  display: inline-flex;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.publication-edit-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .publication-doi-lookup {
   position: relative;
   display: flex;
