@@ -1714,7 +1714,14 @@ export default function ReimbursementManager({
   const selectedBankAccountSummary = selectedProfileBankAccount || legacyBankSnapshot;
   const hasProfileBankSelection = Boolean(selectedProfileBankAccount || legacyBankSnapshot);
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
-  const declarationProfessorName = effectiveProfile.name || form.applicantName || "aplikuesi";
+  const declarationProfessorName = [
+    effectiveProfile.academicTitle || form.academicTitle,
+    effectiveProfile.scientificTitle || form.scientificTitle,
+    effectiveProfile.name || form.applicantName,
+  ]
+    .map((value) => String(value || "").trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .join(" ") || "aplikuesi";
   const declarationArticleTitle = form.publicationTitle || "artikulli i përzgjedhur";
   const stepStates = useMemo(() => {
     const academicMainField = selectedType === "conference"
