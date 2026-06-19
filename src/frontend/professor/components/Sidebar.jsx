@@ -7,23 +7,35 @@ import {
   Wallet,
   BarChart3,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function Sidebar({ activePage, activeReimbursementType = "", onNavigate, setActivePage, onLogout }) {
   const { t } = useLanguage();
+  const location = useLocation();
+  const isArticlesRoute = ["/publications", "/articles/list"].includes(location.pathname);
+  const isPublicationListActive = activePage === "Lista e Publikimeve" || isArticlesRoute;
+  const isArticlesActive = activePage === "Publikime" || isPublicationListActive;
+  const [isArticlesMenuOpen, setIsArticlesMenuOpen] = useState(isArticlesActive);
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
+
+  useEffect(() => {
+    if (isArticlesActive) {
+      setIsArticlesMenuOpen(true);
+    }
+  }, [isArticlesActive]);
+
   const reimbursementSubmenu = [
     { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
     { name: "Konferenca dhe Simpoziume", label: t("navigation.reimbursementConferences"), target: "Rimbursime", reimbursementType: "conference" },
   ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
-    { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} /> },
-    { name: "Lista e Publikimeve", label: t("navigation.publicationList"), icon: <List size={18} /> },
+    { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} />, isArticlesParent: true },
     { name: "Rimbursime", label: t("navigation.reimbursements"), icon: <Wallet size={18} /> },
     { name: "Historiku i Rimbursimeve", label: t("navigation.reimbursementHistory"), icon: <History size={18} /> },
   ];
@@ -40,6 +52,11 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   };
 
   const handleMainItemClick = (itemName) => {
+    if (itemName === "Publikime") {
+      setIsArticlesMenuOpen((isOpen) => (isPublicationListActive ? true : !isOpen));
+      return;
+    }
+
     if (itemName === "Rimbursime") {
       setIsReimbursementMenuOpen((isOpen) => !isOpen);
       setActiveReimbursementSubmenu("");
@@ -52,6 +69,13 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     handleNavigate(itemName);
   };
 
+  const handlePublicationListClick = () => {
+    setIsArticlesMenuOpen(true);
+    setIsReimbursementMenuOpen(false);
+    setActiveReimbursementSubmenu("");
+    handleNavigate("Lista e Publikimeve");
+  };
+
   const handleReimbursementSubmenuClick = (submenuItem) => {
     setIsReimbursementMenuOpen(true);
     setActiveReimbursementSubmenu(submenuItem.name);
@@ -59,6 +83,24 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
       page: submenuItem.target,
       reimbursementType: submenuItem.reimbursementType,
     });
+  };
+
+  const getMainItemClassName = (item) => {
+    const isActive = item.isArticlesParent ? isArticlesActive : activePage === item.name;
+
+    return `prof-sidebar-link ${isActive ? "active" : ""}`;
+  };
+
+  const getMainItemExpandedState = (item) => {
+    if (item.isArticlesParent) {
+      return isArticlesMenuOpen;
+    }
+
+    if (item.name === "Rimbursime") {
+      return isReimbursementMenuOpen;
+    }
+
+    return undefined;
   };
 
   return (
@@ -78,20 +120,40 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
             <div className="prof-sidebar-item" key={item.name}>
               <button
                 type="button"
-                className={`prof-sidebar-link ${
-                  activePage === item.name ? "active" : ""
-                }`}
+                className={getMainItemClassName(item)}
                 onClick={() => handleMainItemClick(item.name)}
-                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : undefined}
+                aria-expanded={getMainItemExpandedState(item)}
               >
                 <span className="prof-sidebar-icon">{item.icon}</span>
                 <span className="prof-sidebar-text">{item.label}</span>
-                {item.name === "Rimbursime" ? (
+                {item.isArticlesParent ? (
+                  <span className="prof-sidebar-chevron" aria-hidden="true">
+                    {isArticlesMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </span>
+                ) : item.name === "Rimbursime" ? (
                   <span className="prof-sidebar-chevron" aria-hidden="true">
                     {isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
                 ) : null}
               </button>
+
+              {item.isArticlesParent ? (
+                <div
+                  className={`prof-sidebar-submenu prof-sidebar-submenu--animated ${isArticlesMenuOpen ? "is-open" : ""}`}
+                  aria-label="Nenkategorite e artikujve"
+                >
+                  <button
+                    type="button"
+                    className={`prof-sidebar-sublink ${isPublicationListActive ? "active" : ""}`}
+                    onClick={handlePublicationListClick}
+                  >
+                    <span className="prof-sidebar-subicon" aria-hidden="true">
+                      <List size={15} />
+                    </span>
+                    <span>{t("navigation.publicationList")}</span>
+                  </button>
+                </div>
+              ) : null}
 
               {item.name === "Rimbursime" && isReimbursementMenuOpen ? (
                 <div className="prof-sidebar-submenu" aria-label="Nenkategorite e rimbursimeve">
