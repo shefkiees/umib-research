@@ -8,6 +8,7 @@ import {
   Camera,
   CheckCircle2,
   Link2,
+  MoreVertical,
   Pencil,
   RefreshCw,
   Send,
@@ -2650,18 +2651,12 @@ export default function ProfessorDashboard() {
       return t("professor.dashboard.noAuthorsRegistered");
     }
 
-    if (names.length <= 2) {
-      return (
-        <span className="publication-authors-list-inline">
-          {names.map((name) => <span key={name}>{name}</span>)}
-        </span>
-      );
-    }
-
     return (
-      <span className="publication-authors-list-inline">
-        {names.slice(0, 2).map((name) => <span key={name}>{name}</span>)}
-        <span className="publication-author-more-badge">+{names.length - 2}</span>
+      <span className="publication-authors-compact" title={names.join(", ")}>
+        <span>{names[0]}</span>
+        {names.length > 1 ? (
+          <span className="publication-author-more-badge">+{names.length - 1} bashkautorë</span>
+        ) : null}
       </span>
     );
   };
@@ -2724,54 +2719,79 @@ export default function ProfessorDashboard() {
     const issues = getRevisionIssues(row);
 
     return (
-      <div className="publication-revision-notice">
-        <span className="publication-revision-icon" aria-hidden="true">
-          <AlertTriangle size={13} />
+      <div
+        className="publication-revision-badges"
+        aria-label={row.metadataReviewComment || "Artikulli kerkon korrigjim"}
+        title={row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}
+      >
+        <span className="publication-revision-badge publication-revision-badge--warning">
+          <AlertTriangle size={12} aria-hidden="true" />
+          Korrigjim
         </span>
-        <div>
-          <strong>Artikulli kërkon korrigjim</strong>
-          <p>{row.metadataReviewComment || "Komisioni ka kerkuar perditesim te metadata-s."}</p>
-          {issues.length ? (
-            <div className="publication-revision-issues" aria-label="Pikat per kontroll">
-              {issues.map((issue) => <span key={issue}>{issue}</span>)}
-            </div>
-          ) : null}
-        </div>
+        {issues.map((issue) => (
+          <span className="publication-revision-badge" key={issue}>{issue}</span>
+        ))}
       </div>
     );
   };
 
   const renderPublicationActions = (row) => {
-    return (
-      <div className="publication-row-actions">
+    const needsRevision = row.status === "needs_correction" || row.metadataReviewStatus === "correction";
+    const editLabel = t("common.edit");
+    const deleteLabel = t("common.delete");
+    const resubmitLabel = "Ridërgo";
+    const renderActionButtons = () => (
+      <>
         <button
           type="button"
-          className="prof-btn-secondary publication-action-btn publication-action-btn--secondary"
+          className="publication-action-btn publication-action-btn--secondary"
           onClick={() => openPublicationEditForm(row)}
-          aria-label={t("common.edit")}
+          aria-label={editLabel}
+          title={editLabel}
         >
-          <Pencil size={15} /> {t("common.edit")}
+          <Pencil size={15} aria-hidden="true" />
+          <span>{editLabel}</span>
         </button>
-        {(row.status === "needs_correction" || row.metadataReviewStatus === "correction") ? (
-          <button
-            type="button"
-            className="prof-btn-primary publication-action-btn publication-action-btn--review"
-            onClick={() => openPublicationEditForm(row)}
-            disabled={publicationActionId === row.id}
-            aria-label="Rishiko"
-          >
-            <Send size={15} /> Rishiko
-          </button>
-        ) : null}
         <button
           type="button"
-          className="prof-btn-secondary publication-action-btn publication-action-btn--danger"
+          className="publication-action-btn publication-action-btn--danger"
           onClick={() => deletePublication(row.id)}
           disabled={publicationActionId === row.id}
-          aria-label={t("common.delete")}
+          aria-label={deleteLabel}
+          title={deleteLabel}
         >
-          <Trash2 size={15} /> {t("common.delete")}
+          <Trash2 size={15} aria-hidden="true" />
+          <span>{deleteLabel}</span>
         </button>
+        {needsRevision ? (
+          <button
+            type="button"
+            className="publication-action-btn publication-action-btn--review"
+            onClick={() => openPublicationEditForm(row)}
+            disabled={publicationActionId === row.id}
+            aria-label={resubmitLabel}
+            title={resubmitLabel}
+          >
+            <Send size={15} aria-hidden="true" />
+            <span>{resubmitLabel}</span>
+          </button>
+        ) : null}
+      </>
+    );
+
+    return (
+      <div className="publication-row-actions">
+        <div className="publication-actions-inline" aria-label={t("professor.dashboard.actionsColumn")}>
+          {renderActionButtons()}
+        </div>
+        <details className="publication-actions-menu">
+          <summary aria-label={t("professor.dashboard.actionsColumn")} title={t("professor.dashboard.actionsColumn")}>
+            <MoreVertical size={16} aria-hidden="true" />
+          </summary>
+          <div className="publication-actions-menu-list">
+            {renderActionButtons()}
+          </div>
+        </details>
       </div>
     );
   };
@@ -2802,6 +2822,7 @@ export default function ProfessorDashboard() {
             {renderPublicationSortHeader("type", t("professor.dashboard.publicationTypeColumn"))}
             {renderPublicationSortHeader("venue", t("professor.dashboard.publishedInColumn"))}
             {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
+            <span>{t("professor.dashboard.statusColumn")}</span>
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
           {sortedPublications.map((row, index) => (
@@ -2833,6 +2854,10 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
                 {renderPublicationTextCell(getPublicationYearSummary(row))}
+              </div>
+              <div className="publication-meta-cell publication-status-cell">
+                <span className="publication-mobile-label">{t("professor.dashboard.statusColumn")}</span>
+                {renderStatus(row.status)}
               </div>
               <div className="publication-meta-cell publication-actions-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.actionsColumn")}</span>
