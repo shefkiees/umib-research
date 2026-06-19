@@ -55,6 +55,7 @@ import {
   professorProfile,
   profileMenuItems,
 } from "../data/dashboardData";
+import { FACULTY_DEPARTMENTS, FACULTY_OPTIONS } from "../data/academicUnits";
 import "../styles/ProfessorDashboard.css";
 
 const PUBLICATION_ERROR_MESSAGES = {
@@ -866,6 +867,11 @@ export default function ProfessorDashboard() {
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
   const settingsText = t("professor.settings");
+  const departmentOptions = FACULTY_DEPARTMENTS[profileDraft.faculty] || [];
+  const hasLegacyFaculty = Boolean(profileDraft.faculty && !FACULTY_OPTIONS.includes(profileDraft.faculty));
+  const hasLegacyDepartment = Boolean(
+    profileDraft.department && !departmentOptions.includes(profileDraft.department)
+  );
   const detectedProfileBank = useMemo(
     () => detectKosovoBankFromAccount(bankAccountDraft.bankAccountNumber || bankAccountDraft.iban),
     [bankAccountDraft.bankAccountNumber, bankAccountDraft.iban]
@@ -1577,6 +1583,11 @@ export default function ProfessorDashboard() {
 
   const handleProfileFieldChange = (field) => (event) => {
     setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleProfileFacultyChange = (event) => {
+    const faculty = event.target.value;
+    setProfileDraft((prev) => ({ ...prev, faculty, department: "" }));
   };
 
   const getProfilePhotoErrorMessage = (error) => {
@@ -3345,11 +3356,31 @@ export default function ProfessorDashboard() {
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.faculty}</span>
-                  <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} placeholder={settingsText.facultyPlaceholder} />
+                  <select value={profileDraft.faculty} onChange={handleProfileFacultyChange}>
+                    <option value="">{settingsText.facultySelectPlaceholder}</option>
+                    {hasLegacyFaculty ? (
+                      <option value={profileDraft.faculty}>{profileDraft.faculty}</option>
+                    ) : null}
+                    {FACULTY_OPTIONS.map((faculty) => (
+                      <option key={faculty} value={faculty}>{faculty}</option>
+                    ))}
+                  </select>
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.department}</span>
-                  <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} placeholder={settingsText.departmentPlaceholder} />
+                  <select
+                    value={profileDraft.department}
+                    onChange={handleProfileFieldChange("department")}
+                    disabled={!profileDraft.faculty}
+                  >
+                    <option value="">{settingsText.departmentSelectPlaceholder}</option>
+                    {hasLegacyDepartment ? (
+                      <option value={profileDraft.department}>{profileDraft.department}</option>
+                    ) : null}
+                    {departmentOptions.map((department) => (
+                      <option key={department} value={department}>{department}</option>
+                    ))}
+                  </select>
                 </label>
                 <label className="prof-form-field">
                   <span>{settingsText.academicTitle}</span>
