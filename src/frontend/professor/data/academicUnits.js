@@ -3,14 +3,11 @@ export const FACULTY_DEPARTMENTS = Object.freeze({
     "Inxhinieria Minerare",
     "Gjeologji",
     "Materiale dhe Metalurgji",
-    "Zhvillimi i Qëndrueshëm i Minierave",
-    "Hidrogjeologji me Gjeologji Inxhinierike",
   ]),
   "Fakulteti i Teknologjisë Ushqimore": Object.freeze([
     "Inxhinieri Mjedisore",
     "Inxhinieri Kimike",
     "Inxhinieri dhe Teknologji Ushqimore",
-    "Inxhinieri e Mbrojtjes Mjedisore",
   ]),
   "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike": Object.freeze([
     "Inxhinieri Mekanike",
