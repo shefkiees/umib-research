@@ -1764,13 +1764,6 @@ const PublicationForm = ({
             readOnly={isFieldLocked("doi")}
           />
         </label>
-        {isConferencePaper ? (
-          <div className="publication-form-section-header reimbursement-wide">
-            <div>
-              <h4>{t("professor.dashboard.publicationForm.conferenceDetailsTitle")}</h4>
-            </div>
-          </div>
-        ) : null}
         <label className={`prof-form-field${requiredClassName("venue")}`}>
           <span>{requiredLabel(t(venueLabelKey))}</span>
           <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} readOnly={isFieldLocked("venue")} aria-invalid={Boolean(fieldErrors.venue)} />
