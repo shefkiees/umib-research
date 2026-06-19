@@ -112,6 +112,8 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "doi",
   "publicationTitle",
   "publicationType",
+  "publicationSubtype",
+  "publication_subtype",
   "venue",
   "journal",
   "publishedIn",
@@ -127,8 +129,14 @@ const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "affiliation",
   "indexingPlatform",
   "indexingCategory",
+  "webOfScienceIndex",
+  "web_of_science_index",
+  "indexingSource",
+  "indexing_source",
   "impactFactor",
   "scopusQuartile",
+  "scopus_quartile",
+  "quartile",
   "volume",
   "issue",
   "pages",
@@ -701,10 +709,75 @@ function parseOptionalInteger(value) {
   return Number(text);
 }
 
+function safeJsonObject(value) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizePublicationSubtype(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "book_chapter" || normalized === "chapter" ? "book_chapter" : "";
+}
+
+function getPublicationSubtypeFromRow(row) {
+  const raw = safeJsonObject(row.metadata_raw_json || row.raw_json);
+
+  return normalizePublicationSubtype(
+    row.publication_subtype
+    || row.publicationSubtype
+    || raw.publication_subtype
+    || raw.publicationSubtype
+    || raw.subtype
+    || raw.type
+    || raw._crossref?.publication_subtype
+    || raw._crossref?.publicationSubtype
+    || raw._crossref?.subtype
+    || raw._crossref?.type
+    || raw._doi_org?.publication_subtype
+    || raw._doi_org?.publicationSubtype
+    || raw._doi_org?.subtype
+    || raw._doi_org?.type
+    || raw._openalex?.publication_subtype
+    || raw._openalex?.publicationSubtype
+    || raw._openalex?.type
+    || raw._openalex?.type_crossref
+    || row.metadata_type
+  );
+}
+
+function getIndexingPlatform(item = {}) {
+  return normalizeText(item.source || item.platform);
+}
+
+function isIndexingPlatform(item, platform) {
+  const value = getIndexingPlatform(item).toLowerCase();
+  return platform === "scopus"
+    ? value.includes("scopus")
+    : value.includes("web of science") || value.includes("clarivate");
+}
+
 function mapPublicationRow(row) {
   const authors = safeJsonArray(row.authors);
   const indexing = safeJsonArray(row.indexing);
   const venue = row.venue || row.container_title || "";
+  const publicationSubtype = getPublicationSubtypeFromRow(row);
+  const indexingPlatform = normalizeText(row.indexing_platform)
+    || uniqueNonEmptyValues(indexing.map(getIndexingPlatform)).join(", ");
+  const indexingCategory = normalizeText(row.indexing_category)
+    || indexing.map((item) => normalizeText(item.category)).find(Boolean)
+    || "";
+  const webOfScienceItem = indexing.find((item) => isIndexingPlatform(item, "web_of_science"));
+  const webOfScienceIndex = normalizeText(row.web_of_science_index)
+    || normalizeText(webOfScienceItem?.webOfScienceIndex || webOfScienceItem?.web_of_science_index || webOfScienceItem?.category);
+  const scopusItem = indexing.find((item) => isIndexingPlatform(item, "scopus") && normalizeText(item.quartile));
+  const firstQuartile = scopusItem || indexing.find((item) => normalizeText(item.quartile));
+  const scopusQuartile = normalizeText(row.scopus_quartile || row.quartile || firstQuartile?.quartile);
+  const indexingSource = normalizeText(row.indexing_source)
+    || normalizeText(scopusItem?.sourceKey || scopusItem?.source_key || indexing[0]?.sourceKey || indexing[0]?.source_key);
 
   return {
     id: row.id,
@@ -713,6 +786,8 @@ function mapPublicationRow(row) {
     abstract: row.abstract || "",
     publicationType: row.publication_type || row.publicationType || "",
     publication_type: row.publication_type || row.publicationType || "",
+    publicationSubtype,
+    publication_subtype: publicationSubtype,
     venue,
     journal: venue,
     publishedIn: venue,
@@ -736,6 +811,17 @@ function mapPublicationRow(row) {
     eIssn: row.e_issn || row.eIssn || row.eissn || "",
     e_issn: row.e_issn || row.eIssn || row.eissn || "",
     isbn: row.isbn || "",
+    indexingPlatform,
+    indexing_platform: indexingPlatform,
+    indexingCategory,
+    indexing_category: indexingCategory,
+    webOfScienceIndex,
+    web_of_science_index: webOfScienceIndex,
+    scopusQuartile,
+    scopus_quartile: scopusQuartile,
+    quartile: scopusQuartile,
+    indexingSource,
+    indexing_source: indexingSource,
     authors,
     indexing,
     identifiers: safeJsonArray(row.identifiers),
@@ -769,7 +855,25 @@ async function hasPublicationContextColumns(dbOrClient) {
          'pages',
          'issn',
          'e_issn',
-         'isbn'
+         'isbn',
+         'indexing_platform',
+         'indexing_category',
+         'web_of_science_index',
+         'indexing_source'
+        )`
+  );
+  const indexingColumnsResult = await dbOrClient.query(
+    `select count(*)::int as count
+     from information_schema.columns
+     where table_schema = current_schema()
+       and table_name = 'publication_indexing'
+       and column_name in (
+         'source_key',
+         'web_of_science_index',
+         'quartile_verified',
+         'quartile_source',
+         'quartile_verification_status',
+         'quartile_selection_reason'
        )`
   );
   const tableResult = await dbOrClient.query(
@@ -780,8 +884,9 @@ async function hasPublicationContextColumns(dbOrClient) {
   );
 
   publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 13
-    && Number(tableResult.rows[0]?.count || 0) === 4;
+    Number(rows[0]?.count || 0) === 17
+    && Number(tableResult.rows[0]?.count || 0) === 4
+    && Number(indexingColumnsResult.rows[0]?.count || 0) === 6;
   return publicationContextSchemaCache;
 }
 
@@ -878,8 +983,31 @@ function publicationToReadOnlyRequestData(publication) {
   const indexingCategory = indexing
     .map((item) => normalizeText(item.category))
     .find(Boolean) || normalizeText(publication.indexingCategory || publication.indexing_category);
+  const webOfScienceItem = indexing.find((item) => isIndexingPlatform(item, "web_of_science"));
+  const webOfScienceIndex = normalizeText(
+    publication.webOfScienceIndex
+    || publication.web_of_science_index
+    || webOfScienceItem?.webOfScienceIndex
+    || webOfScienceItem?.web_of_science_index
+    || webOfScienceItem?.category
+  );
   const firstImpactFactor = indexing.find((item) => hasMeaningfulValue(item.impactFactor || item.impact_factor));
-  const firstQuartile = indexing.find((item) => hasMeaningfulValue(item.quartile));
+  const scopusIndexing = indexing.find((item) => isIndexingPlatform(item, "scopus") && hasMeaningfulValue(item.quartile));
+  const firstQuartile = scopusIndexing || indexing.find((item) => hasMeaningfulValue(item.quartile));
+  const scopusQuartile = normalizeText(
+    publication.scopusQuartile
+    || publication.scopus_quartile
+    || publication.quartile
+    || firstQuartile?.quartile
+  );
+  const indexingSource = normalizeText(
+    publication.indexingSource
+    || publication.indexing_source
+    || scopusIndexing?.sourceKey
+    || scopusIndexing?.source_key
+    || indexing[0]?.sourceKey
+    || indexing[0]?.source_key
+  );
   const firstCiteScore = indexing.find((item) => hasMeaningfulValue(item.citeScore || item.cite_score || item.citescore));
   const citeScore = normalizeText(
     firstQuartile?.citeScore
@@ -903,6 +1031,8 @@ function publicationToReadOnlyRequestData(publication) {
     doi: normalizeText(publication.doi),
     publicationTitle: normalizeText(publication.title),
     publicationType: normalizeText(publication.publicationType || publication.publication_type),
+    publicationSubtype: normalizePublicationSubtype(publication.publicationSubtype || publication.publication_subtype),
+    publication_subtype: normalizePublicationSubtype(publication.publication_subtype || publication.publicationSubtype),
     venue,
     journal: venue,
     publishedIn: venue,
@@ -927,8 +1057,15 @@ function publicationToReadOnlyRequestData(publication) {
     affiliation: authorAffiliation(mainAuthor) || authorAffiliation(authors.find((author) => authorAffiliation(author))),
     indexingPlatform,
     indexingCategory,
+    webOfScienceIndex,
+    web_of_science_index: webOfScienceIndex,
+    scopusQuartile,
+    scopus_quartile: scopusQuartile,
+    quartile: scopusQuartile,
+    indexingSource,
+    indexing_source: indexingSource,
+    indexing: indexing.map((item) => ({ ...item })),
     impactFactor: normalizeText(firstImpactFactor?.impactFactor || firstImpactFactor?.impact_factor),
-    scopusQuartile: normalizeText(firstQuartile?.quartile),
     ...(citeScore ? { citeScore } : {}),
     publicationIdentifiers: identifiers
       .map((item) => [item.type || item.identifier_type, item.value || item.identifier_value].filter(Boolean).join(": "))
@@ -1089,6 +1226,8 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
         `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
+                p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
+                m.type as metadata_type, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
@@ -1116,9 +1255,21 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                       json_build_object(
                         'id', pi.id,
                         'source', pi.source,
-                        'platform', pi.source,
-                        'category', pi.category,
-                        'quartile', pi.quartile,
+                         'platform', pi.source,
+                         'sourceKey', pi.source_key,
+                         'source_key', pi.source_key,
+                         'category', pi.category,
+                         'webOfScienceIndex', pi.web_of_science_index,
+                         'web_of_science_index', pi.web_of_science_index,
+                         'quartile', pi.quartile,
+                         'quartileVerified', pi.quartile_verified,
+                         'quartile_verified', pi.quartile_verified,
+                         'quartileSource', pi.quartile_source,
+                         'quartile_source', pi.quartile_source,
+                         'quartileVerificationStatus', pi.quartile_verification_status,
+                         'quartile_verification_status', pi.quartile_verification_status,
+                         'quartileSelectionReason', pi.quartile_selection_reason,
+                         'quartile_selection_reason', pi.quartile_selection_reason,
                         'impactFactor', pi.impact_factor,
                         'sjr', pi.sjr,
                         'citeScore', pi.cite_score,
@@ -1162,6 +1313,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                   '[]'::json
                 ) as evidence_links
          from publications p
+         left join publication_metadata m on m.doi = p.doi
          where p.id = $1
            and ($2::uuid is null or p.owner_id = $2)
          limit 1`,
@@ -1171,7 +1323,8 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
         `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn
+                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
+                m.type as metadata_type, m.raw_json as metadata_raw_json
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.id = $1
@@ -1877,6 +2030,8 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
                 p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
+                p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
+                m.type as metadata_type, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
@@ -1903,10 +2058,22 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                     select json_agg(
                       json_build_object(
                         'id', pi.id,
-                        'source', pi.source,
-                        'platform', pi.source,
-                        'category', pi.category,
-                        'quartile', pi.quartile,
+                         'source', pi.source,
+                         'platform', pi.source,
+                         'sourceKey', pi.source_key,
+                         'source_key', pi.source_key,
+                         'category', pi.category,
+                         'webOfScienceIndex', pi.web_of_science_index,
+                         'web_of_science_index', pi.web_of_science_index,
+                         'quartile', pi.quartile,
+                         'quartileVerified', pi.quartile_verified,
+                         'quartile_verified', pi.quartile_verified,
+                         'quartileSource', pi.quartile_source,
+                         'quartile_source', pi.quartile_source,
+                         'quartileVerificationStatus', pi.quartile_verification_status,
+                         'quartile_verification_status', pi.quartile_verification_status,
+                         'quartileSelectionReason', pi.quartile_selection_reason,
+                         'quartile_selection_reason', pi.quartile_selection_reason,
                         'impactFactor', pi.impact_factor,
                         'sjr', pi.sjr,
                         'citeScore', pi.cite_score,
@@ -1950,6 +2117,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                   '[]'::json
                 ) as evidence_links
          from publications p
+         left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`
@@ -1957,6 +2125,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
                 m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
+                m.type as metadata_type, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
