@@ -47,6 +47,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 const MAX_SELECTED_ATTACHMENTS = 5;
+const DECLARATION_REQUIRED_MESSAGE = "Ju lutem konfirmoni deklaratën para dorëzimit të kërkesës.";
 
 const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
@@ -1658,6 +1659,7 @@ export default function ReimbursementManager({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadingDocument, setDownloadingDocument] = useState("");
   const [previewingDocument, setPreviewingDocument] = useState("");
+  const [isDeclarationAccepted, setIsDeclarationAccepted] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [editingRequest, setEditingRequest] = useState(null);
@@ -1712,6 +1714,8 @@ export default function ReimbursementManager({
   const selectedBankAccountSummary = selectedProfileBankAccount || legacyBankSnapshot;
   const hasProfileBankSelection = Boolean(selectedProfileBankAccount || legacyBankSnapshot);
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
+  const declarationProfessorName = effectiveProfile.name || form.applicantName || "aplikuesi";
+  const declarationArticleTitle = form.publicationTitle || "artikulli i përzgjedhur";
   const stepStates = useMemo(() => {
     const academicMainField = selectedType === "conference"
       ? "conferenceTitle"
@@ -2167,6 +2171,7 @@ export default function ReimbursementManager({
       ...prev,
     }));
     setIsAbstractExpanded(false);
+    setIsDeclarationAccepted(false);
     setFieldErrors({});
     setError("");
     setSuccess(null);
@@ -2339,6 +2344,10 @@ export default function ReimbursementManager({
       }
     }
 
+    if (selectedType === "publication" && !isDeclarationAccepted) {
+      nextErrors.declaration = DECLARATION_REQUIRED_MESSAGE;
+    }
+
     setFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -2376,7 +2385,11 @@ export default function ReimbursementManager({
 
   const submitRequest = async (action) => {
     if (!validateForm(action)) {
-      setError("Ploteso fushat obligative para dergimit.");
+      setError(
+        action === "submit" && selectedType === "publication" && !isDeclarationAccepted
+          ? DECLARATION_REQUIRED_MESSAGE
+          : "Ploteso fushat obligative para dergimit."
+      );
       return;
     }
 
@@ -2460,6 +2473,7 @@ export default function ReimbursementManager({
       setHasLoadedRequests(true);
       setSuccess(savedRequest);
       setForm(createDefaultForm(effectiveProfile));
+      setIsDeclarationAccepted(false);
       setSelectedFiles([]);
       setEditingRequest(null);
       setHasHydratedAutoFields(true);
@@ -2663,6 +2677,7 @@ export default function ReimbursementManager({
 
     setSelectedType(nextType);
     setForm(nextForm);
+    setIsDeclarationAccepted(false);
     setEditingRequest(request);
     setSelectedFiles([]);
     setFieldErrors({});
@@ -2675,6 +2690,7 @@ export default function ReimbursementManager({
   const handleCancelEdit = () => {
     setEditingRequest(null);
     setForm(createDefaultForm(effectiveProfile));
+    setIsDeclarationAccepted(false);
     setSelectedFiles([]);
     setFieldErrors({});
     setIsAbstractExpanded(false);
@@ -3787,7 +3803,49 @@ export default function ReimbursementManager({
             {renderAttachmentUpload()}
           </section>
 
-          {selectedType !== "publication" ? (
+          {selectedType === "publication" ? (
+            <section className="reimbursement-section">
+              <div className="reimbursement-section-head">
+                <CheckCircle2 size={18} />
+                <div>
+                  <h4>Deklarata e aplikuesit</h4>
+                </div>
+              </div>
+              <div className="reimbursement-declaration-panel">
+                <p>
+                  Unë, <strong>{declarationProfessorName}</strong>, deklaroj nën betim se për artikullin shkencor të titulluar
+                  {" “"}<strong>{declarationArticleTitle}</strong>”, nuk kam marrë asnjë formë mbështetjeje financiare,
+                  qoftë ajo në formë granti, sponsorizimi, apo çdo lloj mbështetjeje tjetër financiare nga MASHT. Kjo bëhet
+                  me mirëbesim dhe nën përgjegjësinë time të plotë morale dhe ligjore.
+                </p>
+                <label className="reimbursement-declaration-confirmation">
+                  <input
+                    type="checkbox"
+                    checked={isDeclarationAccepted}
+                    aria-required="true"
+                    aria-invalid={Boolean(fieldErrors.declaration)}
+                    onChange={(event) => {
+                      const isChecked = event.target.checked;
+                      setIsDeclarationAccepted(isChecked);
+
+                      if (isChecked) {
+                        setFieldErrors((currentErrors) => {
+                          const remainingErrors = { ...currentErrors };
+                          delete remainingErrors.declaration;
+                          return remainingErrors;
+                        });
+                        setError((currentError) => currentError === DECLARATION_REQUIRED_MESSAGE ? "" : currentError);
+                      }
+                    }}
+                  />
+                  <span>Kam lexuar dhe pranoj deklaratën.</span>
+                </label>
+                {fieldErrors.declaration ? (
+                  <small className="reimbursement-field-error">{fieldErrors.declaration}</small>
+                ) : null}
+              </div>
+            </section>
+          ) : (
             <section className="reimbursement-section">
               <div className="reimbursement-section-head">
                 <FileText size={18} />
@@ -3822,7 +3880,7 @@ export default function ReimbursementManager({
                 </div>
               </div>
             </section>
-          ) : null}
+          )}
 
           <div className="reimbursement-action-bar">
             <div className="reimbursement-action-feedback">

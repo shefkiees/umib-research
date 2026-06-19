@@ -4224,6 +4224,44 @@ body {
   gap: 8px;
 }
 
+.reimbursement-declaration-panel {
+  border: 1px solid #dce7f2;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 14px;
+  color: #334155;
+}
+
+.reimbursement-declaration-panel p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.reimbursement-declaration-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  color: #17324f;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reimbursement-declaration-confirmation input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: #1d67aa;
+  flex: 0 0 auto;
+}
+
+.reimbursement-declaration-panel .reimbursement-field-error {
+  display: block;
+  margin-top: 7px;
+}
+
 .reimbursement-inline-control {
   display: flex;
   gap: 8px;
