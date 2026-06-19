@@ -23,7 +23,6 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
     { name: "Publikime", label: t("navigation.publications"), icon: <BookOpen size={18} /> },
-    { name: "Lista e Publikimeve", label: t("navigation.publicationList"), icon: <List size={18} /> },
     { name: "Rimbursime", label: t("navigation.reimbursements"), icon: <Wallet size={18} /> },
     { name: "Historiku i Rimbursimeve", label: t("navigation.reimbursementHistory"), icon: <History size={18} /> },
   ];
@@ -61,6 +60,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     });
   };
 
+  const handlePublicationListClick = () => {
+    setIsReimbursementMenuOpen(false);
+    setActiveReimbursementSubmenu("");
+    handleNavigate("Lista e Publikimeve");
+  };
+
   return (
     <aside className="prof-sidebar">
       <div className="prof-sidebar-top">
@@ -92,6 +97,23 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                   </span>
                 ) : null}
               </button>
+
+              {item.name === "Publikime" ? (
+                <div className="prof-sidebar-submenu prof-sidebar-submenu--articles" aria-label="Nenkategorite e artikujve">
+                  <button
+                    type="button"
+                    className={`prof-sidebar-sublink prof-sidebar-sublink--with-icon ${
+                      activePage === "Lista e Publikimeve" ? "active" : ""
+                    }`}
+                    onClick={handlePublicationListClick}
+                  >
+                    <span className="prof-sidebar-subicon" aria-hidden="true">
+                      <List size={15} />
+                    </span>
+                    <span>{t("navigation.publicationList")}</span>
+                  </button>
+                </div>
+              ) : null}
 
               {item.name === "Rimbursime" && isReimbursementMenuOpen ? (
                 <div className="prof-sidebar-submenu" aria-label="Nenkategorite e rimbursimeve">
