@@ -268,6 +268,8 @@ const PUBLICATION_TYPE_LABELS = {
   book_chapter: "Libër / Kapitull",
 };
 
+const F1_PUBLICATION_TYPES = new Set(["journal_article", "book"]);
+
 const EMPTY_TEAM_MEMBER = {
   name: "",
   scientificGrade: "",
@@ -502,6 +504,12 @@ function normalizePublicationType(value) {
   }
 
   return normalized;
+}
+
+function isF1Publication(publication = {}) {
+  return F1_PUBLICATION_TYPES.has(normalizePublicationType(
+    publication.publicationType || publication.publication_type
+  ));
 }
 
 function getPublicationTypeLabel(value) {
@@ -1675,6 +1683,10 @@ export default function ReimbursementManager({
     () => resolveProfile(context.profile, profile),
     [context.profile, profile]
   );
+  const f1Publications = useMemo(
+    () => context.publications.filter(isF1Publication),
+    [context.publications]
+  );
 
   const selectedTypeConfig = getReimbursementType(selectedType);
   const selectedTypeSchema = getReimbursementSchema(selectedType);
@@ -1716,9 +1728,9 @@ export default function ReimbursementManager({
   const hasProfileBankSelection = Boolean(selectedProfileBankAccount || legacyBankSnapshot);
   const selectedF1Publication = useMemo(() => (
     selectedType === "publication"
-      ? context.publications.find((publication) => String(publication.id) === String(form.publicationId)) || null
+      ? f1Publications.find((publication) => String(publication.id) === String(form.publicationId)) || null
       : null
-  ), [context.publications, form.publicationId, selectedType]);
+  ), [f1Publications, form.publicationId, selectedType]);
   const f1AmountCalculation = useMemo(() => (
     selectedF1Publication ? calculateF1PublicationAmount(selectedF1Publication) : null
   ), [selectedF1Publication]);
@@ -1968,7 +1980,7 @@ export default function ReimbursementManager({
       isLoadingContext ||
       hasHydratedPublicationFields ||
       selectedType !== "publication" ||
-      context.publications.length === 0
+      f1Publications.length === 0
     ) {
       return;
     }
@@ -1978,10 +1990,10 @@ export default function ReimbursementManager({
         return prev;
       }
 
-      return applyPublicationToForm(prev, context.publications[0]);
+      return applyPublicationToForm(prev, f1Publications[0]);
     });
     setHasHydratedPublicationFields(true);
-  }, [context.publications, hasHydratedPublicationFields, isLoadingContext, selectedType]);
+  }, [f1Publications, hasHydratedPublicationFields, isLoadingContext, selectedType]);
 
   useEffect(() => {
     setForm((prev) => {
@@ -2235,7 +2247,7 @@ export default function ReimbursementManager({
 
   const handlePublicationSelect = (event) => {
     const publicationId = event.target.value;
-    const selectedPublication = context.publications.find((item) => String(item.id) === publicationId);
+    const selectedPublication = f1Publications.find((item) => String(item.id) === publicationId);
 
     setForm((prev) => applyPublicationToForm({ ...prev, publicationId }, selectedPublication));
     setIsAbstractExpanded(false);
@@ -3229,12 +3241,12 @@ export default function ReimbursementManager({
 
   const renderPublicationFields = () => (
     <div className="reimbursement-form-grid">
-      {context.publications.length ? (
+      {f1Publications.length ? (
         <label className="reimbursement-field reimbursement-wide reimbursement-publication-selector">
           <span>{r.choosePublication}</span>
           <select value={form.publicationId} onChange={handlePublicationSelect}>
             <option value="">{r.choosePublication}</option>
-            {context.publications.map((publication) => (
+            {f1Publications.map((publication) => (
               <option key={publication.id} value={publication.id}>
                 {publication.title || publication.doi || r.publicationWithoutTitle}
               </option>
