@@ -1063,7 +1063,6 @@ const PublicationForm = ({
   const showPublishedDateField = true;
   const showVolumeField = !isConferencePaper && (isJournalArticle || ((!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"))));
   const showIssueField = !isConferencePaper && !isBookPublication;
-  const showPagesField = !isConferencePaper;
   const showIndexingFields = supportsQuartile(value.publicationType);
   const showIdentifierField = !isConferencePaper && (isJournalArticle || isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("eIssn") || hasValue("e_issn") || hasValue("isbn")));
   const showIssnInput = !isConferencePaper && (isJournalArticle || (!isBookPublication && (!isDoiImported || hasValue("issn"))));
@@ -1504,7 +1503,6 @@ const PublicationForm = ({
     requireField("venue");
     requireField("publisher");
     requireField("publicationDate", showPublishedDateField);
-    requireField("pages", showPagesField);
     requireField("sourceUrl", isConferencePaper);
 
     if (isJournalArticle) {
@@ -1927,13 +1925,6 @@ const PublicationForm = ({
             <span>{requiredLabel(t("professor.dashboard.publicationForm.issue"), isJournalArticle)}</span>
             <input value={value.issue} onChange={updateField("issue")} readOnly={isFieldLocked("issue")} aria-invalid={Boolean(fieldErrors.issue)} />
             {renderFieldError("issue")}
-          </label>
-        ) : null}
-        {showPagesField ? (
-          <label className={`prof-form-field${requiredClassName("pages")}`}>
-            <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"))}</span>
-            <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} aria-invalid={Boolean(fieldErrors.pages)} />
-            {renderFieldError("pages")}
           </label>
         ) : null}
         {showIndexingFields ? (
