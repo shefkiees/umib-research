@@ -9,6 +9,7 @@ import {
   getRequiredFields,
   requiresBank,
 } from "../../../../shared/reimbursementSchema.js";
+import { calculateF1PublicationAmount } from "../../../../shared/f1AmountCalculator.js";
 
 const REQUEST_TYPES = REIMBURSEMENT_TYPES;
 
@@ -1049,15 +1050,18 @@ function applyPublicationToForm(prev, publication) {
     PUBLICATION_READ_ONLY_FIELDS.forEach((field) => {
       next[field] = "";
     });
+    next.amount = "";
     return next;
   }
 
   const authors = getPublicationAuthorFields(publication);
   const indexing = getPublicationIndexingFields(publication);
   const venue = publication.venue || publication.publishedIn || publication.published_in || publication.journal || "";
+  const amountCalculation = calculateF1PublicationAmount(publication);
 
   return {
     ...prev,
+    amount: amountCalculation.amount === null ? "" : String(amountCalculation.amount),
     publicationId: publication.id ? String(publication.id) : prev.publicationId,
     doi: publication.doi || "",
     publicationTitle: publication.title || "",
@@ -1710,6 +1714,17 @@ export default function ReimbursementManager({
   }, [form]);
   const selectedBankAccountSummary = selectedProfileBankAccount || legacyBankSnapshot;
   const hasProfileBankSelection = Boolean(selectedProfileBankAccount || legacyBankSnapshot);
+  const selectedF1Publication = useMemo(() => (
+    selectedType === "publication"
+      ? context.publications.find((publication) => String(publication.id) === String(form.publicationId)) || null
+      : null
+  ), [context.publications, form.publicationId, selectedType]);
+  const f1AmountCalculation = useMemo(() => (
+    selectedF1Publication ? calculateF1PublicationAmount(selectedF1Publication) : null
+  ), [selectedF1Publication]);
+  const isF1AmountUnresolved = selectedType === "publication"
+    && Boolean(form.publicationId)
+    && f1AmountCalculation?.amount == null;
   const amountPreview = useMemo(() => formatMoneyPreview(form.amount, form.currency), [form.amount, form.currency]);
   const declarationProfessorName = [
     effectiveProfile.academicTitle || form.academicTitle,
@@ -1720,6 +1735,20 @@ export default function ReimbursementManager({
     .filter(Boolean)
     .join(" ") || "aplikuesi";
   const declarationArticleTitle = form.publicationTitle || "artikulli i përzgjedhur";
+
+  useEffect(() => {
+    if (selectedType !== "publication" || !selectedF1Publication) {
+      return;
+    }
+
+    const calculatedAmount = f1AmountCalculation?.amount == null
+      ? ""
+      : String(f1AmountCalculation.amount);
+
+    setForm((prev) => prev.amount === calculatedAmount ? prev : { ...prev, amount: calculatedAmount });
+    setFieldErrors((prev) => prev.amount ? { ...prev, amount: "" } : prev);
+  }, [f1AmountCalculation, selectedF1Publication, selectedType]);
+
   const stepStates = useMemo(() => {
     const academicMainField = selectedType === "conference"
       ? "conferenceTitle"
@@ -2210,7 +2239,7 @@ export default function ReimbursementManager({
 
     setForm((prev) => applyPublicationToForm({ ...prev, publicationId }, selectedPublication));
     setIsAbstractExpanded(false);
-    setFieldErrors((prev) => ({ ...prev, publicationId: "" }));
+    setFieldErrors((prev) => ({ ...prev, publicationId: "", amount: "" }));
   };
 
   const handleConferencePublicationSelect = (event) => {
@@ -3545,10 +3574,13 @@ export default function ReimbursementManager({
             inputMode="decimal"
             value={form.amount}
             onChange={handleFieldChange("amount")}
+            readOnly={selectedType === "publication"}
+            aria-readonly={selectedType === "publication"}
             required
             placeholder="0.00"
           />
           {amountPreview ? <small className="reimbursement-helper">{r.total}: {amountPreview}</small> : null}
+          {isF1AmountUnresolved ? <small className="reimbursement-field-error">{r.automaticAmountUnavailable}</small> : null}
           {fieldErrors.amount ? <small className="reimbursement-field-error">{tx(fieldErrors.amount)}</small> : null}
         </label>
 
