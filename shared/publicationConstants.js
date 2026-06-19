@@ -36,14 +36,7 @@ export const METADATA_REVIEW_STATUS_VALUES = [
 export const INDEXING_PLATFORM_VALUES = [
   "Scopus",
   "Web of Science",
-  "Google Scholar",
-  "DOAJ",
-  "PubMed",
-  "IEEE Xplore",
-  "SpringerLink",
-  "ACM Digital Library",
   "Other",
-  "Not indexed",
 ];
 
 export const WEB_OF_SCIENCE_INDEX_VALUES = ["SCIE", "SSCI", "AHCI", "ESCI"];

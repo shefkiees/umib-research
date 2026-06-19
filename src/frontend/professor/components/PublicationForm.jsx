@@ -47,22 +47,7 @@ const EMPTY_AUTHOR = {
   orcid: "",
   affiliation: "",
   isCorrespondingAuthor: false,
-  isPresenter: false,
 };
-
-const CONFERENCE_FORMAT_OPTIONS = [
-  { value: "", labelKey: "professor.dashboard.publicationForm.selectConferenceFormat" },
-  { value: "physical", labelKey: "professor.dashboard.publicationForm.conferenceFormatPhysical" },
-  { value: "hybrid", labelKey: "professor.dashboard.publicationForm.conferenceFormatHybrid" },
-  { value: "virtual", labelKey: "professor.dashboard.publicationForm.conferenceFormatVirtual" },
-];
-
-const PRESENTATION_TYPE_OPTIONS = [
-  { value: "", labelKey: "professor.dashboard.publicationForm.selectPresentationType" },
-  { value: "oral", labelKey: "professor.dashboard.publicationForm.presentationTypeOral" },
-  { value: "poster", labelKey: "professor.dashboard.publicationForm.presentationTypePoster" },
-  { value: "paper", labelKey: "professor.dashboard.publicationForm.presentationTypePaper" },
-];
 
 export const createEmptyPublicationDraft = () => ({
   title: "",
@@ -71,10 +56,6 @@ export const createEmptyPublicationDraft = () => ({
   publicationSubtype: "",
   venue: "",
   conferenceLocation: "",
-  conferenceCity: "",
-  conferenceCountry: "",
-  conferenceFormat: "",
-  presentationType: "",
   publisher: "",
   editors: [],
   bookSeriesTitle: "",
@@ -134,10 +115,6 @@ function hasPublicationDraftContent(value = {}) {
     || String(value.doi || "").trim()
     || String(value.publicationType || "").trim()
     || String(value.venue || "").trim()
-    || String(value.conferenceCity || value.conference_city || "").trim()
-    || String(value.conferenceCountry || value.conference_country || "").trim()
-    || String(value.conferenceFormat || value.conference_format || "").trim()
-    || String(value.presentationType || value.presentation_type || "").trim()
     || String(value.sourceUrl || value.source_url || "").trim()
     || String(value.acceptanceDate || value.acceptance_date || "").trim()
     || String(value.abstract || "").trim()
@@ -162,13 +139,6 @@ function normalizePublicationAuthors(authors = []) {
     ?? author.is_corresponding
     ?? author.corresponding
   ));
-  const presenterIndex = normalizedAuthors.findIndex((author) => normalizeBoolean(
-    author.isPresenter
-    ?? author.is_presenter
-    ?? author.presenter
-    ?? author.isPresentingAuthor
-    ?? author.is_presenting_author
-  ));
 
   return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
@@ -180,7 +150,6 @@ function normalizePublicationAuthors(authors = []) {
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
-      isPresenter: presenterIndex >= 0 ? index === presenterIndex : false,
       correspondingAuthorSource: normalizedAuthor.correspondingAuthorSource || normalizedAuthor.corresponding_author_source || "",
       correspondingAuthorConfidence: normalizedAuthor.correspondingAuthorConfidence || normalizedAuthor.corresponding_author_confidence || "",
     };
@@ -223,28 +192,18 @@ function supportsQuartile(publicationType) {
   return publicationType === "journal_article";
 }
 
-function supportsIndexing(publicationType, publicationSubtype = "") {
-  return publicationType === "journal_article"
-    || publicationType === "conference_paper"
-    || isBookChapterPublication(publicationType, publicationSubtype);
-}
-
 function normalizeIndexingPlatform(value) {
   const text = String(value || "").trim();
   const comparable = text.toLowerCase();
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
+  if (comparable.includes("openalex")) return "OpenAlex";
   if (comparable.includes("doaj")) return "DOAJ";
-  if (comparable.includes("google scholar")) return "Google Scholar";
-  if (comparable.includes("pubmed")) return "PubMed";
-  if (comparable.includes("ieee")) return "IEEE Xplore";
-  if (comparable.includes("springer")) return "SpringerLink";
-  if (comparable.includes("acm")) return "ACM Digital Library";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
-  if (comparable === "not indexed" || comparable === "not_indexed" || comparable === "notindexed") return "Not indexed";
 
   return INDEXING_PLATFORM_OPTIONS.includes(text) ? text : "";
 }
@@ -280,22 +239,6 @@ function formatIssnPair(issn, eIssn) {
   }
 
   return uniqueValues[0] || "";
-}
-
-function splitConferenceLocation(value = "") {
-  const parts = String(value || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return {
-    city: parts[0] || "",
-    country: parts.slice(1).join(", ") || "",
-  };
-}
-
-function formatConferenceLocation(city = "", country = "") {
-  return [city, country].map((part) => String(part || "").trim()).filter(Boolean).join(", ");
 }
 
 function getMetadataIssnValues(metadata = {}) {
@@ -463,14 +406,11 @@ export function publicationToDraft(publication = {}) {
   const publicationType = publication.publicationType || publication.publication_type || "";
   const publicationSubtype = getMetadataPublicationSubtype(publication);
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
-  const hasIndexing = supportsIndexing(publicationType, publicationSubtype);
+  const hasIndexing = supportsQuartile(publicationType);
   const isBookPublication = isBookPublicationType(publicationType);
   const hideJournalSpecificFields = isBookPublication;
   const hideVolumeField = isBookPublication && !isBookChapter;
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
-  const fallbackConferenceLocation = splitConferenceLocation(publication.conferenceLocation || publication.conference_location || "");
-  const conferenceCity = publication.conferenceCity || publication.conference_city || fallbackConferenceLocation.city || "";
-  const conferenceCountry = publication.conferenceCountry || publication.conference_country || fallbackConferenceLocation.country || "";
   const indexing = hasIndexing && Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
@@ -507,15 +447,7 @@ export function publicationToDraft(publication = {}) {
     publicationSubtype,
     publication_subtype: publicationSubtype,
     venue: publication.venue || publication.journal || "",
-    conferenceLocation: publication.conferenceLocation || publication.conference_location || formatConferenceLocation(conferenceCity, conferenceCountry),
-    conferenceCity,
-    conference_city: conferenceCity,
-    conferenceCountry,
-    conference_country: conferenceCountry,
-    conferenceFormat: publication.conferenceFormat || publication.conference_format || "",
-    conference_format: publication.conference_format || publication.conferenceFormat || "",
-    presentationType: publication.presentationType || publication.presentation_type || "",
-    presentation_type: publication.presentation_type || publication.presentationType || "",
+    conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
     publisher: publication.publisher || "",
     editors: Array.isArray(publication.editors) ? publication.editors : [],
     bookSeriesTitle: publication.bookSeriesTitle || publication.book_series_title || publication.seriesTitle || publication.series_title || "",
@@ -654,15 +586,6 @@ function formatContributorList(value = []) {
 
 function getConferencePaperReset() {
   return {
-    conferenceLocation: "",
-    conferenceCity: "",
-    conference_city: "",
-    conferenceCountry: "",
-    conference_country: "",
-    conferenceFormat: "",
-    conference_format: "",
-    presentationType: "",
-    presentation_type: "",
     indexingPlatform: "",
     customIndexingPlatform: "",
     custom_indexing_platform: "",
@@ -893,13 +816,6 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
       ?? normalizedAuthor.is_corresponding
       ?? normalizedAuthor.corresponding
     ),
-    isPresenter: normalizeBoolean(
-      normalizedAuthor.isPresenter
-      ?? normalizedAuthor.is_presenter
-      ?? normalizedAuthor.presenter
-      ?? normalizedAuthor.isPresentingAuthor
-      ?? normalizedAuthor.is_presenting_author
-    ),
     correspondingAuthorSource: normalizedAuthor.correspondingAuthorSource || normalizedAuthor.corresponding_author_source || "",
     correspondingAuthorConfidence: normalizedAuthor.correspondingAuthorConfidence || normalizedAuthor.corresponding_author_confidence || "",
   };
@@ -923,11 +839,10 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
   const quartileVerificationStatus = selectedQuartileStatus || "missing";
-  const canIndexMetadata = supportsIndexing(publicationType, publicationSubtype);
-  const indexingPlatform = canIndexMetadata ? normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
+  const indexingPlatform = supportsQuartile(publicationType) ? normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
   const indexingCategory = hasMetadataQuartile ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
-  const indexingVerified = canIndexMetadata ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
-  const indexingSource = canIndexMetadata ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
+  const indexingVerified = supportsQuartile(publicationType) ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
+  const indexingSource = supportsQuartile(publicationType) ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
   const sjr = supportsQuartile(publicationType) ? metadata.sjr || selectedQuartileIndexing.sjr || indexing.find((item) => item?.sjr)?.sjr || "" : "";
   const citeScoreIndexing = getIndexingCiteScore(selectedQuartileIndexing)
     ? selectedQuartileIndexing
@@ -943,9 +858,6 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? metadata.impactFactor || metadata.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || ""
     : "";
   const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, 0));
-  const fallbackConferenceLocation = splitConferenceLocation(metadata.conferenceLocation || metadata.conference_location || "");
-  const conferenceCity = metadata.conferenceCity || metadata.conference_city || fallbackConferenceLocation.city || "";
-  const conferenceCountry = metadata.conferenceCountry || metadata.conference_country || fallbackConferenceLocation.country || "";
 
   return {
     title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
@@ -956,15 +868,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     venue: publicationType === "book"
       ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
       : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
-    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || formatConferenceLocation(conferenceCity, conferenceCountry),
-    conferenceCity,
-    conference_city: conferenceCity,
-    conferenceCountry,
-    conference_country: conferenceCountry,
-    conferenceFormat: metadata.conferenceFormat || metadata.conference_format || "",
-    conference_format: metadata.conference_format || metadata.conferenceFormat || "",
-    presentationType: metadata.presentationType || metadata.presentation_type || "",
-    presentation_type: metadata.presentation_type || metadata.presentationType || "",
+    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
     publisher: metadata.publisher || "",
     editors: Array.isArray(metadata.editors) ? metadata.editors : [],
     bookSeriesTitle: metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || metadata.raw_json?.book_series_title || metadata.raw_json?.series_title || "",
@@ -1001,7 +905,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     indexingVerified,
     indexingSource: indexingVerified ? indexingSource : "manual",
     authors: draftAuthors,
-    indexing: !canIndexMetadata ? [] : indexing.length ? indexing.map((item, index) => ({
+    indexing: !supportsQuartile(publicationType) ? [] : indexing.length ? indexing.map((item, index) => ({
       source: item.source || (index === 0 ? indexingPlatform : ""),
       platform: item.platform || item.source || (index === 0 ? indexingPlatform : ""),
       sourceKey: normalizeIndexingSource(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source || (index === 0 ? indexingSource : "")),
@@ -1068,7 +972,7 @@ const PublicationForm = ({
     ? hasValue("volume")
     : isJournalArticle || ((!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume")));
   const showIssueField = isConferencePaper ? hasValue("issue") : !isBookPublication;
-  const showIndexingFields = supportsIndexing(value.publicationType, value.publicationSubtype || value.publication_subtype);
+  const showIndexingFields = supportsQuartile(value.publicationType);
   const showIdentifierField = isConferencePaper
     ? hasValue("issn") || hasValue("isbn")
     : isJournalArticle || isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("eIssn") || hasValue("e_issn") || hasValue("isbn"));
@@ -1103,14 +1007,10 @@ const PublicationForm = ({
       return false;
     }
 
-    if (["indexingPlatform", "customIndexingPlatform"].includes(field)) {
-      return false;
-    }
-
     return isTrustedSource(field);
   };
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const selectedIndexingPlatform = normalizeIndexingPlatform(value.indexingPlatform || primaryIndexing.source || primaryIndexing.platform || "");
+  const selectedIndexingPlatform = normalizeIndexingPlatform(value.indexingPlatform || primaryIndexing.source || "");
   const isScopusIndexing = selectedIndexingPlatform === "Scopus";
   const isWebOfScienceIndexing = selectedIndexingPlatform === "Web of Science";
   const isOtherIndexing = selectedIndexingPlatform === "Other";
@@ -1119,7 +1019,6 @@ const PublicationForm = ({
   const hasAuthorValue = (author = {}) => Boolean(String(author.fullName || "").trim());
   const hasAffiliationValue = (author = {}) => Boolean(String(author.affiliation || "").trim());
   const isCorrespondingAuthor = (author = {}) => normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author);
-  const isPresenter = (author = {}) => normalizeBoolean(author.isPresenter ?? author.is_presenter);
   const hasJournalIssnValue = Boolean(String(value.issn || value.eIssn || value.e_issn || "").trim());
   const requiredClassName = (field) => (fieldErrors[field] ? " has-error" : "");
   const requiredLabel = (label, required = true) => (
@@ -1145,14 +1044,6 @@ const PublicationForm = ({
     value.doi,
     value.publicationType,
     value.venue,
-    value.conferenceCity,
-    value.conference_city,
-    value.conferenceCountry,
-    value.conference_country,
-    value.conferenceFormat,
-    value.conference_format,
-    value.presentationType,
-    value.presentation_type,
     value.sourceUrl,
     value.source_url,
     value.acceptanceDate,
@@ -1190,7 +1081,7 @@ const PublicationForm = ({
         ? getConferencePaperReset()
         : isBookPublicationType(nextValue)
           ? getBookPublicationReset()
-          : !supportsIndexing(nextValue, value.publicationSubtype || value.publication_subtype)
+          : !supportsQuartile(nextValue)
             ? { eIssn: "", e_issn: "", quartile: "", indexing: [] }
             : {}
       : {};
@@ -1216,24 +1107,6 @@ const PublicationForm = ({
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
     clearFieldError("issn", "eIssn", "e_issn");
-  };
-
-  const updateConferenceLocationField = (field) => (event) => {
-    const nextValue = event.target.value;
-    const nextCity = field === "conferenceCity" ? nextValue : value.conferenceCity || value.conference_city || "";
-    const nextCountry = field === "conferenceCountry" ? nextValue : value.conferenceCountry || value.conference_country || "";
-    const nextLocation = formatConferenceLocation(nextCity, nextCountry);
-
-    onChange({
-      ...value,
-      [field]: nextValue,
-      ...(field === "conferenceCity" ? { conference_city: nextValue } : {}),
-      ...(field === "conferenceCountry" ? { conference_country: nextValue } : {}),
-      conferenceLocation: nextLocation,
-      conference_location: nextLocation,
-      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
-    });
-    clearFieldError(field, "conferenceLocation");
   };
 
   const updatePublishedField = (event) => {
@@ -1285,7 +1158,7 @@ const PublicationForm = ({
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
     setFormError("");
-    clearFieldError("mainAuthor", "authorAffiliation", `author-${index}`, `author-affiliation-${index}`, "correspondingAuthor", "presenter");
+    clearFieldError("mainAuthor", "authorAffiliation", `author-${index}`, `author-affiliation-${index}`, "correspondingAuthor");
   };
 
   const setCorrespondingAuthor = (index, isChecked) => {
@@ -1314,32 +1187,6 @@ const PublicationForm = ({
     setFormError("");
   };
 
-  const setPresenter = (index, isChecked) => {
-    const nextAuthors = [...(value.authors || [])];
-
-    while (nextAuthors.length <= index) {
-      nextAuthors.push({ ...EMPTY_AUTHOR });
-    }
-
-    const nextValue = Boolean(isChecked);
-
-    nextAuthors.forEach((author, authorIndex) => {
-      nextAuthors[authorIndex] = {
-        ...author,
-        isPresenter: nextValue && authorIndex === index,
-        is_presenter: nextValue && authorIndex === index,
-      };
-    });
-
-    onChange({
-      ...value,
-      authors: nextAuthors,
-      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
-    });
-    clearFieldError("presenter");
-    setFormError("");
-  };
-
   const addAuthor = () => {
     const authors = value.authors || [];
 
@@ -1365,7 +1212,7 @@ const PublicationForm = ({
     const nextValue = event.target.value;
     const indexing = Array.isArray(value.indexing) ? value.indexing : [];
     const [firstIndexing = {}, ...restIndexing] = indexing;
-    const nextPlatform = normalizeIndexingPlatform(field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || primaryIndexing.platform || "");
+    const nextPlatform = normalizeIndexingPlatform(field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "");
     const nextCustomIndexingPlatform = nextPlatform === "Other"
       ? field === "customIndexingPlatform"
         ? normalizeCustomIndexingPlatform(nextValue)
@@ -1466,30 +1313,9 @@ const PublicationForm = ({
         throw new Error(result.message || t("professor.dashboard.publicationForm.doiLoadFailed"));
       }
 
-      const metadataDraft = metadataToDraft(result.data, currentUserAuthor);
-      const currentIndexingPlatform = selectedIndexingPlatform;
-      const preserveManualIndexingPlatform = Boolean(currentIndexingPlatform);
-      const nextMetadataDraft = preserveManualIndexingPlatform
-        ? {
-            ...metadataDraft,
-            indexingPlatform: currentIndexingPlatform,
-            indexing_platform: currentIndexingPlatform,
-            customIndexingPlatform: currentIndexingPlatform === "Other" ? selectedCustomIndexingPlatform : "",
-            custom_indexing_platform: currentIndexingPlatform === "Other" ? selectedCustomIndexingPlatform : "",
-            indexing: (Array.isArray(metadataDraft.indexing) && metadataDraft.indexing.length
-              ? metadataDraft.indexing
-              : indexingItems
-            ).map((item, index) => index === 0
-              ? { ...item, source: currentIndexingPlatform, platform: currentIndexingPlatform, sourceKey: "manual", source_key: "manual" }
-              : item),
-            indexingVerified: false,
-            indexingSource: "manual",
-          }
-        : metadataDraft;
-
       onChange({
         ...value,
-        ...nextMetadataDraft,
+        ...metadataToDraft(result.data, currentUserAuthor),
         status: PUBLICATION_STATUS_VALUES.includes(value.status) ? value.status : "draft",
       });
       setShowPublicationFields(true);
@@ -1521,7 +1347,6 @@ const PublicationForm = ({
     const mainAuthor = normalizedAuthors[0] || {};
     const completedAuthors = normalizedAuthors.filter(hasAuthorValue);
     const hasCorrespondingAuthor = completedAuthors.some(isCorrespondingAuthor);
-    const presenterCount = completedAuthors.filter(isPresenter).length;
     const requireField = (field, condition = true) => {
       if (condition && !String(value[field] || "").trim()) {
         errors[field] = REQUIRED_FIELD_MESSAGE;
@@ -1561,14 +1386,7 @@ const PublicationForm = ({
     }
 
     if (isConferencePaper) {
-      requireField("conferenceCity");
-      requireField("conferenceCountry");
-      requireField("conferenceFormat");
-      requireField("presentationType");
-
-      if (presenterCount !== 1) {
-        errors.presenter = REQUIRED_FIELD_MESSAGE;
-      }
+      requireField("conferenceLocation");
     }
 
     if (isBookPublication) {
@@ -1579,7 +1397,7 @@ const PublicationForm = ({
       errors.mainAuthor = REQUIRED_FIELD_MESSAGE;
     }
 
-    if (!isConferencePaper && !hasCorrespondingAuthor) {
+    if (!hasCorrespondingAuthor) {
       errors.correspondingAuthor = REQUIRED_FIELD_MESSAGE;
     }
 
@@ -1664,17 +1482,6 @@ const PublicationForm = ({
             {renderFieldError(affiliationFieldKey)}
           </label>
         </div>
-        {isConferencePaper ? (
-        <label className={`publication-author-corresponding-field${fieldErrors.presenter ? " has-error" : ""}`}>
-          <input
-            type="checkbox"
-            checked={isPresenter(author)}
-            onChange={(event) => setPresenter(index, event.target.checked)}
-            aria-label={t("professor.dashboard.publicationForm.presenter")}
-          />
-          <span>{requiredLabel(t("professor.dashboard.publicationForm.presenter"), true)}</span>
-        </label>
-        ) : (
         <label className={`publication-author-corresponding-field${fieldErrors.correspondingAuthor ? " has-error" : ""}`}>
           <input
             type="checkbox"
@@ -1684,7 +1491,6 @@ const PublicationForm = ({
           />
           <span>{requiredLabel(t("professor.dashboard.publicationForm.correspondingAuthor"), true)}</span>
         </label>
-        )}
         <div className="publication-author-field publication-author-orcid-field">
           <span className="publication-author-field-label">ORCID</span>
           {orcidLocked && hasOrcid ? (
@@ -1918,10 +1724,11 @@ const PublicationForm = ({
         {showIndexingFields ? (
           <>
             <label className={`prof-form-field${requiredClassName("indexingPlatform")}`}>
-              <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"), isJournalArticle)}</span>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"))}</span>
               <select
                 value={selectedIndexingPlatform}
                 onChange={updateIndexingField("indexingPlatform")}
+                disabled={isFieldLocked("indexingPlatform")}
                 aria-invalid={Boolean(fieldErrors.indexingPlatform)}
               >
                 {INDEXING_PLATFORM_OPTIONS.map((option) => (
@@ -1934,10 +1741,11 @@ const PublicationForm = ({
             </label>
             {isOtherIndexing ? (
               <label className={`prof-form-field${requiredClassName("customIndexingPlatform")}`}>
-                <span>{requiredLabel(t("professor.dashboard.publicationForm.customIndexingPlatform"), isJournalArticle)}</span>
+                <span>{requiredLabel(t("professor.dashboard.publicationForm.customIndexingPlatform"))}</span>
                 <input
                   value={selectedCustomIndexingPlatform}
                   onChange={updateIndexingField("customIndexingPlatform")}
+                  readOnly={isFieldLocked("customIndexingPlatform")}
                   aria-invalid={Boolean(fieldErrors.customIndexingPlatform)}
                 />
                 {renderFieldError("customIndexingPlatform")}
@@ -1947,7 +1755,7 @@ const PublicationForm = ({
               <>
                 <label className={`prof-form-field${requiredClassName("quartile")}`}>
                   <span className="publication-quartile-label">
-                    <span>{requiredLabel(t("professor.dashboard.publicationForm.quartile"), isJournalArticle)}</span>
+                    <span>{requiredLabel(t("professor.dashboard.publicationForm.quartile"))}</span>
                   </span>
                   <select
                     value={displayableQuartile}
@@ -1976,7 +1784,7 @@ const PublicationForm = ({
             {isWebOfScienceIndexing ? (
               <>
                 <label className={`prof-form-field${requiredClassName("webOfScienceIndex")}`}>
-                  <span>{requiredLabel(t("professor.dashboard.publicationForm.webOfScienceIndex"), isJournalArticle)}</span>
+                  <span>{requiredLabel(t("professor.dashboard.publicationForm.webOfScienceIndex"))}</span>
                   <select
                     value={selectedWebOfScienceIndex}
                     onChange={updateIndexingField("webOfScienceIndex")}

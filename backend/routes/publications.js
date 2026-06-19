@@ -561,10 +561,8 @@ function isBookChapterPublication(publicationType, publicationSubtype) {
   return publicationType === "book" && normalizePublicationSubtype(publicationSubtype) === "book_chapter";
 }
 
-function supportsPublicationIndexing(publicationType, publicationSubtype = "") {
-  return publicationType === "journal_article"
-    || publicationType === "conference_paper"
-    || isBookChapterPublication(publicationType, publicationSubtype);
+function supportsPublicationIndexing(publicationType) {
+  return publicationType === "journal_article";
 }
 
 function normalizeIndexingPlatform(value) {
@@ -573,16 +571,12 @@ function normalizeIndexingPlatform(value) {
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
+  if (comparable.includes("openalex")) return "OpenAlex";
   if (comparable.includes("doaj")) return "DOAJ";
-  if (comparable.includes("google scholar")) return "Google Scholar";
-  if (comparable.includes("pubmed")) return "PubMed";
-  if (comparable.includes("ieee")) return "IEEE Xplore";
-  if (comparable.includes("springer")) return "SpringerLink";
-  if (comparable.includes("acm")) return "ACM Digital Library";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
-  if (comparable === "not indexed" || comparable === "not_indexed" || comparable === "notindexed") return "Not indexed";
 
   return text;
 }
@@ -981,7 +975,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
   const title = normalizeText(body.title);
   const publicationType = normalizePublicationType(body.publicationType || body.publication_type);
   const publicationSubtype = normalizePublicationSubtype(body.publicationSubtype || body.publication_subtype);
-  const canIndexPublication = supportsPublicationIndexing(publicationType, publicationSubtype);
+  const canIndexPublication = supportsPublicationIndexing(publicationType);
   const isBookPublication = publicationType === "book";
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const publicationYear = normalizeYear(body.publicationYear ?? body.publication_year);
@@ -1132,20 +1126,16 @@ function normalizePublicationPayload(body = {}, options = {}) {
       || item.indexed_url
     )
   );
-  const shouldRequireIndexingPlatform = publicationType === "journal_article" && !indexingPlatform;
+  const shouldRequireIndexingPlatform = publicationType === "journal_article" && hasIndexingClaim && !indexingPlatform;
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
   }
 
   if (shouldRequireIndexingPlatform) {
-    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme kerkohet per Journal Article." });
+    errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme kerkohet kur publikimi shenohet si i indeksuar." });
   } else if (indexingPlatform && !VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme nuk eshte valid." });
-  }
-
-  if (indexingPlatform === "Other" && !customIndexingPlatform) {
-    errors.push({ field: "customIndexingPlatform", message: "Platforma tjeter eshte obligative kur zgjedhet Other." });
   }
 
   if (indexingCategory.length > 200) {
@@ -1283,14 +1273,13 @@ function mapPublication(row) {
   const authors = getPublicationAuthors(row);
   const metadataRaw = row.metadata_raw_json && typeof row.metadata_raw_json === "object" ? row.metadata_raw_json : {};
   const publicationType = normalizePublicationType(row.publication_type || row.metadata_type);
-  const publicationSubtype = normalizePublicationSubtype(row.publication_subtype) || getPublicationSubtypeFromRaw(metadataRaw);
+  const publicationSubtype = getPublicationSubtypeFromRaw(metadataRaw);
   const isBookPublication = publicationType === "book";
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const isConferencePaper = publicationType === "conference_paper";
   const hideJournalSpecificFields = isBookPublication;
   const hideVolumeField = isBookPublication && !isBookChapter;
-  const canIndexPublication = supportsPublicationIndexing(publicationType, publicationSubtype);
-  const indexing = canIndexPublication ? getArrayField(row, "indexing").map((item) => ({
+  const indexing = supportsPublicationIndexing(publicationType) ? getArrayField(row, "indexing").map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
     sourceKey: normalizeIndexingSource(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
@@ -1317,23 +1306,23 @@ function mapPublication(row) {
     indexed_url: item.indexed_url || item.indexedUrl || "",
   })) : [];
   const authorAffiliation = null;
-  const indexingPlatform = canIndexPublication ? row.indexing_platform || deriveIndexingPlatform(indexing) : "";
-  const customIndexingPlatform = canIndexPublication && indexingPlatform === "Other" ? normalizeCustomIndexingPlatform(row.custom_indexing_platform) : "";
-  const webOfScienceIndex = canIndexPublication && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndex(row.web_of_science_index || deriveIndexingCategory(indexing, publicationType)) : "";
-  const indexingCategory = canIndexPublication ? webOfScienceIndex : "";
-  const indexingVerified = canIndexPublication && Boolean(row.indexing_verified);
-  const indexingSource = canIndexPublication ? normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source) : "manual";
+  const indexingPlatform = supportsPublicationIndexing(publicationType) ? row.indexing_platform || deriveIndexingPlatform(indexing) : "";
+  const customIndexingPlatform = supportsPublicationIndexing(publicationType) && indexingPlatform === "Other" ? normalizeCustomIndexingPlatform(row.custom_indexing_platform) : "";
+  const webOfScienceIndex = supportsPublicationIndexing(publicationType) && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndex(row.web_of_science_index || deriveIndexingCategory(indexing, publicationType)) : "";
+  const indexingCategory = supportsPublicationIndexing(publicationType) ? webOfScienceIndex : "";
+  const indexingVerified = supportsPublicationIndexing(publicationType) && Boolean(row.indexing_verified);
+  const indexingSource = supportsPublicationIndexing(publicationType) ? normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source) : "manual";
   const selectedIndexing = getSelectedIndexingItem(indexing, row.quartile);
-  const selectedQuartile = canIndexPublication ? getPrimaryQuartile(indexing) : "";
-  const selectedCiteScore = canIndexPublication
+  const selectedQuartile = supportsPublicationIndexing(publicationType) ? getPrimaryQuartile(indexing) : "";
+  const selectedCiteScore = supportsPublicationIndexing(publicationType)
     ? normalizeText(row.cite_score || row.citeScore || selectedIndexing.citeScore || selectedIndexing.cite_score || selectedIndexing.citescore)
     : "";
-  const selectedSjr = canIndexPublication ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
+  const selectedSjr = supportsPublicationIndexing(publicationType) ? normalizeText(row.sjr || selectedIndexing.sjr) : "";
   const impactFactorIndexing = indexing.find((item) => normalizeImpactFactorValue(item.impactFactor || item.impact_factor)) || {};
-  const selectedImpactFactor = canIndexPublication
+  const selectedImpactFactor = supportsPublicationIndexing(publicationType)
     ? normalizeImpactFactorValue(row.impact_factor || row.impactFactor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor)
     : "";
-  const selectedCiteScoreVerified = canIndexPublication
+  const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
     && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
   const bookChapterEditors = isBookChapter ? getBookChapterEditorsFromRaw(metadataRaw) : [];
   const bookChapterSeriesTitle = isBookChapter ? getBookChapterSeriesTitleFromRaw(metadataRaw) : "";
