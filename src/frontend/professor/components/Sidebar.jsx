@@ -17,8 +17,8 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const reimbursementSubmenu = [
-    { name: "Artikuj Shkencorë", target: "Rimbursime", reimbursementType: "publication" },
-    { name: "Konferenca dhe Simpoziume", target: "Rimbursime", reimbursementType: "conference" },
+    { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
+    { name: "Konferenca dhe Simpoziume", label: t("navigation.reimbursementConferences"), target: "Rimbursime", reimbursementType: "conference" },
   ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
@@ -106,7 +106,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                       }`}
                       onClick={() => handleReimbursementSubmenuClick(submenuItem)}
                     >
-                      {submenuItem.name}
+                      {submenuItem.label}
                     </button>
                   ))}
                 </div>

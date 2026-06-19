@@ -48,12 +48,17 @@ const ALLOWED_ATTACHMENT_TYPES = [
 ];
 const MAX_SELECTED_ATTACHMENTS = 5;
 const DECLARATION_REQUIRED_ERROR = "reimbursement.declaration.required";
+const BANK_ACCOUNT_REQUIRED_ERROR = "reimbursement.bankAccount.required";
+const F1_PDF_ONLY_ERROR = "reimbursement.supportingDocuments.f1PdfOnly";
+const MAX_DOCUMENTS_ERROR = "reimbursement.supportingDocuments.maximumDocuments";
 const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
     {
       id: "article_pdf",
       label: "Artikull Shkencor (PDF)",
       description: "Ngarkoni versionin PDF të artikullit shkencor.",
+      labelKey: "professor.reimbursements.supportingDocuments.articlePdfTitle",
+      descriptionKey: "professor.reimbursements.supportingDocuments.articlePdfDescription",
     },
   ],
   conference: [
@@ -1643,6 +1648,9 @@ export default function ReimbursementManager({
   const { language, t, tx } = useLanguage();
   const r = t("professor.reimbursements");
   const declarationRequiredMessage = r.declaration.required;
+  const maximumDocumentsMessage = t("professor.reimbursements.supportingDocuments.maximumDocuments", {
+    max: MAX_SELECTED_ATTACHMENTS,
+  });
   const [selectedType, setSelectedType] = useState("publication");
   const [form, setForm] = useState(() => createDefaultForm());
   const [context, setContext] = useState({
@@ -2306,7 +2314,7 @@ export default function ReimbursementManager({
 
     if (bankRequired && SERVER_BANK_SNAPSHOT_TYPES.has(selectedType)) {
       if (!hasProfileBankSelection) {
-        nextErrors.selectedBankAccountId = "Ju lutem shtoni një llogari bankare në profil para aplikimit.";
+        nextErrors.selectedBankAccountId = BANK_ACCOUNT_REQUIRED_ERROR;
       }
     } else if (bankRequired) {
       const submittedAccount = form.bankAccountNumber || form.iban;
@@ -2629,9 +2637,9 @@ export default function ReimbursementManager({
     const remainingSlots = Math.max(MAX_SELECTED_ATTACHMENTS - selectedFiles.length, 0);
 
     if (validFiles.length !== files.length) {
-      setError(isF1ArticlePdf ? "Lejohet vetëm artikulli shkencor në formatin PDF." : "Lejohen vetem PDF, JPG, PNG dhe DOCX.");
+      setError(isF1ArticlePdf ? F1_PDF_ONLY_ERROR : "Lejohen vetem PDF, JPG, PNG dhe DOCX.");
     } else if (validFiles.length > remainingSlots) {
-      setError(`Maksimum ${MAX_SELECTED_ATTACHMENTS} file gjithsej.`);
+      setError(MAX_DOCUMENTS_ERROR);
     }
 
     setSelectedFiles((currentFiles) => {
@@ -3458,8 +3466,8 @@ export default function ReimbursementManager({
     if (isLoadingBankAccounts) {
       return (
         <div className="reimbursement-field reimbursement-wide">
-          <span>Llogaria bankare</span>
-          <div className="reimbursement-bank-placeholder">Duke ngarkuar llogarite bankare...</div>
+          <span>{r.bankAccountSelection.label}</span>
+          <div className="reimbursement-bank-placeholder">{r.bankAccountSelection.loading}</div>
         </div>
       );
     }
@@ -3467,11 +3475,17 @@ export default function ReimbursementManager({
     if (!bankAccounts.length && !summary) {
       return (
         <div className="reimbursement-field reimbursement-wide">
-          <span>Llogaria bankare</span>
+          <span>{r.bankAccountSelection.label}</span>
           <div className="reimbursement-bank-placeholder" role="alert">
-            Ju lutem shtoni një llogari bankare në profil para aplikimit.
+            {r.bankAccountSelection.missingProfileAccount}
           </div>
-          {fieldErrors.selectedBankAccountId ? <small className="reimbursement-field-error">{tx(fieldErrors.selectedBankAccountId)}</small> : null}
+          {fieldErrors.selectedBankAccountId ? (
+            <small className="reimbursement-field-error">
+              {fieldErrors.selectedBankAccountId === BANK_ACCOUNT_REQUIRED_ERROR
+                ? r.bankAccountSelection.missingProfileAccount
+                : tx(fieldErrors.selectedBankAccountId)}
+            </small>
+          ) : null}
         </div>
       );
     }
@@ -3480,25 +3494,31 @@ export default function ReimbursementManager({
       <>
         {bankAccounts.length ? (
           <label className="reimbursement-field reimbursement-wide">
-            <span>Llogaria bankare</span>
+            <span>{r.bankAccountSelection.label}</span>
             <select value={form.selectedBankAccountId} onChange={handleBankAccountSelect} required>
               {bankAccounts.map((account) => {
                 const bankDisplayName = getLocalizedBankDisplayName(account.bankName, language) || account.label || "Llogari bankare";
 
                 return (
                   <option key={account.id} value={account.id}>
-                    {[bankDisplayName, maskBankAccountNumber(account.iban || account.bankAccountNumber), account.isDefault ? "Llogari Kryesore" : ""].filter(Boolean).join(" - ")}
+                    {[bankDisplayName, maskBankAccountNumber(account.iban || account.bankAccountNumber), account.isDefault ? r.bankAccountSelection.primary : ""].filter(Boolean).join(" - ")}
                   </option>
                 );
               })}
             </select>
-            {fieldErrors.selectedBankAccountId ? <small className="reimbursement-field-error">{tx(fieldErrors.selectedBankAccountId)}</small> : null}
+            {fieldErrors.selectedBankAccountId ? (
+              <small className="reimbursement-field-error">
+                {fieldErrors.selectedBankAccountId === BANK_ACCOUNT_REQUIRED_ERROR
+                  ? r.bankAccountSelection.missingProfileAccount
+                  : tx(fieldErrors.selectedBankAccountId)}
+              </small>
+            ) : null}
           </label>
         ) : null}
 
         {summary ? (
           <div className="reimbursement-field reimbursement-bank-result reimbursement-wide">
-            <span>{summary.isLegacy ? "Llogaria bankare e ruajtur ne kerkese" : "Detajet e llogarise"}</span>
+            <span>{summary.isLegacy ? r.bankAccountSelection.savedWithRequest : r.bankAccountSelection.details}</span>
             <div className="reimbursement-detected-bank" aria-live="polite">
               <span className="reimbursement-bank-logo">
                 {summaryBank?.logoSrc ? (
@@ -3616,7 +3636,12 @@ export default function ReimbursementManager({
           <span key={item.id}>
             <CheckCircle2 size={13} />
             {item.file.name} {formatBytes(item.file.size) ? `(${formatBytes(item.file.size)})` : ""}
-            <button type="button" className="reimbursement-icon-btn" onClick={() => removeSelectedFile(item.id)} aria-label={`Hiq ${item.file.name}`}>
+            <button
+              type="button"
+              className="reimbursement-icon-btn"
+              onClick={() => removeSelectedFile(item.id)}
+              aria-label={t("professor.reimbursements.supportingDocuments.removeFile", { filename: item.file.name })}
+            >
               <Trash2 size={13} />
             </button>
           </span>
@@ -3663,6 +3688,8 @@ export default function ReimbursementManager({
         {documentTypes.map((documentType) => {
           const filesForType = selectedFiles.filter((item) => item.documentType === documentType.id);
           const CategoryIcon = selectedType === "conference" ? UserRound : FileText;
+          const documentTypeLabel = documentType.labelKey ? t(documentType.labelKey) : documentType.label;
+          const documentTypeDescription = documentType.descriptionKey ? t(documentType.descriptionKey) : documentType.description;
 
           return (
             <div className={`reimbursement-document-card reimbursement-document-card--${selectedType}`} key={documentType.id}>
@@ -3671,8 +3698,8 @@ export default function ReimbursementManager({
                   <CategoryIcon size={18} />
                 </span>
                 <div>
-                  <strong>{documentType.label}</strong>
-                  <p>{documentType.description}</p>
+                  <strong>{documentTypeLabel}</strong>
+                  <p>{documentTypeDescription}</p>
                 </div>
               </div>
               <label className="reimbursement-upload-label reimbursement-upload-label--button">
@@ -3687,7 +3714,7 @@ export default function ReimbursementManager({
                 />
                 <span className="reimbursement-upload-action">
                   <Upload size={14} />
-                  Ngarko dokument
+                  {r.supportingDocuments.uploadDocument}
                 </span>
               </label>
               {renderSelectedFileList(filesForType)}
@@ -3899,7 +3926,13 @@ export default function ReimbursementManager({
             <div className="reimbursement-action-feedback">
               {error ? (
                 <p className="reimbursement-message error" role="alert">
-                  {error === DECLARATION_REQUIRED_ERROR ? declarationRequiredMessage : tx(error)}
+                  {error === DECLARATION_REQUIRED_ERROR
+                    ? declarationRequiredMessage
+                    : error === F1_PDF_ONLY_ERROR
+                      ? r.supportingDocuments.f1PdfOnly
+                      : error === MAX_DOCUMENTS_ERROR
+                        ? maximumDocumentsMessage
+                        : tx(error)}
                 </p>
               ) : null}
               {success ? (
