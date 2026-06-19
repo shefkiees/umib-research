@@ -3787,40 +3787,42 @@ export default function ReimbursementManager({
             {renderAttachmentUpload()}
           </section>
 
-          <section className="reimbursement-section">
-            <div className="reimbursement-section-head">
-              <FileText size={18} />
-              <div>
-                <h4>{r.reviewTitle}</h4>
-                <p>{r.reviewDescription}</p>
+          {selectedType !== "publication" ? (
+            <section className="reimbursement-section">
+              <div className="reimbursement-section-head">
+                <FileText size={18} />
+                <div>
+                  <h4>{r.reviewTitle}</h4>
+                  <p>{r.reviewDescription}</p>
+                </div>
               </div>
-            </div>
-            <div className="reimbursement-review-panel">
-              <span><strong>{r.form}:</strong> {selectedTypeConfig.code} - {tx(selectedTypeConfig.requestLabel)}</span>
-              <span><strong>{r.amount}:</strong> {amountPreview || r.noAmount}</span>
-              <span><strong>{r.bank}:</strong> {bankRequired ? visualBank?.name || r.noBank : r.bankNotRequired}</span>
-              <div className="reimbursement-preview-actions">
-                <button
-                  type="button"
-                  className="prof-btn-secondary"
-                  onClick={() => handlePreviewDocument("docx")}
-                  disabled={previewingDocument === "docx" || isSubmitting}
-                >
-                  <FileText size={16} />
-                  {previewingDocument === "docx" ? r.generatingDocx : r.previewDocx}
-                </button>
-                <button
-                  type="button"
-                  className="prof-btn-secondary"
-                  onClick={() => handlePreviewDocument("pdf")}
-                  disabled={previewingDocument === "pdf" || isSubmitting}
-                >
-                  <FileText size={16} />
-                  {previewingDocument === "pdf" ? r.generatingPdf : r.previewPdf}
-                </button>
+              <div className="reimbursement-review-panel">
+                <span><strong>{r.form}:</strong> {selectedTypeConfig.code} - {tx(selectedTypeConfig.requestLabel)}</span>
+                <span><strong>{r.amount}:</strong> {amountPreview || r.noAmount}</span>
+                <span><strong>{r.bank}:</strong> {bankRequired ? visualBank?.name || r.noBank : r.bankNotRequired}</span>
+                <div className="reimbursement-preview-actions">
+                  <button
+                    type="button"
+                    className="prof-btn-secondary"
+                    onClick={() => handlePreviewDocument("docx")}
+                    disabled={previewingDocument === "docx" || isSubmitting}
+                  >
+                    <FileText size={16} />
+                    {previewingDocument === "docx" ? r.generatingDocx : r.previewDocx}
+                  </button>
+                  <button
+                    type="button"
+                    className="prof-btn-secondary"
+                    onClick={() => handlePreviewDocument("pdf")}
+                    disabled={previewingDocument === "pdf" || isSubmitting}
+                  >
+                    <FileText size={16} />
+                    {previewingDocument === "pdf" ? r.generatingPdf : r.previewPdf}
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           <div className="reimbursement-action-bar">
             <div className="reimbursement-action-feedback">
