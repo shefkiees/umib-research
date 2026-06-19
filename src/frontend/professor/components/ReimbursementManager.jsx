@@ -47,8 +47,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 const MAX_SELECTED_ATTACHMENTS = 5;
-const DECLARATION_REQUIRED_MESSAGE = "Ju lutem konfirmoni deklaratën para dorëzimit të kërkesës.";
-
+const DECLARATION_REQUIRED_ERROR = "reimbursement.declaration.required";
 const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
     {
@@ -682,21 +681,22 @@ function getPublicationDisplaySections(form) {
 
 function getPublicationMetadataDisplaySection(form, options = {}) {
   const publicationType = normalizePublicationType(form.publicationType);
-  const typeLabel = getPublicationTypeLabel(form.publicationType);
+  const labels = options.labels;
+  const typeLabel = options.typeLabels[publicationType] || getPublicationTypeLabel(form.publicationType);
   const coauthors = splitCoauthors(form.coauthors);
   const doiField = createDisplayField("DOI", form.doi, form.doi ? { href: `https://doi.org/${form.doi}` } : {});
   const articleLink = cleanDisplayValue(form.publicationLink || form.sourceUrl || form.source_url);
-  const articleLinkField = createDisplayField("Linku i Artikullit", articleLink, { href: articleLink });
+  const articleLinkField = createDisplayField(labels.articleLink, articleLink, { href: articleLink });
   const correspondingAuthor = cleanDisplayValue(form.correspondingAuthor || options.correspondingAuthor);
   const citeScore = cleanDisplayValue(options.citeScore);
   const issnDisplay = formatIssnDisplay(form.issn, form.eIssn || form.e_issn);
   const commonStart = [
-    createDisplayField("Titulli i artikullit", form.publicationTitle),
-    createDisplayField("Lloji i publikimit", typeLabel),
-    createDisplayField("Emri i Revistës", form.venue || form.journal),
-    createDisplayField("Shtëpia botuese", form.publisher),
-    createDisplayField("Data e Publikimit", form.publicationDate || form.publicationYear, { format: "date" }),
-    createDisplayField("Faqet", form.pages),
+    createDisplayField(labels.articleTitle, form.publicationTitle),
+    createDisplayField(labels.publicationType, typeLabel),
+    createDisplayField(labels.journalName, form.venue || form.journal),
+    createDisplayField(labels.publisher, form.publisher),
+    createDisplayField(labels.publicationDate, form.publicationDate || form.publicationYear, { format: "date" }),
+    createDisplayField(labels.pages, form.pages),
     publicationType === "journal_article" ? createDisplayField("ISSN / E-ISSN", issnDisplay) : createDisplayField("ISSN", form.issn),
     publicationType === "journal_article" ? null : createDisplayField("ISBN", form.isbn),
   ].filter(Boolean);
@@ -706,9 +706,9 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       title: "",
       fields: [
         ...commonStart,
-        createDisplayField("Autori kryesor", form.mainAuthor),
-        createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
-        createAuthorListDisplayField("Bashkautorët", coauthors),
+        createDisplayField(labels.mainAuthor, form.mainAuthor),
+        createCompactAuthorDisplayField(labels.correspondingAuthor, correspondingAuthor),
+        createAuthorListDisplayField(labels.coauthors, coauthors),
         createDisplayField("Affiliation", form.affiliation),
         doiField,
       ].filter(Boolean),
@@ -726,13 +726,13 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
       title: "",
       fields: [
         ...conferenceStart,
-        createDisplayField("Autori kryesor", form.mainAuthor),
-        createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
-        createAuthorListDisplayField("Bashkautorët", coauthors),
+        createDisplayField(labels.mainAuthor, form.mainAuthor),
+        createCompactAuthorDisplayField(labels.correspondingAuthor, correspondingAuthor),
+        createAuthorListDisplayField(labels.coauthors, coauthors),
         createDisplayField("Affiliation", form.affiliation),
         doiField,
-        createDisplayField("Indeksimi në platformë", form.indexingPlatform),
-        createDisplayField("Kuartili", form.scopusQuartile),
+        createDisplayField(labels.indexingPlatform, form.indexingPlatform),
+        createDisplayField(labels.quartile, form.scopusQuartile),
       ].filter(Boolean),
     };
   }
@@ -740,27 +740,27 @@ function getPublicationMetadataDisplaySection(form, options = {}) {
   return {
     title: "",
     fields: [
-      createDisplayField("Titulli i artikullit", form.publicationTitle),
-      createDisplayField("Lloji i publikimit", typeLabel),
-      createDisplayField("Emri i Revistës", form.venue || form.journal),
-      createDisplayField("Shtëpia botuese", form.publisher),
-      createDisplayField("Data e Pranimit", form.acceptanceDate, { format: "date" }),
-      createDisplayField("Data e Publikimit", form.publicationDate || form.publicationYear, { format: "date" }),
-      createDisplayField("Vëllimi", form.volume),
-      createDisplayField("Numri i revistës / Issue", form.issue),
-      createDisplayField("Faqet", form.pages),
+      createDisplayField(labels.articleTitle, form.publicationTitle),
+      createDisplayField(labels.publicationType, typeLabel),
+      createDisplayField(labels.journalName, form.venue || form.journal),
+      createDisplayField(labels.publisher, form.publisher),
+      createDisplayField(labels.acceptanceDate, form.acceptanceDate, { format: "date" }),
+      createDisplayField(labels.publicationDate, form.publicationDate || form.publicationYear, { format: "date" }),
+      createDisplayField(labels.volume, form.volume),
+      createDisplayField(labels.issue, form.issue),
+      createDisplayField(labels.pages, form.pages),
       createDisplayField("ISSN / E-ISSN", issnDisplay, { variant: "issn" }),
-      createDisplayField("Autori kryesor", form.mainAuthor),
-      createCompactAuthorDisplayField("Autori korrespondent", correspondingAuthor),
-      createAuthorListDisplayField("Bashkautorët", coauthors),
+      createDisplayField(labels.mainAuthor, form.mainAuthor),
+      createCompactAuthorDisplayField(labels.correspondingAuthor, correspondingAuthor),
+      createAuthorListDisplayField(labels.coauthors, coauthors),
       createDisplayField("Affiliation", form.affiliation),
       doiField,
       articleLinkField,
-      createDisplayField("Indeksimi në platformë", form.indexingPlatform),
-      createDisplayField("Kategoria e indeksimit", form.indexingCategory),
+      createDisplayField(labels.indexingPlatform, form.indexingPlatform),
+      createDisplayField(labels.indexingCategory, form.indexingCategory),
       createDisplayField("Impact Factor", form.impactFactor),
       createDisplayField("CiteScore", citeScore),
-      createDisplayField("Kuartili", form.scopusQuartile),
+      createDisplayField(labels.quartile, form.scopusQuartile),
     ].filter(Boolean),
   };
 }
@@ -1642,6 +1642,7 @@ export default function ReimbursementManager({
 }) {
   const { language, t, tx } = useLanguage();
   const r = t("professor.reimbursements");
+  const declarationRequiredMessage = r.declaration.required;
   const [selectedType, setSelectedType] = useState("publication");
   const [form, setForm] = useState(() => createDefaultForm());
   const [context, setContext] = useState({
@@ -2352,7 +2353,7 @@ export default function ReimbursementManager({
     }
 
     if (selectedType === "publication" && !isDeclarationAccepted) {
-      nextErrors.declaration = DECLARATION_REQUIRED_MESSAGE;
+      nextErrors.declaration = DECLARATION_REQUIRED_ERROR;
     }
 
     setFieldErrors(nextErrors);
@@ -2394,7 +2395,7 @@ export default function ReimbursementManager({
     if (!validateForm(action)) {
       setError(
         action === "submit" && selectedType === "publication" && !isDeclarationAccepted
-          ? DECLARATION_REQUIRED_MESSAGE
+          ? DECLARATION_REQUIRED_ERROR
           : "Ploteso fushat obligative para dergimit."
       );
       return;
@@ -3050,7 +3051,7 @@ export default function ReimbursementManager({
 
     return (
       <section className="reimbursement-publication-display-card reimbursement-publication-abstract-group reimbursement-wide">
-        <h5>Abstrakti</h5>
+        <h5>{r.publicationMetadata.abstract}</h5>
         <div className={`reimbursement-abstract-box ${isAbstractExpanded ? "expanded" : ""}`}>
           {abstractText}
         </div>
@@ -3060,7 +3061,7 @@ export default function ReimbursementManager({
             className="reimbursement-abstract-toggle"
             onClick={() => setIsAbstractExpanded((current) => !current)}
           >
-            {isAbstractExpanded ? "Shfaq më pak" : "Shfaq më shumë"}
+            {isAbstractExpanded ? r.publicationMetadata.showLess : r.publicationMetadata.showMore}
           </button>
         ) : null}
       </section>
@@ -3074,6 +3075,12 @@ export default function ReimbursementManager({
     const metadataSection = getPublicationMetadataDisplaySection(form, {
       correspondingAuthor: selectedPublicationAuthors.correspondingAuthor,
       citeScore: selectedPublicationIndexing.citeScore,
+      labels: r.publicationMetadata,
+      typeLabels: {
+        journal_article: r.publicationMetadata.journalArticle,
+        conference_paper: r.publicationMetadata.conferencePaper,
+        book: r.publicationMetadata.book,
+      },
     });
 
     if (form.publicationId && metadataSection.fields.length) {
@@ -3815,15 +3822,14 @@ export default function ReimbursementManager({
               <div className="reimbursement-section-head">
                 <CheckCircle2 size={18} />
                 <div>
-                  <h4>Deklarata e aplikuesit</h4>
+                  <h4>{r.declaration.title}</h4>
                 </div>
               </div>
               <div className="reimbursement-declaration-panel">
                 <p>
-                  Unë, <strong>{declarationProfessorName}</strong>, deklaroj nën betim se për artikullin shkencor të titulluar
-                  {" “"}<strong>{declarationArticleTitle}</strong>”, nuk kam marrë asnjë formë mbështetjeje financiare,
-                  qoftë ajo në formë granti, sponsorizimi, apo çdo lloj mbështetjeje tjetër financiare nga MASHT. Kjo bëhet
-                  me mirëbesim dhe nën përgjegjësinë time të plotë morale dhe ligjore.
+                  {r.declaration.textPrefix}<strong>{declarationProfessorName}</strong>
+                  {r.declaration.textBetweenNameAndTitle}<strong>{declarationArticleTitle}</strong>
+                  {r.declaration.textAfterTitle}
                 </p>
                 <label className="reimbursement-declaration-confirmation">
                   <input
@@ -3841,14 +3847,14 @@ export default function ReimbursementManager({
                           delete remainingErrors.declaration;
                           return remainingErrors;
                         });
-                        setError((currentError) => currentError === DECLARATION_REQUIRED_MESSAGE ? "" : currentError);
+                        setError((currentError) => currentError === DECLARATION_REQUIRED_ERROR ? "" : currentError);
                       }
                     }}
                   />
-                  <span>Kam lexuar dhe pranoj deklaratën.</span>
+                  <span>{r.declaration.accept}</span>
                 </label>
                 {fieldErrors.declaration ? (
-                  <small className="reimbursement-field-error">{fieldErrors.declaration}</small>
+                  <small className="reimbursement-field-error">{declarationRequiredMessage}</small>
                 ) : null}
               </div>
             </section>
@@ -3891,7 +3897,11 @@ export default function ReimbursementManager({
 
           <div className="reimbursement-action-bar">
             <div className="reimbursement-action-feedback">
-              {error ? <p className="reimbursement-message error" role="alert">{tx(error)}</p> : null}
+              {error ? (
+                <p className="reimbursement-message error" role="alert">
+                  {error === DECLARATION_REQUIRED_ERROR ? declarationRequiredMessage : tx(error)}
+                </p>
+              ) : null}
               {success ? (
                 <div className="reimbursement-message success">
                   <span>
