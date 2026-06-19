@@ -19,6 +19,9 @@ import { getDocxLabelMap } from "../../shared/reimbursementSchema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_DIR = path.resolve(__dirname, "..", "templates");
+const FONT_DIR = path.resolve(__dirname, "..", "assets", "fonts");
+const PDF_FONT_REGULAR = "UnicodeRegular";
+const PDF_FONT_BOLD = "UnicodeBold";
 
 const FORM_TITLES = {
   publication: "KERKESE PER FINANCIM TE PUBLIKIMIT SHKENCOR (Formulari 1)",
@@ -1131,7 +1134,7 @@ function addPdfSection(pdf, title, fields, data) {
   pdf.moveDown(0.5);
   pdf
     .fillColor("#153a63")
-    .font("Helvetica-Bold")
+    .font(PDF_FONT_BOLD)
     .fontSize(12)
     .text(title, { continued: false });
   pdf.moveDown(0.25);
@@ -1141,11 +1144,11 @@ function addPdfSection(pdf, title, fields, data) {
 
     pdf
       .fillColor("#1f2937")
-      .font("Helvetica-Bold")
+      .font(PDF_FONT_BOLD)
       .fontSize(9.5)
       .text(`${field.label}:`, { continued: false });
     pdf
-      .font("Helvetica")
+      .font(PDF_FONT_REGULAR)
       .fontSize(9.5)
       .fillColor("#374151")
       .text(value, { indent: 10 });
@@ -1317,7 +1320,7 @@ function addPublicationPdfSectionHeader(pdf, title) {
     .fill("#e8eef6");
   pdf
     .fillColor("#153a63")
-    .font("Helvetica-Bold")
+    .font(PDF_FONT_BOLD)
     .fontSize(11.5)
     .text(title, x + 9, pdf.y + 6, { width: contentWidth - 18 });
   pdf.y += height + 6;
@@ -1330,7 +1333,7 @@ function addPublicationPdfCompactField(pdf, field, value) {
   const gap = 12;
   const valueWidth = contentWidth - labelWidth - gap - 16;
 
-  pdf.font("Helvetica").fontSize(9.5);
+  pdf.font(PDF_FONT_REGULAR).fontSize(9.5);
   const valueHeight = pdf.heightOfString(value, { width: valueWidth });
   const rowHeight = Math.max(24, valueHeight + 12);
 
@@ -1346,12 +1349,12 @@ function addPublicationPdfCompactField(pdf, field, value) {
     .stroke();
   pdf
     .fillColor("#1f2937")
-    .font("Helvetica-Bold")
+    .font(PDF_FONT_BOLD)
     .fontSize(9.2)
     .text(`${field.label}:`, x + 8, y + 7, { width: labelWidth });
   pdf
     .fillColor("#374151")
-    .font("Helvetica")
+    .font(PDF_FONT_REGULAR)
     .fontSize(9.5)
     .text(value, x + labelWidth + gap, y + 7, { width: valueWidth });
 
@@ -1365,7 +1368,7 @@ function addPublicationPdfLongField(pdf, field, value) {
   const paddingLeft = 8;
   const valueWidth = contentWidth - 16;
 
-  pdf.font("Helvetica").fontSize(9.5);
+  pdf.font(PDF_FONT_REGULAR).fontSize(9.5);
   const valueHeight = pdf.heightOfString(value, { width: valueWidth });
   const rowHeight = labelHeight + valueHeight + 18;
 
@@ -1380,12 +1383,12 @@ function addPublicationPdfLongField(pdf, field, value) {
     .stroke();
   pdf
     .fillColor("#1f2937")
-    .font("Helvetica-Bold")
+    .font(PDF_FONT_BOLD)
     .fontSize(9.4)
     .text(`${field.label}:`, x + paddingLeft, y + 7, { width: valueWidth });
   pdf
     .fillColor("#374151")
-    .font("Helvetica")
+    .font(PDF_FONT_REGULAR)
     .fontSize(9.5)
     .text(value, x + paddingLeft, y + 22, { width: valueWidth, lineGap: 1.5 });
 
@@ -1424,6 +1427,8 @@ export function buildReimbursementPdf(row) {
       margins: { top: 48, right: 48, bottom: 48, left: 48 },
       bufferPages: true,
     });
+    pdf.registerFont(PDF_FONT_REGULAR, path.join(FONT_DIR, "NotoSans-Regular.ttf"));
+    pdf.registerFont(PDF_FONT_BOLD, path.join(FONT_DIR, "NotoSans-Bold.ttf"));
     const chunks = [];
 
     pdf.on("data", (chunk) => chunks.push(chunk));
@@ -1432,14 +1437,14 @@ export function buildReimbursementPdf(row) {
 
     pdf
       .fillColor("#153a63")
-      .font("Helvetica-Bold")
+      .font(PDF_FONT_BOLD)
       .fontSize(14)
       .text("Universiteti \"Isa Boletini\" - Mitrovice", { align: "center" });
     pdf.moveDown(0.35);
     pdf.fontSize(16).text(title, { align: "center" });
     pdf.moveDown(0.35);
     pdf
-      .font("Helvetica")
+      .font(PDF_FONT_REGULAR)
       .fontSize(10)
       .fillColor("#374151")
       .text(`Numri i dokumentit: ${data.documentNumber || EMPTY_VALUE}`, { align: "center" });
@@ -1455,7 +1460,7 @@ export function buildReimbursementPdf(row) {
 
     pdf.moveDown();
     pdf
-      .font("Helvetica-Bold")
+      .font(PDF_FONT_BOLD)
       .fillColor("#111827")
       .text("Nënshkrimi i aplikuesit");
     pdf.moveDown(0.4);
