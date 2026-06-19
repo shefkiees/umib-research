@@ -60,6 +60,79 @@ const publicationTypeLabels = {
   book_chapter: "Kapitull Libri",
 };
 
+function normalizeReviewWebOfScienceIndex(value) {
+  return String(value || "").trim().toUpperCase().match(/\b(SCIE|SSCI|AHCI|ESCI)\b/)?.[1] || "";
+}
+
+function normalizeReviewQuartile(value) {
+  return String(value || "").trim().toUpperCase().match(/\bQ[1-4]\b/)?.[0] || "";
+}
+
+function isReviewIndexingPlatform(value, platform) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  return platform === "scopus"
+    ? normalized.includes("scopus")
+    : normalized.includes("web of science") || normalized.includes("clarivate");
+}
+
+function getF1FinancingIndexing(data = {}) {
+  const indexing = Array.isArray(data.indexing) ? data.indexing.filter(Boolean) : [];
+  const webOfScienceItem = indexing.find((item) => isReviewIndexingPlatform(
+    item.source || item.platform || item.sourceKey || item.source_key,
+    "web_of_science"
+  ));
+  const webOfScienceIndex = normalizeReviewWebOfScienceIndex(
+    data.webOfScienceIndex
+      || data.web_of_science_index
+      || webOfScienceItem?.webOfScienceIndex
+      || webOfScienceItem?.web_of_science_index
+      || webOfScienceItem?.category
+      || (isReviewIndexingPlatform(data.indexingPlatform, "web_of_science") ? data.indexingCategory : "")
+  );
+
+  if (webOfScienceIndex) {
+    return {
+      platform: "Web of Science",
+      category: webOfScienceIndex,
+      impactFactor: webOfScienceItem?.impactFactor || webOfScienceItem?.impact_factor || data.impactFactor || "",
+      citeScore: "",
+      quartile: "",
+    };
+  }
+
+  const scopusItem = indexing.find((item) => isReviewIndexingPlatform(
+    item.source || item.platform || item.sourceKey || item.source_key,
+    "scopus"
+  ));
+  const scopusQuartile = normalizeReviewQuartile(
+    data.scopusQuartile || data.scopus_quartile || data.quartile || scopusItem?.quartile
+  );
+  const hasScopusIndexing = Boolean(scopusItem)
+    || isReviewIndexingPlatform(data.indexingPlatform, "scopus")
+    || isReviewIndexingPlatform(data.indexingSource || data.indexing_source, "scopus")
+    || Boolean(scopusQuartile);
+
+  if (hasScopusIndexing) {
+    return {
+      platform: "Scopus",
+      category: scopusItem?.category || data.indexingCategory || "",
+      impactFactor: "",
+      citeScore: scopusItem?.citeScore || scopusItem?.cite_score || scopusItem?.citescore
+        || data.citeScore || data.cite_score || data.citescore || "",
+      quartile: scopusQuartile,
+    };
+  }
+
+  return {
+    platform: data.indexingPlatform || "",
+    category: data.indexingCategory || "",
+    impactFactor: data.impactFactor || "",
+    citeScore: data.citeScore || data.cite_score || data.citescore || "",
+    quartile: data.scopusQuartile || data.scopus_quartile || data.quartile || "",
+  };
+}
+
 const committeeChecklistStatuses = [
   "Pa kontrolluar",
   "Në rregull",
@@ -2259,6 +2332,7 @@ export default function CommitteeDashboard() {
     const normalizedPublicationType = String(requestData.publicationType || requestData.publication_type || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
     const isJournalArticle = normalizedPublicationType === "journal_article" || normalizedPublicationType === "article_journal";
     const requestIssns = formatReviewIssns(requestData.issn, requestData.eIssn || requestData.e_issn);
+    const f1Indexing = getF1FinancingIndexing(requestData);
     const getPublicationLinkLabel = (value) => {
       if (!hasReviewValue(value)) {
         return "";
@@ -2675,29 +2749,31 @@ export default function CommitteeDashboard() {
       ...bankingFields,
     ];
     const f1MetadataFields = [
-      createReviewField("Titulli i publikimit", requestData.publicationTitle, { wide: true }),
+      createReviewField("Titulli i artikullit", requestData.publicationTitle, { wide: true }),
       createReviewField("Lloji i publikimit", getPublicationTypeLabel(requestData.publicationType)),
-      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
-      createReviewField("Publikuar në", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
+      createReviewField("Emri i Revistës", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
       createReviewField("Shtëpia botuese", requestData.publisher),
-      createReviewField("Publikuar më", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
-      createReviewField("Autori kryesor", requestData.mainAuthor),
-      createReviewField("Autori korrespondent", requestData.correspondingAuthor),
-      createReviewField("Bashkautorët", requestData.coauthors, { wide: true }),
-      createReviewField("Përkatësia institucionale (Affiliation)", requestData.affiliation, { wide: true }),
-      createReviewField("Abstrakti", requestData.abstract, { wide: true }),
+      createReviewField("Data e Publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
       createReviewField("Vëllimi", requestData.volume),
       createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),
       isJournalArticle ? createReviewField("ISSN / E-ISSN", requestIssns) : createReviewField("ISSN", requestData.issn),
       isJournalArticle ? null : createReviewField("ISBN", requestData.isbn),
-      createReviewField("Indeksimi në platformë", requestData.indexingPlatform),
-      createReviewField("Kategoria e indeksimit", requestData.indexingCategory),
-      createReviewField("Impakt Faktori (IF)", requestData.impactFactor),
-      createReviewField("CiteScore", getFirstReviewValue(requestData.citeScore, requestData.cite_score, requestData.citescore)),
-      createReviewField("Kuartili", requestData.scopusQuartile),
-      createReviewField("Data e pranimit", requestData.acceptanceDate, { format: "date" }),
-      createReviewField("Dëshmia në databazën UIBM", requestData.uibmDatabaseEvidence, { link: true, wide: true }),
+      createReviewField("Autori kryesor", requestData.mainAuthor),
+      createReviewField("Autori korrespondent", requestData.correspondingAuthor),
+      createReviewField("Bashkautorët", requestData.coauthors, { wide: true }),
+      createReviewField("Përkatësia institucionale (Affiliation)", requestData.affiliation, { wide: true }),
+      createReviewField("DOI", doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
+      createReviewField("Linku i Artikullit", requestData.publicationLink, {
+        href: isUrlValue(requestData.publicationLink) ? requestData.publicationLink : "",
+        displayValue: isUrlValue(requestData.publicationLink) ? getPublicationLinkLabel(requestData.publicationLink) : "",
+      }),
+      createReviewField("Indeksimi në platformë", f1Indexing.platform),
+      createReviewField("Kategoria e indeksimit", f1Indexing.category),
+      createReviewField("Impact Factor", f1Indexing.impactFactor),
+      createReviewField("CiteScore", f1Indexing.citeScore),
+      createReviewField("Kuartili", f1Indexing.quartile),
+      createReviewField("Abstrakti", requestData.abstract, { wide: true }),
     ];
     const f2WorkParts = splitReviewTitleAbstract(requestData.abstractTitle);
     const f2WorkTitle = cleanReviewText(getFirstReviewValue(
@@ -2812,7 +2888,7 @@ export default function CommitteeDashboard() {
           ) : (
             <>
               {renderReviewSection("Të dhënat e kërkesës", requestFields)}
-              {renderReviewSection("Metadata akademike", f1MetadataFields)}
+              {renderReviewSection("Metadata akademike", f1MetadataFields, { className: "is-f1-metadata" })}
             </>
           )}
 

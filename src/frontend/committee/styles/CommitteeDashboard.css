@@ -1730,6 +1730,29 @@
 	grid-column: 1 / -1;
 }
 
+.committee-review-section.is-f1-metadata {
+	padding: 12px;
+	gap: 10px;
+}
+
+.committee-review-section.is-f1-metadata .committee-review-fields {
+	gap: 8px;
+}
+
+.committee-review-section.is-f1-metadata .committee-review-fields div {
+	padding: 10px 11px;
+}
+
+.committee-review-section.is-f1-metadata .committee-review-fields dt {
+	margin-bottom: 4px;
+	font-size: 0.72rem;
+}
+
+.committee-review-section.is-f1-metadata .committee-review-fields dd {
+	font-size: 0.9rem;
+	line-height: 1.35;
+}
+
 .committee-review-section.is-f2-review-section {
 	gap: 12px;
 	border-color: #d7e4f2;
