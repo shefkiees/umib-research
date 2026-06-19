@@ -246,7 +246,10 @@ const PUBLICATION_TYPE_LABEL_KEYS = {
 
 const PUBLICATION_REVIEW_ROLES = new Set(PUBLICATION_REVIEW_ROLE_VALUES);
 
-const supportsPublicationIndexing = (publicationType) => publicationType === "journal_article";
+const supportsPublicationIndexing = (publicationType, publicationSubtype = "") =>
+  publicationType === "journal_article"
+  || publicationType === "conference_paper"
+  || isBookChapterPublication(publicationType, publicationSubtype);
 
 const isBookPublicationType = (publicationType) => publicationType === "book";
 
@@ -304,9 +307,16 @@ const normalizeIndexingPlatformValue = (value) => {
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("doaj")) return "DOAJ";
+  if (comparable.includes("google scholar")) return "Google Scholar";
+  if (comparable.includes("pubmed")) return "PubMed";
+  if (comparable.includes("ieee")) return "IEEE Xplore";
+  if (comparable.includes("springer")) return "SpringerLink";
+  if (comparable.includes("acm")) return "ACM Digital Library";
   if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
+  if (comparable === "not indexed" || comparable === "not_indexed" || comparable === "notindexed") return "Not indexed";
 
   return text;
 };
@@ -380,7 +390,7 @@ const mapPublicationRow = (row = {}) => {
   const publicationType = row.publicationType || row.publication_type || "";
   const publicationSubtype = normalizePublicationSubtype(row.publicationSubtype || row.publication_subtype);
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
-  const hasIndexing = supportsPublicationIndexing(publicationType);
+  const hasIndexing = supportsPublicationIndexing(publicationType, publicationSubtype);
   const hideJournalSpecificFields = hidesJournalFields(publicationType);
   const hideVolumeField = isBookPublicationType(publicationType) && !isBookChapter;
   const indexing = hasIndexing && Array.isArray(row.indexing) ? row.indexing : [];
@@ -423,6 +433,8 @@ const mapPublicationRow = (row = {}) => {
     isbn: publicationType === "journal_article" ? "" : row.isbn || "",
     quartile: hasIndexing ? getDisplayableQuartile({ ...row, indexing }) : "",
     indexingPlatform: hasIndexing ? row.indexingPlatform || row.indexing_platform || selectedIndexing.source || indexing.find((item) => item?.source)?.source || "" : "",
+    customIndexingPlatform: hasIndexing ? row.customIndexingPlatform || row.custom_indexing_platform || "" : "",
+    custom_indexing_platform: hasIndexing ? row.custom_indexing_platform || row.customIndexingPlatform || "" : "",
     indexingCategory: hasIndexing ? row.indexingCategory || row.indexing_category || selectedIndexing.category || indexing.find((item) => item?.category)?.category || "" : "",
     indexingVerified: hasIndexing && normalizeLooseBoolean(row.indexingVerified ?? row.indexing_verified),
     indexingSource: hasIndexing ? row.indexingSource || row.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual" : "manual",
@@ -499,6 +511,8 @@ const getPublicationSearchText = (row = {}) => [
   row.isbn,
   row.quartile,
   row.indexingPlatform,
+  row.customIndexingPlatform,
+  row.custom_indexing_platform,
   row.indexingCategory,
   row.indexingSource,
   row.sjr,
@@ -1350,7 +1364,7 @@ export default function ProfessorDashboard() {
     const isConferencePaper = publicationType === "conference_paper";
     const isBookPublication = isBookPublicationType(publicationType);
     const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
-    const supportsIndexing = supportsPublicationIndexing(publicationType);
+    const supportsIndexing = supportsPublicationIndexing(publicationType, publicationSubtype);
     const draftIndexing = supportsIndexing && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = null;
