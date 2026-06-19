@@ -1587,7 +1587,9 @@ export default function ProfessorDashboard() {
 
   const handleProfileFacultyChange = (event) => {
     const faculty = event.target.value;
-    setProfileDraft((prev) => ({ ...prev, faculty, department: "" }));
+    const departments = FACULTY_DEPARTMENTS[faculty] || [];
+    const department = departments.length === 1 ? departments[0] : "";
+    setProfileDraft((prev) => ({ ...prev, faculty, department }));
   };
 
   const getProfilePhotoErrorMessage = (error) => {
@@ -3354,7 +3356,7 @@ export default function ProfessorDashboard() {
                   <span>{settingsText.orcidId}</span>
                   <input value={profileDraft.orcidId || settingsText.notConnected} readOnly aria-readonly="true" />
                 </label>
-                <label className="prof-form-field">
+                <label className="prof-form-field prof-profile-unit-field">
                   <span>{settingsText.faculty}</span>
                   <select value={profileDraft.faculty} onChange={handleProfileFacultyChange}>
                     <option value="">{settingsText.facultySelectPlaceholder}</option>
@@ -3366,7 +3368,7 @@ export default function ProfessorDashboard() {
                     ))}
                   </select>
                 </label>
-                <label className="prof-form-field">
+                <label className="prof-form-field prof-profile-unit-field">
                   <span>{settingsText.department}</span>
                   <select
                     value={profileDraft.department}

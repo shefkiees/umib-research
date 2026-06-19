@@ -1145,6 +1145,26 @@ body {
   cursor: default;
 }
 
+.prof-profile-edit-modal .prof-profile-unit-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.prof-profile-edit-modal .prof-profile-unit-field select {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 38px 0 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+}
+
+.prof-profile-edit-modal .prof-profile-unit-field select:disabled {
+  background: #eef2f7;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .prof-profile-photo-editor {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

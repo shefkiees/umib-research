@@ -16,8 +16,6 @@ export const FACULTY_DEPARTMENTS = Object.freeze({
     "Inxhinieri Mekanike",
     "Shkenca Kompjuterike dhe Inxhinieri",
     "Inxhinieri Ekonomike",
-    "Cloud and Edge Computing",
-    "Teknologji Prodhuese dhe Menaxhment",
   ]),
   "Fakulteti Juridik": Object.freeze([
     "Juridik",
