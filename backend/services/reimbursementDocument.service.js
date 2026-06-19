@@ -22,6 +22,7 @@ const TEMPLATE_DIR = path.resolve(__dirname, "..", "templates");
 const FONT_DIR = path.resolve(__dirname, "..", "assets", "fonts");
 const PDF_FONT_REGULAR = "UnicodeRegular";
 const PDF_FONT_BOLD = "UnicodeBold";
+const PUBLICATION_PDF_TITLE = "KËRKESË PËR FINANCIM TË ARTIKULLIT SHKENCOR";
 
 const FORM_TITLES = {
   publication: "KERKESE PER FINANCIM TE PUBLIKIMIT SHKENCOR (Formulari 1)",
@@ -1224,6 +1225,10 @@ function isBookPublication(data) {
 }
 
 function getPublicationPdfSectionTitle(title, data) {
+  if (title === "Parashtruesi i kerkeses") {
+    return "Parashtruesi i kërkesës";
+  }
+
   if (isConferencePaperPublication(data) && title === "Informata per konference/simpozium (nese aplikohet)") {
     return "Informata për konferencë/simpozium (nëse aplikohet)";
   }
@@ -1236,6 +1241,22 @@ function getPublicationPdfField(field, value, data) {
   let nextValue = value;
   const isConferencePaper = isConferencePaperPublication(data);
   const isBook = isBookPublication(data);
+
+  if (field.field === "bankName") {
+    nextField.label = "Emri i bankës";
+  }
+
+  if (field.field === "bankAccountNumber") {
+    nextField.label = "Numri i llogarisë bankare / IBAN";
+  }
+
+  if (field.field === "amount") {
+    nextField.label = "Shuma e kërkuar";
+  }
+
+  if (field.field === "status" && value === STATUS_LABELS.submitted) {
+    nextValue = "Dorëzuar";
+  }
 
   if (field.field === "affiliation") {
     nextField.label = "Përkatësia institucionale (Affiliation)";
@@ -1419,7 +1440,9 @@ function addPublicationPdfSections(pdf, data) {
 
 export function buildReimbursementPdf(row) {
   const data = prepareDocumentData(row);
-  const title = FORM_TITLES[data.requestType] || "FORMULAR RIMBURSIMI";
+  const title = data.requestType === "publication"
+    ? PUBLICATION_PDF_TITLE
+    : FORM_TITLES[data.requestType] || "FORMULAR RIMBURSIMI";
 
   return new Promise((resolve, reject) => {
     const pdf = new PDFDocument({
@@ -1458,13 +1481,15 @@ export function buildReimbursementPdf(row) {
       });
     }
 
-    pdf.moveDown();
-    pdf
-      .font(PDF_FONT_BOLD)
-      .fillColor("#111827")
-      .text("Nënshkrimi i aplikuesit");
-    pdf.moveDown(0.4);
-    pdf.text("__________________________");
+    if (data.requestType !== "publication") {
+      pdf.moveDown();
+      pdf
+        .font(PDF_FONT_BOLD)
+        .fillColor("#111827")
+        .text("Nënshkrimi i aplikuesit");
+      pdf.moveDown(0.4);
+      pdf.text("__________________________");
+    }
 
     pdf.end();
   });
