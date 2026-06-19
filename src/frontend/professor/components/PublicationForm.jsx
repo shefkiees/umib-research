@@ -1500,15 +1500,17 @@ const PublicationForm = ({
 
     requireField("publicationType");
     requireField("title");
+    requireField("doi");
     requireField("venue");
     requireField("publisher");
     requireField("publicationDate", showPublishedDateField);
-    requireField("sourceUrl", isConferencePaper);
+    requireField("sourceUrl");
+    requireField("volume", showVolumeField);
+    requireField("issue", showIssueField);
+    requireField("acceptanceDate", isJournalArticle);
+    requireField("abstract", showAbstractField);
 
     if (isJournalArticle) {
-      requireField("volume");
-      requireField("issue");
-
       if (!hasJournalIssnValue) {
         errors.issn = REQUIRED_FIELD_MESSAGE;
       }
@@ -1521,8 +1523,16 @@ const PublicationForm = ({
         errors.quartile = REQUIRED_FIELD_MESSAGE;
       }
 
+      if (selectedIndexingPlatform === "Scopus" && !String(value.citeScore || getIndexingCiteScore(primaryIndexing) || "").trim()) {
+        errors.citeScore = REQUIRED_FIELD_MESSAGE;
+      }
+
       if (selectedIndexingPlatform === "Web of Science" && !selectedWebOfScienceIndex) {
         errors.webOfScienceIndex = REQUIRED_FIELD_MESSAGE;
+      }
+
+      if (selectedIndexingPlatform === "Web of Science" && !String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()) {
+        errors.impactFactor = REQUIRED_FIELD_MESSAGE;
       }
 
       if (selectedIndexingPlatform === "Other" && !selectedCustomIndexingPlatform) {
@@ -1543,6 +1553,11 @@ const PublicationForm = ({
 
     if (isBookPublication) {
       requireField("isbn");
+    }
+
+    if (!isJournalArticle && showIdentifierField) {
+      requireField("issn", showIssnInput);
+      requireField("isbn", showIsbnInput);
     }
 
     if (!hasAuthorValue(mainAuthor)) {
@@ -1747,8 +1762,8 @@ const PublicationForm = ({
           <input value={value.title} onChange={updateField("title")} readOnly={isFieldLocked("title")} aria-invalid={Boolean(fieldErrors.title)} />
           {renderFieldError("title")}
         </label>
-        <label className="prof-form-field">
-          <span>DOI</span>
+        <label className={`prof-form-field${requiredClassName("doi")}`}>
+          <span>{requiredLabel("DOI")}</span>
           <input
             value={value.doi || ""}
             onChange={updateField("doi")}
@@ -1760,7 +1775,9 @@ const PublicationForm = ({
             }}
             placeholder="10.xxxx/xxxxx ose https://doi.org/10.xxxx/xxxxx"
             readOnly={isFieldLocked("doi")}
+            aria-invalid={Boolean(fieldErrors.doi)}
           />
+          {renderFieldError("doi")}
         </label>
         <label className={`prof-form-field${requiredClassName("venue")}`}>
           <span>{requiredLabel(t(venueLabelKey))}</span>
@@ -1768,7 +1785,7 @@ const PublicationForm = ({
           {renderFieldError("venue")}
         </label>
         <label className={`prof-form-field${requiredClassName("sourceUrl")}`}>
-          <span>{requiredLabel(t(isConferencePaper ? "professor.dashboard.publicationForm.conferenceLink" : "professor.dashboard.publicationForm.sourceUrl"), isConferencePaper)}</span>
+          <span>{requiredLabel(t(isConferencePaper ? "professor.dashboard.publicationForm.conferenceLink" : "professor.dashboard.publicationForm.sourceUrl"))}</span>
           <input
             value={value.sourceUrl || ""}
             onChange={updateField("sourceUrl")}
@@ -1903,26 +1920,28 @@ const PublicationForm = ({
           </label>
         ) : null}
         {value.publicationType === "journal_article" ? (
-          <label className="prof-form-field">
-            <span>{t("professor.dashboard.publicationForm.acceptanceDate")}</span>
+          <label className={`prof-form-field${requiredClassName("acceptanceDate")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.acceptanceDate"))}</span>
             <input
               type="date"
               value={value.acceptanceDate || ""}
               onChange={updateField("acceptanceDate")}
               readOnly={isFieldLocked("acceptanceDate")}
+              aria-invalid={Boolean(fieldErrors.acceptanceDate)}
             />
+            {renderFieldError("acceptanceDate")}
           </label>
         ) : null}
         {showVolumeField ? (
           <label className={`prof-form-field${requiredClassName("volume")}`}>
-            <span>{requiredLabel(t("professor.dashboard.publicationForm.volume"), isJournalArticle)}</span>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.volume"))}</span>
             <input value={value.volume} onChange={updateField("volume")} readOnly={isFieldLocked("volume")} aria-invalid={Boolean(fieldErrors.volume)} />
             {renderFieldError("volume")}
           </label>
         ) : null}
         {showIssueField ? (
           <label className={`prof-form-field${requiredClassName("issue")}`}>
-            <span>{requiredLabel(t("professor.dashboard.publicationForm.issue"), isJournalArticle)}</span>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.issue"))}</span>
             <input value={value.issue} onChange={updateField("issue")} readOnly={isFieldLocked("issue")} aria-invalid={Boolean(fieldErrors.issue)} />
             {renderFieldError("issue")}
           </label>
@@ -1977,13 +1996,15 @@ const PublicationForm = ({
                   </select>
                   {renderFieldError("quartile")}
                 </label>
-                <label className="prof-form-field">
-                  <span>{t("professor.dashboard.publicationForm.citeScore")}</span>
+                <label className={`prof-form-field${requiredClassName("citeScore")}`}>
+                  <span>{requiredLabel(t("professor.dashboard.publicationForm.citeScore"))}</span>
                   <input
                     value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
                     onChange={updateIndexingField("citeScore")}
                     readOnly={isFieldLocked("citeScore")}
+                    aria-invalid={Boolean(fieldErrors.citeScore)}
                   />
+                  {renderFieldError("citeScore")}
                 </label>
               </>
             ) : null}
@@ -2005,13 +2026,15 @@ const PublicationForm = ({
                   </select>
                   {renderFieldError("webOfScienceIndex")}
                 </label>
-                <label className="prof-form-field">
-                  <span>{t("professor.dashboard.publicationForm.impactFactor")}</span>
+                <label className={`prof-form-field${requiredClassName("impactFactor")}`}>
+                  <span>{requiredLabel(t("professor.dashboard.publicationForm.impactFactor"))}</span>
                   <input
                     value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
                     onChange={updateIndexingField("impactFactor")}
                     readOnly={isFieldLocked("impactFactor")}
+                    aria-invalid={Boolean(fieldErrors.impactFactor)}
                   />
+                  {renderFieldError("impactFactor")}
                 </label>
               </>
             ) : null}
@@ -2031,8 +2054,8 @@ const PublicationForm = ({
             {renderFieldError("issn")}
           </label>
         ) : showIdentifierField ? (
-          <div className={`prof-form-field publication-identifier-field${requiredClassName("isbn")}`}>
-            <span>{requiredLabel(isBookPublication ? "ISBN" : "ISSN / ISBN", isBookPublication)}</span>
+          <div className={`prof-form-field publication-identifier-field${requiredClassName("issn") || requiredClassName("isbn")}`}>
+            <span>{requiredLabel(isBookPublication ? "ISBN" : "ISSN / ISBN")}</span>
             <div className="publication-identifier-inputs">
               {showIssnInput ? (
                 <input
@@ -2041,6 +2064,7 @@ const PublicationForm = ({
                   placeholder="ISSN"
                   aria-label="ISSN"
                   readOnly={isFieldLocked("issn")}
+                  aria-invalid={Boolean(fieldErrors.issn)}
                 />
               ) : null}
               {showIsbnInput ? (
@@ -2054,13 +2078,14 @@ const PublicationForm = ({
                 />
               ) : null}
             </div>
+            {renderFieldError("issn")}
             {renderFieldError("isbn")}
           </div>
         ) : null}
         {showAbstractField ? (
-          <label className="prof-form-field reimbursement-wide publication-abstract-field">
-            <span>{t("professor.dashboard.publicationForm.abstract")}</span>
-            <textarea value={value.abstract} onChange={updateField("abstract")} rows={abstractRows} readOnly={isFieldLocked("abstract")} />
+          <label className={`prof-form-field reimbursement-wide publication-abstract-field${requiredClassName("abstract")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.abstract"))}</span>
+            <textarea value={value.abstract} onChange={updateField("abstract")} rows={abstractRows} readOnly={isFieldLocked("abstract")} aria-invalid={Boolean(fieldErrors.abstract)} />
             {isAbstractExpandable ? (
               <button
                 type="button"
@@ -2070,6 +2095,7 @@ const PublicationForm = ({
                 {isAbstractExpanded ? t("professor.dashboard.publicationForm.showLess") : t("professor.dashboard.publicationForm.readMore")}
               </button>
             ) : null}
+            {renderFieldError("abstract")}
           </label>
         ) : null}
       </div>
