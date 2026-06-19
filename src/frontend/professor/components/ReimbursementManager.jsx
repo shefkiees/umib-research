@@ -12,32 +12,14 @@ import {
 
 const REQUEST_TYPES = REIMBURSEMENT_TYPES;
 
-const STATUS_LABELS = {
-  draft: "Draft",
-  submitted: "Dorezuar",
-  received: "Pranuar",
-  in_review: "Ne shqyrtim",
-  needs_correction: "Kthyer per korrigjim",
-  committee_approved: "Aprovuar nga komisioni",
-  approved: "Aprovuar final",
-  rejected: "Refuzuar",
-  paid: "Paguar",
-};
-
-const HISTORY_REQUEST_TYPE_LABELS = {
-  publication: "Publikim shkencor",
-  conference: "Konferencë dhe Simpozium",
-  project: "Projekt shkencor",
-};
-
 const HISTORY_STATUS_FILTERS = [
-  { id: "all", label: "Të gjitha", statuses: [] },
-  { id: "draft", label: "Draft", statuses: ["draft"] },
-  { id: "submitted", label: "Dërguar", statuses: ["submitted"] },
-  { id: "in_review", label: "Në shqyrtim", statuses: ["received", "in_review"] },
-  { id: "correction", label: "Korrigjim", statuses: ["needs_correction"] },
-  { id: "approved", label: "Aprovuar", statuses: ["committee_approved", "approved", "paid"] },
-  { id: "rejected", label: "Refuzuar", statuses: ["rejected"] },
+  { id: "all", labelKey: "all", statuses: [] },
+  { id: "draft", labelKey: "draft", statuses: ["draft"] },
+  { id: "submitted", labelKey: "submitted", statuses: ["submitted"] },
+  { id: "in_review", labelKey: "inReview", statuses: ["received", "in_review"] },
+  { id: "correction", labelKey: "correctionRequired", statuses: ["needs_correction"] },
+  { id: "approved", labelKey: "approved", statuses: ["committee_approved", "approved", "paid"] },
+  { id: "rejected", labelKey: "rejected", statuses: ["rejected"] },
 ];
 
 const ALLOWED_ATTACHMENT_TYPES = [
@@ -1403,9 +1385,9 @@ function formatBytes(value) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatAmount(request) {
+function formatAmount(request, noAmountLabel) {
   if (request.amount === null || request.amount === undefined || request.amount === "") {
-    return "Pa shume";
+    return noAmountLabel;
   }
 
   if (typeof request.amount === "string" && !request.currency) {
@@ -1428,9 +1410,9 @@ function normalizeLegacyRows(rows) {
   }));
 }
 
-function getHistoryRequestTypeLabel(request) {
-  if (HISTORY_REQUEST_TYPE_LABELS[request.requestType]) {
-    return HISTORY_REQUEST_TYPE_LABELS[request.requestType];
+function getHistoryRequestTypeLabel(request, requestTypeLabels) {
+  if (requestTypeLabels[request.requestType]) {
+    return requestTypeLabels[request.requestType];
   }
 
   const label = request.requestTypeLabel || request.requestType || "";
@@ -1438,15 +1420,19 @@ function getHistoryRequestTypeLabel(request) {
   const normalizedLabel = cleanLabel.toLowerCase();
 
   if (normalizedLabel.includes("publikime")) {
-    return HISTORY_REQUEST_TYPE_LABELS.publication;
+    return requestTypeLabels.publication;
   }
 
   if (normalizedLabel.includes("konferenca")) {
-    return HISTORY_REQUEST_TYPE_LABELS.conference;
+    return requestTypeLabels.conference;
   }
 
   if (normalizedLabel.includes("projekte")) {
-    return HISTORY_REQUEST_TYPE_LABELS.project;
+    return requestTypeLabels.project;
+  }
+
+  if (normalizedLabel === "historik") {
+    return requestTypeLabels.legacy;
   }
 
   return cleanLabel;
@@ -1458,6 +1444,7 @@ function getHistoryMainDate(request) {
 
 function ReimbursementHistoryList({
   r,
+  historyText,
   tx,
   visibleRequests,
   statusFilters,
@@ -1492,11 +1479,11 @@ function ReimbursementHistoryList({
     <article className="prof-card reimbursement-list-card">
       <div className="prof-card-header">
         <div>
-          <h3>{r.sentTitle}</h3>
+          <h3>{historyText.title}</h3>
         </div>
       </div>
 
-      <div className="reimbursement-status-tabs" role="tablist" aria-label="Filtro statusin e rimbursimeve">
+      <div className="reimbursement-status-tabs" role="tablist" aria-label={historyText.filterLabel}>
         {statusFilters.map((filter) => (
           <button
             key={filter.id}
@@ -1506,7 +1493,7 @@ function ReimbursementHistoryList({
             role="tab"
             aria-selected={activeStatusFilter === filter.id}
           >
-            {filter.label}
+            {historyText.filters[filter.labelKey]}
           </button>
         ))}
       </div>
@@ -1518,13 +1505,14 @@ function ReimbursementHistoryList({
         {isLoading ? (
           <div className="reimbursement-loading">
             <Loader2 size={18} className="reimbursement-spin" />
-            Duke ngarkuar rimbursimet...
+            {historyText.loading}
           </div>
         ) : visibleRequests.length ? (
           visibleRequests.map((request) => {
-            const requestTypeLabel = getHistoryRequestTypeLabel(request);
+            const requestTypeLabel = getHistoryRequestTypeLabel(request, historyText.requestTypes);
             const isExpanded = expandedRequestIds.has(request.id);
-            const statusLabel = tx(request.statusLabel || STATUS_LABELS[request.status] || request.status);
+            const statusLabel = historyText.statuses[request.status]
+              || tx(request.statusLabel || request.status);
             const historyDate = getHistoryMainDate(request);
 
             return (
@@ -1582,40 +1570,40 @@ function ReimbursementHistoryList({
                       aria-expanded={isExpanded}
                     >
                       <span aria-hidden="true">{isExpanded ? "▲" : "▼"}</span>
-                      {isExpanded ? "Fshih detajet" : "Shfaq detajet"}
+                      {isExpanded ? historyText.hideDetails : historyText.showDetails}
                     </button>
 
                     {isExpanded ? (
                       <div className="reimbursement-details-panel">
                         <div className="reimbursement-details-grid">
                           <div className="reimbursement-detail-field">
-                            <span>Statusi</span>
+                            <span>{historyText.status}</span>
                             <strong>{statusLabel}</strong>
                           </div>
                           <div className="reimbursement-detail-field">
-                            <span>Nr. Dokumentit</span>
+                            <span>{historyText.documentNumber}</span>
                             <strong>{request.documentNumber ? `#${request.documentNumber}` : "-"}</strong>
                           </div>
                           <div className="reimbursement-detail-field">
-                            <span>Shuma</span>
-                            <strong>{formatAmount(request)}</strong>
+                            <span>{historyText.amount}</span>
+                            <strong>{formatAmount(request, historyText.noAmount)}</strong>
                           </div>
                           <div className="reimbursement-detail-field">
-                            <span>Data dhe Ora</span>
+                            <span>{historyText.dateTime}</span>
                             <strong>{historyDate || "-"}</strong>
                           </div>
                         </div>
 
                         {request.statusHistory?.length ? (
                           <section className="reimbursement-details-section">
-                            <h5>Historiku i statusit</h5>
+                            <h5>{historyText.statusHistory}</h5>
                             {renderStatusTimeline(request.statusHistory)}
                           </section>
                         ) : null}
 
                         {request.attachments?.length ? (
                           <section className="reimbursement-details-section">
-                            <h5>Attachment-et</h5>
+                            <h5>{historyText.attachments}</h5>
                             {renderAttachments(request)}
                           </section>
                         ) : null}
@@ -3737,7 +3725,7 @@ export default function ReimbursementManager({
           <div className="reimbursement-timeline-item" key={item.id || `${item.status}-${item.createdAt}`}>
             <span className="reimbursement-timeline-dot" />
             <div>
-              <strong>{tx(item.statusLabel || STATUS_LABELS[item.status] || item.status)}</strong>
+              <strong>{r.history.statuses[item.status] || tx(item.statusLabel || item.status)}</strong>
               <p>
                 {[normalizeDate(item.createdAt), item.actorRoleLabel || item.actorRole, item.actorName]
                   .filter(Boolean)
@@ -3768,7 +3756,7 @@ export default function ReimbursementManager({
             <Download size={14} />
             {downloadingDocument === `${request.id}-${attachment.id}`
               ? r.downloading
-              : `${DOCUMENT_TYPE_LABELS[attachment.documentType || attachment.document_type] || "Pa kategori"}: ${attachment.filename}`}
+              : `${DOCUMENT_TYPE_LABELS[attachment.documentType || attachment.document_type] || r.history.uncategorized}: ${attachment.filename}`}
           </button>
         ))}
       </div>
@@ -3980,6 +3968,7 @@ export default function ReimbursementManager({
       {view === "history" ? (
         <ReimbursementHistoryList
           r={r}
+          historyText={r.history}
           tx={tx}
           visibleRequests={visibleRequests}
           statusFilters={HISTORY_STATUS_FILTERS}
