@@ -3799,7 +3799,7 @@ export default function ReimbursementManager({
               <div>
                 <h4>
                   {selectedType === "publication"
-                    ? "Artikuj Shkencorë"
+                    ? r.publicationSectionTitle
                     : selectedType === "conference"
                       ? "Konferenca dhe Simpoziume Shkencore"
                       : r.academicTitle}

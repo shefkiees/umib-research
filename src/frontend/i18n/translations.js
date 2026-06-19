@@ -760,6 +760,7 @@ export const translations = {
         fileTypes: "PDF, JPG, PNG ose DOCX.",
         supportingDocumentsHint: "Ngarkoni dokumentet mbeshtetese te kerkuara per kete aplikim. Dokumentet ndryshojne sipas llojit te kerkeses F1, F2 ose F3.",
         choosePublication: "Zgjedh Artikullin",
+        publicationSectionTitle: "Artikuj Shkencorë",
         noSavedPublication: "Nuk ka artikuj të ruajtur. Shtoni artikull nga DOI te faqja Artikuj Shkencorë.",
         publicationWithoutTitle: "Artikull pa titull",
         bankAccountSelection: {
@@ -1379,6 +1380,7 @@ export const translations = {
         fileTypes: "PDF, JPG, PNG, or DOCX.",
         supportingDocumentsHint: "Upload the supporting documents required for this application. Documents vary by request type: F1, F2, or F3.",
         choosePublication: "Choose publication",
+        publicationSectionTitle: "Scientific Articles",
         noSavedPublication: "No saved publications. Add a publication by DOI on the Publications page.",
         publicationWithoutTitle: "Publication without title",
         bankAccountSelection: {
