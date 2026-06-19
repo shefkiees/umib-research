@@ -11,6 +11,7 @@ import {
   requiresBank,
 } from "../../shared/reimbursementSchema.js";
 import { createNotification, sendEmailNotification } from "../services/notification.service.js";
+import { applyAuthoritativeF1Amount } from "../services/f1ReimbursementAmount.service.js";
 
 const router = express.Router();
 
@@ -104,6 +105,7 @@ const ALLOWED_ATTACHMENT_DOCUMENT_TYPES = new Set([
 ]);
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const CURRENCY_FALLBACK = "EUR";
+const F1_AMOUNT_UNRESOLVED_MESSAGE = "Shuma nuk mund të llogaritet automatikisht nga të dhënat e indeksimit të artikullit.";
 const RETIRED_REASON_FIELD = "pur" + "pose";
 const ATTACHMENTS_REQUIRED_MESSAGE =
   "Kërkesa nuk mund të dërgohet për shqyrtim sepse nuk janë ngarkuar dokumentet mbështetëse. Kërkesa është ruajtur si draft.";
@@ -1173,16 +1175,18 @@ async function applyLinkedPublicationSnapshot(dbOrClient, ownerId, requestType, 
     return { formData: formData || {}, publication: null, error: null };
   }
 
-  const requestedPublicationId = normalizeText(formData?.publicationId);
+  const initialAmountResult = applyAuthoritativeF1Amount(requestType, formData || {}, null);
+  const initialFormData = initialAmountResult.formData;
+  const requestedPublicationId = normalizeText(initialFormData.publicationId);
   const publicationId = parseOptionalUuid(requestedPublicationId);
 
   if (!requestedPublicationId) {
-    return { formData: formData || {}, publication: null, error: null };
+    return { formData: initialFormData, publication: null, amountCalculation: initialAmountResult.calculation, error: null };
   }
 
   if (!publicationId) {
     return {
-      formData: formData || {},
+      formData: initialFormData,
       publication: null,
       error: {
         status: 400,
@@ -1196,7 +1200,7 @@ async function applyLinkedPublicationSnapshot(dbOrClient, ownerId, requestType, 
 
   if (!publication && (options.requireExisting || requestedPublicationId)) {
     return {
-      formData: formData || {},
+      formData: initialFormData,
       publication: null,
       error: {
         status: 400,
@@ -1206,11 +1210,14 @@ async function applyLinkedPublicationSnapshot(dbOrClient, ownerId, requestType, 
     };
   }
 
+  const amountResult = applyAuthoritativeF1Amount(requestType, initialFormData, publication);
+
   return {
     formData: requestType === "conference"
-      ? mergeConferencePublicationData(formData, publication)
-      : formData || {},
+      ? mergeConferencePublicationData(initialFormData, publication)
+      : amountResult.formData,
     publication,
+    amountCalculation: amountResult.calculation,
     error: null,
   };
 }
@@ -1592,10 +1599,20 @@ function validateReimbursementPayload(requestType, formData, options = {}) {
     return errors;
   }
 
-  errors.push(...validateRequiredFields(formData, getRequiredFields(requestType)));
+  const requiredFieldErrors = validateRequiredFields(formData, getRequiredFields(requestType));
+  errors.push(...(
+    requestType === "publication"
+      ? requiredFieldErrors.filter((error) => error.field !== "amount")
+      : requiredFieldErrors
+  ));
 
   if (amount === null || amount <= 0) {
-    errors.push({ field: "amount", message: "Shuma e kerkuar duhet te jete numer pozitiv." });
+    errors.push({
+      field: "amount",
+      message: requestType === "publication"
+        ? F1_AMOUNT_UNRESOLVED_MESSAGE
+        : "Shuma e kerkuar duhet te jete numer pozitiv.",
+    });
   }
 
   if (requiresBank(requestType)) {
@@ -2588,9 +2605,7 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    requestData = current.request_type === "conference"
-      ? linkedPublicationSnapshot.formData
-      : requestData;
+    requestData = linkedPublicationSnapshot.formData;
     const profileValidationError = getApplicantSnapshotValidationError(current.request_type, requestData);
     const bankValidationError = getBankAccountSnapshotValidationError(current.request_type, requestData);
     const snapshotValidationErrors = [profileValidationError, bankValidationError].filter(Boolean);
@@ -2623,13 +2638,18 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       `update reimbursements
        set status = 'submitted',
            request_data = $2::jsonb,
+           amount = $3,
            submitted_at = coalesce(submitted_at, now()),
            updated_at = now()
        where id = $1
        returning id, owner_id, title, amount, currency, status, request_type, request_data,
                  publication_id, conference_id,
                  document_number, document_filename, document_docx_filename, submitted_at, created_at, updated_at`,
-      [current.id, JSON.stringify(requestData)]
+      [
+        current.id,
+        JSON.stringify(requestData),
+        current.request_type === "publication" ? parseAmount(requestData.amount) : current.amount,
+      ]
     );
 
     const withDocuments = await createGeneratedDocuments(client, updateResult.rows[0]);
