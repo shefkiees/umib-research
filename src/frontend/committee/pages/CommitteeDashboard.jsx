@@ -397,6 +397,36 @@ function formatDate(value) {
   });
 }
 
+function formatF1ReviewDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const text = String(value).trim();
+
+  if (/^\d{4}$/.test(text)) {
+    return text;
+  }
+
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return text;
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
 function getDateTimestamp(value) {
   if (!value) {
     return 0;
@@ -2353,7 +2383,9 @@ export default function CommitteeDashboard() {
       expandable: Boolean(options.expandable),
     });
     const renderReviewValue = (field) => {
-      const rawValue = field.format === "date" ? formatDate(field.value) : field.value;
+      const rawValue = field.format === "f1-date"
+        ? formatF1ReviewDate(field.value)
+        : field.format === "date" ? formatDate(field.value) : field.value;
       const value = hasReviewValue(field.displayValue) ? field.displayValue : (hasReviewValue(rawValue) ? rawValue : "-");
 
       if (field.href && hasReviewValue(field.href)) {
@@ -2743,7 +2775,7 @@ export default function CommitteeDashboard() {
       createReviewField("Numri i dokumentit", request.documentNumber, { alwaysShow: true }),
       createReviewField("Lloji i kërkesës", config.typeLabel, { alwaysShow: true }),
       createReviewField("Statusi", request.statusLabel || request.status, { alwaysShow: true }),
-      createReviewField("Data e dorëzimit", request.submittedAt || request.createdAt, { format: "date", alwaysShow: true }),
+      createReviewField("Data e dorëzimit", request.submittedAt || request.createdAt, { format: "f1-date", alwaysShow: true }),
       createReviewField("Shuma", amount, { alwaysShow: true }),
       createReviewField("Titulli", request.title || request.requestTypeLabel, { wide: true, alwaysShow: true }),
       ...bankingFields,
@@ -2753,7 +2785,8 @@ export default function CommitteeDashboard() {
       createReviewField("Lloji i publikimit", getPublicationTypeLabel(requestData.publicationType)),
       createReviewField("Emri i Revistës", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
       createReviewField("Shtëpia botuese", requestData.publisher),
-      createReviewField("Data e Publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: requestData.publicationDate ? "date" : "" }),
+      createReviewField("Data e Pranimit", getFirstReviewValue(requestData.acceptanceDate, requestData.acceptance_date), { format: "f1-date" }),
+      createReviewField("Data e Publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: "f1-date" }),
       createReviewField("Vëllimi", requestData.volume),
       createReviewField("Numri i revistës / Issue", requestData.issue),
       createReviewField("Faqet", requestData.pages),
