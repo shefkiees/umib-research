@@ -25,6 +25,18 @@ export const PUBLICATION_TYPES = PUBLICATION_TYPE_VALUES.map((value) => ({
 const INDEXING_PLATFORM_OPTIONS = ["", ...INDEXING_PLATFORM_VALUES];
 const QUARTILE_OPTIONS = ["", ...QUARTILE_VALUES];
 const WEB_OF_SCIENCE_INDEX_OPTIONS = ["", ...WEB_OF_SCIENCE_INDEX_VALUES];
+const CONFERENCE_FORMAT_OPTIONS = [
+  { value: "", labelKey: "professor.dashboard.publicationForm.selectConferenceFormat" },
+  { value: "physical", labelKey: "professor.dashboard.publicationForm.conferenceFormatPhysical" },
+  { value: "online", labelKey: "professor.dashboard.publicationForm.conferenceFormatOnline" },
+  { value: "hybrid", labelKey: "professor.dashboard.publicationForm.conferenceFormatHybrid" },
+];
+const PRESENTATION_TYPE_OPTIONS = [
+  { value: "", labelKey: "professor.dashboard.publicationForm.selectPresentationType" },
+  { value: "oral", labelKey: "professor.dashboard.publicationForm.presentationTypeOral" },
+  { value: "poster", labelKey: "professor.dashboard.publicationForm.presentationTypePoster" },
+  { value: "paper", labelKey: "professor.dashboard.publicationForm.presentationTypePaper" },
+];
 
 function normalizeDoiInput(value) {
   return String(value || "")
@@ -47,6 +59,7 @@ const EMPTY_AUTHOR = {
   orcid: "",
   affiliation: "",
   isCorrespondingAuthor: false,
+  isPresenter: false,
 };
 
 export const createEmptyPublicationDraft = () => ({
@@ -56,6 +69,14 @@ export const createEmptyPublicationDraft = () => ({
   publicationSubtype: "",
   venue: "",
   conferenceLocation: "",
+  conferenceCity: "",
+  conference_city: "",
+  conferenceCountry: "",
+  conference_country: "",
+  conferenceFormat: "",
+  conference_format: "",
+  presentationType: "",
+  presentation_type: "",
   publisher: "",
   editors: [],
   bookSeriesTitle: "",
@@ -115,6 +136,10 @@ function hasPublicationDraftContent(value = {}) {
     || String(value.doi || "").trim()
     || String(value.publicationType || "").trim()
     || String(value.venue || "").trim()
+    || String(value.conferenceCity || value.conference_city || "").trim()
+    || String(value.conferenceCountry || value.conference_country || "").trim()
+    || String(value.conferenceFormat || value.conference_format || "").trim()
+    || String(value.presentationType || value.presentation_type || "").trim()
     || String(value.sourceUrl || value.source_url || "").trim()
     || String(value.acceptanceDate || value.acceptance_date || "").trim()
     || String(value.abstract || "").trim()
@@ -139,6 +164,13 @@ function normalizePublicationAuthors(authors = []) {
     ?? author.is_corresponding
     ?? author.corresponding
   ));
+  const presenterIndex = normalizedAuthors.findIndex((author) => normalizeBoolean(
+    author.isPresenter
+    ?? author.is_presenter
+    ?? author.presenter
+    ?? author.isPresentingAuthor
+    ?? author.is_presenting_author
+  ));
 
   return normalizedAuthors.map((normalizedAuthor, index) => {
     return {
@@ -150,6 +182,7 @@ function normalizePublicationAuthors(authors = []) {
       authorOrder: normalizedAuthor.authorOrder || normalizedAuthor.author_order || index + 1,
       isMainAuthor: mainAuthorIndex >= 0 ? index === mainAuthorIndex : index === 0,
       isCorrespondingAuthor: correspondingAuthorIndex >= 0 ? index === correspondingAuthorIndex : false,
+      isPresenter: presenterIndex >= 0 ? index === presenterIndex : false,
       correspondingAuthorSource: normalizedAuthor.correspondingAuthorSource || normalizedAuthor.corresponding_author_source || "",
       correspondingAuthorConfidence: normalizedAuthor.correspondingAuthorConfidence || normalizedAuthor.corresponding_author_confidence || "",
     };
@@ -239,6 +272,22 @@ function formatIssnPair(issn, eIssn) {
   }
 
   return uniqueValues[0] || "";
+}
+
+function splitConferenceLocation(value = "") {
+  const parts = String(value || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return {
+    city: parts[0] || "",
+    country: parts.slice(1).join(", ") || "",
+  };
+}
+
+function formatConferenceLocation(city = "", country = "") {
+  return [city, country].map((part) => String(part || "").trim()).filter(Boolean).join(", ");
 }
 
 function getMetadataIssnValues(metadata = {}) {
@@ -411,6 +460,9 @@ export function publicationToDraft(publication = {}) {
   const hideJournalSpecificFields = isBookPublication;
   const hideVolumeField = isBookPublication && !isBookChapter;
   const normalizedAuthors = Array.isArray(publication.authors) ? normalizePublicationAuthors(publication.authors) : [];
+  const fallbackConferenceLocation = splitConferenceLocation(publication.conferenceLocation || publication.conference_location || "");
+  const conferenceCity = publication.conferenceCity || publication.conference_city || fallbackConferenceLocation.city || "";
+  const conferenceCountry = publication.conferenceCountry || publication.conference_country || fallbackConferenceLocation.country || "";
   const indexing = hasIndexing && Array.isArray(publication.indexing) && publication.indexing.length ? publication.indexing.map((item) => ({
     source: normalizeIndexingPlatform(item.source || item.platform),
     platform: normalizeIndexingPlatform(item.platform || item.source),
@@ -447,7 +499,15 @@ export function publicationToDraft(publication = {}) {
     publicationSubtype,
     publication_subtype: publicationSubtype,
     venue: publication.venue || publication.journal || "",
-    conferenceLocation: publication.conferenceLocation || publication.conference_location || "",
+    conferenceLocation: publication.conferenceLocation || publication.conference_location || formatConferenceLocation(conferenceCity, conferenceCountry),
+    conferenceCity,
+    conference_city: conferenceCity,
+    conferenceCountry,
+    conference_country: conferenceCountry,
+    conferenceFormat: publication.conferenceFormat || publication.conference_format || "",
+    conference_format: publication.conference_format || publication.conferenceFormat || "",
+    presentationType: publication.presentationType || publication.presentation_type || "",
+    presentation_type: publication.presentation_type || publication.presentationType || "",
     publisher: publication.publisher || "",
     editors: Array.isArray(publication.editors) ? publication.editors : [],
     bookSeriesTitle: publication.bookSeriesTitle || publication.book_series_title || publication.seriesTitle || publication.series_title || "",
@@ -461,7 +521,7 @@ export function publicationToDraft(publication = {}) {
     sourceUrl: publication.sourceUrl || publication.source_url || "",
     volume: hideVolumeField ? "" : publication.volume || "",
     issue: hideJournalSpecificFields ? "" : publication.issue || "",
-    pages: publication.pages || "",
+    pages: isConferencePaperType(publicationType) ? "" : publication.pages || "",
     pageStart: publication.pageStart || publication.page_start || publication.pagesStart || publication.pages_start || "",
     pageEnd: publication.pageEnd || publication.page_end || publication.pagesEnd || publication.pages_end || "",
     issn: hideJournalSpecificFields ? "" : publication.issn || "",
@@ -586,6 +646,13 @@ function formatContributorList(value = []) {
 
 function getConferencePaperReset() {
   return {
+    pages: "",
+    pageStart: "",
+    pageEnd: "",
+    issn: "",
+    eIssn: "",
+    e_issn: "",
+    isbn: "",
     indexingPlatform: "",
     customIndexingPlatform: "",
     custom_indexing_platform: "",
@@ -610,6 +677,14 @@ function getConferencePaperReset() {
 function getBookPublicationReset() {
   return {
     conferenceLocation: "",
+    conferenceCity: "",
+    conference_city: "",
+    conferenceCountry: "",
+    conference_country: "",
+    conferenceFormat: "",
+    conference_format: "",
+    presentationType: "",
+    presentation_type: "",
     publicationDate: "",
     publicationYear: "",
     volume: "",
@@ -816,6 +891,13 @@ function metadataAuthorToDraft(author, index, currentUserAuthor = {}, mainAuthor
       ?? normalizedAuthor.is_corresponding
       ?? normalizedAuthor.corresponding
     ),
+    isPresenter: normalizeBoolean(
+      normalizedAuthor.isPresenter
+      ?? normalizedAuthor.is_presenter
+      ?? normalizedAuthor.presenter
+      ?? normalizedAuthor.isPresentingAuthor
+      ?? normalizedAuthor.is_presenting_author
+    ),
     correspondingAuthorSource: normalizedAuthor.correspondingAuthorSource || normalizedAuthor.corresponding_author_source || "",
     correspondingAuthorConfidence: normalizedAuthor.correspondingAuthorConfidence || normalizedAuthor.corresponding_author_confidence || "",
   };
@@ -858,6 +940,9 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? metadata.impactFactor || metadata.impact_factor || impactFactorIndexing.impactFactor || impactFactorIndexing.impact_factor || ""
     : "";
   const draftAuthors = authors.map((author, index) => metadataAuthorToDraft(author, index, currentUserAuthor, 0));
+  const fallbackConferenceLocation = splitConferenceLocation(metadata.conferenceLocation || metadata.conference_location || "");
+  const conferenceCity = metadata.conferenceCity || metadata.conference_city || fallbackConferenceLocation.city || "";
+  const conferenceCountry = metadata.conferenceCountry || metadata.conference_country || fallbackConferenceLocation.country || "";
 
   return {
     title: metadata.chapter_title || metadata.chapterTitle || metadata.title || "",
@@ -868,7 +953,15 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     venue: publicationType === "book"
       ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
       : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
-    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
+    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || formatConferenceLocation(conferenceCity, conferenceCountry),
+    conferenceCity,
+    conference_city: conferenceCity,
+    conferenceCountry,
+    conference_country: conferenceCountry,
+    conferenceFormat: metadata.conferenceFormat || metadata.conference_format || "",
+    conference_format: metadata.conference_format || metadata.conferenceFormat || "",
+    presentationType: metadata.presentationType || metadata.presentation_type || "",
+    presentation_type: metadata.presentation_type || metadata.presentationType || "",
     publisher: metadata.publisher || "",
     editors: Array.isArray(metadata.editors) ? metadata.editors : [],
     bookSeriesTitle: metadata.bookSeriesTitle || metadata.book_series_title || metadata.seriesTitle || metadata.series_title || metadata.raw_json?.book_series_title || metadata.raw_json?.series_title || "",
@@ -884,7 +977,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     sourceUrl: getMetadataArticleLink(metadata),
     volume: isBookPublication && !isBookChapter ? "" : metadata.volume || "",
     issue: isBookPublication ? "" : metadata.issue || "",
-    pages: metadata.pages || "",
+    pages: isConferencePaper ? "" : metadata.pages || "",
     pageStart: isConferencePaper ? metadata.pageStart || metadata.page_start || metadata.pagesStart || metadata.pages_start || metadata.raw_json?.pageStart || metadata.raw_json?.pages_start || "" : "",
     pageEnd: isConferencePaper ? metadata.pageEnd || metadata.page_end || metadata.pagesEnd || metadata.pages_end || metadata.raw_json?.pageEnd || metadata.raw_json?.pages_end || "" : "",
     issn: isBookPublication ? "" : getMetadataIssnValues(metadata).issn,
@@ -968,20 +1061,13 @@ const PublicationForm = ({
   const hasValue = (field) => String(value[field] || "").trim() !== "";
   const showPublisherField = true;
   const showPublishedDateField = true;
-  const showVolumeField = isConferencePaper
-    ? hasValue("volume")
-    : isJournalArticle || ((!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume")));
-  const showIssueField = isConferencePaper ? hasValue("issue") : !isBookPublication;
+  const showVolumeField = !isConferencePaper && (isJournalArticle || ((!isBookPublication || isBookChapter) && (!isDoiImported || hasValue("volume"))));
+  const showIssueField = !isConferencePaper && !isBookPublication;
+  const showPagesField = !isConferencePaper;
   const showIndexingFields = supportsQuartile(value.publicationType);
-  const showIdentifierField = isConferencePaper
-    ? hasValue("issn") || hasValue("isbn")
-    : isJournalArticle || isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("eIssn") || hasValue("e_issn") || hasValue("isbn"));
-  const showIssnInput = isConferencePaper
-    ? hasValue("issn")
-    : isJournalArticle || (!isBookPublication && (!isDoiImported || hasValue("issn")));
-  const showIsbnInput = isConferencePaper
-    ? hasValue("isbn")
-    : isBookPublication || (!isJournalArticle && (!isDoiImported || hasValue("isbn")));
+  const showIdentifierField = !isConferencePaper && (isJournalArticle || isBookPublication || (!isDoiImported || hasValue("issn") || hasValue("eIssn") || hasValue("e_issn") || hasValue("isbn")));
+  const showIssnInput = !isConferencePaper && (isJournalArticle || (!isBookPublication && (!isDoiImported || hasValue("issn"))));
+  const showIsbnInput = !isConferencePaper && (isBookPublication || (!isJournalArticle && (!isDoiImported || hasValue("isbn"))));
   const showAbstractField = isConferencePaper || isBookPublication || !isDoiImported || hasValue("abstract");
   const journalIssnDisplayValue = formatIssnPair(value.issn, value.eIssn || value.e_issn);
   const publicationDatePickerValue = getDatePickerValue(value.publicationDate);
@@ -991,8 +1077,8 @@ const PublicationForm = ({
   const editionValue = value.edition || "";
   const proceedingsTitleValue = value.proceedingsTitle || value.proceedings_title || "";
   const eventDateValue = value.eventDate || value.event_date || "";
-  const showConferenceProceedingsTitle = isConferencePaper && Boolean(String(proceedingsTitleValue || "").trim());
-  const showConferenceEventDate = isConferencePaper && Boolean(String(eventDateValue || "").trim());
+  const showConferenceProceedingsTitle = false;
+  const showConferenceEventDate = false;
   const showBookChapterEditors = isBookChapter && Boolean(editorsValue);
   const showBookChapterSeriesTitle = isBookChapter && Boolean(String(bookSeriesTitleValue || "").trim());
   const showBookChapterEdition = isBookChapter && Boolean(String(editionValue || "").trim());
@@ -1023,6 +1109,7 @@ const PublicationForm = ({
   const hasAuthorValue = (author = {}) => Boolean(String(author.fullName || "").trim());
   const hasAffiliationValue = (author = {}) => Boolean(String(author.affiliation || "").trim());
   const isCorrespondingAuthor = (author = {}) => normalizeBoolean(author.isCorrespondingAuthor ?? author.is_corresponding_author);
+  const isPresenter = (author = {}) => normalizeBoolean(author.isPresenter ?? author.is_presenter);
   const hasJournalIssnValue = Boolean(String(value.issn || value.eIssn || value.e_issn || "").trim());
   const requiredClassName = (field) => (fieldErrors[field] ? " has-error" : "");
   const requiredLabel = (label, required = true) => (
@@ -1048,6 +1135,14 @@ const PublicationForm = ({
     value.doi,
     value.publicationType,
     value.venue,
+    value.conferenceCity,
+    value.conference_city,
+    value.conferenceCountry,
+    value.conference_country,
+    value.conferenceFormat,
+    value.conference_format,
+    value.presentationType,
+    value.presentation_type,
     value.sourceUrl,
     value.source_url,
     value.acceptanceDate,
@@ -1094,6 +1189,8 @@ const PublicationForm = ({
       ...value,
       [field]: nextValue,
       ...(field === "eIssn" ? { e_issn: nextValue } : {}),
+      ...(field === "conferenceFormat" ? { conference_format: nextValue } : {}),
+      ...(field === "presentationType" ? { presentation_type: nextValue } : {}),
       ...typeReset,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
@@ -1111,6 +1208,24 @@ const PublicationForm = ({
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
     clearFieldError("issn", "eIssn", "e_issn");
+  };
+
+  const updateConferenceLocationField = (field) => (event) => {
+    const nextValue = event.target.value;
+    const nextCity = field === "conferenceCity" ? nextValue : value.conferenceCity || value.conference_city || "";
+    const nextCountry = field === "conferenceCountry" ? nextValue : value.conferenceCountry || value.conference_country || "";
+    const nextLocation = formatConferenceLocation(nextCity, nextCountry);
+
+    onChange({
+      ...value,
+      [field]: nextValue,
+      ...(field === "conferenceCity" ? { conference_city: nextValue } : {}),
+      ...(field === "conferenceCountry" ? { conference_country: nextValue } : {}),
+      conferenceLocation: nextLocation,
+      conference_location: nextLocation,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    clearFieldError(field, "conferenceLocation");
   };
 
   const updatePublishedField = (event) => {
@@ -1162,7 +1277,7 @@ const PublicationForm = ({
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
     setFormError("");
-    clearFieldError("mainAuthor", "authorAffiliation", `author-${index}`, `author-affiliation-${index}`, "correspondingAuthor");
+    clearFieldError("mainAuthor", "authorAffiliation", `author-${index}`, `author-affiliation-${index}`, "correspondingAuthor", "presenter");
   };
 
   const setCorrespondingAuthor = (index, isChecked) => {
@@ -1188,6 +1303,32 @@ const PublicationForm = ({
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
     clearFieldError("correspondingAuthor");
+    setFormError("");
+  };
+
+  const setPresenter = (index, isChecked) => {
+    const nextAuthors = [...(value.authors || [])];
+
+    while (nextAuthors.length <= index) {
+      nextAuthors.push({ ...EMPTY_AUTHOR });
+    }
+
+    const nextValue = Boolean(isChecked);
+
+    nextAuthors.forEach((author, authorIndex) => {
+      nextAuthors[authorIndex] = {
+        ...author,
+        isPresenter: nextValue && authorIndex === index,
+        is_presenter: nextValue && authorIndex === index,
+      };
+    });
+
+    onChange({
+      ...value,
+      authors: nextAuthors,
+      metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
+    });
+    clearFieldError("presenter");
     setFormError("");
   };
 
@@ -1351,6 +1492,7 @@ const PublicationForm = ({
     const mainAuthor = normalizedAuthors[0] || {};
     const completedAuthors = normalizedAuthors.filter(hasAuthorValue);
     const hasCorrespondingAuthor = completedAuthors.some(isCorrespondingAuthor);
+    const presenterCount = completedAuthors.filter(isPresenter).length;
     const requireField = (field, condition = true) => {
       if (condition && !String(value[field] || "").trim()) {
         errors[field] = REQUIRED_FIELD_MESSAGE;
@@ -1362,7 +1504,8 @@ const PublicationForm = ({
     requireField("venue");
     requireField("publisher");
     requireField("publicationDate", showPublishedDateField);
-    requireField("pages");
+    requireField("pages", showPagesField);
+    requireField("sourceUrl", isConferencePaper);
 
     if (isJournalArticle) {
       requireField("volume");
@@ -1390,7 +1533,14 @@ const PublicationForm = ({
     }
 
     if (isConferencePaper) {
-      requireField("conferenceLocation");
+      requireField("conferenceCity");
+      requireField("conferenceCountry");
+      requireField("conferenceFormat");
+      requireField("presentationType");
+
+      if (presenterCount !== 1) {
+        errors.presenter = REQUIRED_FIELD_MESSAGE;
+      }
     }
 
     if (isBookPublication) {
@@ -1401,7 +1551,7 @@ const PublicationForm = ({
       errors.mainAuthor = REQUIRED_FIELD_MESSAGE;
     }
 
-    if (!hasCorrespondingAuthor) {
+    if (!isConferencePaper && !hasCorrespondingAuthor) {
       errors.correspondingAuthor = REQUIRED_FIELD_MESSAGE;
     }
 
@@ -1486,15 +1636,27 @@ const PublicationForm = ({
             {renderFieldError(affiliationFieldKey)}
           </label>
         </div>
-        <label className={`publication-author-corresponding-field${fieldErrors.correspondingAuthor ? " has-error" : ""}`}>
-          <input
-            type="checkbox"
-            checked={isCorrespondingAuthor(author)}
-            onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
-            aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
-          />
-          <span>{requiredLabel(t("professor.dashboard.publicationForm.correspondingAuthor"), true)}</span>
-        </label>
+        {isConferencePaper ? (
+          <label className={`publication-author-corresponding-field${fieldErrors.presenter ? " has-error" : ""}`}>
+            <input
+              type="checkbox"
+              checked={isPresenter(author)}
+              onChange={(event) => setPresenter(index, event.target.checked)}
+              aria-label={t("professor.dashboard.publicationForm.presenter")}
+            />
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.presenter"), true)}</span>
+          </label>
+        ) : (
+          <label className={`publication-author-corresponding-field${fieldErrors.correspondingAuthor ? " has-error" : ""}`}>
+            <input
+              type="checkbox"
+              checked={isCorrespondingAuthor(author)}
+              onChange={(event) => setCorrespondingAuthor(index, event.target.checked)}
+              aria-label={t("professor.dashboard.publicationForm.correspondingAuthor")}
+            />
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.correspondingAuthor"), true)}</span>
+          </label>
+        )}
         <div className="publication-author-field publication-author-orcid-field">
           <span className="publication-author-field-label">ORCID</span>
           {orcidLocked && hasOrcid ? (
@@ -1602,32 +1764,86 @@ const PublicationForm = ({
             readOnly={isFieldLocked("doi")}
           />
         </label>
+        {isConferencePaper ? (
+          <div className="publication-form-section-header reimbursement-wide">
+            <div>
+              <h4>{t("professor.dashboard.publicationForm.conferenceDetailsTitle")}</h4>
+            </div>
+          </div>
+        ) : null}
         <label className={`prof-form-field${requiredClassName("venue")}`}>
           <span>{requiredLabel(t(venueLabelKey))}</span>
           <input value={value.venue} onChange={updateField("venue")} placeholder={venuePlaceholder} readOnly={isFieldLocked("venue")} aria-invalid={Boolean(fieldErrors.venue)} />
           {renderFieldError("venue")}
         </label>
-        <label className="prof-form-field">
-          <span>{t("professor.dashboard.publicationForm.sourceUrl")}</span>
+        <label className={`prof-form-field${requiredClassName("sourceUrl")}`}>
+          <span>{requiredLabel(t(isConferencePaper ? "professor.dashboard.publicationForm.conferenceLink" : "professor.dashboard.publicationForm.sourceUrl"), isConferencePaper)}</span>
           <input
             value={value.sourceUrl || ""}
             onChange={updateField("sourceUrl")}
             placeholder="https://..."
             readOnly={isFieldLocked("sourceUrl")}
+            aria-invalid={Boolean(fieldErrors.sourceUrl)}
           />
+          {renderFieldError("sourceUrl")}
         </label>
         {value.publicationType === "conference_paper" ? (
-          <label className={`prof-form-field${requiredClassName("conferenceLocation")}`}>
-            <span>{requiredLabel(t("professor.dashboard.publicationForm.conferenceLocation"))}</span>
-            <input
-              value={value.conferenceLocation || ""}
-              onChange={updateField("conferenceLocation")}
-              placeholder="Berlin, Germany"
-              readOnly={isFieldLocked("conferenceLocation")}
-              aria-invalid={Boolean(fieldErrors.conferenceLocation)}
-            />
-            {renderFieldError("conferenceLocation")}
-          </label>
+          <>
+            <label className={`prof-form-field${requiredClassName("conferenceCity")}`}>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.conferenceCity"))}</span>
+              <input
+                value={value.conferenceCity || value.conference_city || ""}
+                onChange={updateConferenceLocationField("conferenceCity")}
+                placeholder="Berlin"
+                readOnly={isFieldLocked("conferenceCity")}
+                aria-invalid={Boolean(fieldErrors.conferenceCity)}
+              />
+              {renderFieldError("conferenceCity")}
+            </label>
+            <label className={`prof-form-field${requiredClassName("conferenceCountry")}`}>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.conferenceCountry"))}</span>
+              <input
+                value={value.conferenceCountry || value.conference_country || ""}
+                onChange={updateConferenceLocationField("conferenceCountry")}
+                placeholder="Germany"
+                readOnly={isFieldLocked("conferenceCountry")}
+                aria-invalid={Boolean(fieldErrors.conferenceCountry)}
+              />
+              {renderFieldError("conferenceCountry")}
+            </label>
+            <label className={`prof-form-field${requiredClassName("conferenceFormat")}`}>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.conferenceFormat"))}</span>
+              <select
+                value={value.conferenceFormat || value.conference_format || ""}
+                onChange={updateField("conferenceFormat")}
+                disabled={isFieldLocked("conferenceFormat")}
+                aria-invalid={Boolean(fieldErrors.conferenceFormat)}
+              >
+                {CONFERENCE_FORMAT_OPTIONS.map((option) => (
+                  <option key={option.value || "empty-conference-format"} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+              {renderFieldError("conferenceFormat")}
+            </label>
+            <label className={`prof-form-field${requiredClassName("presentationType")}`}>
+              <span>{requiredLabel(t("professor.dashboard.publicationForm.presentationType"))}</span>
+              <select
+                value={value.presentationType || value.presentation_type || ""}
+                onChange={updateField("presentationType")}
+                disabled={isFieldLocked("presentationType")}
+                aria-invalid={Boolean(fieldErrors.presentationType)}
+              >
+                {PRESENTATION_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value || "empty-presentation-type"} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+              {renderFieldError("presentationType")}
+            </label>
+          </>
         ) : null}
         {showPublisherField ? (
           <label className={`prof-form-field${requiredClassName("publisher")}`}>
@@ -1720,11 +1936,13 @@ const PublicationForm = ({
             {renderFieldError("issue")}
           </label>
         ) : null}
-        <label className={`prof-form-field${requiredClassName("pages")}`}>
-          <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"))}</span>
-          <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} aria-invalid={Boolean(fieldErrors.pages)} />
-          {renderFieldError("pages")}
-        </label>
+        {showPagesField ? (
+          <label className={`prof-form-field${requiredClassName("pages")}`}>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"))}</span>
+            <input value={value.pages} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} aria-invalid={Boolean(fieldErrors.pages)} />
+            {renderFieldError("pages")}
+          </label>
+        ) : null}
         {showIndexingFields ? (
           <>
             <label className={`prof-form-field${requiredClassName("indexingPlatform")}`}>
@@ -1879,7 +2097,7 @@ const PublicationForm = ({
             <p>{t("professor.dashboard.publicationForm.authorsDescription")}</p>
           </div>
         </div>
-        <div className={`publication-authors-groups${fieldErrors.correspondingAuthor || fieldErrors.authorAffiliation ? " has-error" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
+        <div className={`publication-authors-groups${fieldErrors.correspondingAuthor || fieldErrors.presenter || fieldErrors.authorAffiliation ? " has-error" : ""}`} role="group" aria-label={t("professor.dashboard.publicationForm.authorsListAria")}>
           <section className="publication-author-group">
             <h5>{requiredLabel(t("professor.dashboard.publicationForm.mainAuthor"))}</h5>
             {renderAuthorFields(mainAuthorEntry.author, mainAuthorEntry.index, { required: true })}
@@ -1895,6 +2113,7 @@ const PublicationForm = ({
             </div>
           </section>
           {fieldErrors.correspondingAuthor ? <p className="publication-field-error">{fieldErrors.correspondingAuthor}</p> : null}
+          {fieldErrors.presenter ? <p className="publication-field-error">{fieldErrors.presenter}</p> : null}
           <button type="button" className="publication-add-coauthor" onClick={addAuthor}>
             <Plus size={14} aria-hidden="true" />
             {t("professor.dashboard.publicationForm.addCoauthor")}

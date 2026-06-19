@@ -3913,6 +3913,48 @@ async function fetchOpenAlexIndexingByTitle(title) {
   return source ? mapOpenAlexSourceToIndexing(source, url.toString()) : null;
 }
 
+export async function getJournalMetadataByTitle(title) {
+  const normalizedTitle = normalizeText(title);
+
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const url = new URL(OPENALEX_SOURCES_API_URL);
+  url.searchParams.set("search", normalizedTitle);
+  url.searchParams.set("per-page", "5");
+
+  const response = await fetchJson(url.toString(), {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  const source = (Array.isArray(data?.results) ? data.results : [])
+    .find((item) => sourceTitleMatches(normalizedTitle, item?.display_name));
+
+  if (!source) {
+    return null;
+  }
+
+  const issns = uniqueValues([source.issn, source.issn_l].flatMap((value) => (Array.isArray(value) ? value : [value])));
+
+  return {
+    title: normalizeText(source.display_name),
+    issn: issns[0] || "",
+    eIssn: issns[1] || "",
+    e_issn: issns[1] || "",
+    sourceUrl: normalizeText(source.id),
+    source: "openalex",
+  };
+}
+
 function mapDoajJournalToIndexing(journal = {}, indexedUrl = "") {
   const bibjson = journal.bibjson || {};
   const title = normalizeText(bibjson.title || journal.title);

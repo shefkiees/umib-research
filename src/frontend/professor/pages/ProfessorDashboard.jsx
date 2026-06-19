@@ -401,6 +401,14 @@ const mapPublicationRow = (row = {}) => {
     publishedIn: row.publishedIn || row.published_in || row.venue || "",
     conferenceLocation: row.conferenceLocation || row.conference_location || "",
     conference_location: row.conferenceLocation || row.conference_location || "",
+    conferenceCity: row.conferenceCity || row.conference_city || "",
+    conference_city: row.conference_city || row.conferenceCity || "",
+    conferenceCountry: row.conferenceCountry || row.conference_country || "",
+    conference_country: row.conference_country || row.conferenceCountry || "",
+    conferenceFormat: row.conferenceFormat || row.conference_format || "",
+    conference_format: row.conference_format || row.conferenceFormat || "",
+    presentationType: row.presentationType || row.presentation_type || "",
+    presentation_type: row.presentation_type || row.presentationType || "",
     publisher: row.publisher || "",
     editors: Array.isArray(row.editors) ? row.editors : [],
     bookSeriesTitle: row.bookSeriesTitle || row.book_series_title || row.seriesTitle || row.series_title || "",
@@ -414,7 +422,7 @@ const mapPublicationRow = (row = {}) => {
     sourceUrl: row.sourceUrl || row.source_url || "",
     volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
-    pages: row.pages || "",
+    pages: publicationType === "conference_paper" ? "" : row.pages || "",
     pageStart: row.pageStart || row.page_start || row.pagesStart || row.pages_start || "",
     pageEnd: row.pageEnd || row.page_end || row.pagesEnd || row.pages_end || "",
     issn: hideJournalSpecificFields ? "" : row.issn || "",
@@ -1376,18 +1384,30 @@ export default function ProfessorDashboard() {
       ? draft.indexingSource || draft.indexing_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
     const publishedIn = draft.venue || draft.publishedIn || draft.published_in || "";
+    const conferenceCity = isConferencePaper ? draft.conferenceCity || draft.conference_city || "" : "";
+    const conferenceCountry = isConferencePaper ? draft.conferenceCountry || draft.conference_country || "" : "";
+    const conferenceLocation = isConferencePaper
+      ? [conferenceCity, conferenceCountry].map((part) => String(part || "").trim()).filter(Boolean).join(", ")
+      : "";
     const resolvedMainAuthorIndex = 0;
     const correspondingAuthorIndex = authors.findIndex((author) =>
       normalizeLooseBoolean(author?.isCorrespondingAuthor ?? author?.is_corresponding_author)
     );
+    const presenterIndex = authors.findIndex((author) =>
+      normalizeLooseBoolean(author?.isPresenter ?? author?.is_presenter)
+    );
     const normalizedAuthors = authors.map((author, index) => {
       const authorPayload = { ...(author || {}) };
-      const isCorrespondingAuthor = correspondingAuthorIndex >= 0 && index === correspondingAuthorIndex;
+      const isPresenter = isConferencePaper && presenterIndex >= 0 && index === presenterIndex;
+      const isCorrespondingAuthor = !isConferencePaper && correspondingAuthorIndex >= 0 && index === correspondingAuthorIndex;
 
       delete authorPayload.isCorrespondingAuthor;
       delete authorPayload.is_corresponding_author;
       delete authorPayload.correspondingAuthor;
       delete authorPayload.corresponding_author;
+      delete authorPayload.isPresenter;
+      delete authorPayload.is_presenter;
+      delete authorPayload.presenter;
       delete authorPayload.orcidSource;
       delete authorPayload.orcid_source;
       delete authorPayload.affiliationSource;
@@ -1400,6 +1420,8 @@ export default function ProfessorDashboard() {
         is_main_author: index === resolvedMainAuthorIndex,
         isCorrespondingAuthor,
         is_corresponding_author: isCorrespondingAuthor,
+        isPresenter,
+        is_presenter: isPresenter,
       };
     });
     const indexing = draftIndexing.length
@@ -1424,8 +1446,16 @@ export default function ProfessorDashboard() {
       published_in: publishedIn,
       publicationSubtype,
       publication_subtype: publicationSubtype,
-      conferenceLocation: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
-      conference_location: isConferencePaper ? draft.conferenceLocation || draft.conference_location || "" : "",
+      conferenceLocation,
+      conference_location: conferenceLocation,
+      conferenceCity,
+      conference_city: conferenceCity,
+      conferenceCountry,
+      conference_country: conferenceCountry,
+      conferenceFormat: isConferencePaper ? draft.conferenceFormat || draft.conference_format || "" : "",
+      conference_format: isConferencePaper ? draft.conferenceFormat || draft.conference_format || "" : "",
+      presentationType: isConferencePaper ? draft.presentationType || draft.presentation_type || "" : "",
+      presentation_type: isConferencePaper ? draft.presentationType || draft.presentation_type || "" : "",
       publisher: draft.publisher || "",
       acceptanceDate,
       acceptance_date: acceptanceDate,
@@ -1437,16 +1467,17 @@ export default function ProfessorDashboard() {
       proceedings_title: isConferencePaper ? draft.proceedingsTitle || draft.proceedings_title || "" : "",
       eventDate: isConferencePaper ? draft.eventDate || draft.event_date || "" : "",
       event_date: isConferencePaper ? draft.eventDate || draft.event_date || "" : "",
-      pageStart: isConferencePaper ? draft.pageStart || draft.page_start || draft.pagesStart || draft.pages_start || "" : "",
-      page_start: isConferencePaper ? draft.pageStart || draft.page_start || draft.pagesStart || draft.pages_start || "" : "",
-      pageEnd: isConferencePaper ? draft.pageEnd || draft.page_end || draft.pagesEnd || draft.pages_end || "" : "",
-      page_end: isConferencePaper ? draft.pageEnd || draft.page_end || draft.pagesEnd || draft.pages_end || "" : "",
-      volume: isBookPublication && !isBookChapter ? "" : draft.volume || "",
-      issue: isBookPublication ? "" : draft.issue || "",
-      issn: isBookPublication ? "" : draft.issn || "",
+      pageStart: "",
+      page_start: "",
+      pageEnd: "",
+      page_end: "",
+      volume: isConferencePaper || (isBookPublication && !isBookChapter) ? "" : draft.volume || "",
+      issue: isConferencePaper || isBookPublication ? "" : draft.issue || "",
+      pages: isConferencePaper ? "" : draft.pages || "",
+      issn: isConferencePaper || isBookPublication ? "" : draft.issn || "",
       eIssn: publicationType === "journal_article" ? draft.eIssn || draft.e_issn || "" : "",
       e_issn: publicationType === "journal_article" ? draft.e_issn || draft.eIssn || "" : "",
-      isbn: publicationType === "journal_article" ? "" : draft.isbn || "",
+      isbn: publicationType === "journal_article" || isConferencePaper ? "" : draft.isbn || "",
       status: draft.status === "needs_correction" ? "draft" : draft.status,
       authors: normalizedAuthors,
       authorAffiliation,

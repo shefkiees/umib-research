@@ -281,6 +281,10 @@ create table if not exists publications (
   publication_type text not null default '',
   venue text,
   conference_location text not null default '',
+  conference_city text not null default '',
+  conference_country text not null default '',
+  conference_format text not null default '',
+  presentation_type text not null default '',
   publisher text not null default '',
   acceptance_date date,
   publication_date date,
@@ -305,6 +309,10 @@ alter table publications drop constraint if exists publications_doi_fkey;
 alter table publications add column if not exists abstract text not null default '';
 alter table publications add column if not exists publication_type text not null default '';
 alter table publications add column if not exists conference_location text not null default '';
+alter table publications add column if not exists conference_city text not null default '';
+alter table publications add column if not exists conference_country text not null default '';
+alter table publications add column if not exists conference_format text not null default '';
+alter table publications add column if not exists presentation_type text not null default '';
 alter table publications add column if not exists publisher text not null default '';
 alter table publications add column if not exists acceptance_date date;
 alter table publications add column if not exists publication_date date;
@@ -433,6 +441,7 @@ create table if not exists publication_authors (
   affiliation text not null default '',
   is_main_author boolean not null default false,
   is_corresponding_author boolean not null default false,
+  is_presenter boolean not null default false,
   author_order integer not null default 0,
   position integer not null default 0,
   created_at timestamptz not null default now(),
@@ -441,6 +450,7 @@ create table if not exists publication_authors (
 
 alter table publication_authors add column if not exists author_order integer not null default 0;
 alter table publication_authors add column if not exists is_corresponding_author boolean not null default false;
+alter table publication_authors add column if not exists is_presenter boolean not null default false;
 alter table publication_authors alter column affiliation drop not null;
 alter table publication_authors alter column affiliation drop default;
 update publication_authors

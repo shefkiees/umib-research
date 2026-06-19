@@ -622,6 +622,38 @@ function normalizeIndexingSource(value) {
   return VALID_INDEXING_SOURCES.has(text) ? text : "manual";
 }
 
+function normalizeConferenceFormat(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  const aliases = {
+    physical: "physical",
+    fizike: "physical",
+    onsite: "physical",
+    in_person: "physical",
+    "in-person": "physical",
+    online: "online",
+    virtual: "online",
+    hibride: "hybrid",
+    hybrid: "hybrid",
+  };
+
+  return aliases[normalized] || "";
+}
+
+function normalizePresentationType(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  const aliases = {
+    oral: "oral",
+    "prezantim oral": "oral",
+    prezantim_oral: "oral",
+    poster: "poster",
+    paper: "paper",
+    kumtese: "paper",
+    kumtesë: "paper",
+  };
+
+  return aliases[normalized] || "";
+}
+
 function parsePagination(query = {}) {
   const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 25, 1), MAX_LIMIT);
@@ -665,6 +697,13 @@ function normalizeAuthors(value) {
           ?? author.is_corresponding
           ?? author.isCorresponding
           ?? author.corresponding
+        ),
+        isPresenter: normalizeBoolean(
+          author.is_presenter
+          ?? author.isPresenter
+          ?? author.presenter
+          ?? author.is_presenting_author
+          ?? author.isPresentingAuthor
         ),
         authorOrder: index + 1,
       };
@@ -838,6 +877,10 @@ function buildPublicationFieldSources(values = {}, metadataSource = "manual") {
     isbn: createFieldSource(values.isbn, baseSource),
     abstract: createFieldSource(values.abstract, baseSource),
     conferenceLocation: createFieldSource(values.conferenceLocation || values.conference_location, baseSource),
+    conferenceCity: createFieldSource(values.conferenceCity || values.conference_city, baseSource),
+    conferenceCountry: createFieldSource(values.conferenceCountry || values.conference_country, baseSource),
+    conferenceFormat: createFieldSource(values.conferenceFormat || values.conference_format, baseSource),
+    presentationType: createFieldSource(values.presentationType || values.presentation_type, baseSource),
     proceedingsTitle: createFieldSource(values.proceedingsTitle || values.proceedings_title, baseSource),
     eventDate: createFieldSource(values.eventDate || values.event_date, baseSource),
     indexingPlatform: createFieldSource(values.indexingPlatform || values.indexing_platform || selectedIndexing.source, indexingSource),
@@ -985,6 +1028,13 @@ function normalizePublicationPayload(body = {}, options = {}) {
     : null;
   const status = normalizeText(body.status || "draft");
   const sourceUrl = normalizeUrl(body.sourceUrl || body.source_url);
+  const conferenceCity = publicationType === "conference_paper" ? normalizeText(body.conferenceCity || body.conference_city) : "";
+  const conferenceCountry = publicationType === "conference_paper" ? normalizeText(body.conferenceCountry || body.conference_country) : "";
+  const conferenceLocation = publicationType === "conference_paper"
+    ? [conferenceCity, conferenceCountry].filter(Boolean).join(", ")
+    : "";
+  const conferenceFormat = publicationType === "conference_paper" ? normalizeConferenceFormat(body.conferenceFormat || body.conference_format) : "";
+  const presentationType = publicationType === "conference_paper" ? normalizePresentationType(body.presentationType || body.presentation_type) : "";
   const indexedMetadataSource = normalizeText(body.metadataSource || body.metadata_source);
   const metadataSource = indexedMetadataSource || "manual";
   const errors = [];
@@ -1040,8 +1090,24 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "venue", message: "Konferenca eshte obligative per punim konference." });
   }
 
-  if (publicationType === "conference_paper" && !normalizeText(body.conferenceLocation ?? body.conference_location)) {
-    errors.push({ field: "conferenceLocation", message: "Vendi i konferences eshte obligativ per punim konference." });
+  if (publicationType === "conference_paper" && !sourceUrl) {
+    errors.push({ field: "sourceUrl", message: "Linku i konferences eshte obligativ per punim konference." });
+  }
+
+  if (publicationType === "conference_paper" && !conferenceCity) {
+    errors.push({ field: "conferenceCity", message: "Qyteti i konferences eshte obligativ per punim konference." });
+  }
+
+  if (publicationType === "conference_paper" && !conferenceCountry) {
+    errors.push({ field: "conferenceCountry", message: "Shteti i konferences eshte obligativ per punim konference." });
+  }
+
+  if (publicationType === "conference_paper" && !conferenceFormat) {
+    errors.push({ field: "conferenceFormat", message: "Formati i konferences eshte obligativ per punim konference." });
+  }
+
+  if (publicationType === "conference_paper" && !presentationType) {
+    errors.push({ field: "presentationType", message: "Forma e prezantimit eshte obligative per punim konference." });
   }
 
   if (publicationType === "book" && !normalizeText(body.publisher) && !normalizeText(body.isbn)) {
@@ -1132,6 +1198,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
   }
 
+  if (publicationType === "conference_paper" && authors.filter((author) => author.isPresenter).length !== 1) {
+    errors.push({ field: "presenter", message: "Zgjedh saktë një prezantues per punim konference." });
+  }
+
   if (shouldRequireIndexingPlatform) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme kerkohet kur publikimi shenohet si i indeksuar." });
   } else if (indexingPlatform && !VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
@@ -1146,7 +1216,8 @@ function normalizePublicationPayload(body = {}, options = {}) {
     return {
       ...author,
       affiliation: normalizeNullableText(author.affiliation),
-      isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor),
+      isCorrespondingAuthor: publicationType === "conference_paper" ? false : Boolean(author.isCorrespondingAuthor),
+      isPresenter: publicationType === "conference_paper" ? Boolean(author.isPresenter) : false,
     };
   }), publicationType, metadataSource);
   const normalizedIndexing = !canIndexPublication
@@ -1192,19 +1263,23 @@ function normalizePublicationPayload(body = {}, options = {}) {
       publicationType,
       publicationSubtype,
       venue: normalizeText(body.venue || body.publishedIn || body.published_in || body.journal),
-      conferenceLocation: publicationType === "conference_paper" ? normalizeText(body.conferenceLocation ?? body.conference_location) : "",
+      conferenceLocation,
+      conferenceCity,
+      conferenceCountry,
+      conferenceFormat,
+      presentationType,
       publisher: normalizeText(body.publisher),
       acceptanceDate,
       publicationDate: isBookPublication && !isBookChapter ? null : publicationDate,
       publicationYear: isBookPublication && !isBookChapter ? null : publicationYear,
       sourceUrl,
-      volume: isBookPublication && !isBookChapter ? "" : normalizeText(body.volume),
-      issue: isBookPublication ? "" : normalizeText(body.issue),
-      pages: nullableConferenceText(publicationType, body.pages),
-      issn: isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
+      volume: publicationType === "conference_paper" || (isBookPublication && !isBookChapter) ? "" : normalizeText(body.volume),
+      issue: publicationType === "conference_paper" || isBookPublication ? "" : normalizeText(body.issue),
+      pages: publicationType === "conference_paper" ? null : nullableConferenceText(publicationType, body.pages),
+      issn: publicationType === "conference_paper" || isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
       eIssn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
       e_issn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
-      isbn: publicationType === "journal_article" ? "" : nullableConferenceText(publicationType, body.isbn),
+      isbn: publicationType === "journal_article" || publicationType === "conference_paper" ? "" : nullableConferenceText(publicationType, body.isbn),
       authorAffiliation,
       indexingPlatform,
       customIndexingPlatform,
@@ -1330,6 +1405,8 @@ function mapPublication(row) {
   const conferenceProceedingsTitle = isConferencePaper ? getConferenceProceedingsTitleFromRaw(metadataRaw, row.venue || row.container_title || "") : "";
   const conferenceEventDate = isConferencePaper ? getConferenceEventDateFromRaw(metadataRaw) : "";
   const conferencePageRange = isConferencePaper ? getConferencePageRangeFromRaw(metadataRaw, row.pages) : {};
+  const conferenceCity = isConferencePaper ? normalizeText(row.conference_city) : "";
+  const conferenceCountry = isConferencePaper ? normalizeText(row.conference_country) : "";
   const fieldSources = buildPublicationFieldSources({
     doi: row.doi || "",
     title: row.title || "",
@@ -1337,6 +1414,10 @@ function mapPublication(row) {
     publicationType,
     venue: row.venue || "",
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
+    conferenceCity,
+    conferenceCountry,
+    conferenceFormat: publicationType === "conference_paper" ? row.conference_format || "" : "",
+    presentationType: publicationType === "conference_paper" ? row.presentation_type || "" : "",
     publisher: row.publisher || "",
     publicationSubtype,
     acceptanceDate: publicationType === "journal_article" ? row.acceptance_date || null : null,
@@ -1383,6 +1464,14 @@ function mapPublication(row) {
     publishedIn: row.venue || "",
     published_in: row.venue || "",
     conferenceLocation: publicationType === "conference_paper" ? row.conference_location || "" : "",
+    conferenceCity,
+    conference_city: conferenceCity,
+    conferenceCountry,
+    conference_country: conferenceCountry,
+    conferenceFormat: publicationType === "conference_paper" ? row.conference_format || "" : "",
+    conference_format: publicationType === "conference_paper" ? row.conference_format || "" : "",
+    presentationType: publicationType === "conference_paper" ? row.presentation_type || "" : "",
+    presentation_type: publicationType === "conference_paper" ? row.presentation_type || "" : "",
     conference_location: publicationType === "conference_paper" ? row.conference_location || "" : "",
     publisher: row.publisher || "",
     acceptanceDate: publicationType === "journal_article" ? row.acceptance_date || null : null,
@@ -1407,7 +1496,7 @@ function mapPublication(row) {
     source_url: row.source_url || "",
     volume: hideVolumeField ? "" : row.volume || "",
     issue: hideJournalSpecificFields ? "" : row.issue || "",
-    pages: row.pages || "",
+    pages: isConferencePaper ? "" : row.pages || "",
     pageStart: conferencePageRange.pageStart || "",
     page_start: conferencePageRange.pageStart || "",
     pagesStart: conferencePageRange.pagesStart || "",
@@ -1464,8 +1553,10 @@ function mapPublication(row) {
       author_order: author.author_order || author.authorOrder || index + 1,
       isMainAuthor: index === 0,
       is_main_author: index === 0,
-      isCorrespondingAuthor: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
-      is_corresponding_author: normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      isCorrespondingAuthor: publicationType === "conference_paper" ? false : normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      is_corresponding_author: publicationType === "conference_paper" ? false : normalizeBoolean(author.is_corresponding_author ?? author.isCorrespondingAuthor),
+      isPresenter: publicationType === "conference_paper" && normalizeBoolean(author.is_presenter ?? author.isPresenter),
+      is_presenter: publicationType === "conference_paper" && normalizeBoolean(author.is_presenter ?? author.isPresenter),
     })), publicationType, row.metadata_source || "manual"),
     indexing,
     identifiers: getArrayField(row, "identifiers").map((item) => ({
@@ -1542,6 +1633,7 @@ function mapPublication(row) {
 
 const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
+  p.conference_city, p.conference_country, p.conference_format, p.presentation_type,
   p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
   p.issue, p.pages, p.issn, p.e_issn, p.isbn, p.author_affiliation, p.indexing_platform,
   p.custom_indexing_platform, p.web_of_science_index, p.indexing_category,
@@ -1561,6 +1653,7 @@ const PUBLICATION_SELECT_SQL = `
       'affiliation', pa.affiliation,
       'is_main_author', pa.is_main_author,
       'is_corresponding_author', pa.is_corresponding_author,
+      'is_presenter', pa.is_presenter,
       'author_order', coalesce(pa.author_order, pa.position)
     ) order by coalesce(pa.author_order, pa.position), pa.created_at)
     from publication_authors pa
@@ -1649,6 +1742,10 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'abstract',
          'publication_type',
          'conference_location',
+         'conference_city',
+         'conference_country',
+         'conference_format',
+         'presentation_type',
          'publisher',
          'acceptance_date',
          'publication_date',
@@ -1678,7 +1775,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 23 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 27 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1694,8 +1791,8 @@ async function replacePublicationChildren(client, publicationId, values) {
     const authorOrder = index + 1;
     await client.query(
       `insert into publication_authors
-       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, is_corresponding_author, position, author_order)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       (publication_id, full_name, given_name, family_name, orcid, affiliation, is_main_author, is_corresponding_author, is_presenter, position, author_order)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         publicationId,
         author.fullName,
@@ -1705,6 +1802,7 @@ async function replacePublicationChildren(client, publicationId, values) {
         author.affiliation,
         authorOrder === 1,
         Boolean(author.isCorrespondingAuthor),
+        Boolean(author.isPresenter),
         authorOrder,
         authorOrder,
       ]
@@ -1798,6 +1896,10 @@ async function ensurePublicationReviewSchema(client) {
   await client.query(`
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
     alter table publications add column if not exists conference_location text not null default '';
+    alter table publications add column if not exists conference_city text not null default '';
+    alter table publications add column if not exists conference_country text not null default '';
+    alter table publications add column if not exists conference_format text not null default '';
+    alter table publications add column if not exists presentation_type text not null default '';
     alter table publications add column if not exists acceptance_date date;
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
@@ -1812,6 +1914,7 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists revision_requested_at timestamptz;
     alter table publications add column if not exists resubmitted_at timestamptz;
     alter table if exists publication_authors add column if not exists is_corresponding_author boolean not null default false;
+    alter table if exists publication_authors add column if not exists is_presenter boolean not null default false;
     alter table publications alter column abstract drop not null;
     alter table publications alter column abstract drop default;
     alter table publications alter column pages drop not null;
@@ -2058,7 +2161,20 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
   const eventDate = publicationType === "conference_paper"
     ? metadata.eventDate || metadata.event_date || getConferenceEventDateFromRaw(raw)
     : "";
-  const pageRange = publicationType === "conference_paper" ? getConferencePageRangeFromRaw(raw, metadata.pages) : {};
+  const fallbackConferenceLocationParts = normalizeText(metadata.conferenceLocation || metadata.conference_location)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const conferenceCity = publicationType === "conference_paper"
+    ? normalizeText(metadata.conferenceCity || metadata.conference_city || fallbackConferenceLocationParts[0])
+    : "";
+  const conferenceCountry = publicationType === "conference_paper"
+    ? normalizeText(metadata.conferenceCountry || metadata.conference_country || fallbackConferenceLocationParts.slice(1).join(", "))
+    : "";
+  const conferenceLocation = publicationType === "conference_paper" ? [conferenceCity, conferenceCountry].filter(Boolean).join(", ") : "";
+  const conferenceFormat = publicationType === "conference_paper" ? normalizeConferenceFormat(metadata.conferenceFormat || metadata.conference_format) : "";
+  const presentationType = publicationType === "conference_paper" ? normalizePresentationType(metadata.presentationType || metadata.presentation_type) : "";
+  const pageRange = publicationType === "conference_paper" ? {} : getConferencePageRangeFromRaw(raw, metadata.pages);
 
   return {
     doi: metadata.doi || "",
@@ -2070,7 +2186,15 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     venue: publicationType === "book"
       ? metadata.book_title || metadata.bookTitle || metadata.container_title || ""
       : metadata.conferenceName || metadata.conference_name || metadata.container_title || "",
-    conferenceLocation: metadata.conferenceLocation || metadata.conference_location || "",
+    conferenceLocation,
+    conferenceCity,
+    conference_city: conferenceCity,
+    conferenceCountry,
+    conference_country: conferenceCountry,
+    conferenceFormat,
+    conference_format: conferenceFormat,
+    presentationType,
+    presentation_type: presentationType,
     publisher: metadata.publisher || "",
     editors,
     editor: editors,
@@ -2092,7 +2216,7 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     sourceUrl: getArticleLinkFromMetadata(metadata),
     volume: metadata.volume || "",
     issue: metadata.issue || "",
-    pages: nullableConferenceText(publicationType, metadata.pages),
+    pages: publicationType === "conference_paper" ? null : nullableConferenceText(publicationType, metadata.pages),
     pageStart: pageRange.pageStart || "",
     page_start: pageRange.pageStart || "",
     pagesStart: pageRange.pagesStart || "",
@@ -2101,10 +2225,10 @@ function metadataToPublicationPayload(metadata = {}, currentUser = {}) {
     page_end: pageRange.pageEnd || "",
     pagesEnd: pageRange.pagesEnd || "",
     pages_end: pageRange.pages_end || "",
-    issn: nullableConferenceText(publicationType, issn),
+    issn: publicationType === "conference_paper" ? "" : nullableConferenceText(publicationType, issn),
     eIssn: publicationType === "journal_article" ? normalizeEIssn(eIssn) : "",
     e_issn: publicationType === "journal_article" ? normalizeEIssn(eIssn) : "",
-    isbn: publicationType === "journal_article" ? "" : nullableConferenceText(publicationType, isbn),
+    isbn: publicationType === "journal_article" || publicationType === "conference_paper" ? "" : nullableConferenceText(publicationType, isbn),
     authorAffiliation: null,
     indexingPlatform: deriveIndexingPlatform(indexing),
     indexingCategory: deriveIndexingCategory(indexing, publicationType),
@@ -2236,10 +2360,11 @@ async function createPublication(client, ownerId, values) {
   const { rows } = await client.query(
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, acceptance_date, publication_date,
-      conference_location, publication_year, source_url, volume, issue, pages, issn, e_issn, isbn, status,
+      conference_location, conference_city, conference_country, conference_format, presentation_type,
+      publication_year, source_url, volume, issue, pages, issn, e_issn, isbn, status,
       author_affiliation, indexing_platform, custom_indexing_platform, web_of_science_index, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
      returning id`,
     [
       ownerId,
@@ -2252,6 +2377,10 @@ async function createPublication(client, ownerId, values) {
       values.acceptanceDate,
       values.publicationDate,
       values.conferenceLocation,
+      values.conferenceCity,
+      values.conferenceCountry,
+      values.conferenceFormat,
+      values.presentationType,
       values.publicationYear,
       values.sourceUrl,
       values.volume,
@@ -2535,28 +2664,32 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                publication_type = $6,
                venue = $7,
                conference_location = $8,
-               publisher = $9,
-               acceptance_date = $10::date,
-               publication_date = $11::date,
-               publication_year = $12,
-               source_url = $13,
-               volume = $14,
-               issue = $15,
-               pages = $16,
-               issn = $17,
-               e_issn = $18,
-               isbn = $19,
-               status = $20,
-               author_affiliation = $21,
-               indexing_platform = $22,
-               custom_indexing_platform = $23,
-               web_of_science_index = $24,
-               indexing_category = $25,
-               indexing_verified = $26,
-               indexing_source = $27,
-               metadata_source = $28,
-               metadata_verified = $29,
-               external_metadata_id = $30,
+               conference_city = $9,
+               conference_country = $10,
+               conference_format = $11,
+               presentation_type = $12,
+               publisher = $13,
+               acceptance_date = $14::date,
+               publication_date = $15::date,
+               publication_year = $16,
+               source_url = $17,
+               volume = $18,
+               issue = $19,
+               pages = $20,
+               issn = $21,
+               e_issn = $22,
+               isbn = $23,
+               status = $24,
+               author_affiliation = $25,
+               indexing_platform = $26,
+               custom_indexing_platform = $27,
+               web_of_science_index = $28,
+               indexing_category = $29,
+               indexing_verified = $30,
+               indexing_source = $31,
+               metadata_source = $32,
+               metadata_verified = $33,
+               external_metadata_id = $34,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -2570,6 +2703,10 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.publicationType,
             values.venue || null,
             values.conferenceLocation,
+            values.conferenceCity,
+            values.conferenceCountry,
+            values.conferenceFormat,
+            values.presentationType,
             values.publisher,
             values.acceptanceDate,
             values.publicationDate,
