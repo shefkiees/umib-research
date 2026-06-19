@@ -2681,17 +2681,6 @@ body {
   -webkit-line-clamp: 2;
 }
 
-.publication-status-cell {
-  justify-content: flex-start;
-}
-
-.publication-status-cell .status-badge {
-  max-width: 100%;
-  white-space: normal;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
 .publication-detail-stack,
 .publication-status-stack {
   display: flex;

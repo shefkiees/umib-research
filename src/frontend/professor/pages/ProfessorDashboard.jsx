@@ -2636,14 +2636,6 @@ export default function ProfessorDashboard() {
     </span>
   );
 
-  const renderPublicationListStatus = (value) => {
-    if (String(value || "").toLowerCase() === "draft") {
-      return null;
-    }
-
-    return renderStatus(value);
-  };
-
   const formatPublicationAuthors = (authors = []) => {
     const names = authors
       .map((author) => (typeof author === "string" ? author : author.fullName || author.full_name || author.name))
@@ -2841,7 +2833,6 @@ export default function ProfessorDashboard() {
             {renderPublicationSortHeader("type", t("professor.dashboard.publicationTypeColumn"))}
             {renderPublicationSortHeader("venue", t("professor.dashboard.publishedInColumn"))}
             {renderPublicationSortHeader("year", t("professor.dashboard.yearColumn"))}
-            {renderPublicationSortHeader("status", t("professor.dashboard.statusColumn"))}
             <span>{t("professor.dashboard.actionsColumn")}</span>
           </div>
           {sortedPublications.map((row, index) => (
@@ -2873,10 +2864,6 @@ export default function ProfessorDashboard() {
               <div className="publication-meta-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.yearColumn")}</span>
                 {renderPublicationTextCell(getPublicationYearSummary(row))}
-              </div>
-              <div className="publication-meta-cell publication-status-cell">
-                <span className="publication-mobile-label">{t("professor.dashboard.statusColumn")}</span>
-                {renderPublicationListStatus(row.status)}
               </div>
               <div className="publication-meta-cell publication-actions-cell">
                 <span className="publication-mobile-label">{t("professor.dashboard.actionsColumn")}</span>
