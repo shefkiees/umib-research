@@ -1007,6 +1007,10 @@ const PublicationForm = ({
       return false;
     }
 
+    if (field === "indexingPlatform") {
+      return false;
+    }
+
     return isTrustedSource(field);
   };
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
