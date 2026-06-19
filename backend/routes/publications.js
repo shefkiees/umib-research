@@ -1276,6 +1276,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
       volume: publicationType === "conference_paper" || (isBookPublication && !isBookChapter) ? "" : normalizeText(body.volume),
       issue: publicationType === "conference_paper" || isBookPublication ? "" : normalizeText(body.issue),
       pages: publicationType === "conference_paper" ? null : nullableConferenceText(publicationType, body.pages),
+      bookSeriesTitle: isBookChapter ? normalizeText(body.bookSeriesTitle || body.book_series_title || body.seriesTitle || body.series_title) : "",
+      book_series_title: isBookChapter ? normalizeText(body.bookSeriesTitle || body.book_series_title || body.seriesTitle || body.series_title) : "",
+      seriesTitle: isBookChapter ? normalizeText(body.bookSeriesTitle || body.book_series_title || body.seriesTitle || body.series_title) : "",
+      series_title: isBookChapter ? normalizeText(body.bookSeriesTitle || body.book_series_title || body.seriesTitle || body.series_title) : "",
       issn: publicationType === "conference_paper" || isBookPublication ? "" : nullableConferenceText(publicationType, body.issn),
       eIssn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
       e_issn: publicationType === "journal_article" ? normalizeEIssn(body.eIssn || body.e_issn) : "",
@@ -1400,7 +1404,7 @@ function mapPublication(row) {
   const selectedCiteScoreVerified = supportsPublicationIndexing(publicationType)
     && normalizeBoolean(row.cite_score_verified ?? row.citeScoreVerified ?? selectedIndexing.citeScoreVerified ?? selectedIndexing.cite_score_verified);
   const bookChapterEditors = isBookChapter ? getBookChapterEditorsFromRaw(metadataRaw) : [];
-  const bookChapterSeriesTitle = isBookChapter ? getBookChapterSeriesTitleFromRaw(metadataRaw) : "";
+  const bookChapterSeriesTitle = isBookChapter ? row.book_series_title || getBookChapterSeriesTitleFromRaw(metadataRaw) : "";
   const bookChapterEdition = isBookChapter ? getBookChapterEditionFromRaw(metadataRaw) : "";
   const conferenceProceedingsTitle = isConferencePaper ? getConferenceProceedingsTitleFromRaw(metadataRaw, row.venue || row.container_title || "") : "";
   const conferenceEventDate = isConferencePaper ? getConferenceEventDateFromRaw(metadataRaw) : "";
@@ -1635,7 +1639,7 @@ const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.conference_city, p.conference_country, p.conference_format, p.presentation_type,
   p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
-  p.issue, p.pages, p.issn, p.e_issn, p.isbn, p.author_affiliation, p.indexing_platform,
+  p.issue, p.pages, p.book_series_title, p.issn, p.e_issn, p.isbn, p.author_affiliation, p.indexing_platform,
   p.custom_indexing_platform, p.web_of_science_index, p.indexing_category,
   p.indexing_verified, p.indexing_source, p.metadata_source, p.metadata_verified,
   p.external_metadata_id, p.status, p.created_at, p.updated_at,
@@ -1753,6 +1757,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'volume',
          'issue',
          'pages',
+         'book_series_title',
          'issn',
          'e_issn',
          'isbn',
@@ -1775,7 +1780,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 27 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 28 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -2361,10 +2366,10 @@ async function createPublication(client, ownerId, values) {
     `insert into publications
      (owner_id, doi, title, abstract, publication_type, venue, publisher, acceptance_date, publication_date,
       conference_location, conference_city, conference_country, conference_format, presentation_type,
-      publication_year, source_url, volume, issue, pages, issn, e_issn, isbn, status,
+      publication_year, source_url, volume, issue, pages, book_series_title, issn, e_issn, isbn, status,
       author_affiliation, indexing_platform, custom_indexing_platform, web_of_science_index, indexing_category, indexing_verified, indexing_source,
       metadata_source, metadata_verified, external_metadata_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+     values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
      returning id`,
     [
       ownerId,
@@ -2386,6 +2391,7 @@ async function createPublication(client, ownerId, values) {
       values.volume,
       values.issue,
       values.pages,
+      values.bookSeriesTitle || values.book_series_title,
       values.issn,
       values.eIssn || values.e_issn,
       values.isbn,
@@ -2676,20 +2682,21 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
                volume = $18,
                issue = $19,
                pages = $20,
-               issn = $21,
-               e_issn = $22,
-               isbn = $23,
-               status = $24,
-               author_affiliation = $25,
-               indexing_platform = $26,
-               custom_indexing_platform = $27,
-               web_of_science_index = $28,
-               indexing_category = $29,
-               indexing_verified = $30,
-               indexing_source = $31,
-               metadata_source = $32,
-               metadata_verified = $33,
-               external_metadata_id = $34,
+               book_series_title = $21,
+               issn = $22,
+               e_issn = $23,
+               isbn = $24,
+               status = $25,
+               author_affiliation = $26,
+               indexing_platform = $27,
+               custom_indexing_platform = $28,
+               web_of_science_index = $29,
+               indexing_category = $30,
+               indexing_verified = $31,
+               indexing_source = $32,
+               metadata_source = $33,
+               metadata_verified = $34,
+               external_metadata_id = $35,
                updated_at = now()
            where id = $1
              and ($2::uuid is null or owner_id = $2)
@@ -2715,6 +2722,7 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
             values.volume,
             values.issue,
             values.pages,
+            values.bookSeriesTitle || values.book_series_title,
             values.issn,
             values.eIssn || values.e_issn,
             values.isbn,

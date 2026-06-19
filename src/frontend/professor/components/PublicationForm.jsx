@@ -1080,7 +1080,6 @@ const PublicationForm = ({
   const showConferenceProceedingsTitle = false;
   const showConferenceEventDate = false;
   const showBookChapterEditors = isBookChapter && Boolean(editorsValue);
-  const showBookChapterSeriesTitle = isBookChapter && Boolean(String(bookSeriesTitleValue || "").trim());
   const showBookChapterEdition = isBookChapter && Boolean(String(editionValue || "").trim());
   const isAbstractExpandable = String(value.abstract || "").trim().length > 260;
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
@@ -1191,6 +1190,7 @@ const PublicationForm = ({
       ...(field === "eIssn" ? { e_issn: nextValue } : {}),
       ...(field === "conferenceFormat" ? { conference_format: nextValue } : {}),
       ...(field === "presentationType" ? { presentation_type: nextValue } : {}),
+      ...(field === "bookSeriesTitle" ? { book_series_title: nextValue, seriesTitle: nextValue, series_title: nextValue } : {}),
       ...typeReset,
       metadataSource: value.metadataSource === "doi" ? "mixed" : value.metadataSource,
     });
@@ -1614,9 +1614,6 @@ const PublicationForm = ({
       : value.publicationType === "journal_article"
         ? "professor.dashboard.publicationForm.journalName"
     : "professor.dashboard.publicationForm.publishedIn";
-  const titleLabelKey = isBookChapter
-    ? "professor.dashboard.publicationForm.chapterTitle"
-    : "professor.dashboard.publicationForm.title";
   const authorEntries = authorRows.map((author, index) => ({ author, index }));
   const mainAuthorEntry = authorEntries[0] || { author: { ...EMPTY_AUTHOR }, index: 0 };
   const coauthorEntries = authorEntries.filter(({ index }) => index !== mainAuthorEntry.index);
@@ -1763,7 +1760,7 @@ const PublicationForm = ({
           {renderFieldError("publicationType")}
         </label>
         <label className={`prof-form-field reimbursement-wide${requiredClassName("title")}`}>
-          <span>{requiredLabel(t(titleLabelKey))}</span>
+          <span>{requiredLabel(t("professor.dashboard.publicationForm.title"))}</span>
           <input value={value.title} onChange={updateField("title")} readOnly={isFieldLocked("title")} aria-invalid={Boolean(fieldErrors.title)} />
           {renderFieldError("title")}
         </label>
@@ -1883,10 +1880,14 @@ const PublicationForm = ({
             <input value={editorsValue} readOnly aria-readonly="true" />
           </label>
         ) : null}
-        {showBookChapterSeriesTitle ? (
+        {isBookChapter ? (
           <label className="prof-form-field">
             <span>{t("professor.dashboard.publicationForm.bookSeriesTitle")}</span>
-            <input value={bookSeriesTitleValue} readOnly aria-readonly="true" />
+            <input
+              value={bookSeriesTitleValue}
+              onChange={updateField("bookSeriesTitle")}
+              readOnly={isFieldLocked("bookSeriesTitle")}
+            />
           </label>
         ) : null}
         {showBookChapterEdition ? (

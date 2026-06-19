@@ -233,6 +233,7 @@ create table if not exists publication_metadata (
   volume text not null default '',
   issue text not null default '',
   pages text not null default '',
+  book_series_title text not null default '',
   issn text not null default '',
   e_issn text not null default '',
   isbn text not null default '',
@@ -320,6 +321,7 @@ alter table publications add column if not exists source_url text not null defau
 alter table publications add column if not exists volume text not null default '';
 alter table publications add column if not exists issue text not null default '';
 alter table publications add column if not exists pages text not null default '';
+alter table publications add column if not exists book_series_title text not null default '';
 alter table publications add column if not exists issn text not null default '';
 alter table publications add column if not exists e_issn text not null default '';
 alter table publications add column if not exists isbn text not null default '';
