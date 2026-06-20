@@ -2424,6 +2424,17 @@ a.committee-review-checklist-value:hover {
 	opacity: 0.65;
 }
 
+.committee-review-checklist-general-comment textarea[aria-invalid="true"] {
+	border-color: #d92d20;
+}
+
+.committee-review-checklist-general-comment .committee-review-checklist-general-comment-error {
+	color: #b42318;
+	font-size: 0.76rem;
+	font-weight: 750;
+	line-height: 1.35;
+}
+
 .committee-review-checklist-final-actions {
 	display: flex;
 	flex-wrap: wrap;

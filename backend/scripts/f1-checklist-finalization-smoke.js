@@ -26,6 +26,9 @@ assert.equal(validateF1FinalAction("approve", checklist("ok")), null);
 assert.equal(validateF1FinalAction("return", checklist("requires_correction")), null);
 assert.equal(validateF1FinalAction("reject", checklist("ok")), null);
 assert.equal(validateF1FinalAction("approve", checklist("unchecked"))?.error, "f1_checklist_unchecked_items");
+assert.equal(validateF1FinalAction("approve", checklist("ok", { generalComment: "" }))?.error, "f1_checklist_general_comment_required");
+assert.equal(validateF1FinalAction("return", checklist("requires_correction", { generalComment: "" }))?.error, "f1_checklist_general_comment_required");
+assert.equal(validateF1FinalAction("reject", checklist("ok", { generalComment: "" }))?.error, "f1_checklist_general_comment_required");
 
 const correctionEmail = buildF1FinalizationEmail({
   action: "return",

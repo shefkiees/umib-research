@@ -163,8 +163,11 @@ export function validateF1FinalAction(action, checklist) {
     };
   }
 
-  if (action === "reject" && !String(checklist?.generalComment || "").trim()) {
-    return { error: "f1_checklist_rejection_comment_required", message: "Komenti i përgjithshëm është i detyrueshëm për refuzim." };
+  if (!String(checklist?.generalComment || "").trim()) {
+    return {
+      error: "f1_checklist_general_comment_required",
+      message: "Komenti i përgjithshëm është i detyrueshëm para marrjes së vendimit.",
+    };
   }
 
   return null;
