@@ -249,6 +249,7 @@ const PUBLICATION_LIST_PAGES = new Set([
   "Artikuj reviste",
   "Punime të konferencave",
   "Libra / Kapituj",
+  "Te gjithe Artikujt",
   "Të gjitha publikimet",
   "Lista e Publikimeve",
 ]);
@@ -269,7 +270,7 @@ const getPublicationTypeFilterForPage = (page) => {
   return "";
 };
 
-const getPublicationPageTitle = (page) => (page === "Lista e Publikimeve" ? "Të gjitha publikimet" : page);
+const getPublicationPageTitle = (page) => (page === "Lista e Publikimeve" || page === "Të gjitha publikimet" ? "Te gjithe Artikujt" : page);
 
 const supportsPublicationIndexing = (publicationType) => publicationType === "journal_article";
 
@@ -1235,11 +1236,12 @@ export default function ProfessorDashboard() {
   const pageTitleMap = {
     Statistika: t("navigation.statistics"),
     Publikime: t("navigation.publications"),
-    "Lista e Publikimeve": "Të gjitha publikimet",
+    "Lista e Publikimeve": "Te gjithe Artikujt",
     "Artikuj reviste": "Artikuj reviste",
     "Punime të konferencave": "Punime të konferencave",
     "Libra / Kapituj": "Libra / Kapituj",
-    "Të gjitha publikimet": "Të gjitha publikimet",
+    "Te gjithe Artikujt": "Te gjithe Artikujt",
+    "Të gjitha publikimet": "Te gjithe Artikujt",
     Konferenca: t("navigation.conferences"),
     Rimbursime: t("navigation.reimbursements"),
     "Historiku i Rimbursimeve": t("navigation.reimbursementHistory"),
@@ -1336,9 +1338,9 @@ export default function ProfessorDashboard() {
     const pageResults = [
       {
         id: "search-publications-page",
-        title: "Të gjitha publikimet",
+        title: "Te gjithe Artikujt",
         meta: t("topbar.searchPageShortcut"),
-        page: "Të gjitha publikimet",
+        page: "Te gjithe Artikujt",
       },
       {
         id: "search-conferences-page",
@@ -2212,7 +2214,7 @@ export default function ProfessorDashboard() {
 
   const cancelPublicationEditAndReturn = () => {
     cancelPublicationEdit();
-    setActivePage("Të gjitha publikimet");
+    setActivePage("Te gjithe Artikujt");
   };
 
   const resetManualPublicationDraft = () => {
@@ -2271,7 +2273,7 @@ export default function ProfessorDashboard() {
       }
 
       cancelPublicationEdit();
-      setActivePage("Të gjitha publikimet");
+      setActivePage("Te gjithe Artikujt");
       await loadPublications({ page: publicationsPage, query: searchQuery });
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
@@ -3002,6 +3004,7 @@ export default function ProfessorDashboard() {
       case "Artikuj reviste":
       case "Punime të konferencave":
       case "Libra / Kapituj":
+      case "Te gjithe Artikujt":
       case "Të gjitha publikimet":
       case "Lista e Publikimeve":
         return (

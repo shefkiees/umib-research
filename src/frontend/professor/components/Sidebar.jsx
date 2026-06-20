@@ -19,7 +19,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     { name: "Artikuj reviste", label: "Artikuj reviste" },
     { name: "Punime të konferencave", label: "Punime të konferencave" },
     { name: "Libra / Kapituj", label: "Libra / Kapituj" },
-    { name: "Të gjitha publikimet", label: "Të gjitha publikimet" },
+    { name: "Te gjithe Artikujt", label: "Te gjithe Artikujt" },
   ];
   const publicationPages = publicationSubmenu.map((item) => item.name);
   const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
