@@ -3,7 +3,7 @@ import { Bell, Search, User, Settings, ArrowRight } from "lucide-react";
 
 const fallbackProfileMenuItems = [
 	{ id: "Njoftime", label: "Njoftime", icon: Bell },
-	{ id: "Edit Profile", label: "Edit Profile", icon: User },
+	{ id: "Profili", label: "Profili", icon: User },
 	{ id: "Settings", label: "Settings", icon: Settings },
 	{ id: "Logout", label: "Logout", icon: ArrowRight, tone: "danger" },
 ];
