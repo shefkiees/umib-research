@@ -248,10 +248,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #4f7096;
+  color: #2f557f;
   padding: 8px 10px;
   font-size: 0.84rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .prof-sidebar-subicon {
@@ -261,7 +261,7 @@ body {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: #6c86a6;
+  color: #4f6f93;
 }
 
 .prof-sidebar-sublink:hover {

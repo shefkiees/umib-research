@@ -5,7 +5,7 @@ import {
   FileText,
   History,
   Layers,
-  Mic,
+  Presentation as PresentationChart,
   Wallet,
   BarChart3,
 } from "lucide-react";
@@ -20,7 +20,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const publicationSubmenu = [
     { name: "Artikuj reviste", label: "Artikuj reviste", icon: FileText },
-    { name: "Punime të konferencave", label: "Punime të konferencave", icon: Mic },
+    { name: "Punime të konferencave", label: "Punime të konferencave", icon: PresentationChart },
     { name: "Libra / Kapituj", label: "Libra / Kapituj", icon: BookOpen },
     { name: "Të gjitha publikimet", label: "Të gjitha publikimet", icon: Layers, legacyName: "Te gjithe Artikujt" },
   ];
@@ -152,7 +152,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                         onClick={() => handlePublicationSubmenuClick(submenuItem.name)}
                       >
                         <span className="prof-sidebar-subicon" aria-hidden="true">
-                          <SubmenuIcon size={15} strokeWidth={1.9} />
+                          <SubmenuIcon size={16} strokeWidth={1.9} />
                         </span>
                         <span>{submenuItem.label}</span>
                       </button>
