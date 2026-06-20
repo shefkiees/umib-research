@@ -14,6 +14,7 @@ import { createNotification, sendEmailNotification } from "../services/notificat
 import { applyAuthoritativeF1Amount } from "../services/f1ReimbursementAmount.service.js";
 import {
   F1_FINAL_ACTION_STATUSES,
+  buildF1FinalizationEmail,
   buildF1FinalizationNote,
   validateF1FinalAction,
 } from "../services/f1ChecklistFinalization.service.js";
@@ -2864,6 +2865,7 @@ router.patch("/:id/f1-checklist", requireAuthenticatedUser, async (req, res) => 
 
 router.patch("/:id/f1-checklist/finalize", requireAuthenticatedUser, async (req, res) => {
   const client = await db.connect();
+  let finalizedEmail = null;
 
   try {
     await client.query("begin");
@@ -2942,9 +2944,39 @@ router.patch("/:id/f1-checklist/finalize", requireAuthenticatedUser, async (req,
 
     const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
     const hydratedRow = await hydrateReimbursementRowForPublication(client, rowWithHistory);
+    const responsePayload = mapReimbursementRow(hydratedRow);
 
     await client.query("commit");
-    res.json({ data: mapReimbursementRow(hydratedRow) });
+
+    try {
+      const emailPayload = buildF1FinalizationEmail({
+        action,
+        checklist: normalized.checklist,
+        publicationTitle: responsePayload.title || responsePayload.requestData?.publicationTitle,
+        professorName: responsePayload.owner?.name,
+      });
+      const emailResult = await sendEmailNotification({
+        to: responsePayload.owner?.email,
+        title: emailPayload.subject,
+        message: emailPayload.message,
+        category: "UMIBRes",
+        html: emailPayload.html,
+      });
+      finalizedEmail = {
+        sent: !emailResult?.skipped,
+        skipped: Boolean(emailResult?.skipped),
+      };
+    } catch (emailError) {
+      finalizedEmail = { sent: false, skipped: false, error: "email_send_failed" };
+      console.warn("f1_finalization_email_failed", {
+        reimbursementId: current.id,
+        ownerId: current.owner_id,
+        action,
+        message: emailError.message,
+      });
+    }
+
+    res.json({ data: responsePayload, email: finalizedEmail });
   } catch (error) {
     await client.query("rollback").catch(() => {});
     console.error("PATCH /api/reimbursements/:id/f1-checklist/finalize failed:", error);
