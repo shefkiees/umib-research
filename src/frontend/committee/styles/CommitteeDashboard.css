@@ -2765,6 +2765,24 @@ a.committee-review-checklist-value:hover {
 	-webkit-line-clamp: 2;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	line-height: 1.35;
+}
+
+.committee-decision-case {
+	min-width: 240px;
+}
+
+.committee-decision-case .committee-metadata-muted {
+	display: block;
+	margin-top: 5px;
+	font-size: 0.76rem;
+	line-height: 1.2;
+}
+
+.committee-decision-unit {
+	max-width: 220px;
+	line-height: 1.35;
+	overflow-wrap: break-word;
 }
 
 .committee-decision-status {

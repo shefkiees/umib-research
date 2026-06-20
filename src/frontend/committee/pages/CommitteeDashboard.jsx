@@ -51,6 +51,12 @@ const reimbursementStatusLabels = {
   paid: "Paguar",
 };
 
+const committeeDecisionStatusLabels = {
+  needs_correction: "Për korrigjim",
+  committee_approved: "Aprovuar nga Komisioni",
+  rejected: "Refuzuar",
+};
+
 const publicationTypeLabels = {
   journal_article: "Artikull në Revistë Shkencore",
   conference_paper: "Punim Konference",
@@ -1304,6 +1310,7 @@ export default function CommitteeDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [pendingSubmissionSort, setPendingSubmissionSort] = useState({ key: "", direction: "asc" });
+  const [decisionSort, setDecisionSort] = useState({ key: "", direction: "asc" });
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
@@ -1722,60 +1729,27 @@ export default function CommitteeDashboard() {
   }, [committeeUnitStats, normalizedQuery]);
 
   const committeeDecisionRows = useMemo(() => {
-    const reimbursementRows = reviewRequests
-      .filter((item) => item.status && item.status !== "submitted")
+    const rows = reviewRequests
+      .filter((item) => Object.prototype.hasOwnProperty.call(committeeDecisionStatusLabels, item.status))
       .map((item) => {
         const typeDisplay = getPendingRequestTypeDisplay(item);
 
         return {
-          id: item.documentNumber || item.id,
+          id: item.id,
+          requestNumber: item.documentNumber || item.id,
           title: item.title || item.requestTypeLabel || "Kerkese rimbursimi",
           category: item.requestTypeLabel || "Rimbursim",
           actor: item.owner?.name || item.owner?.email || "-",
           unit: item.owner?.faculty || item.owner?.department || "-",
-          status: item.statusLabel || reimbursementStatusLabels[item.status] || item.status,
+          status: committeeDecisionStatusLabels[item.status],
           statusKey: item.status,
           date: item.updatedAt || item.submittedAt || item.createdAt,
-          source: "Rimbursim",
-          typeDisplay,
-        };
-      });
-
-    const metadataRows = metadataQueueItems
-      .map((item) => {
-        const review = metadataReviews[item.id] || mapMetadataReviewFromPublication(item);
-        const statusConfig = getReviewStatusConfig(review.status);
-        const authors = getPublicationAuthors(item)
-          .map((author) => getAuthorName(author))
-          .filter(Boolean)
-          .join(", ");
-
-        const typeDisplay = item.sourceType === "reimbursement"
-          ? getPendingRequestTypeDisplay(item)
-          : {
-              badge: "M",
-              label: getMetadataItemTypeLabel(item),
-              className: "is-neutral",
-            };
-
-        return {
-          id: item.id,
-          title: item.title || item.doi || "Publikim pa titull",
-          category: getMetadataItemTypeLabel(item),
-          actor: item.sourceType === "reimbursement" ? (item.owner?.name || item.owner?.email || authors || "-") : (authors || "-"),
-          unit: item.venue || item.publisher || "-",
-          status: statusConfig.label,
-          statusKey: review.status,
-          date: item.updatedAt || item.updated_at || item.createdAt || item.created_at || item.publicationDate || item.publication_date,
-          source: item.sourceType === "reimbursement" ? "Metadata / Rimbursim" : "Metadata",
           typeDisplay,
         };
       })
-      .filter((item) => item.statusKey !== "unchecked");
-
-    const rows = [...reimbursementRows, ...metadataRows].sort((first, second) =>
-      getDateTimestamp(second.date) - getDateTimestamp(first.date)
-    );
+      .sort((first, second) =>
+        getDateTimestamp(second.date) - getDateTimestamp(first.date)
+      );
 
     if (!normalizedQuery) {
       return rows;
@@ -1789,16 +1763,69 @@ export default function CommitteeDashboard() {
         item.actor,
         item.unit,
         item.status,
-        item.source,
       ].filter(Boolean).join(" ")).includes(normalizedQuery)
     );
-  }, [metadataQueueItems, metadataReviews, normalizedQuery, reviewRequests]);
+  }, [normalizedQuery, reviewRequests]);
+
+  const sortedCommitteeDecisionRows = useMemo(() => {
+    if (!decisionSort.key) {
+      return committeeDecisionRows;
+    }
+
+    const direction = decisionSort.direction === "desc" ? -1 : 1;
+    const textValue = (row, key) => {
+      if (key === "type") return row.typeDisplay?.label || row.category || "";
+      if (key === "case") return row.title || "";
+      if (key === "actor") return row.actor || "";
+      if (key === "unit") return row.unit || "";
+      if (key === "status") return row.status || "";
+      return "";
+    };
+
+    return [...committeeDecisionRows].sort((first, second) => {
+      const result = decisionSort.key === "date"
+        ? getDateTimestamp(first.date) - getDateTimestamp(second.date)
+        : textValue(first, decisionSort.key).localeCompare(
+          textValue(second, decisionSort.key),
+          "sq",
+          { sensitivity: "base" }
+        );
+
+      return result * direction;
+    });
+  }, [committeeDecisionRows, decisionSort]);
+
+  const toggleDecisionSort = (key) => {
+    setDecisionSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const renderDecisionSortHeader = (key, label) => {
+    const isActive = decisionSort.key === key;
+    const isAscending = decisionSort.direction === "asc";
+    const SortIcon = isActive ? (isAscending ? ChevronUp : ChevronDown) : ChevronsUpDown;
+
+    return (
+      <button
+        type="button"
+        className={`committee-sort-header ${isActive ? "is-active" : ""}`}
+        onClick={() => toggleDecisionSort(key)}
+        aria-label={`Rendit sipas: ${label}`}
+        aria-sort={isActive ? (isAscending ? "ascending" : "descending") : "none"}
+      >
+        <span>{label}</span>
+        <SortIcon size={13} aria-hidden="true" />
+      </button>
+    );
+  };
 
   const decisionSummary = useMemo(() => ({
     total: committeeDecisionRows.length,
-    inReview: committeeDecisionRows.filter((item) => ["received", "in_review"].includes(item.statusKey)).length,
-    corrections: committeeDecisionRows.filter((item) => ["needs_correction", "correction"].includes(item.statusKey)).length,
-    completed: committeeDecisionRows.filter((item) => ["approved", "committee_approved", "ok", "paid", "rejected"].includes(item.statusKey)).length,
+    corrections: committeeDecisionRows.filter((item) => item.statusKey === "needs_correction").length,
+    approved: committeeDecisionRows.filter((item) => item.statusKey === "committee_approved").length,
+    rejected: committeeDecisionRows.filter((item) => item.statusKey === "rejected").length,
   }), [committeeDecisionRows]);
 
   const dashboardSummary = useMemo(() => ({
@@ -3965,7 +3992,7 @@ export default function CommitteeDashboard() {
       <div className="committee-page-head committee-decisions-head">
         <div>
           <h3>Vendimet e komisionit</h3>
-          <p>Statuset reale nga rimbursimet dhe kontrolli i metadata-s se publikimeve.</p>
+          <p>Vendimet e Komisionit për kërkesat e publikimeve dhe konferencave.</p>
         </div>
       </div>
 
@@ -3975,16 +4002,16 @@ export default function CommitteeDashboard() {
           <strong>{decisionSummary.total}</strong>
         </article>
         <article>
-          <span>Ne shqyrtim</span>
-          <strong>{decisionSummary.inReview}</strong>
-        </article>
-        <article>
-          <span>Korrigjime</span>
+          <span>Për korrigjim</span>
           <strong>{decisionSummary.corrections}</strong>
         </article>
         <article>
-          <span>Te mbyllura</span>
-          <strong>{decisionSummary.completed}</strong>
+          <span>Aprovuar nga Komisioni</span>
+          <strong>{decisionSummary.approved}</strong>
+        </article>
+        <article>
+          <span>Refuzuar</span>
+          <strong>{decisionSummary.rejected}</strong>
         </article>
       </div>
 
@@ -3992,37 +4019,37 @@ export default function CommitteeDashboard() {
         <table className="committee-table committee-decisions-table">
           <thead>
             <tr>
-              <th>Burimi</th>
-              <th>Rasti</th>
-              <th>Aplikanti / autoret</th>
-              <th>Njesia / burimi akademik</th>
-              <th>Statusi</th>
-              <th>Data</th>
+              <th className="committee-row-number-column">Nr.</th>
+              <th>{renderDecisionSortHeader("type", "Lloji")}</th>
+              <th>{renderDecisionSortHeader("case", "Rasti")}</th>
+              <th>{renderDecisionSortHeader("actor", "Aplikanti / Autorët")}</th>
+              <th>{renderDecisionSortHeader("unit", "Njësia / Burimi Akademik")}</th>
+              <th>{renderDecisionSortHeader("status", "Statusi")}</th>
+              <th>{renderDecisionSortHeader("date", "Data")}</th>
             </tr>
           </thead>
           <tbody>
-            {committeeDecisionRows.map((row) => (
-              <tr key={`${row.source}-${row.id}`}>
+            {sortedCommitteeDecisionRows.map((row, index) => (
+              <tr key={row.id}>
+                <td className="committee-row-number-column">{index + 1}</td>
                 <td>
-                  <span className="committee-decision-type">
-                    <span className={`committee-decision-source ${row.typeDisplay?.className || "is-neutral"}`}>
-                      {row.typeDisplay?.badge || row.source}
-                    </span>
-                    <span className="committee-decision-type-label">{row.typeDisplay?.label || row.category}</span>
+                  <span className={`committee-request-type-badge ${row.typeDisplay?.className || "is-neutral"}`}>
+                    <strong>{row.typeDisplay?.badge || "-"}</strong>
+                    <span>{row.typeDisplay?.label || row.category}</span>
                   </span>
                 </td>
-                <td>
+                <td className="committee-decision-case">
                   <strong className="committee-metadata-title committee-decision-title" title={row.title}>{row.title}</strong>
-                  <span className="committee-metadata-muted">{row.id}</span>
+                  <span className="committee-metadata-muted">{row.requestNumber}</span>
                 </td>
                 <td>{row.actor}</td>
-                <td>{row.unit}</td>
+                <td className="committee-decision-unit">{row.unit}</td>
                 <td>
                   <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
                     {row.status}
                   </span>
                 </td>
-                <td>{formatDate(row.date)}</td>
+                <td>{formatSubmissionDate(row.date)}</td>
               </tr>
             ))}
           </tbody>
@@ -4031,8 +4058,8 @@ export default function CommitteeDashboard() {
 
       {committeeDecisionRows.length === 0 ? (
         <div className="committee-metadata-empty">
-          <strong>Nuk ka vendime per filtrin aktual.</strong>
-          <span>Vendimet shfaqen sapo komisioni pranon, shqyrton, kerkon korrigjim ose verifikon metadata.</span>
+          <strong>Nuk ka vendime për filtrin aktual.</strong>
+          <span>Vendimet shfaqen pasi Komisioni kërkon korrigjim, rekomandon për aprovim ose refuzon një kërkesë.</span>
         </div>
       ) : null}
     </section>
