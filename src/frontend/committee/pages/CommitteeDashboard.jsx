@@ -2359,6 +2359,16 @@ export default function CommitteeDashboard() {
       .replace(/^doi:\s*/i, "")
       .trim();
     const doiValue = normalizeDoi(requestData.doi);
+    const acceptanceDate = getFirstReviewValue(
+      request.acceptanceDate,
+      request.acceptance_date,
+      request.publicationMetadata?.acceptanceDate,
+      request.publicationMetadata?.acceptance_date,
+      request.linkedPublication?.acceptanceDate,
+      request.linkedPublication?.acceptance_date,
+      requestData.acceptanceDate,
+      requestData.acceptance_date
+    );
     const normalizedPublicationType = String(requestData.publicationType || requestData.publication_type || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
     const isJournalArticle = normalizedPublicationType === "journal_article" || normalizedPublicationType === "article_journal";
     const requestIssns = formatReviewIssns(requestData.issn, requestData.eIssn || requestData.e_issn);
@@ -2777,7 +2787,7 @@ export default function CommitteeDashboard() {
       createReviewField("Lloji i publikimit", getPublicationTypeLabel(requestData.publicationType)),
       createReviewField("Emri i Revistës", getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
       createReviewField("Shtëpia botuese", requestData.publisher),
-      createReviewField("Data e Pranimit", getFirstReviewValue(requestData.acceptanceDate, requestData.acceptance_date), { format: "f1-date" }),
+      createReviewField("Data e Pranimit", acceptanceDate, { format: "f1-date" }),
       createReviewField("Data e Publikimit", getFirstReviewValue(requestData.publicationDate, requestData.publicationYear), { format: "f1-date" }),
       createReviewField("Vëllimi", requestData.volume),
       createReviewField("Numri i revistës / Issue", requestData.issue),
