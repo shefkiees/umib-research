@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Bell, BookOpen, CheckCircle2, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
 import {
   Cell,
   Pie,
@@ -15,7 +15,7 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const navLabels = ["Statistikat", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet"];
+const navLabels = ["Statistikat", "Kërkesat për Shqyrtim", "Shqyrtimi", "Vendimet"];
 
 const overviewTypeColors = {
   F1: "#1f4f84",
@@ -396,6 +396,20 @@ function formatDate(value) {
     month: "short",
     day: "2-digit",
   });
+}
+
+function formatSubmissionDate(value) {
+  const date = new Date(value);
+
+  if (!value || Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return [
+    String(date.getDate()).padStart(2, "0"),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    date.getFullYear(),
+  ].join("/");
 }
 
 function formatF1ReviewDate(value) {
@@ -1289,6 +1303,7 @@ export default function CommitteeDashboard() {
   const [activePage, setActivePage] = useState("Statistikat");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [pendingSubmissionSort, setPendingSubmissionSort] = useState({ key: "", direction: "asc" });
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
@@ -1452,6 +1467,59 @@ export default function CommitteeDashboard() {
       getCommitteeRequestSearchText(item).includes(normalizedQuery)
     );
   }, [normalizedQuery, pendingSubmissions]);
+
+  const sortedPendingSubmissions = useMemo(() => {
+    if (!pendingSubmissionSort.key) {
+      return filteredPendingSubmissions;
+    }
+
+    const direction = pendingSubmissionSort.direction === "desc" ? -1 : 1;
+    const textValue = (row, key) => {
+      if (key === "title") return row.title || row.requestTypeLabel || "";
+      if (key === "type") return getPendingRequestTypeDisplay(row).label;
+      if (key === "applicant") return row.owner?.name || row.owner?.email || "";
+      if (key === "unit") return row.owner?.faculty || row.owner?.department || "";
+      return "";
+    };
+
+    return [...filteredPendingSubmissions].sort((first, second) => {
+      const result = pendingSubmissionSort.key === "submittedAt"
+        ? getDateTimestamp(first.submittedAt || first.createdAt) - getDateTimestamp(second.submittedAt || second.createdAt)
+        : textValue(first, pendingSubmissionSort.key).localeCompare(
+          textValue(second, pendingSubmissionSort.key),
+          "sq",
+          { sensitivity: "base" }
+        );
+
+      return result * direction;
+    });
+  }, [filteredPendingSubmissions, pendingSubmissionSort]);
+
+  const togglePendingSubmissionSort = (key) => {
+    setPendingSubmissionSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const renderPendingSortHeader = (key, label) => {
+    const isActive = pendingSubmissionSort.key === key;
+    const isAscending = pendingSubmissionSort.direction === "asc";
+    const SortIcon = isActive ? (isAscending ? ChevronUp : ChevronDown) : ChevronsUpDown;
+
+    return (
+      <button
+        type="button"
+        className={`committee-sort-header ${isActive ? "is-active" : ""}`}
+        onClick={() => togglePendingSubmissionSort(key)}
+        aria-label={`Rendit sipas: ${label}`}
+        aria-sort={isActive ? (isAscending ? "ascending" : "descending") : "none"}
+      >
+        <span>{label}</span>
+        <SortIcon size={13} aria-hidden="true" />
+      </button>
+    );
+  };
 
   const filteredOverviewRequests = useMemo(() => {
     if (!normalizedQuery) {
@@ -1898,14 +1966,14 @@ export default function CommitteeDashboard() {
     }
 
     setSelectedReimbursementReview(request);
-    setActivePage("Dorëzimet në Pritje");
+    setActivePage("Kërkesat për Shqyrtim");
   };
 
   const closeReimbursementReview = () => {
     setIsReviewChecklistDrawerOpen(false);
     setIsF2AbstractExpanded(false);
     setSelectedReimbursementReview(null);
-    setActivePage("Dorëzimet në Pritje");
+    setActivePage("Kërkesat për Shqyrtim");
   };
 
   const saveMetadataReview = (publication, updater) => {
@@ -3347,7 +3415,7 @@ export default function CommitteeDashboard() {
   const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head">
-        <h3>Dorëzimet në Pritje</h3>
+        <h3>Kërkesat për Shqyrtim</h3>
         <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>
       </div>
 
@@ -3361,24 +3429,23 @@ export default function CommitteeDashboard() {
             <table className="committee-table">
               <thead>
                 <tr>
-                  <th>ID / Dokumenti</th>
-                  <th>Titulli / Lloji</th>
-                  <th>Lloji i Kërkesës</th>
-                  <th>Aplikanti</th>
-                  <th>Njësia akademike</th>
-                  <th>Data e dorëzimit</th>
-                  <th>Statusi</th>
+                  <th className="committee-row-number-column">Nr.</th>
+                  <th>{renderPendingSortHeader("title", "Titulli")}</th>
+                  <th>{renderPendingSortHeader("type", "Lloji")}</th>
+                  <th>{renderPendingSortHeader("applicant", "Aplikanti")}</th>
+                  <th>{renderPendingSortHeader("unit", "Njësia Akademike")}</th>
+                  <th>{renderPendingSortHeader("submittedAt", "Data e Dorëzimit")}</th>
                   <th>Veprimi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredPendingSubmissions.map((row) => {
+                {sortedPendingSubmissions.map((row, index) => {
                   const typeDisplay = getPendingRequestTypeDisplay(row);
 
                   return (
                     <tr key={row.id}>
-                      <td>{row.documentNumber || row.id}</td>
-                      <td>{row.title || row.requestTypeLabel || "-"}</td>
+                      <td className="committee-row-number-column">{index + 1}</td>
+                      <td><span className="committee-pending-title" title={row.title || row.requestTypeLabel || "-"}>{row.title || row.requestTypeLabel || "-"}</span></td>
                       <td>
                         <span className={`committee-request-type-badge ${typeDisplay.className}`}>
                           <strong>{typeDisplay.badge}</strong>
@@ -3387,10 +3454,9 @@ export default function CommitteeDashboard() {
                       </td>
                       <td>{row.owner?.name || row.owner?.email || "-"}</td>
                       <td>{row.owner?.faculty || row.owner?.department || "-"}</td>
-                      <td>{formatDate(row.submittedAt || row.createdAt)}</td>
-                      <td>{row.statusLabel || row.status || "-"}</td>
+                      <td>{formatSubmissionDate(row.submittedAt || row.createdAt)}</td>
                       <td>
-                        <button type="button" className="committee-details-btn" onClick={() => openReimbursementReview(row)}>
+                        <button type="button" className="committee-details-btn committee-review-btn" onClick={() => openReimbursementReview(row)}>
                           Shqyrto
                         </button>
                       </td>
@@ -3975,7 +4041,7 @@ export default function CommitteeDashboard() {
   let resultCount = reviewRequests.length;
   let content = renderOverview();
 
-  if (activePage === "Dorëzimet në Pritje") {
+  if (activePage === "Kërkesat për Shqyrtim") {
     resultCount = filteredPendingSubmissions.length;
     content = renderPendingSubmissions();
   }

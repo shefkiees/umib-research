@@ -5,7 +5,7 @@ import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
 	{ label: "Statistikat", route: "Statistikat", icon: LayoutDashboard },
-	{ label: "Dorëzimet në Pritje", route: "Dorëzimet në Pritje", icon: Inbox },
+	{ label: "Kërkesat për Shqyrtim", route: "Kërkesat për Shqyrtim", icon: Inbox },
 	{ label: "Shqyrtimi", route: "Shqyrtimi", icon: FileText },
 	{ label: "Vendimet", route: "Vendimet", icon: CheckCircle },
 ];
