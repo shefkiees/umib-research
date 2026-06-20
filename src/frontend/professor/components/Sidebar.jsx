@@ -27,8 +27,9 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const publicationPages = publicationSubmenu.flatMap((item) => [item.name, item.legacyName].filter(Boolean));
   const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
   const reimbursementSubmenu = [
-    { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
-    { name: "Konferenca dhe Simpoziume", label: t("navigation.reimbursementConferences"), target: "Rimbursime", reimbursementType: "conference" },
+    { name: "Rregullorja", label: "Rregullorja", href: "/rregullorja-rimbursimeve.pdf" },
+    { name: "Artikuj Shkencorë", label: `${t("navigation.reimbursementScientificArticles")} (F1)`, target: "Rimbursime", reimbursementType: "publication" },
+    { name: "Konferenca dhe Simpoziume", label: `${t("navigation.reimbursementConferences")} (F2)`, target: "Rimbursime", reimbursementType: "conference" },
   ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
@@ -73,6 +74,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
 
   const handleReimbursementSubmenuClick = (submenuItem) => {
     setIsReimbursementMenuOpen(true);
+
+    if (submenuItem.href) {
+      window.open(submenuItem.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     setActiveReimbursementSubmenu(submenuItem.name);
     handleNavigate({
       page: submenuItem.target,
