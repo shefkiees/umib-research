@@ -2251,7 +2251,7 @@ export default function CommitteeDashboard() {
 
   const profileMenuItems = [
     { id: "Njoftime", label: "Njoftime", icon: Bell },
-    { id: "Edit Profile", label: "Edit Profile", icon: CircleUserRound },
+    { id: "Profili", label: "Profili", icon: CircleUserRound },
     { id: "Settings", label: "Settings", icon: Settings },
     { id: "Logout", label: "Logout", icon: LogOut, tone: "danger" },
   ];
@@ -2264,7 +2264,7 @@ export default function CommitteeDashboard() {
       return;
     }
 
-    if (normalizedAction === "edit profile" || normalizedAction === "edit-profile") {
+    if (normalizedAction === "profili" || normalizedAction === "edit profile" || normalizedAction === "edit-profile") {
       setCommitteeDraft(committeeProfile);
       setIsEditProfileOpen(true);
       return;
@@ -2286,16 +2286,6 @@ export default function CommitteeDashboard() {
       });
       return;
     }
-  };
-
-  const handleCommitteeFieldChange = (field) => (event) => {
-    setCommitteeDraft((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleCommitteeSave = (event) => {
-    event.preventDefault();
-    setCommitteeProfile(committeeDraft);
-    setIsEditProfileOpen(false);
   };
 
   const renderSimpleTable = (title, description, columns, rows) => (
@@ -2810,6 +2800,19 @@ export default function CommitteeDashboard() {
     };
     const renderCommitteeChecklist = () => {
       const isF2Checklist = requestType === "conference";
+
+      if (isF2Checklist) {
+        return (
+          <section className="committee-review-checklist-wip" aria-label="Checklista F2 në zhvillim">
+            <span>Në zhvillim</span>
+            <h4>Checklista për Konferenca dhe Simpoziume (F2)</h4>
+            <p>
+              Checklista për Konferenca dhe Simpoziume (F2) është në zhvillim. Kjo pjesë do të finalizohet pas konfirmimit të rregullores dhe kërkesave përkatëse nga fakulteti.
+            </p>
+          </section>
+        );
+      }
+
       const isScopusChecklist = isReviewIndexingPlatform(f1Indexing.platform, "scopus");
       const isWebOfScienceChecklist = isReviewIndexingPlatform(f1Indexing.platform, "web_of_science");
       const f1IndexingItems = [
@@ -4126,8 +4129,8 @@ export default function CommitteeDashboard() {
           <div className="committee-modal">
             <div className="committee-modal-header">
               <div>
-                <h3 className="committee-modal-title">Edit Profile</h3>
-                <p className="committee-modal-subtitle">Përditësoni informacionin bazë të komisionit.</p>
+                <h3 className="committee-modal-title">Profili</h3>
+                <p className="committee-modal-subtitle">Informacioni i profilit të Komisionit.</p>
               </div>
               <button
                 className="committee-modal-close"
@@ -4138,34 +4141,31 @@ export default function CommitteeDashboard() {
                 ×
               </button>
             </div>
-            <form className="committee-modal-form" onSubmit={handleCommitteeSave}>
+            <div className="committee-modal-form">
               <div className="committee-form-grid">
                 <label className="committee-form-field">
                   <span>Emri</span>
-                  <input value={committeeDraft.name} onChange={handleCommitteeFieldChange("name")} />
+                  <input value={committeeDraft.name} readOnly aria-readonly="true" />
                 </label>
                 <label className="committee-form-field">
                   <span>Roli</span>
-                  <input value={committeeDraft.role} onChange={handleCommitteeFieldChange("role")} />
+                  <input value={committeeDraft.role} readOnly aria-readonly="true" />
                 </label>
                 <label className="committee-form-field">
                   <span>Email</span>
-                  <input type="email" value={committeeDraft.email} onChange={handleCommitteeFieldChange("email")} />
+                  <input type="email" value={committeeDraft.email} readOnly aria-readonly="true" />
                 </label>
                 <label className="committee-form-field">
                   <span>Njësia</span>
-                  <input value={committeeDraft.unit} onChange={handleCommitteeFieldChange("unit")} />
+                  <input value={committeeDraft.unit} readOnly aria-readonly="true" />
                 </label>
               </div>
               <div className="committee-modal-actions">
                 <button type="button" className="committee-btn-secondary" onClick={() => setIsEditProfileOpen(false)}>
-                  Anulo
-                </button>
-                <button type="submit" className="committee-btn-primary">
-                  Ruaj ndryshimet
+                  Mbyll
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       ) : null}
