@@ -17,11 +17,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const publicationSubmenu = [
     { name: "Artikuj reviste", label: "Artikuj reviste" },
-    { name: "Punime konference", label: "Punime konference" },
+    { name: "Punime të konferencave", label: "Punime të konferencave" },
     { name: "Libra / Kapituj", label: "Libra / Kapituj" },
     { name: "Të gjitha publikimet", label: "Të gjitha publikimet" },
   ];
   const publicationPages = publicationSubmenu.map((item) => item.name);
+  const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
   const reimbursementSubmenu = [
     { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
     { name: "Konferenca dhe Simpoziume", label: t("navigation.reimbursementConferences"), target: "Rimbursime", reimbursementType: "conference" },
@@ -48,11 +49,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     if (itemName === "Publikime") {
       setIsReimbursementMenuOpen(false);
       setActiveReimbursementSubmenu("");
-      handleNavigate(itemName);
+      setIsPublicationMenuOpen((isOpen) => !isOpen);
       return;
     }
 
     if (itemName === "Rimbursime") {
+      setIsPublicationMenuOpen(false);
       setIsReimbursementMenuOpen((isOpen) => !isOpen);
       setActiveReimbursementSubmenu("");
       handleNavigate(itemName);
@@ -61,6 +63,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
 
     setIsReimbursementMenuOpen(false);
     setActiveReimbursementSubmenu("");
+    setIsPublicationMenuOpen(false);
     handleNavigate(itemName);
   };
 
@@ -74,6 +77,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   };
 
   const handlePublicationSubmenuClick = (page) => {
+    setIsPublicationMenuOpen(true);
     setIsReimbursementMenuOpen(false);
     setActiveReimbursementSubmenu("");
     handleNavigate(page);
@@ -100,19 +104,29 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                   activePage === item.name || (item.name === "Publikime" && publicationPages.includes(activePage)) ? "active" : ""
                 }`}
                 onClick={() => handleMainItemClick(item.name)}
-                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : item.name === "Publikime" ? true : undefined}
+                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : item.name === "Publikime" ? isPublicationMenuOpen : undefined}
               >
                 <span className="prof-sidebar-icon">{item.icon}</span>
                 <span className="prof-sidebar-text">{item.label}</span>
                 {item.name === "Publikime" || item.name === "Rimbursime" ? (
-                  <span className="prof-sidebar-chevron" aria-hidden="true">
-                    {item.name === "Publikime" || isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <span
+                    className={`prof-sidebar-chevron ${
+                      (item.name === "Publikime" && isPublicationMenuOpen) || (item.name === "Rimbursime" && isReimbursementMenuOpen)
+                        ? "is-open"
+                        : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {item.name === "Publikime" ? <ChevronDown size={16} /> : isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
                 ) : null}
               </button>
 
               {item.name === "Publikime" ? (
-                <div className="prof-sidebar-submenu prof-sidebar-submenu--articles" aria-label="Nenkategorite e artikujve">
+                <div
+                  className={`prof-sidebar-submenu prof-sidebar-submenu--articles ${isPublicationMenuOpen ? "is-open" : ""}`}
+                  aria-label="Nenkategorite e artikujve"
+                >
                   {publicationSubmenu.map((submenuItem) => (
                     <button
                       key={submenuItem.name}

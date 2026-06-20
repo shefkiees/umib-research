@@ -194,6 +194,10 @@ body {
   transition: var(--transition);
 }
 
+.prof-sidebar-chevron.is-open {
+  transform: rotate(180deg);
+}
+
 .prof-sidebar-link:hover .prof-sidebar-chevron,
 .prof-sidebar-link.active .prof-sidebar-chevron {
   color: #0d47a1;
@@ -211,6 +215,17 @@ body {
 .prof-sidebar-submenu--articles {
   margin-left: 20px;
   padding-left: 12px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-4px);
+  transition: max-height 0.28s ease, opacity 0.22s ease, transform 0.28s ease;
+}
+
+.prof-sidebar-submenu--articles.is-open {
+  max-height: 220px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .prof-sidebar-sublink {

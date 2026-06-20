@@ -247,7 +247,7 @@ const PUBLICATION_TYPE_LABEL_KEYS = {
 const PUBLICATION_REVIEW_ROLES = new Set(PUBLICATION_REVIEW_ROLE_VALUES);
 const PUBLICATION_LIST_PAGES = new Set([
   "Artikuj reviste",
-  "Punime konference",
+  "Punime të konferencave",
   "Libra / Kapituj",
   "Të gjitha publikimet",
   "Lista e Publikimeve",
@@ -258,7 +258,7 @@ const getPublicationTypeFilterForPage = (page) => {
     return "journal_article";
   }
 
-  if (page === "Punime konference") {
+  if (page === "Punime të konferencave") {
     return "conference_paper";
   }
 
@@ -1237,7 +1237,7 @@ export default function ProfessorDashboard() {
     Publikime: t("navigation.publications"),
     "Lista e Publikimeve": "Të gjitha publikimet",
     "Artikuj reviste": "Artikuj reviste",
-    "Punime konference": "Punime konference",
+    "Punime të konferencave": "Punime të konferencave",
     "Libra / Kapituj": "Libra / Kapituj",
     "Të gjitha publikimet": "Të gjitha publikimet",
     Konferenca: t("navigation.conferences"),
@@ -3000,7 +3000,7 @@ export default function ProfessorDashboard() {
         );
 
       case "Artikuj reviste":
-      case "Punime konference":
+      case "Punime të konferencave":
       case "Libra / Kapituj":
       case "Të gjitha publikimet":
       case "Lista e Publikimeve":
