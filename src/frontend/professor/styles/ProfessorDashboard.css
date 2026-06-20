@@ -2068,27 +2068,33 @@ body {
 }
 
 .publication-edit-page-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
+  gap: 24px;
   padding-bottom: 20px;
   margin-bottom: 22px;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.publication-edit-heading {
+  min-width: 0;
+  max-width: 760px;
 }
 
 .publication-edit-page-header h3 {
   margin: 4px 0 6px;
   color: #0f172a;
   font-size: 1.45rem;
+  line-height: 1.18;
 }
 
 .publication-edit-page-header p {
   margin: 0;
-  max-width: 760px;
   color: #64748b;
   font-weight: 700;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .publication-edit-kicker {
@@ -5468,6 +5474,15 @@ body {
   .prof-stats-grid,
   .prof-quick-grid {
     grid-template-columns: 1fr;
+  }
+
+  .publication-edit-page-header {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .publication-edit-heading {
+    max-width: none;
   }
 
   .prof-hero {

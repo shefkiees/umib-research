@@ -2952,7 +2952,7 @@ export default function ProfessorDashboard() {
                     <ArrowLeft size={16} aria-hidden="true" />
                     {t("common.back")}
                   </button>
-                  <div>
+                  <div className="publication-edit-heading">
                     <span className="publication-edit-kicker">{getPublicationTypeLabel(publicationDraft)}</span>
                     <h3>{t("professor.dashboard.editPublicationTitle")}</h3>
                     <p>{publicationDraft.title || t("professor.dashboard.editPublicationDescription")}</p>

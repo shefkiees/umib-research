@@ -1054,6 +1054,7 @@ const PublicationForm = ({
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
+  const isEditingPublication = mode === "edit";
   const isConferencePaper = isConferencePaperType(value.publicationType);
   const isJournalArticle = value.publicationType === "journal_article";
   const isBookPublication = isBookPublicationType(value.publicationType);
@@ -1754,7 +1755,7 @@ const PublicationForm = ({
       <div className="prof-form-grid">
         <label className={`prof-form-field${requiredClassName("publicationType")}`}>
           <span>{requiredLabel(t("professor.dashboard.publicationForm.publicationType"))}</span>
-          <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isFieldLocked("publicationType")}>
+          <select value={value.publicationType} onChange={updateField("publicationType")} disabled={isEditingPublication || isFieldLocked("publicationType")}>
             {PUBLICATION_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.labelKey)}</option>)}
           </select>
           {renderFieldError("publicationType")}
