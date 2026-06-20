@@ -11,6 +11,19 @@ const ROLE_ALIASES = {
   prorektorat: "prorector",
 };
 
+const REQUEST_STATUSES = ["draft", "submitted", "in_review", "correction", "approved", "rejected"];
+const FUNDING_CATEGORIES = [
+  "SCI, SSCI, AHCI",
+  "Scopus Q1",
+  "Scopus Q2",
+  "Scopus Q3",
+  "Scopus Q4",
+  "Libra/Kapituj",
+  "Konferenca/Simpoziume",
+  "Projekte shkencore",
+  "Pa verifikim",
+];
+
 function normalizeText(value) {
   return String(value ?? "").trim();
 }
@@ -22,47 +35,95 @@ function normalizeRole(value) {
 
 function requireProRectorAccess(req, res, next) {
   if (!req.isAuthenticated?.() || !req.user?.id) {
-    res.status(401).json({ error: "unauthorized", message: "Duhet te kyqeni per te pare te dhenat e prorektorit." });
+    res.status(401).json({ error: "unauthorized", message: "Duhet te kyqeni per te pare te dhenat e Prorektorit." });
     return;
   }
 
   if (!["prorector", "admin"].includes(normalizeRole(req.user.role))) {
-    res.status(403).json({ error: "forbidden", message: "Vetem prorektori ose administratori mund te shohin kete faqe." });
+    res.status(403).json({ error: "forbidden", message: "Vetem Prorektori ose administratori mund te shohin keto te dhena." });
     return;
   }
 
   next();
 }
 
-function mapFaculty(row) {
-  const activeUserCount = Number(row.active_user_count || 0);
+function numberValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
 
+function normalizeRequestStatus(status) {
+  if (status === "needs_correction") return "correction";
+  if (status === "committee_approved" || status === "paid") return "approved";
+  if (REQUEST_STATUSES.includes(status)) return status;
+  return status || "draft";
+}
+
+function fillSeries(rows = [], keys = []) {
+  const existing = new Map(rows.map((row) => [String(row.name), row]));
+  keys.forEach((key) => {
+    if (!existing.has(key)) existing.set(key, { name: key, value: 0 });
+  });
+  return Array.from(existing.values());
+}
+
+function buildFilters(query = {}) {
   return {
-    id: row.id,
-    code: row.code || "",
-    name: row.name || "",
-    isOfficial: Boolean(row.faculty_id),
-    departmentCount: Number(row.department_count || 0),
-    departmentNames: Array.isArray(row.department_names) ? row.department_names.filter(Boolean) : [],
-    activeUserCount,
-    professorCount: Number(row.professor_count || 0),
-    publicationCount: Number(row.publication_count || 0),
-    journalArticleCount: Number(row.journal_article_count || 0),
-    conferencePaperCount: Number(row.conference_paper_count || 0),
-    bookChapterCount: Number(row.book_chapter_count || 0),
-    reimbursementCount: Number(row.reimbursement_count || 0),
-    totalAmount: Number(row.total_amount || 0),
-    status: activeUserCount > 0 ? "active" : "inactive",
-    statusLabel: activeUserCount > 0 ? "Aktiv" : "Pa staf aktiv",
-    updatedAt: row.updated_at,
+    year: /^\d{4}$/.test(normalizeText(query.year)) ? Number(query.year) : null,
+    faculty: normalizeText(query.faculty) || null,
+    type: normalizeText(query.type) || null,
+    platform: normalizeText(query.platform) || null,
+    quartile: /^q[1-4]$/i.test(normalizeText(query.quartile)) ? normalizeText(query.quartile).toUpperCase() : normalizeText(query.quartile) || null,
+    status: normalizeText(query.status) || null,
+    search: normalizeText(query.search) || null,
   };
 }
 
-const FACULTY_SOURCE_CTE = `with active_user_faculties as (
+function mapPublication(row = {}) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    authors: Array.isArray(row.authors) ? row.authors : [],
+    authorNames: row.author_names || "",
+    faculty: row.faculty || "",
+    department: row.department || "",
+    type: row.publication_type || "",
+    typeLabel: row.type_label || "",
+    publishedIn: row.published_in || "",
+    indexing: row.indexing || "Pa verifikim",
+    platform: row.platform || "Pa verifikim",
+    quartile: row.quartile || "Pa verifikim",
+    date: row.publication_date || row.created_at,
+    year: numberValue(row.publication_year),
+    doi: row.doi || "",
+    status: row.status || "draft",
+    statusLabel: row.status_label || row.status || "draft",
+    regulationCategory: row.regulation_category || "Pa verifikim",
+  };
+}
+
+function mapFunding(row = {}) {
+  return {
+    id: row.id,
+    applicant: row.applicant || "",
+    faculty: row.faculty || "",
+    fundingType: row.funding_type || "",
+    regulationCategory: row.regulation_category || "",
+    title: row.title || "",
+    requestedAmount: numberValue(row.requested_amount),
+    approvedAmount: numberValue(row.approved_amount),
+    currency: row.currency || "EUR",
+    status: normalizeRequestStatus(row.status),
+    statusLabel: row.status_label || normalizeRequestStatus(row.status),
+    applicationDate: row.application_date || row.created_at,
+  };
+}
+
+const FACULTY_SOURCE_CTE = `
+with active_user_faculties as (
   select distinct lower(trim(faculty)) as faculty_key
   from users
-  where coalesce(status, 'active') = 'active'
-    and nullif(trim(faculty), '') is not null
+  where nullif(trim(coalesce(faculty, '')), '') is not null
 ),
 faculty_source as (
   select
@@ -85,12 +146,7 @@ faculty_source as (
     trim(u.faculty) as name,
     max(u.updated_at) as updated_at
   from users u
-  where coalesce(u.status, 'active') = 'active'
-    and nullif(trim(u.faculty), '') is not null
-    and (
-      trim(u.faculty) ~* '(fakult|faculty|universitet|university|college|school)'
-      or (length(trim(u.faculty)) >= 12 and trim(u.faculty) like '% %')
-    )
+  where nullif(trim(coalesce(u.faculty, '')), '') is not null
     and not exists (
       select 1
       from faculties f
@@ -99,226 +155,337 @@ faculty_source as (
   group by lower(trim(u.faculty)), trim(u.faculty)
 )`;
 
-function normalizeFacultyRouteKey(value) {
-  return normalizeText(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+const PUBLICATION_CORE_CTE = `
+publication_core as (
+  select
+    p.id,
+    p.title,
+    p.doi,
+    p.publication_type,
+    p.venue,
+    p.publisher,
+    p.publication_date,
+    coalesce(p.publication_year, extract(year from p.publication_date)::int, extract(year from p.created_at)::int) as publication_year,
+    p.indexing_platform,
+    p.custom_indexing_platform,
+    p.web_of_science_index,
+    p.indexing_category,
+    p.indexing_verified,
+    p.status,
+    p.created_at,
+    p.updated_at,
+    coalesce(nullif(u.faculty, ''), 'Pa fakultet') as faculty,
+    coalesce(nullif(u.department, ''), 'Pa departament') as department,
+    u.full_name as owner_name,
+    coalesce(authors.items, '[]'::jsonb) as authors,
+    coalesce(authors.names, u.full_name, '') as author_names,
+    coalesce(nullif(p.indexing_platform, ''), nullif(p.custom_indexing_platform, ''), nullif(latest_indexing.source, ''), nullif(latest_indexing.source_key, 'manual'), '') as platform_raw,
+    coalesce(
+      case when p.indexing_category ~* '^Q[1-4]$' then upper(p.indexing_category) end,
+      case when latest_indexing.quartile ~* '^Q[1-4]$' then upper(latest_indexing.quartile) end
+    ) as quartile_raw,
+    coalesce(nullif(p.web_of_science_index, ''), nullif(latest_indexing.web_of_science_index, ''), nullif(latest_indexing.category, ''), nullif(p.indexing_category, ''), '') as indexing_raw
+  from publications p
+  left join users u on u.id = p.owner_id
+  left join lateral (
+    select
+      jsonb_agg(
+        jsonb_build_object(
+          'id', pa.id,
+          'fullName', pa.full_name,
+          'orcid', pa.orcid,
+          'affiliation', pa.affiliation,
+          'order', coalesce(nullif(pa.author_order, 0), pa.position)
+        )
+        order by coalesce(nullif(pa.author_order, 0), pa.position), pa.created_at
+      ) as items,
+      string_agg(nullif(pa.full_name, ''), ', ' order by coalesce(nullif(pa.author_order, 0), pa.position), pa.created_at) as names
+    from publication_authors pa
+    where pa.publication_id = p.id
+  ) authors on true
+  left join lateral (
+    select pi.*
+    from publication_indexing pi
+    where pi.publication_id = p.id
+    order by pi.updated_at desc, pi.created_at desc
+    limit 1
+  ) latest_indexing on true
+)`;
 
-function normalizeQuartile(value) {
-  const match = normalizeText(value).toUpperCase().match(/\bQ[1-4]\b/);
-  return match?.[0] || "";
-}
+const PUBLICATION_SELECT = `
+select
+  pc.*,
+  case
+    when pc.publication_type = 'journal_article' then 'Artikull reviste'
+    when pc.publication_type = 'conference_paper' then 'Punim konference'
+    when pc.publication_type in ('book', 'book_chapter') then 'Libra/Kapituj'
+    else coalesce(nullif(pc.publication_type, ''), 'Tjeter')
+  end as type_label,
+  coalesce(nullif(pc.venue, ''), nullif(pc.publisher, ''), '-') as published_in,
+  coalesce(nullif(pc.platform_raw, ''), 'Pa verifikim') as platform,
+  coalesce(nullif(pc.indexing_raw, ''), 'Pa verifikim') as indexing,
+  coalesce(pc.quartile_raw, 'Pa verifikim') as quartile,
+  case
+    when upper(pc.indexing_raw) in ('SCI', 'SSCI', 'AHCI') or upper(pc.web_of_science_index) in ('SCI', 'SSCI', 'AHCI') then 'SCI, SSCI, AHCI'
+    when pc.platform_raw ~* 'scopus' and pc.quartile_raw = 'Q1' then 'Scopus Q1'
+    when pc.platform_raw ~* 'scopus' and pc.quartile_raw = 'Q2' then 'Scopus Q2'
+    when pc.platform_raw ~* 'scopus' and pc.quartile_raw = 'Q3' then 'Scopus Q3'
+    when pc.platform_raw ~* 'scopus' and pc.quartile_raw = 'Q4' then 'Scopus Q4'
+    when pc.publication_type in ('book', 'book_chapter') then 'Libra/Kapituj'
+    else 'Pa verifikim'
+  end as regulation_category,
+  case
+    when pc.status = 'submitted' then 'Dorëzuar'
+    when pc.status = 'in_review' then 'Në shqyrtim'
+    when pc.status = 'needs_correction' then 'Korrigjim'
+    when pc.status = 'approved' then 'Aprovuar'
+    when pc.status = 'rejected' then 'Refuzuar'
+    else 'Draft'
+  end as status_label
+from publication_core pc`;
 
-function getPublicationQuartile(publication = {}) {
-  return normalizeQuartile(
-    publication.quartile
-    || publication.category
-    || publication.indexingCategory
-    || publication.indexing_category
-    || publication.quartileCategory
-    || publication.quartile_category
+const FUNDING_CORE_CTE = `
+funding_core as (
+  select
+    r.id,
+    r.title,
+    r.amount,
+    r.currency,
+    r.status,
+    r.request_type,
+    r.conference_id,
+    r.request_data,
+    r.submitted_at,
+    r.created_at,
+    r.updated_at,
+    coalesce(nullif(u.full_name, ''), u.email, '') as applicant,
+    coalesce(nullif(u.faculty, ''), 'Pa fakultet') as faculty,
+    coalesce(nullif(u.department, ''), 'Pa departament') as department,
+    p.publication_type,
+    coalesce(
+      case when p.indexing_category ~* '^Q[1-4]$' then upper(p.indexing_category) end,
+      case when pi.quartile ~* '^Q[1-4]$' then upper(pi.quartile) end
+    ) as publication_quartile,
+    coalesce(nullif(p.indexing_platform, ''), nullif(p.custom_indexing_platform, ''), nullif(pi.source, ''), '') as publication_platform,
+    coalesce(nullif(p.web_of_science_index, ''), nullif(pi.web_of_science_index, ''), nullif(pi.category, ''), nullif(p.indexing_category, ''), '') as publication_indexing
+  from reimbursements r
+  left join users u on u.id = r.owner_id
+  left join publications p on p.id = r.publication_id
+  left join lateral (
+    select publication_indexing.*
+    from publication_indexing
+    where publication_indexing.publication_id = p.id
+    order by publication_indexing.updated_at desc, publication_indexing.created_at desc
+    limit 1
+  ) pi on true
+)`;
+
+const FUNDING_SELECT = `
+select
+  fc.*,
+  fc.amount as requested_amount,
+  case when fc.status in ('approved', 'paid') then fc.amount else 0 end as approved_amount,
+  coalesce(fc.submitted_at, fc.created_at) as application_date,
+  case
+    when fc.request_type = 'conference' or fc.conference_id is not null then 'Financim për konferenca/simpoziume'
+    when fc.request_type = 'project' then 'Financim për projekte shkencore'
+    else 'Financim për publikime shkencore'
+  end as funding_type,
+  case
+    when fc.request_type = 'conference' then 'Konferenca/Simpoziume'
+    when fc.request_type = 'project' then 'Projekte shkencore'
+    when upper(fc.publication_indexing) in ('SCI', 'SSCI', 'AHCI') then 'SCI, SSCI, AHCI'
+    when fc.publication_platform ~* 'scopus' and fc.publication_quartile = 'Q1' then 'Scopus Q1'
+    when fc.publication_platform ~* 'scopus' and fc.publication_quartile = 'Q2' then 'Scopus Q2'
+    when fc.publication_platform ~* 'scopus' and fc.publication_quartile = 'Q3' then 'Scopus Q3'
+    when fc.publication_platform ~* 'scopus' and fc.publication_quartile = 'Q4' then 'Scopus Q4'
+    when fc.publication_type in ('book', 'book_chapter') then 'Libra/Kapituj'
+    else 'Pa verifikim'
+  end as regulation_category,
+  case
+    when fc.status = 'submitted' then 'Dorëzuar'
+    when fc.status = 'received' then 'Pranuar'
+    when fc.status = 'in_review' then 'Në shqyrtim'
+    when fc.status = 'needs_correction' then 'Korrigjim'
+    when fc.status in ('committee_approved', 'approved', 'paid') then 'Aprovuar'
+    when fc.status = 'rejected' then 'Refuzuar'
+    else 'Draft'
+  end as status_label
+from funding_core fc`;
+
+async function getOverview() {
+  const result = await db.query(
+    `with ${PUBLICATION_CORE_CTE}, ${FUNDING_CORE_CTE},
+     publication_rows as (${PUBLICATION_SELECT}),
+     funding_rows as (${FUNDING_SELECT}),
+     publication_categories as (
+       select regulation_category as name, count(*)::int as value
+       from publication_rows
+       group by regulation_category
+     ),
+     request_statuses as (
+       select
+         case
+           when status = 'needs_correction' then 'correction'
+           when status in ('committee_approved', 'paid') then 'approved'
+           else status
+         end as name,
+         count(*)::int as value
+       from funding_rows
+       group by 1
+     )
+     select jsonb_build_object(
+       'kpis', jsonb_build_object(
+         'totalPublications', (select count(*) from publications),
+         'scopusQ1Q2Publications', (
+           select count(*) from publication_rows
+           where regulation_category in ('Scopus Q1', 'Scopus Q2')
+         ),
+         'approvedFundingTotal', (
+           select coalesce(sum(approved_amount), 0) from funding_rows
+         ),
+         'activeRequests', (
+           select count(*) from funding_rows
+           where status in ('submitted', 'in_review', 'needs_correction')
+         ),
+         'activeResearchProfessors', (
+           select count(distinct owner_id)
+           from publications
+           where owner_id is not null and status <> 'draft'
+         ),
+         'leadingFaculty', (
+           select coalesce(faculty, 'Pa të dhëna')
+           from publication_rows
+           group by faculty
+           order by count(*) desc, faculty asc
+           limit 1
+         )
+       ),
+       'charts', jsonb_build_object(
+         'publicationsByYear', coalesce((
+           select jsonb_agg(jsonb_build_object('name', publication_year::text, 'value', value) order by publication_year)
+           from (
+             select publication_year, count(*)::int as value
+             from publication_rows
+             where publication_year is not null
+             group by publication_year
+           ) y
+         ), '[]'::jsonb),
+         'fundingByYear', coalesce((
+           select jsonb_agg(jsonb_build_object('name', funding_year::text, 'value', value) order by funding_year)
+           from (
+             select extract(year from application_date)::int as funding_year, coalesce(sum(approved_amount), 0)::numeric(12, 2) as value
+             from funding_rows
+             where application_date is not null
+             group by extract(year from application_date)::int
+           ) y
+         ), '[]'::jsonb),
+         'publicationsByCategory', coalesce((
+           select jsonb_agg(jsonb_build_object('name', name, 'value', value) order by name)
+           from publication_categories
+         ), '[]'::jsonb),
+         'requestsByStatus', coalesce((
+           select jsonb_agg(jsonb_build_object('name', name, 'value', value) order by name)
+           from request_statuses
+         ), '[]'::jsonb)
+       )
+     ) as payload`
   );
-}
 
-function getPublicationTime(publication = {}) {
-  const value = publication.updatedAt || publication.updated_at || publication.publicationDate || publication.publication_date || publication.createdAt || publication.created_at;
-  const time = value ? new Date(value).getTime() : 0;
-  return Number.isFinite(time) ? time : 0;
-}
-
-function buildFacultyPublicationAnalytics(publications = []) {
-  const quartileCounts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
-  const departmentRows = new Map();
-  const publicationTypeRows = new Map();
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const attentionPriority = {
-    needs_correction: 0,
-    in_review: 1,
-    submitted: 1,
-    rejected: 2,
-    approved: 3,
-  };
-
-  publications.forEach((publication) => {
-    const quartile = getPublicationQuartile(publication);
-    const type = publication.publicationType || publication.publication_type || "unknown";
-    const departmentName = normalizeText(
-      publication.department?.name
-      || publication.departmentName
-      || publication.department_name
-      || publication.owner?.department
-    ) || "Pa departament";
-
-    if (quartileCounts[quartile] !== undefined) {
-      quartileCounts[quartile] += 1;
-    }
-
-    publicationTypeRows.set(type, (publicationTypeRows.get(type) || 0) + 1);
-
-    if (!departmentRows.has(departmentName)) {
-      departmentRows.set(departmentName, {
-        departmentName,
-        publicationCount: 0,
-        q1Count: 0,
-        q2Count: 0,
-        q3Count: 0,
-        q4Count: 0,
-      });
-    }
-
-    const department = departmentRows.get(departmentName);
-    department.publicationCount += 1;
-
-    if (quartile === "Q1") department.q1Count += 1;
-    if (quartile === "Q2") department.q2Count += 1;
-    if (quartile === "Q3") department.q3Count += 1;
-    if (quartile === "Q4") department.q4Count += 1;
-  });
-
-  const recentPublications = [...publications]
-    .sort((first, second) => getPublicationTime(second) - getPublicationTime(first))
-    .slice(0, 10);
-  const attentionPublications = publications
-    .filter((publication) => {
-      const status = publication.status || "draft";
-      const approvedThisMonth = status === "approved" && String(publication.updatedAt || publication.updated_at || publication.createdAt || publication.created_at || "").startsWith(currentMonthKey);
-      return ["needs_correction", "in_review", "submitted", "rejected"].includes(status) || approvedThisMonth;
-    })
-    .sort((first, second) => {
-      const firstStatus = first.status || "draft";
-      const secondStatus = second.status || "draft";
-      const priorityDelta = (attentionPriority[firstStatus] ?? 9) - (attentionPriority[secondStatus] ?? 9);
-
-      return priorityDelta || getPublicationTime(second) - getPublicationTime(first);
-    })
-    .slice(0, 10);
-
+  const payload = result.rows[0]?.payload || {};
   return {
-    totalPublications: publications.length,
-    quartileDistribution: Object.entries(quartileCounts).map(([quartile, count]) => ({ quartile, count })),
-    departments: Array.from(departmentRows.values())
-      .sort((first, second) => second.publicationCount - first.publicationCount || first.departmentName.localeCompare(second.departmentName, "sq")),
-    publicationTypes: Array.from(publicationTypeRows, ([type, count]) => ({ type, count })),
-    recentPublications,
-    attentionPublications,
+    kpis: {
+      totalPublications: numberValue(payload.kpis?.totalPublications),
+      scopusQ1Q2Publications: numberValue(payload.kpis?.scopusQ1Q2Publications),
+      approvedFundingTotal: numberValue(payload.kpis?.approvedFundingTotal),
+      activeRequests: numberValue(payload.kpis?.activeRequests),
+      activeResearchProfessors: numberValue(payload.kpis?.activeResearchProfessors),
+      leadingFaculty: payload.kpis?.leadingFaculty || "Pa të dhëna",
+    },
+    charts: {
+      publicationsByYear: payload.charts?.publicationsByYear || [],
+      fundingByYear: payload.charts?.fundingByYear || [],
+      publicationsByCategory: fillSeries(payload.charts?.publicationsByCategory || [], FUNDING_CATEGORIES.slice(0, 6)),
+      requestsByStatus: fillSeries(payload.charts?.requestsByStatus || [], REQUEST_STATUSES),
+    },
   };
 }
 
-router.get("/faculties", requireProRectorAccess, async (req, res) => {
-  const selectedYear = /^\d{4}$/.test(normalizeText(req.query.year)) ? Number(req.query.year) : null;
+router.get("/overview", requireProRectorAccess, async (_req, res) => {
+  try {
+    res.json(await getOverview());
+  } catch (error) {
+    console.error("GET /api/prorector/overview failed:", error);
+    res.status(500).json({ error: "prorector_overview_failed", message: "Të dhënat kryesore nuk u ngarkuan." });
+  }
+});
 
+router.get("/faculties", requireProRectorAccess, async (_req, res) => {
   try {
     const result = await db.query(
-      `${FACULTY_SOURCE_CTE}
-       select
-         fs.id,
-         fs.code,
-         fs.name,
-         fs.updated_at,
-         greatest(
-           coalesce(departments.department_count, 0),
-           coalesce(user_departments.department_count, 0)
-         )::int as department_count,
-         coalesce(user_departments.department_names, array[]::text[]) as department_names,
-         coalesce(users_stats.active_user_count, 0)::int as active_user_count,
-         coalesce(users_stats.professor_count, 0)::int as professor_count,
-         coalesce(publications_stats.publication_count, 0)::int as publication_count,
-         coalesce(publications_stats.journal_article_count, 0)::int as journal_article_count,
-         coalesce(publications_stats.conference_paper_count, 0)::int as conference_paper_count,
-         coalesce(publications_stats.book_chapter_count, 0)::int as book_chapter_count,
-         coalesce(reimbursements_stats.reimbursement_count, 0)::int as reimbursement_count,
-         coalesce(reimbursements_stats.total_amount, 0)::numeric(12, 2) as total_amount
-       from faculty_source fs
-       left join lateral (
-         select count(*)::int as department_count
-         from departments d
-         where fs.faculty_id is not null and d.faculty_id = fs.faculty_id
-       ) departments on true
-       left join lateral (
+      `${FACULTY_SOURCE_CTE},
+       faculty_rows as (
          select
-           count(distinct lower(trim(u.department)))::int as department_count,
-           array_agg(distinct trim(u.department) order by trim(u.department)) as department_names
-         from users u
-         where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
-           and coalesce(u.status, 'active') = 'active'
-           and nullif(trim(u.department), '') is not null
-       ) user_departments on true
-       left join lateral (
-         select
-           count(*) filter (where coalesce(u.status, 'active') = 'active')::int as active_user_count,
-           count(*) filter (
-             where coalesce(u.status, 'active') = 'active'
-               and coalesce(u.role, 'professor') = 'professor'
-           )::int as professor_count
-         from users u
-         where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
-       ) users_stats on true
-       left join lateral (
-         select
-           count(*)::int as publication_count,
-           count(*) filter (where p.publication_type = 'journal_article')::int as journal_article_count,
-           count(*) filter (where p.publication_type = 'conference_paper')::int as conference_paper_count,
-           count(*) filter (
-             where p.publication_type in ('book', 'book_chapter')
-           )::int as book_chapter_count
-         from publications p
-         join users u on u.id = p.owner_id
-         where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
-           and p.status <> 'draft'
-           and (
-             $1::int is null
-             or coalesce(
-               p.publication_year,
-               extract(year from p.publication_date)::int,
-               extract(year from p.created_at)::int
-             ) = $1::int
-           )
-       ) publications_stats on true
-       left join lateral (
-         select
-           count(*)::int as reimbursement_count,
-           coalesce(sum(r.amount), 0)::numeric(12, 2) as total_amount
-         from reimbursements r
-         join users u on u.id = r.owner_id
-         where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
-           and r.status <> 'draft'
-           and (
-             $1::int is null
-             or extract(year from coalesce(r.submitted_at, r.created_at))::int = $1::int
-           )
-       ) reimbursements_stats on true
-       order by fs.name asc`,
-      [selectedYear]
+           fs.id,
+           fs.code,
+           fs.name,
+           coalesce(users_stats.professor_count, 0)::int as professor_count,
+           coalesce(publications_stats.publication_count, 0)::int as publication_count,
+           coalesce(funding_stats.approved_total, 0)::numeric(12, 2) as approved_funding_total,
+           coalesce(users_stats.active_user_count, 0)::int as active_user_count
+         from faculty_source fs
+         left join lateral (
+           select
+             count(*) filter (where coalesce(u.status, 'active') = 'active')::int as active_user_count,
+             count(*) filter (where coalesce(u.status, 'active') = 'active' and coalesce(u.role, 'professor') = 'professor')::int as professor_count
+           from users u
+           where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
+         ) users_stats on true
+         left join lateral (
+           select count(*)::int as publication_count
+           from publications p
+           join users u on u.id = p.owner_id
+           where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
+         ) publications_stats on true
+         left join lateral (
+           select coalesce(sum(r.amount) filter (where r.status in ('approved', 'paid')), 0)::numeric(12, 2) as approved_total
+           from reimbursements r
+           join users u on u.id = r.owner_id
+           where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
+         ) funding_stats on true
+       )
+       select *
+       from faculty_rows
+       order by publication_count desc, name asc`
     );
 
-    res.json({ faculties: result.rows.map(mapFaculty) });
+    res.json({
+      faculties: result.rows.map((row) => ({
+        id: row.id,
+        code: row.code || "",
+        name: row.name || "",
+        professorCount: numberValue(row.professor_count),
+        publicationCount: numberValue(row.publication_count),
+        approvedFundingTotal: numberValue(row.approved_funding_total),
+        status: numberValue(row.active_user_count) > 0 ? "active" : "inactive",
+        statusLabel: numberValue(row.active_user_count) > 0 ? "Aktiv" : "Pa staf aktiv",
+      })),
+    });
   } catch (error) {
     console.error("GET /api/prorector/faculties failed:", error);
-    res.status(500).json({
-      error: "prorector_faculties_failed",
-      message: "Fakultetet nuk u ngarkuan.",
-    });
+    res.status(500).json({ error: "prorector_faculties_failed", message: "Fakultetet nuk u ngarkuan." });
   }
 });
 
 router.get("/faculties/:id", requireProRectorAccess, async (req, res) => {
-  const routeId = normalizeText(req.params.id);
-  const routeKey = normalizeFacultyRouteKey(routeId);
-
   try {
     const result = await db.query(
       `${FACULTY_SOURCE_CTE},
        selected_faculty as (
          select *
-         from faculty_source fs
-         where fs.id = $1
-            or lower(trim(fs.code)) = lower(trim($1))
-            or regexp_replace(lower(trim(fs.name)), '[^a-z0-9]+', ' ', 'g') = $2
-         order by case when fs.id = $1 then 0 else 1 end, fs.name
+         from faculty_source
+         where id = $1 or lower(trim(code)) = lower(trim($1)) or lower(trim(name)) = lower(trim($1))
+         order by case when id = $1 then 0 else 1 end
          limit 1
        ),
        selected_users as (
@@ -326,217 +493,140 @@ router.get("/faculties/:id", requireProRectorAccess, async (req, res) => {
          from users u
          join selected_faculty sf on lower(trim(u.faculty)) in (lower(trim(sf.name)), lower(trim(sf.code)))
        ),
-       faculty_publications as (
-         select p.*, u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty, u.department as owner_department
-         from publications p
-         join selected_users u on u.id = p.owner_id
-         where p.status <> 'draft'
-       ),
-       faculty_reimbursements as (
-         select r.*, u.full_name as owner_name, u.email as owner_email, u.faculty as owner_faculty, u.department as owner_department
-         from reimbursements r
-         join selected_users u on u.id = r.owner_id
-         where r.status <> 'draft'
-       )
-       select
-         sf.id,
-         sf.code,
-         sf.name,
-         sf.updated_at,
-         greatest(
-           coalesce(departments.department_count, 0),
-           coalesce(user_departments.department_count, 0)
-         )::int as department_count,
-         coalesce(user_departments.department_names, array[]::text[]) as department_names,
-         coalesce(users_stats.active_user_count, 0)::int as active_user_count,
-         coalesce(users_stats.professor_count, 0)::int as professor_count,
-         coalesce(publications_stats.publication_count, 0)::int as publication_count,
-         coalesce(reimbursements_stats.reimbursement_count, 0)::int as reimbursement_count,
-         coalesce(quartiles.q1_count, 0)::int as q1_count,
-         coalesce(quartiles.q2_count, 0)::int as q2_count,
-         coalesce(quartiles.q3_count, 0)::int as q3_count,
-         coalesce(quartiles.q4_count, 0)::int as q4_count,
-         coalesce(publications_list.items, '[]'::jsonb) as publications,
-         coalesce(reimbursements_list.items, '[]'::jsonb) as reimbursements
-       from selected_faculty sf
-       left join lateral (
-         select count(*)::int as department_count
-         from departments d
-         where sf.faculty_id is not null and d.faculty_id = sf.faculty_id
-       ) departments on true
-       left join lateral (
-         select
-           count(distinct lower(trim(u.department)))::int as department_count,
-           array_agg(distinct trim(u.department) order by trim(u.department)) as department_names
-         from selected_users u
-         where coalesce(u.status, 'active') = 'active'
-           and nullif(trim(u.department), '') is not null
-       ) user_departments on true
-       left join lateral (
-         select
-           count(*) filter (where coalesce(u.status, 'active') = 'active')::int as active_user_count,
-           count(*) filter (
-             where coalesce(u.status, 'active') = 'active'
-               and coalesce(u.role, 'professor') = 'professor'
-           )::int as professor_count
-         from selected_users u
-       ) users_stats on true
-       left join lateral (
-         select count(*)::int as publication_count
-         from faculty_publications
-       ) publications_stats on true
-       left join lateral (
-         select count(*)::int as reimbursement_count
-         from faculty_reimbursements
-       ) reimbursements_stats on true
-       left join lateral (
-         select
-           count(*) filter (where primary_quartile = 'Q1')::int as q1_count,
-           count(*) filter (where primary_quartile = 'Q2')::int as q2_count,
-           count(*) filter (where primary_quartile = 'Q3')::int as q3_count,
-           count(*) filter (where primary_quartile = 'Q4')::int as q4_count
-         from (
-           select coalesce(
-             case
-               when fp.indexing_category ~* '^Q[1-4]$' then upper(fp.indexing_category)
-               else null
-             end,
-             (
-               select nullif(pi.quartile, '')
-               from publication_indexing pi
-               where pi.publication_id = fp.id
-               order by pi.created_at desc
-               limit 1
-             )
-           ) as primary_quartile
-           from faculty_publications fp
-         ) q
-       ) quartiles on true
-       left join lateral (
-         select jsonb_agg(
-           jsonb_build_object(
-             'id', p.id,
-             'title', p.title,
-             'doi', p.doi,
-             'venue', p.venue,
-             'publisher', p.publisher,
-             'publicationType', p.publication_type,
-             'publication_type', p.publication_type,
-             'publicationDate', p.publication_date,
-             'publication_date', p.publication_date,
-             'publicationYear', p.publication_year,
-             'publication_year', p.publication_year,
-             'status', p.status,
-             'indexingCategory', p.indexing_category,
-             'indexing_category', p.indexing_category,
-             'category', p.indexing_category,
-             'quartileCategory', p.indexing_category,
-             'quartile_category', p.indexing_category,
-             'quartile', coalesce(
-               case
-                 when p.indexing_category ~* '^Q[1-4]$' then upper(p.indexing_category)
-                 else null
-               end,
-               (
-                 select nullif(pi.quartile, '')
-                 from publication_indexing pi
-                 where pi.publication_id = p.id
-                 order by pi.created_at desc
-                 limit 1
-               )
-             ),
-             'createdAt', p.created_at,
-             'created_at', p.created_at,
-             'updatedAt', p.updated_at,
-             'updated_at', p.updated_at,
-             'owner', jsonb_build_object(
-               'id', p.owner_id,
-               'name', p.owner_name,
-               'email', p.owner_email,
-               'faculty', p.owner_faculty,
-               'department', p.owner_department
-             )
+       ${PUBLICATION_CORE_CTE},
+       ${FUNDING_CORE_CTE},
+       publication_rows as (${PUBLICATION_SELECT}),
+       funding_rows as (${FUNDING_SELECT})
+       select jsonb_build_object(
+         'faculty', (
+           select jsonb_build_object(
+             'id', sf.id,
+             'code', sf.code,
+             'name', sf.name,
+             'professorCount', (select count(*) from selected_users where coalesce(status, 'active') = 'active' and coalesce(role, 'professor') = 'professor'),
+             'publicationCount', (select count(*) from publication_rows pr join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code)))),
+             'approvedFundingTotal', (select coalesce(sum(approved_amount), 0) from funding_rows fr join selected_faculty sf2 on lower(trim(fr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code)))),
+             'statusLabel', case when exists (select 1 from selected_users where coalesce(status, 'active') = 'active') then 'Aktiv' else 'Pa staf aktiv' end
            )
-           order by p.updated_at desc, p.created_at desc
-         ) as items
-         from faculty_publications p
-       ) publications_list on true
-       left join lateral (
-         select jsonb_agg(
-           jsonb_build_object(
-             'id', r.id,
-             'title', r.title,
-             'amount', r.amount,
-             'currency', r.currency,
-             'status', r.status,
-             'requestType', r.request_type,
-             'request_type', r.request_type,
-             'submittedAt', r.submitted_at,
-             'submitted_at', r.submitted_at,
-             'createdAt', r.created_at,
-             'created_at', r.created_at,
-             'updatedAt', r.updated_at,
-             'updated_at', r.updated_at,
-             'requestData', r.request_data,
-             'request_data', r.request_data,
-             'owner', jsonb_build_object(
-               'id', r.owner_id,
-               'name', r.owner_name,
-               'email', r.owner_email,
-               'faculty', r.owner_faculty,
-               'department', r.owner_department
-             )
-           )
-           order by coalesce(r.submitted_at, r.created_at) desc
-         ) as items
-         from faculty_reimbursements r
-       ) reimbursements_list on true`,
-      [routeId, routeKey]
+           from selected_faculty sf
+         ),
+         'summary', jsonb_build_object(
+           'journalArticles', (select count(*) from publication_rows pr join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code))) where pr.publication_type = 'journal_article'),
+           'conferencePapers', (select count(*) from publication_rows pr join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code))) where pr.publication_type = 'conference_paper'),
+           'booksChapters', (select count(*) from publication_rows pr join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code))) where pr.publication_type in ('book', 'book_chapter')),
+           'activeAuthors', (select count(distinct pr.owner_name) from publication_rows pr join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code))) where nullif(pr.owner_name, '') is not null),
+           'fundingRequests', (select count(*) from funding_rows fr join selected_faculty sf2 on lower(trim(fr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code)))),
+           'fundedTotal', (select coalesce(sum(approved_amount), 0) from funding_rows fr join selected_faculty sf2 on lower(trim(fr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code))))
+         ),
+         'publicationsByYear', coalesce((
+           select jsonb_agg(jsonb_build_object('name', publication_year::text, 'value', value) order by publication_year)
+           from (
+             select pr.publication_year, count(*)::int as value
+             from publication_rows pr
+             join selected_faculty sf2 on lower(trim(pr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code)))
+             where pr.publication_year is not null
+             group by pr.publication_year
+           ) y
+         ), '[]'::jsonb),
+         'fundingByYear', coalesce((
+           select jsonb_agg(jsonb_build_object('name', funding_year::text, 'value', value) order by funding_year)
+           from (
+             select extract(year from fr.application_date)::int as funding_year, coalesce(sum(fr.approved_amount), 0)::numeric(12, 2) as value
+             from funding_rows fr
+             join selected_faculty sf2 on lower(trim(fr.faculty)) in (lower(trim(sf2.name)), lower(trim(sf2.code)))
+             where fr.application_date is not null
+             group by extract(year from fr.application_date)::int
+           ) y
+         ), '[]'::jsonb)
+       ) as payload`
+      ,
+      [normalizeText(req.params.id)]
     );
 
-    const row = result.rows[0];
-
-    if (!row) {
+    const payload = result.rows[0]?.payload;
+    if (!payload?.faculty) {
       res.status(404).json({ error: "faculty_not_found", message: "Fakulteti nuk u gjet." });
       return;
     }
 
-    const faculty = mapFaculty(row);
-    const publications = Array.isArray(row.publications) ? row.publications : [];
-    const reimbursements = Array.isArray(row.reimbursements) ? row.reimbursements : [];
-    const publicationAnalytics = buildFacultyPublicationAnalytics(publications);
-    const payload = {
-      faculty: {
-        ...faculty,
-        q1Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q1")?.count || Number(row.q1_count || 0),
-        q2Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q2")?.count || Number(row.q2_count || 0),
-        q3Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q3")?.count || Number(row.q3_count || 0),
-        q4Count: publicationAnalytics.quartileDistribution.find((item) => item.quartile === "Q4")?.count || Number(row.q4_count || 0),
-      },
-      publications,
-      reimbursements,
-      ...publicationAnalytics,
-    };
-
-    console.log("[prorector:faculty-details]", {
-      facultyId: payload.faculty.id,
-      totalPublications: payload.totalPublications,
-      quartileDistribution: payload.quartileDistribution,
-      departments: payload.departments.map((department) => ({
-        departmentName: department.departmentName,
-        publicationCount: department.publicationCount,
-      })),
-      publicationTypes: payload.publicationTypes,
-      recentPublications: payload.recentPublications.length,
-      attentionPublications: payload.attentionPublications.length,
-    });
     res.json(payload);
   } catch (error) {
     console.error("GET /api/prorector/faculties/:id failed:", error);
-    res.status(500).json({
-      error: "prorector_faculty_details_failed",
-      message: "Detajet e fakultetit nuk u ngarkuan.",
-    });
+    res.status(500).json({ error: "prorector_faculty_failed", message: "Detajet e fakultetit nuk u ngarkuan." });
+  }
+});
+
+router.get("/publications", requireProRectorAccess, async (req, res) => {
+  const filters = buildFilters(req.query);
+
+  try {
+    const result = await db.query(
+      `with ${PUBLICATION_CORE_CTE},
+       rows as (${PUBLICATION_SELECT})
+       select *
+       from rows
+       where ($1::int is null or publication_year = $1)
+         and ($2::text is null or faculty = $2)
+         and ($3::text is null or publication_type = $3)
+         and ($4::text is null or platform ilike '%' || $4 || '%')
+         and ($5::text is null or quartile = $5)
+         and ($6::text is null or status = $6 or ($6 = 'correction' and status = 'needs_correction'))
+         and ($7::text is null or title ilike '%' || $7 || '%' or author_names ilike '%' || $7 || '%' or doi ilike '%' || $7 || '%')
+       order by coalesce(publication_date, created_at) desc, title asc
+       limit 500`,
+      [filters.year, filters.faculty, filters.type, filters.platform, filters.quartile, filters.status, filters.search]
+    );
+
+    res.json({ publications: result.rows.map(mapPublication) });
+  } catch (error) {
+    console.error("GET /api/prorector/publications failed:", error);
+    res.status(500).json({ error: "prorector_publications_failed", message: "Publikimet nuk u ngarkuan." });
+  }
+});
+
+router.get("/funding", requireProRectorAccess, async (req, res) => {
+  const filters = buildFilters(req.query);
+
+  try {
+    const result = await db.query(
+      `with ${FUNDING_CORE_CTE},
+       rows as (${FUNDING_SELECT})
+       select *
+       from rows
+       where ($1::int is null or extract(year from application_date)::int = $1)
+         and ($2::text is null or faculty = $2)
+         and ($3::text is null or funding_type = $3)
+         and ($4::text is null or status = $4 or ($4 = 'correction' and status = 'needs_correction'))
+         and ($5::text is null or title ilike '%' || $5 || '%' or applicant ilike '%' || $5 || '%')
+       order by application_date desc, title asc
+       limit 500`,
+      [filters.year, filters.faculty, filters.type, filters.status, filters.search]
+    );
+
+    res.json({ funding: result.rows.map(mapFunding) });
+  } catch (error) {
+    console.error("GET /api/prorector/funding failed:", error);
+    res.status(500).json({ error: "prorector_funding_failed", message: "Financimet nuk u ngarkuan." });
+  }
+});
+
+router.get("/reports", requireProRectorAccess, async (_req, res) => {
+  try {
+    const overview = await getOverview();
+    res.json({ ...overview, regulationCategories: FUNDING_CATEGORIES });
+  } catch (error) {
+    console.error("GET /api/prorector/reports failed:", error);
+    res.status(500).json({ error: "prorector_reports_failed", message: "Raportet nuk u ngarkuan." });
+  }
+});
+
+router.get("/analytics", requireProRectorAccess, async (_req, res) => {
+  try {
+    const overview = await getOverview();
+    res.json({ charts: overview.charts, regulationCategories: FUNDING_CATEGORIES });
+  } catch (error) {
+    console.error("GET /api/prorector/analytics failed:", error);
+    res.status(500).json({ error: "prorector_analytics_failed", message: "Analitika nuk u ngarkua." });
   }
 });
 

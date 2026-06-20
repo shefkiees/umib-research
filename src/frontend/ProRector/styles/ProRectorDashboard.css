@@ -1040,6 +1040,11 @@
   gap: 16px;
 }
 
+.prorector-dashboard-stack {
+  display: grid;
+  gap: 16px;
+}
+
 .prorector-kpi-grid,
 .prorector-faculty-skeletons {
   display: grid;
@@ -1187,6 +1192,7 @@
   text-transform: uppercase;
 }
 
+.prorector-bi-filterbar input,
 .prorector-bi-filterbar select {
   min-width: 0;
   min-height: 38px;
@@ -1199,6 +1205,18 @@
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: none;
+}
+
+.prorector-bi-filterbar input::placeholder {
+  color: #7b8798;
+}
+
+.prorector-clickable-row {
+  cursor: pointer;
+}
+
+.prorector-wide-table {
+  min-width: 1180px;
 }
 
 .prorector-bi-filterbar button {

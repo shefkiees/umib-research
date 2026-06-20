@@ -1,15 +1,15 @@
 import React from "react";
-import { Inbox, FileText, Building2, CheckCircle, Shield, BarChart3 as ReportsIcon } from "lucide-react";
+import { BarChart3, BookOpen, Building2, FileText, LayoutDashboard, WalletCards } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
+  { label: "Dashboard", route: "Dashboard", icon: LayoutDashboard },
+  { label: "Publikimet", route: "Publikimet", icon: BookOpen },
   { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
-  { label: "Artikujt", route: "Artikujt", icon: CheckCircle },
-  { label: "Konferencat dhe Simpoziumet", route: "Konferenca", icon: Inbox },
-  { label: "Rimbursimet", route: "Rimbursime", icon: Shield },
-  { label: "Aprovime", route: "Aprovime", icon: FileText },
-  { label: "Raporte", route: "Raporte", icon: ReportsIcon },
+  { label: "Financimet", route: "Financimet", icon: WalletCards },
+  { label: "Raportet", route: "Raportet", icon: FileText },
+  { label: "Analitika", route: "Analitika", icon: BarChart3 },
 ];
 
 export default function ProRectorSidebar({ activePage, setActivePage }) {
@@ -24,8 +24,8 @@ export default function ProRectorSidebar({ activePage, setActivePage }) {
         </div>
 
         <div className="prorector-sidebar-section">
-          <span className="prorector-sidebar-label">MENU STRATEGJIK</span>
-          <nav className="prorector-nav" aria-label="Modulet navigimi">
+          <span className="prorector-sidebar-label">MENU ANALITIK</span>
+          <nav className="prorector-nav" aria-label="Modulet e Prorektorit">
             {mainItems.map((item) => {
               const Icon = item.icon;
 
@@ -40,7 +40,6 @@ export default function ProRectorSidebar({ activePage, setActivePage }) {
                     <Icon size={18} />
                     <span>{item.label}</span>
                   </span>
-                  {item.badge ? <span className="prorector-badge">{item.badge}</span> : null}
                 </button>
               );
             })}
