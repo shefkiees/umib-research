@@ -142,40 +142,24 @@ const committeeChecklistStatuses = [
 
 const f1CommitteeChecklistGroups = [
   {
-    title: "Verifikimi i Aplikantit",
-    items: [
-      "Emri dhe mbiemri",
-      "Fakulteti",
-      "Departamenti",
-      "ORCID",
-      "Thirrja akademike",
-      "Thirrja shkencore",
-    ],
-  },
-  {
     title: "Verifikimi i Publikimit",
     items: [
       "Titulli i artikullit",
       "Lloji i publikimit",
-      "DOI",
-      "Publikuar në",
-      "Publikuar më",
+      "Emri i Revistës",
+      "Data e Pranimit",
+      "Data e Publikimit",
       "Autori kryesor",
       "Autori korrespondent",
       "Bashkëautorët",
       "Përkatësia institucionale (Affiliation)",
+      "DOI",
+      "Linku i Artikullit",
     ],
   },
   {
     title: "Verifikimi i Indeksimit",
-    items: [
-      "ISSN / ISBN",
-      "Indeksimi në platformë",
-      "Kategoria e indeksimit",
-      "Kuartili",
-      "Impakt Faktori (IF)",
-      "CiteScore",
-    ],
+    items: [],
   },
   {
     title: "Verifikimi i Dokumenteve",
@@ -183,8 +167,6 @@ const f1CommitteeChecklistGroups = [
       "Formulari i kërkesës (PDF)",
       "Formulari i kërkesës (DOCX)",
       "Artikulli shkencor",
-      "Regjistrimi në UIBM",
-      "Dokumente shtesë",
     ],
   },
   {
@@ -2507,7 +2489,6 @@ export default function CommitteeDashboard() {
       );
     };
     const getChecklistItemValue = (label) => {
-      const additionalDocuments = attachmentItems.map(getAttachmentFilename).filter(Boolean);
       const findAttachmentByDocumentType = (documentType) => attachmentItems.find((attachment) =>
         (attachment.documentType || attachment.document_type) === documentType
       );
@@ -2523,7 +2504,8 @@ export default function CommitteeDashboard() {
         .filter((attachment) => (attachment.documentType || attachment.document_type) === documentType)
         .map(getAttachmentFilename)
         .filter(Boolean);
-      const articleAttachment = findAttachmentByKeywords(["artikull", "article", "publication", "publikim"]);
+      const articleAttachment = findAttachmentByDocumentType("article_pdf")
+        || findAttachmentByKeywords(["artikull", "article", "publication", "publikim"]);
       const programAttachment = findAttachmentByDocumentType("conference_program") || findAttachmentByKeywords(["program"]);
       const acceptanceAttachment = findAttachmentByDocumentType("acceptance_letter") || findAttachmentByKeywords(["pranim", "acceptance", "letter", "ftes"]);
       const presentationAttachment = findAttachmentByDocumentType("presentation_evidence");
@@ -2560,28 +2542,27 @@ export default function CommitteeDashboard() {
         "Thirrja shkencore": createChecklistValue(requestData.scientificTitle),
         "Titulli i artikullit": createChecklistValue(requestData.publicationTitle),
         "Lloji i publikimit": createChecklistValue(getPublicationTypeLabel(requestData.publicationType)),
-        DOI: createChecklistValue(doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
-        "Publikuar në": createChecklistValue(getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn, requestData.publicationLink), { link: true }),
-        "Publikuar më": createChecklistValue(requestData.publicationDate ? formatDate(requestData.publicationDate) : requestData.publicationYear),
+        "Emri i Revistës": createChecklistValue(getFirstReviewValue(requestData.venue, requestData.journal, requestData.publishedIn)),
+        "Data e Pranimit": createChecklistValue(formatF1ReviewDate(acceptanceDate)),
+        "Data e Publikimit": createChecklistValue(formatF1ReviewDate(getFirstReviewValue(requestData.publicationDate, requestData.publicationYear))),
         "Autori kryesor": createChecklistValue(requestData.mainAuthor),
         "Autori korrespondent": createChecklistValue(requestData.correspondingAuthor),
         "Bashkëautorët": createChecklistValue(requestData.coauthors),
         "Përkatësia institucionale (Affiliation)": createChecklistValue(getFirstReviewValue(requestData.affiliation, requestData.authorsAffiliation)),
-        [isJournalArticle ? "ISSN / E-ISSN" : "ISSN / ISBN"]: createChecklistValue(isJournalArticle ? requestIssns : getFirstReviewValue(requestData.issn, requestData.eIssn, requestData.e_issn, requestData.isbn)),
-        "Indeksimi në platformë": createChecklistValue(requestData.indexingPlatform),
-        "Kategoria e indeksimit": createChecklistValue(requestData.indexingCategory),
-        Kuartili: createChecklistValue(requestData.scopusQuartile),
-        "Impakt Faktori (IF)": createChecklistValue(requestData.impactFactor),
-        CiteScore: createChecklistValue(getFirstReviewValue(requestData.citeScore, requestData.cite_score, requestData.citescore)),
+        DOI: createChecklistValue(doiValue, { href: doiValue ? `https://doi.org/${doiValue}` : "" }),
+        "Linku i Artikullit": createChecklistValue(requestData.publicationLink, { link: true }),
+        "ISSN / E-ISSN": createChecklistValue(requestIssns),
+        "Indeksimi në platformë": createChecklistValue(f1Indexing.platform),
+        "Kategoria e indeksimit": createChecklistValue(f1Indexing.category),
+        Kuartili: createChecklistValue(f1Indexing.quartile),
+        "Impact Factor": createChecklistValue(f1Indexing.impactFactor),
+        CiteScore: createChecklistValue(f1Indexing.citeScore),
         "Formulari i kërkesës (PDF)": createChecklistDocumentValue(request.downloadUrl, { displayValue: request.documentFilename || (request.downloadUrl ? "rimbursim.pdf" : ""), href: request.downloadUrl ? getCommitteeDocumentUrl(request.downloadUrl) : "" }),
         "Formulari i kërkesës (DOCX)": createChecklistDocumentValue(request.docxDownloadUrl, { displayValue: request.documentDocxFilename || (request.docxDownloadUrl ? "rimbursim.docx" : ""), href: request.docxDownloadUrl ? getCommitteeDocumentUrl(request.docxDownloadUrl) : "" }),
         "Artikulli shkencor": articleAttachment
           ? createChecklistDocumentValue(getAttachmentUrl(articleAttachment), { displayValue: getAttachmentFilename(articleAttachment), href: getAttachmentUrl(articleAttachment) ? getCommitteeDocumentUrl(getAttachmentUrl(articleAttachment)) : "" })
           : createChecklistDocumentValue(requestData.publicationLink),
-        "Regjistrimi në UIBM": hasReviewValue(requestData.uibmDatabaseEvidence) ? createChecklistDocumentValue(requestData.uibmDatabaseEvidence) : createChecklistValue("Nuk është ngarkuar"),
-        "Dokumente shtesë": requestType === "conference"
-          ? createChecklistValue(otherDocuments.length ? otherDocuments : "Nuk ka dokumente shtesë")
-          : createChecklistValue(additionalDocuments.length ? additionalDocuments : "Nuk ka dokumente shtesë"),
+        "Dokumente shtesë": createChecklistValue(otherDocuments.length ? otherDocuments : "Nuk ka dokumente shtesë"),
         "Emri në bankë": createChecklistValue(requestData.bankApplicantName),
         Banka: createChecklistValue(getFirstReviewValue(requestData.bankName, requestData.bankNameOther)),
         "Numri i llogarisë / IBAN": createChecklistValue(getFirstReviewValue(requestData.iban, requestData.bankAccountNumber)),
@@ -2636,8 +2617,30 @@ export default function CommitteeDashboard() {
       }));
     };
     const renderCommitteeChecklist = () => {
-      const checklistGroups = requestType === "conference" ? f2CommitteeChecklistGroups : f1CommitteeChecklistGroups;
-      const checklistCategoryIcons = [CircleUserRound, BookOpen, Database, FileText, CreditCard];
+      const isF2Checklist = requestType === "conference";
+      const isScopusChecklist = isReviewIndexingPlatform(f1Indexing.platform, "scopus");
+      const isWebOfScienceChecklist = isReviewIndexingPlatform(f1Indexing.platform, "web_of_science");
+      const f1IndexingItems = [
+        "ISSN / E-ISSN",
+        "Indeksimi në platformë",
+        "Kategoria e indeksimit",
+        ...(isScopusChecklist
+          ? ["Kuartili", "CiteScore"]
+          : isWebOfScienceChecklist
+            ? ["Impact Factor"]
+            : ["Kuartili", "Impact Factor", "CiteScore"]),
+      ].filter((label) => {
+        const value = getChecklistItemValue(label)?.value;
+        return hasReviewValue(value) && String(value).trim() !== "-";
+      });
+      const checklistGroups = isF2Checklist
+        ? f2CommitteeChecklistGroups
+        : f1CommitteeChecklistGroups.map((group) => (
+            group.title === "Verifikimi i Indeksimit" ? { ...group, items: f1IndexingItems } : group
+          ));
+      const checklistCategoryIcons = isF2Checklist
+        ? [CircleUserRound, BookOpen, Database, FileText, CreditCard]
+        : [BookOpen, Database, FileText, CreditCard];
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
       const defaultStatus = committeeChecklistStatuses[0];
       const itemKeys = checklistGroups.flatMap((group) => (
@@ -2655,18 +2658,20 @@ export default function CommitteeDashboard() {
 
       return (
         <section className="committee-review-section committee-review-checklist-section">
-          <div className="committee-review-checklist-summary" aria-label="Përmbledhje e checklistës">
-            <article className="is-summary-total">
-              <span>Gjithsej pika</span>
-              <strong>{totalItems}</strong>
-            </article>
-            {statusSummary.map((item, index) => (
-              <article className={`is-summary-status-${index + 1}`} key={item.status}>
-                <span>{item.status}</span>
-                <strong>{item.count}</strong>
+          {isF2Checklist ? (
+            <div className="committee-review-checklist-summary" aria-label="Përmbledhje e checklistës">
+              <article className="is-summary-total">
+                <span>Gjithsej pika</span>
+                <strong>{totalItems}</strong>
               </article>
-            ))}
-          </div>
+              {statusSummary.map((item, index) => (
+                <article className={`is-summary-status-${index + 1}`} key={item.status}>
+                  <span>{item.status}</span>
+                  <strong>{item.count}</strong>
+                </article>
+              ))}
+            </div>
+          ) : null}
 
           <div className="committee-review-checklist-groups">
             {checklistGroups.map((group, groupIndex) => {
