@@ -140,6 +140,38 @@ const committeeChecklistStatuses = [
   "Kërkon korrigjim",
 ];
 
+const F1_COMMITTEE_CHECKLIST_VERSION = 1;
+const f1CommitteeChecklistStatuses = [
+  { value: "unchecked", label: "Pa kontrolluar" },
+  { value: "ok", label: "Në rregull" },
+  { value: "committee_corrected", label: "Korrigjuar nga Komisioni" },
+  { value: "requires_correction", label: "Kërkon korrigjim" },
+];
+const f1CommitteeChecklistItemIds = {
+  "Titulli i artikullit": "publication_title",
+  "Lloji i publikimit": "publication_type",
+  "Emri i Revistës": "journal_name",
+  "Data e Pranimit": "acceptance_date",
+  "Data e Publikimit": "publication_date",
+  "Autori kryesor": "main_author",
+  "Autori korrespondent": "corresponding_author",
+  Bashkëautorët: "coauthors",
+  "Përkatësia institucionale (Affiliation)": "affiliation",
+  DOI: "doi",
+  "Linku i Artikullit": "article_link",
+  "ISSN / E-ISSN": "issn_eissn",
+  "Indeksimi në platformë": "indexing_platform",
+  "Kategoria e indeksimit": "indexing_category",
+  Kuartili: "quartile",
+  "Impact Factor": "impact_factor",
+  CiteScore: "cite_score",
+  "Formulari i kërkesës (PDF)": "request_pdf",
+  "Formulari i kërkesës (DOCX)": "request_docx",
+  "Artikulli shkencor": "article_document",
+};
+const validF1CommitteeChecklistStatuses = new Set(f1CommitteeChecklistStatuses.map((item) => item.value));
+const validF1CommitteeChecklistItemIds = new Set(Object.values(f1CommitteeChecklistItemIds));
+
 const f1CommitteeChecklistGroups = [
   {
     title: "Verifikimi i Publikimit",
@@ -465,6 +497,42 @@ function getPublicationUnit(publication = {}) {
 
 function getRequestType(request = {}) {
   return request.requestType || request.requestData?.requestType || "";
+}
+
+function getCommitteeChecklistDraftKey(request = {}) {
+  const requestType = getRequestType(request);
+  return request.id || request.documentNumber || `${requestType}-${request.title || request.requestTypeLabel || "request"}`;
+}
+
+function hydrateF1CommitteeChecklist(request = {}) {
+  const storedChecklist = request.requestData?.f1CommitteeChecklist;
+  const sourceItems = storedChecklist?.version === F1_COMMITTEE_CHECKLIST_VERSION
+    && storedChecklist.items
+    && typeof storedChecklist.items === "object"
+    && !Array.isArray(storedChecklist.items)
+    ? storedChecklist.items
+    : {};
+  const items = Object.entries(sourceItems).reduce((result, [itemId, item]) => {
+    if (!item || typeof item !== "object" || !validF1CommitteeChecklistStatuses.has(item.status)) {
+      return result;
+    }
+
+    return {
+      ...result,
+      [itemId]: {
+        status: item.status,
+        comment: String(item.comment || ""),
+      },
+    };
+  }, {});
+
+  return {
+    version: F1_COMMITTEE_CHECKLIST_VERSION,
+    items,
+    generalComment: storedChecklist?.version === F1_COMMITTEE_CHECKLIST_VERSION
+      ? String(storedChecklist.generalComment || "")
+      : "",
+  };
 }
 
 function getPendingRequestTypeDisplay(request = {}) {
@@ -1221,6 +1289,9 @@ export default function CommitteeDashboard() {
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
+  const [isF1ChecklistSaving, setIsF1ChecklistSaving] = useState(false);
+  const [f1ChecklistSaveError, setF1ChecklistSaveError] = useState("");
+  const [f1ChecklistSaveMessage, setF1ChecklistSaveMessage] = useState("");
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
   const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
 
@@ -1816,6 +1887,17 @@ export default function CommitteeDashboard() {
 
   const openReimbursementReview = (request) => {
     setIsF2AbstractExpanded(false);
+    setF1ChecklistSaveError("");
+    setF1ChecklistSaveMessage("");
+
+    if (getRequestType(request) === "publication") {
+      const draftKey = getCommitteeChecklistDraftKey(request);
+      setCommitteeChecklistDrafts((drafts) => ({
+        ...drafts,
+        [draftKey]: hydrateF1CommitteeChecklist(request),
+      }));
+    }
+
     setSelectedReimbursementReview(request);
     setActivePage("Dorëzimet në Pritje");
   };
@@ -2263,7 +2345,7 @@ export default function CommitteeDashboard() {
     const config = getReviewShellConfig(request);
     const requestData = request.requestData || {};
     const requestType = getRequestType(request);
-    const checklistDraftKey = request.id || request.documentNumber || `${requestType}-${request.title || request.requestTypeLabel || "request"}`;
+    const checklistDraftKey = getCommitteeChecklistDraftKey(request);
     const checklistDraft = committeeChecklistDrafts[checklistDraftKey] || {};
     const amount = request.amount === null || request.amount === undefined || request.amount === ""
       ? "-"
@@ -2578,10 +2660,13 @@ export default function CommitteeDashboard() {
 
       return valuesByLabel[label] || createChecklistValue("");
     };
-    const getCommitteeChecklistItemKey = (groupTitle, label) => `${groupTitle}::${label}`;
+    const getCommitteeChecklistItemKey = (groupTitle, label) => (
+      requestType === "publication" ? f1CommitteeChecklistItemIds[label] : `${groupTitle}::${label}`
+    );
     const updateCommitteeChecklistDraft = (updater) => {
       setCommitteeChecklistDrafts((drafts) => {
-        const currentDraft = drafts[checklistDraftKey] || {};
+        const currentDraft = drafts[checklistDraftKey]
+          || (requestType === "publication" ? hydrateF1CommitteeChecklist(request) : {});
         return {
           ...drafts,
           [checklistDraftKey]: updater(currentDraft),
@@ -2631,16 +2716,23 @@ export default function CommitteeDashboard() {
       const checklistCategoryIcons = isF2Checklist
         ? [CircleUserRound, BookOpen, Database, FileText, CreditCard]
         : [BookOpen, Database, FileText];
+      const checklistStatusOptions = isF2Checklist
+        ? committeeChecklistStatuses.map((status) => ({ value: status, label: status }))
+        : f1CommitteeChecklistStatuses;
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
-      const defaultStatus = committeeChecklistStatuses[0];
+      const defaultStatus = checklistStatusOptions[0].value;
       const itemKeys = checklistGroups.flatMap((group) => (
         group.items.map((label) => getCommitteeChecklistItemKey(group.title, label))
       ));
-      const statusSummary = committeeChecklistStatuses.map((status) => ({
-        status,
-        count: itemKeys.filter((itemKey) => (checklistDraft.items?.[itemKey]?.status || defaultStatus) === status).length,
+      const statusSummary = checklistStatusOptions.map((status) => ({
+        status: status.label,
+        count: itemKeys.filter((itemKey) => (checklistDraft.items?.[itemKey]?.status || defaultStatus) === status.value).length,
       }));
       const shouldShowChecklistComment = (status) => {
+        if (status === "requires_correction" || status === "committee_corrected") {
+          return true;
+        }
+
         const normalizedStatus = normalizeForSearch(status);
         return normalizedStatus === normalizeForSearch("Kërkon korrigjim")
           || normalizedStatus === normalizeForSearch("Korrigjuar nga Komisioni");
@@ -2679,9 +2771,9 @@ export default function CommitteeDashboard() {
                       aria-label={`Statusi për ${label}`}
                       onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
                     >
-                      {committeeChecklistStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
+                      {checklistStatusOptions.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
                         </option>
                       ))}
                     </select>
@@ -2699,6 +2791,79 @@ export default function CommitteeDashboard() {
             </div>
           </article>
         );
+      };
+      const saveF1Checklist = async () => {
+        const savedItems = Object.entries(checklistDraft.items || {}).reduce((items, [itemId, item]) => {
+          if (!validF1CommitteeChecklistItemIds.has(itemId)) {
+            return items;
+          }
+
+          return {
+            ...items,
+            [itemId]: {
+              status: validF1CommitteeChecklistStatuses.has(item?.status) ? item.status : "unchecked",
+              comment: String(item?.comment || ""),
+            },
+          };
+        }, {});
+        const items = checklistGroups.flatMap((group) => group.items).reduce((result, label) => {
+          const itemId = f1CommitteeChecklistItemIds[label];
+          const item = checklistDraft.items?.[itemId] || {};
+
+          return {
+            ...result,
+            [itemId]: {
+              status: validF1CommitteeChecklistStatuses.has(item.status) ? item.status : "unchecked",
+              comment: String(item.comment || ""),
+            },
+          };
+        }, savedItems);
+        const checklist = {
+          version: F1_COMMITTEE_CHECKLIST_VERSION,
+          items,
+          generalComment: String(checklistDraft.generalComment || ""),
+        };
+
+        setIsF1ChecklistSaving(true);
+        setF1ChecklistSaveError("");
+        setF1ChecklistSaveMessage("");
+
+        try {
+          const response = await fetch(apiUrl(`/reimbursements/${request.id}/f1-checklist`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ checklist }),
+          });
+          const result = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(result.message || "Checklist F1 nuk u ruajt.");
+          }
+
+          const updatedRequest = result.data || {
+            ...request,
+            requestData: {
+              ...requestData,
+              f1CommitteeChecklist: checklist,
+            },
+          };
+          const hydratedDraft = hydrateF1CommitteeChecklist(updatedRequest);
+
+          setSelectedReimbursementReview(updatedRequest);
+          syncPendingSubmissionStatus(updatedRequest);
+          setCommitteeChecklistDrafts((drafts) => ({
+            ...drafts,
+            [checklistDraftKey]: hydratedDraft,
+          }));
+          setF1ChecklistSaveMessage("Progresi i checklistës F1 u ruajt.");
+        } catch (error) {
+          setF1ChecklistSaveError(error.message || "Checklist F1 nuk u ruajt.");
+        } finally {
+          setIsF1ChecklistSaving(false);
+        }
       };
 
       return (
@@ -2737,6 +2902,18 @@ export default function CommitteeDashboard() {
               onChange={(event) => updateCommitteeChecklistGeneralComment(event.target.value)}
             />
           </label>
+
+          {!isF2Checklist ? (
+            <div className="committee-review-checklist-save">
+              <div aria-live="polite">
+                {f1ChecklistSaveError ? <span className="is-error">{f1ChecklistSaveError}</span> : null}
+                {f1ChecklistSaveMessage ? <span className="is-success">{f1ChecklistSaveMessage}</span> : null}
+              </div>
+              <button type="button" onClick={saveF1Checklist} disabled={isF1ChecklistSaving}>
+                {isF1ChecklistSaving ? "Duke ruajtur..." : "Ruaj progresin"}
+              </button>
+            </div>
+          ) : null}
         </section>
       );
     };

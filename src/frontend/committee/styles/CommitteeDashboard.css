@@ -2258,6 +2258,44 @@ a.committee-review-checklist-value:hover {
 	box-shadow: 0 0 0 3px rgba(31, 95, 153, 0.12);
 }
 
+.committee-review-checklist-save {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.committee-review-checklist-save div {
+	min-height: 20px;
+	font-size: 0.82rem;
+	font-weight: 750;
+}
+
+.committee-review-checklist-save .is-error {
+	color: #b42318;
+}
+
+.committee-review-checklist-save .is-success {
+	color: #15803d;
+}
+
+.committee-review-checklist-save button {
+	border: 1px solid #1f5f99;
+	border-radius: 9px;
+	background: #1f5f99;
+	color: #ffffff;
+	padding: 9px 16px;
+	font: inherit;
+	font-size: 0.84rem;
+	font-weight: 850;
+	cursor: pointer;
+}
+
+.committee-review-checklist-save button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
 .committee-metadata-table th:nth-child(1) { width: 22%; }
 .committee-metadata-table th:nth-child(2) { width: 15%; }
 .committee-metadata-table th:nth-child(3) { width: 16%; }

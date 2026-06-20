@@ -30,6 +30,35 @@ const VALID_REIMBURSEMENT_STATUSES = new Set([
 ]);
 
 const VALID_METADATA_REVIEW_STATUSES = new Set(["unchecked", "in_review", "ok", "correction"]);
+const F1_COMMITTEE_CHECKLIST_VERSION = 1;
+const VALID_F1_COMMITTEE_CHECKLIST_STATUSES = new Set([
+  "unchecked",
+  "ok",
+  "requires_correction",
+  "committee_corrected",
+]);
+const VALID_F1_COMMITTEE_CHECKLIST_ITEM_IDS = new Set([
+  "publication_title",
+  "publication_type",
+  "journal_name",
+  "acceptance_date",
+  "publication_date",
+  "main_author",
+  "corresponding_author",
+  "coauthors",
+  "affiliation",
+  "doi",
+  "article_link",
+  "issn_eissn",
+  "indexing_platform",
+  "indexing_category",
+  "quartile",
+  "impact_factor",
+  "cite_score",
+  "request_pdf",
+  "request_docx",
+  "article_document",
+]);
 
 const STATUS_LABELS = {
   draft: "Draft",
@@ -190,6 +219,61 @@ function normalizeMetadataReviewChecklist(value = {}) {
       [normalizedKey]: Boolean(checked),
     };
   }, {});
+}
+
+function normalizeF1CommitteeChecklist(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { error: "f1_checklist_invalid", message: "Checklist e F1 nuk është valide." };
+  }
+
+  if (Number(value.version) !== F1_COMMITTEE_CHECKLIST_VERSION) {
+    return { error: "f1_checklist_version_invalid", message: "Versioni i checklistës F1 nuk mbështetet." };
+  }
+
+  const sourceItems = value.items;
+
+  if (!sourceItems || typeof sourceItems !== "object" || Array.isArray(sourceItems)) {
+    return { error: "f1_checklist_items_invalid", message: "Pikat e checklistës F1 nuk janë valide." };
+  }
+
+  const items = {};
+
+  for (const [itemId, item] of Object.entries(sourceItems)) {
+    if (!VALID_F1_COMMITTEE_CHECKLIST_ITEM_IDS.has(itemId)) {
+      return { error: "f1_checklist_item_invalid", message: `Pika ${itemId} nuk është valide për checklistën F1.` };
+    }
+
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return { error: "f1_checklist_item_invalid", message: `Pika ${itemId} nuk ka strukturë valide.` };
+    }
+
+    const status = normalizeText(item.status);
+    const comment = String(item.comment ?? "");
+
+    if (!VALID_F1_COMMITTEE_CHECKLIST_STATUSES.has(status)) {
+      return { error: "f1_checklist_status_invalid", message: `Statusi i pikës ${itemId} nuk është valid.` };
+    }
+
+    if (comment.length > 5000) {
+      return { error: "f1_checklist_comment_too_long", message: `Komenti i pikës ${itemId} është shumë i gjatë.` };
+    }
+
+    items[itemId] = { status, comment };
+  }
+
+  const generalComment = String(value.generalComment ?? "");
+
+  if (generalComment.length > 10000) {
+    return { error: "f1_checklist_general_comment_too_long", message: "Komenti i përgjithshëm është shumë i gjatë." };
+  }
+
+  return {
+    checklist: {
+      version: F1_COMMITTEE_CHECKLIST_VERSION,
+      items,
+      generalComment,
+    },
+  };
 }
 
 function getActorName(actor) {
@@ -2682,6 +2766,80 @@ router.get("/:id/history", requireAuthenticatedUser, async (req, res) => {
   } catch (error) {
     console.error("GET /api/reimbursements/:id/history failed:", error);
     res.status(500).json({ error: "history_failed" });
+  }
+});
+
+router.patch("/:id/f1-checklist", requireAuthenticatedUser, async (req, res) => {
+  const actor = await loadCurrentUser(req.user.id);
+
+  if (!actor || normalizeRole(actor.role) !== "committee") {
+    res.status(403).json({ error: "forbidden", message: "Vetëm komisioni mund ta ruajë checklistën F1." });
+    return;
+  }
+
+  const normalized = normalizeF1CommitteeChecklist(req.body?.checklist);
+
+  if (normalized.error) {
+    res.status(400).json(normalized);
+    return;
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const currentResult = await client.query(
+      `select id, owner_id, status, request_type, request_data
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+    const current = currentResult.rows[0];
+
+    if (!current) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Rimbursimi nuk u gjet." });
+      return;
+    }
+
+    if (current.request_type !== "publication") {
+      await client.query("rollback");
+      res.status(400).json({ error: "f1_checklist_not_applicable", message: "Checklist F1 vlen vetëm për kërkesat e publikimeve." });
+      return;
+    }
+
+    if (!COMMITTEE_REVIEW_STATUSES.includes(current.status)) {
+      await client.query("rollback");
+      res.status(409).json({ error: "f1_checklist_locked", message: "Checklist F1 nuk mund të ndryshohet në statusin aktual." });
+      return;
+    }
+
+    const nextRequestData = {
+      ...(current.request_data || {}),
+      f1CommitteeChecklist: normalized.checklist,
+    };
+
+    await client.query(
+      `update reimbursements
+       set request_data = $2::jsonb,
+           updated_at = now()
+       where id = $1`,
+      [current.id, JSON.stringify(nextRequestData)]
+    );
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+    const hydratedRow = await hydrateReimbursementRowForPublication(client, rowWithHistory);
+
+    await client.query("commit");
+    res.json({ data: mapReimbursementRow(hydratedRow) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/reimbursements/:id/f1-checklist failed:", error);
+    res.status(500).json({ error: "f1_checklist_save_failed", message: "Checklist F1 nuk u ruajt." });
+  } finally {
+    client.release();
   }
 });
 
