@@ -1,5 +1,5 @@
 import React from "react";
-import { BarChart3, BookOpen, Building2, FileText, LayoutDashboard, WalletCards } from "lucide-react";
+import { BookOpen, Building2, FileText, LayoutDashboard, WalletCards } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
@@ -9,7 +9,6 @@ const mainItems = [
   { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
   { label: "Financimet", route: "Financimet", icon: WalletCards },
   { label: "Raportet", route: "Raportet", icon: FileText },
-  { label: "Analitika", route: "Analitika", icon: BarChart3 },
 ];
 
 export default function ProRectorSidebar({ activePage, setActivePage }) {

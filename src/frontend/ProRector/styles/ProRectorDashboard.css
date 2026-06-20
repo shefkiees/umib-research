@@ -2198,6 +2198,40 @@ input:checked + .prorector-slider:before {
   background: #1d4ed8;
 }
 
+.prorector-profile-modal {
+  width: min(760px, 100%);
+}
+
+.prorector-profile-form {
+  display: grid;
+  gap: 18px;
+}
+
+.prorector-profile-form .prorector-faculty-detail-loading {
+  width: 100%;
+}
+
+.prorector-profile-form .prorector-inline-alert {
+  margin: 0;
+}
+
+.prorector-profile-form .prorector-modal-actions .prorector-btn-primary,
+.prorector-profile-form .prorector-modal-actions .prorector-btn-secondary {
+  width: auto;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.prorector-profile-form input[readonly] {
+  color: #64748b;
+  background: #eef2f7;
+  cursor: not-allowed;
+}
+
 .prorector-publications-page {
   display: grid;
   gap: 18px;

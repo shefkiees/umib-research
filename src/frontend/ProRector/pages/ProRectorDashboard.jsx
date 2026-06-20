@@ -11,6 +11,7 @@ import {
   Minus,
   RefreshCw,
   Search,
+  Save,
   TrendingUp,
   UsersRound,
   WalletCards,
@@ -66,6 +67,17 @@ const PUBLICATION_STATUS_OPTIONS = ["approved", "in_review", "correction", "reje
 const DEFAULT_PROFILE = {
   name: "Prorektor për Kërkim Shkencor",
   role: "Monitorim dhe raporte",
+};
+
+const EMPTY_PROFILE_DRAFT = {
+  name: "",
+  email: "",
+  role: "",
+  faculty: "",
+  department: "",
+  office: "",
+  academicTitle: "",
+  scientificTitle: "",
 };
 
 function toNumber(value) {
@@ -434,6 +446,12 @@ export default function ProRectorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({ search: "", year: "", faculty: "", type: "", platform: "", quartile: "", status: "" });
   const [selectedPublication, setSelectedPublication] = useState(null);
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileDraft, setProfileDraft] = useState(EMPTY_PROFILE_DRAFT);
 
   const overview = useProrectorResource("/prorector/overview", { kpis: {}, charts: {} });
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
@@ -482,6 +500,94 @@ export default function ProRectorDashboard() {
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  const applyProfileUser = (user = {}) => {
+    const nextProfile = {
+      name: user.name || user.fullName || DEFAULT_PROFILE.name,
+      role: user.role === "prorector" ? "Prorektor për Kërkim Shkencor" : user.role || DEFAULT_PROFILE.role,
+    };
+
+    setProfile(nextProfile);
+    setProfileDraft({
+      name: user.name || user.fullName || "",
+      email: user.email || "",
+      role: nextProfile.role,
+      faculty: user.faculty || "",
+      department: user.department || "",
+      office: user.office || "",
+      academicTitle: user.academicTitle || user.academic_title || "",
+      scientificTitle: user.scientificTitle || user.scientific_title || "",
+    });
+  };
+
+  const loadProfile = async ({ openModal = false } = {}) => {
+    if (openModal) setIsProfileModalOpen(true);
+    setIsProfileLoading(true);
+    setProfileError("");
+
+    try {
+      const response = await fetch(apiUrl("/auth/me"), { credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.user) {
+        throw new Error("profile_load_failed");
+      }
+
+      applyProfileUser(data.user);
+    } catch (error) {
+      console.error("Prorector profile load failed:", error);
+      setProfileError("Profili nuk u ngarkua.");
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+
+  const openProfileEditor = () => {
+    loadProfile({ openModal: true });
+  };
+
+  const handleProfileFieldChange = (field) => (event) => {
+    setProfileDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    setIsProfileSaving(true);
+    setProfileError("");
+
+    try {
+      const response = await fetch(apiUrl("/auth/me"), {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profileDraft.name,
+          faculty: profileDraft.faculty,
+          department: profileDraft.department,
+          office: profileDraft.office,
+          academicTitle: profileDraft.academicTitle,
+          scientificTitle: profileDraft.scientificTitle,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.user) {
+        throw new Error("profile_save_failed");
+      }
+
+      applyProfileUser(data.user);
+      setIsProfileModalOpen(false);
+    } catch (error) {
+      console.error("Prorector profile save failed:", error);
+      setProfileError("Profili nuk u ruajt.");
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
@@ -740,7 +846,6 @@ export default function ProRectorDashboard() {
     if (activePage === "Fakultetet") return renderFaculties();
     if (activePage === "Financimet") return renderFunding();
     if (activePage === "Raportet") return renderReports();
-    if (activePage === "Analitika") return <div className="prorector-table-section"><h2>Analitika</h2><p>Grafiqet kryesore të kërkimit shkencor dhe financimeve.</p><AnalyticsCharts charts={charts} /></div>;
     return renderDashboard();
   };
 
@@ -752,9 +857,14 @@ export default function ProRectorDashboard() {
           activePage={activePage}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          profile={DEFAULT_PROFILE}
+          profile={profile}
           notifications={[]}
+          onEditProfile={openProfileEditor}
           onProfileAction={(action) => {
+            if (action === "Settings") {
+              openProfileEditor();
+              return;
+            }
             if (action === "Logout") {
               fetch(apiUrl("/auth/logout"), { method: "POST", credentials: "include" }).finally(() => navigate("/"));
             }
@@ -762,6 +872,77 @@ export default function ProRectorDashboard() {
         />
         <main className="prorector-content">{renderContent()}</main>
       </div>
+      {isProfileModalOpen ? (
+        <div className="prorector-modal-overlay" role="presentation" onClick={() => setIsProfileModalOpen(false)}>
+          <section className="prorector-modal prorector-profile-modal" role="dialog" aria-label="Ndrysho profilin" onClick={(event) => event.stopPropagation()}>
+            <div className="prorector-modal-header">
+              <div>
+                <h3 className="prorector-modal-title">Ndrysho profilin</h3>
+                <p className="prorector-modal-subtitle">Përditëso të dhënat bazë të profilit të Prorektorit.</p>
+              </div>
+              <button type="button" className="prorector-modal-close" onClick={() => setIsProfileModalOpen(false)} aria-label="Mbyll">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form className="prorector-modal-form prorector-profile-form" onSubmit={handleProfileSave}>
+              {isProfileLoading ? (
+                <div className="prorector-faculty-detail-loading">
+                  <RefreshCw size={18} className="prorector-spin" />
+                  <span>Duke ngarkuar profilin...</span>
+                </div>
+              ) : null}
+
+              <div className="prorector-form-grid">
+                <label className="prorector-form-field">
+                  <span>Emri</span>
+                  <input value={profileDraft.name} onChange={handleProfileFieldChange("name")} placeholder="Emri dhe mbiemri" />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Email</span>
+                  <input value={profileDraft.email} readOnly />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Roli</span>
+                  <input value={profileDraft.role} readOnly />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Fakulteti</span>
+                  <input value={profileDraft.faculty} onChange={handleProfileFieldChange("faculty")} placeholder="Fakulteti" />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Departamenti</span>
+                  <input value={profileDraft.department} onChange={handleProfileFieldChange("department")} placeholder="Departamenti" />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Zyra</span>
+                  <input value={profileDraft.office} onChange={handleProfileFieldChange("office")} placeholder="Zyra" />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Titulli akademik</span>
+                  <input value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")} placeholder="Titulli akademik" />
+                </label>
+                <label className="prorector-form-field">
+                  <span>Titulli shkencor</span>
+                  <input value={profileDraft.scientificTitle} onChange={handleProfileFieldChange("scientificTitle")} placeholder="Titulli shkencor" />
+                </label>
+              </div>
+
+              {profileError ? <p className="prorector-inline-alert prorector-profile-error" role="alert">{profileError}</p> : null}
+
+              <div className="prorector-modal-actions">
+                <button type="button" className="prorector-btn-secondary" onClick={() => setIsProfileModalOpen(false)} disabled={isProfileSaving}>
+                  Anulo
+                </button>
+                <button type="submit" className="prorector-btn-primary" disabled={isProfileSaving || isProfileLoading}>
+                  <Save size={16} />
+                  {isProfileSaving ? "Duke ruajtur..." : "Ruaj"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
