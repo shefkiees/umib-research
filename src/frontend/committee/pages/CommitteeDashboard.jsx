@@ -2750,8 +2750,8 @@ export default function CommitteeDashboard() {
         count: itemKeys.filter((itemKey) => (checklistDraft.items?.[itemKey]?.status || defaultStatus) === status.value).length,
       }));
       const shouldShowChecklistComment = (status) => {
-        if (status === "requires_correction" || status === "committee_corrected") {
-          return true;
+        if (!isF2Checklist) {
+          return status === "requires_correction";
         }
 
         const normalizedStatus = normalizeForSearch(status);
