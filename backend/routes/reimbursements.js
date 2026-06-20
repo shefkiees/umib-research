@@ -12,6 +12,11 @@ import {
 } from "../../shared/reimbursementSchema.js";
 import { createNotification, sendEmailNotification } from "../services/notification.service.js";
 import { applyAuthoritativeF1Amount } from "../services/f1ReimbursementAmount.service.js";
+import {
+  F1_FINAL_ACTION_STATUSES,
+  buildF1FinalizationNote,
+  validateF1FinalAction,
+} from "../services/f1ChecklistFinalization.service.js";
 
 const router = express.Router();
 
@@ -766,8 +771,8 @@ function getApplicantSnapshotValidationError(requestType, formData) {
   };
 }
 
-async function loadCurrentUser(userId) {
-  const result = await db.query(
+async function loadCurrentUser(userId, dbOrClient = db) {
+  const result = await dbOrClient.query(
     `select id, google_id, orcid_id, email, full_name, role, faculty, department, office,
             academic_title, scientific_title
      from users
@@ -2852,6 +2857,98 @@ router.patch("/:id/f1-checklist", requireAuthenticatedUser, async (req, res) => 
     await client.query("rollback").catch(() => {});
     console.error("PATCH /api/reimbursements/:id/f1-checklist failed:", error);
     res.status(500).json({ error: "f1_checklist_save_failed", message: "Checklist F1 nuk u ruajt." });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/:id/f1-checklist/finalize", requireAuthenticatedUser, async (req, res) => {
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const actor = await loadCurrentUser(req.user.id, client);
+
+    if (!actor || normalizeRole(actor.role) !== "committee") {
+      await client.query("rollback");
+      res.status(403).json({ error: "forbidden", message: "Vetëm komisioni mund ta finalizojë checklistën F1." });
+      return;
+    }
+
+    const action = normalizeText(req.body?.action);
+    const normalized = normalizeF1CommitteeChecklist(req.body?.checklist);
+
+    if (normalized.error) {
+      await client.query("rollback");
+      res.status(400).json(normalized);
+      return;
+    }
+
+    const validationError = validateF1FinalAction(action, normalized.checklist);
+
+    if (validationError) {
+      await client.query("rollback");
+      res.status(400).json(validationError);
+      return;
+    }
+
+    const nextStatus = F1_FINAL_ACTION_STATUSES[action];
+    const note = buildF1FinalizationNote(action, normalized.checklist);
+
+    const currentResult = await client.query(
+      `select id, owner_id, status, request_type, request_data
+       from reimbursements
+       where id = $1
+       for update`,
+      [req.params.id]
+    );
+    const current = currentResult.rows[0];
+
+    if (!current) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found", message: "Rimbursimi nuk u gjet." });
+      return;
+    }
+
+    if (current.request_type !== "publication") {
+      await client.query("rollback");
+      res.status(400).json({ error: "f1_checklist_not_applicable", message: "Checklist F1 vlen vetëm për kërkesat e publikimeve." });
+      return;
+    }
+
+    if (!COMMITTEE_REVIEW_STATUSES.includes(current.status)) {
+      await client.query("rollback");
+      res.status(409).json({ error: "f1_checklist_locked", message: "Vendimi F1 nuk lejohet në statusin aktual." });
+      return;
+    }
+
+    const nextRequestData = {
+      ...(current.request_data || {}),
+      f1CommitteeChecklist: normalized.checklist,
+    };
+
+    await client.query(
+      `update reimbursements
+       set request_data = $2::jsonb,
+           status = $3,
+           updated_at = now()
+       where id = $1`,
+      [current.id, JSON.stringify(nextRequestData), nextStatus]
+    );
+
+    await insertStatusHistory(client, current.id, current.status, nextStatus, actor, note);
+    await notifyOwner(client, current.id, current.owner_id, nextStatus, note);
+
+    const rowWithHistory = await selectReimbursementWithHistoryById(current.id, client);
+    const hydratedRow = await hydrateReimbursementRowForPublication(client, rowWithHistory);
+
+    await client.query("commit");
+    res.json({ data: mapReimbursementRow(hydratedRow) });
+  } catch (error) {
+    await client.query("rollback").catch(() => {});
+    console.error("PATCH /api/reimbursements/:id/f1-checklist/finalize failed:", error);
+    res.status(500).json({ error: "f1_checklist_finalize_failed", message: "Vendimi përfundimtar F1 nuk u ruajt." });
   } finally {
     client.release();
   }

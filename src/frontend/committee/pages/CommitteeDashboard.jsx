@@ -1295,6 +1295,7 @@ export default function CommitteeDashboard() {
   const [isReviewChecklistDrawerOpen, setIsReviewChecklistDrawerOpen] = useState(false);
   const [committeeChecklistDrafts, setCommitteeChecklistDrafts] = useState({});
   const [isF1ChecklistSaving, setIsF1ChecklistSaving] = useState(false);
+  const [f1ChecklistFinalizingAction, setF1ChecklistFinalizingAction] = useState("");
   const [f1ChecklistSaveError, setF1ChecklistSaveError] = useState("");
   const [f1ChecklistSaveMessage, setF1ChecklistSaveMessage] = useState("");
   const [f1ChecklistValidationErrors, setF1ChecklistValidationErrors] = useState({});
@@ -1896,6 +1897,7 @@ export default function CommitteeDashboard() {
     setF1ChecklistSaveError("");
     setF1ChecklistSaveMessage("");
     setF1ChecklistValidationErrors({});
+    setF1ChecklistFinalizingAction("");
 
     if (getRequestType(request) === "publication") {
       const draftKey = getCommitteeChecklistDraftKey(request);
@@ -2707,6 +2709,11 @@ export default function CommitteeDashboard() {
       }));
     };
     const updateCommitteeChecklistGeneralComment = (generalComment) => {
+      if (requestType === "publication") {
+        setF1ChecklistSaveError("");
+        setF1ChecklistSaveMessage("");
+      }
+
       updateCommitteeChecklistDraft((currentDraft) => ({
         ...currentDraft,
         generalComment,
@@ -2851,7 +2858,7 @@ export default function CommitteeDashboard() {
           </article>
         );
       };
-      const saveF1Checklist = async () => {
+      const buildF1ChecklistPayload = () => {
         const items = checklistGroups.flatMap((group) => group.items).reduce((result, label) => {
           const itemId = f1CommitteeChecklistItemIds[label];
           const item = checklistDraft.items?.[itemId] || {};
@@ -2868,12 +2875,19 @@ export default function CommitteeDashboard() {
             },
           };
         }, {});
-        const checklist = {
+        return {
           version: F1_COMMITTEE_CHECKLIST_VERSION,
           items,
           generalComment: String(checklistDraft.generalComment || ""),
         };
-        const validationErrors = Object.entries(items).reduce((errors, [itemId, item]) => {
+      };
+      const validateF1Checklist = (checklist, action = "save") => {
+        const items = Object.values(checklist.items);
+        const validationErrors = Object.entries(checklist.items).reduce((errors, [itemId, item]) => {
+          if (action !== "save" && item.status === "unchecked") {
+            errors[itemId] = "Zgjidhni statusin e kësaj pike para vendimit përfundimtar.";
+          }
+
           if (item.status === "requires_correction" && !item.comment.trim()) {
             errors[itemId] = "Komenti është i detyrueshëm kur kërkohet korrigjim nga profesori.";
           }
@@ -2884,6 +2898,53 @@ export default function CommitteeDashboard() {
 
           return errors;
         }, {});
+
+        if (Object.keys(validationErrors).length) {
+          return { validationErrors, message: "Plotësoni pikat e shënuara para vendimit përfundimtar." };
+        }
+
+        if (action === "approve" && items.some((item) => !["ok", "committee_corrected"].includes(item.status))) {
+          return {
+            validationErrors,
+            message: "Aprovimi lejohet vetëm kur të gjitha pikat janë në rregull ose të korrigjuara nga Komisioni.",
+          };
+        }
+
+        if (action === "return" && !items.some((item) => item.status === "requires_correction")) {
+          return {
+            validationErrors,
+            message: "Kthimi për korrigjim kërkon të paktën një pikë me statusin Kërkon korrigjim.",
+          };
+        }
+
+        if (action === "reject" && !checklist.generalComment.trim()) {
+          return { validationErrors, message: "Komenti i përgjithshëm është i detyrueshëm për refuzim." };
+        }
+
+        return { validationErrors, message: "" };
+      };
+      const syncSavedF1Checklist = (updatedRequest, checklist) => {
+        const nextRequest = updatedRequest || {
+          ...request,
+          requestData: {
+            ...requestData,
+            f1CommitteeChecklist: checklist,
+          },
+        };
+        const hydratedDraft = hydrateF1CommitteeChecklist(nextRequest);
+
+        setSelectedReimbursementReview(nextRequest);
+        syncPendingSubmissionStatus(nextRequest);
+        setCommitteeChecklistDrafts((drafts) => ({
+          ...drafts,
+          [checklistDraftKey]: hydratedDraft,
+        }));
+
+        return nextRequest;
+      };
+      const saveF1Checklist = async () => {
+        const checklist = buildF1ChecklistPayload();
+        const { validationErrors } = validateF1Checklist(checklist);
 
         setF1ChecklistValidationErrors(validationErrors);
 
@@ -2912,27 +2973,53 @@ export default function CommitteeDashboard() {
             throw new Error(result.message || "Checklist F1 nuk u ruajt.");
           }
 
-          const updatedRequest = result.data || {
-            ...request,
-            requestData: {
-              ...requestData,
-              f1CommitteeChecklist: checklist,
-            },
-          };
-          const hydratedDraft = hydrateF1CommitteeChecklist(updatedRequest);
-
-          setSelectedReimbursementReview(updatedRequest);
-          syncPendingSubmissionStatus(updatedRequest);
-          setCommitteeChecklistDrafts((drafts) => ({
-            ...drafts,
-            [checklistDraftKey]: hydratedDraft,
-          }));
+          syncSavedF1Checklist(result.data, checklist);
           setF1ChecklistValidationErrors({});
           setF1ChecklistSaveMessage("Progresi i checklistës F1 u ruajt.");
         } catch (error) {
           setF1ChecklistSaveError(error.message || "Checklist F1 nuk u ruajt.");
         } finally {
           setIsF1ChecklistSaving(false);
+        }
+      };
+      const finalizeF1Checklist = async (action) => {
+        const checklist = buildF1ChecklistPayload();
+        const { validationErrors, message } = validateF1Checklist(checklist, action);
+
+        setF1ChecklistValidationErrors(validationErrors);
+        setF1ChecklistSaveError(message);
+        setF1ChecklistSaveMessage("");
+
+        if (message) {
+          return;
+        }
+
+        setF1ChecklistFinalizingAction(action);
+
+        try {
+          const response = await fetch(apiUrl(`/reimbursements/${request.id}/f1-checklist/finalize`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ action, checklist }),
+          });
+          const result = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(result.message || "Vendimi përfundimtar F1 nuk u ruajt.");
+          }
+
+          syncSavedF1Checklist(result.data, checklist);
+          setF1ChecklistValidationErrors({});
+          setF1ChecklistSaveError("");
+          setF1ChecklistSaveMessage("Vendimi përfundimtar i Komisionit u ruajt.");
+          setIsReviewChecklistDrawerOpen(false);
+        } catch (error) {
+          setF1ChecklistSaveError(error.message || "Vendimi përfundimtar F1 nuk u ruajt.");
+        } finally {
+          setF1ChecklistFinalizingAction("");
         }
       };
 
@@ -2979,8 +3066,41 @@ export default function CommitteeDashboard() {
                 {f1ChecklistSaveError ? <span className="is-error">{f1ChecklistSaveError}</span> : null}
                 {f1ChecklistSaveMessage ? <span className="is-success">{f1ChecklistSaveMessage}</span> : null}
               </div>
-              <button type="button" onClick={saveF1Checklist} disabled={isF1ChecklistSaving}>
+              <button
+                type="button"
+                onClick={saveF1Checklist}
+                disabled={isF1ChecklistSaving || Boolean(f1ChecklistFinalizingAction)}
+              >
                 {isF1ChecklistSaving ? "Duke ruajtur..." : "Ruaj progresin"}
+              </button>
+            </div>
+          ) : null}
+
+          {!isF2Checklist ? (
+            <div className="committee-review-checklist-final-actions" aria-label="Vendimi përfundimtar i Komisionit">
+              <button
+                type="button"
+                className="is-return"
+                onClick={() => finalizeF1Checklist("return")}
+                disabled={isF1ChecklistSaving || Boolean(f1ChecklistFinalizingAction)}
+              >
+                {f1ChecklistFinalizingAction === "return" ? "Duke kthyer..." : "Kthe për korrigjim"}
+              </button>
+              <button
+                type="button"
+                className="is-reject"
+                onClick={() => finalizeF1Checklist("reject")}
+                disabled={isF1ChecklistSaving || Boolean(f1ChecklistFinalizingAction)}
+              >
+                {f1ChecklistFinalizingAction === "reject" ? "Duke refuzuar..." : "Refuzo"}
+              </button>
+              <button
+                type="button"
+                className="is-approve"
+                onClick={() => finalizeF1Checklist("approve")}
+                disabled={isF1ChecklistSaving || Boolean(f1ChecklistFinalizingAction)}
+              >
+                {f1ChecklistFinalizingAction === "approve" ? "Duke aprovuar..." : "Aprovo nga Komisioni"}
               </button>
             </div>
           ) : null}

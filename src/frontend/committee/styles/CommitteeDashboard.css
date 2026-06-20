@@ -2369,6 +2369,48 @@ a.committee-review-checklist-value:hover {
 	opacity: 0.65;
 }
 
+.committee-review-checklist-final-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 14px;
+	border-top: 1px solid #dbe5f0;
+}
+
+.committee-review-checklist-final-actions button {
+	border: 1px solid transparent;
+	border-radius: 9px;
+	padding: 9px 14px;
+	font: inherit;
+	font-size: 0.84rem;
+	font-weight: 850;
+	cursor: pointer;
+}
+
+.committee-review-checklist-final-actions .is-return {
+	border-color: #d4a72c;
+	background: #fff8df;
+	color: #805b00;
+}
+
+.committee-review-checklist-final-actions .is-reject {
+	border-color: #dc8d87;
+	background: #fff3f2;
+	color: #b42318;
+}
+
+.committee-review-checklist-final-actions .is-approve {
+	border-color: #15803d;
+	background: #15803d;
+	color: #ffffff;
+}
+
+.committee-review-checklist-final-actions button:disabled {
+	cursor: wait;
+	opacity: 0.6;
+}
+
 .committee-metadata-table th:nth-child(1) { width: 22%; }
 .committee-metadata-table th:nth-child(2) { width: 15%; }
 .committee-metadata-table th:nth-child(3) { width: 16%; }
