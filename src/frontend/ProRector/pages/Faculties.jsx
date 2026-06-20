@@ -173,7 +173,7 @@ export default function FacultyDetails() {
 
                 <div className="prorector-analytics-grid">
                   <article className="prorector-analytics-card">
-                    <div className="prorector-card-head"><h3>Publikimet sipas viteve</h3><BarChart3 size={20} /></div>
+                    <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><BarChart3 size={20} /></div>
                     {publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={publicationsByYear}>
@@ -181,10 +181,10 @@ export default function FacultyDetails() {
                           <XAxis dataKey="name" />
                           <YAxis allowDecimals={false} />
                           <Tooltip />
-                          <Bar dataKey="value" name="Publikime" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="value" name="Artikuj" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
-                    ) : <ChartEmpty message="Nuk ka publikime për këtë fakultet." />}
+                    ) : <ChartEmpty message="Nuk ka artikuj për këtë fakultet." />}
                   </article>
 
                   <article className="prorector-analytics-card">

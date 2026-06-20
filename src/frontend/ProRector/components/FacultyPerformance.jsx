@@ -31,7 +31,7 @@ export default function FacultyPerformance({ data, periodRange, setPeriodRange }
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar dataKey="Publikime" fill="#8884d8" />
+          <Bar dataKey="Publikime" name="Artikuj" fill="#8884d8" />
           <Bar dataKey="Konferenca" fill="#82ca9d" />
           <Bar dataKey="Citime" fill="#ffc658" />
         </BarChart>

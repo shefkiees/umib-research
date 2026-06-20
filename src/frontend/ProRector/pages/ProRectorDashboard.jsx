@@ -174,14 +174,14 @@ function buildPublicationAnalytics(rows, faculties) {
   const booksPredicate = (row) => ["book", "book_chapter"].includes(row.type) || /lib|kapitull/i.test(row.typeLabel || "");
 
   const kpis = [
-    { label: "Publikime Totale", value: rows.length, predicate: () => true, icon: BookOpen },
-    { label: "Publikime SCI/SCIE/SSCI/AHCI", value: countWhere(sciePredicate), predicate: sciePredicate, icon: TrendingUp },
-    { label: "Publikime Scopus Q1-Q2", value: countWhere(scopusQ1Q2Predicate), predicate: scopusQ1Q2Predicate, icon: BarChart3 },
+    { label: "Artikuj Totalë", value: rows.length, predicate: () => true, icon: BookOpen },
+    { label: "Artikuj SCI/SCIE/SSCI/AHCI", value: countWhere(sciePredicate), predicate: sciePredicate, icon: TrendingUp },
+    { label: "Artikuj Scopus Q1-Q2", value: countWhere(scopusQ1Q2Predicate), predicate: scopusQ1Q2Predicate, icon: BarChart3 },
     { label: "Punime Konference", value: countWhere(conferencePredicate), predicate: conferencePredicate, icon: FileText },
     { label: "Libra / Kapituj", value: countWhere(booksPredicate), predicate: booksPredicate, icon: LibraryBig },
     { label: "Fakultete Aktive", value: activeFaculties.size || faculties.filter((faculty) => faculty.status === "active").length, predicate: () => false, icon: Building2, noYearCompare: true },
     { label: "Autorë Aktivë", value: authorCounts.size, predicate: () => false, icon: UsersRound, noYearCompare: true },
-    { label: "Publikime këtë vit", value: countWhere(() => true, nowYear), predicate: (row) => toNumber(row.year) === nowYear, icon: TrendingUp },
+    { label: "Artikuj këtë vit", value: countWhere(() => true, nowYear), predicate: (row) => toNumber(row.year) === nowYear, icon: TrendingUp },
   ].map((card) => ({
     ...card,
     trend: card.noYearCompare
@@ -353,7 +353,7 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
       {fundingMode ? (
         <select value={filters.type} onChange={(event) => onChange({ ...filters, type: event.target.value })}>
           <option value="">Lloji i financimit</option>
-          <option value="Financim për publikime shkencore">Publikime shkencore</option>
+          <option value="Financim për publikime shkencore">Artikuj shkencorë</option>
           <option value="Financim për konferenca/simpoziume">Konferenca/Simpoziume</option>
           <option value="Financim për projekte shkencore">Projekte shkencore</option>
         </select>
@@ -377,7 +377,7 @@ function AnalyticsCharts({ charts = {} }) {
   return (
     <div className="prorector-analytics-grid">
       <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Publikimet sipas viteve</h3><TrendingUp size={20} /></div>
+        <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><TrendingUp size={20} /></div>
         {publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={publicationsByYear}>
@@ -385,7 +385,7 @@ function AnalyticsCharts({ charts = {} }) {
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" name="Publikime" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" name="Artikuj" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : <ChartEmpty />}
@@ -407,7 +407,7 @@ function AnalyticsCharts({ charts = {} }) {
       </article>
 
       <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Publikimet sipas kategorive</h3><BookOpen size={20} /></div>
+        <div className="prorector-card-head"><h3>Artikujt sipas kategorive</h3><BookOpen size={20} /></div>
         {categoryRows.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={310}>
             <PieChart>
@@ -475,7 +475,6 @@ export default function ProRectorDashboard() {
   const facultyRows = faculties.data.faculties || [];
   const publicationRows = publications.data.publications || [];
   const fundingRows = funding.data.funding || [];
-  const kpis = overview.data.kpis || {};
   const charts = overview.data.charts || {};
   const publicationAnalytics = useMemo(
     () => buildPublicationAnalytics(publicationRows, facultyRows),
@@ -592,24 +591,6 @@ export default function ProRectorDashboard() {
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
       <StateBlock loading={overview.loading} error={overview.error} />
-      <div className="prorector-kpi-grid">
-        {[
-          { label: "Publikime totale", value: formatNumber(kpis.totalPublications), icon: BookOpen },
-          { label: "Publikime Scopus Q1-Q2", value: formatNumber(kpis.scopusQ1Q2Publications), icon: TrendingUp },
-          { label: "Financime të aprovuara", value: formatCurrency(kpis.approvedFundingTotal), icon: WalletCards },
-          { label: "Kërkesa aktive", value: formatNumber(kpis.activeRequests), icon: FileText },
-          { label: "Profesorë aktivë", value: formatNumber(kpis.activeResearchProfessors), icon: UsersRound },
-          { label: "Fakulteti lider", value: kpis.leadingFaculty || "Pa të dhëna", icon: Building2 },
-        ].map((card) => {
-          const Icon = card.icon;
-          return (
-            <article className="prorector-kpi-card" key={card.label}>
-              <div className="prorector-kpi-icon"><Icon size={21} /></div>
-              <div><strong>{card.value}</strong><span>{card.label}</span></div>
-            </article>
-          );
-        })}
-      </div>
       <AnalyticsCharts charts={charts} />
     </div>
   );
@@ -617,13 +598,13 @@ export default function ProRectorDashboard() {
   const renderFaculties = () => (
     <div className="prorector-table-section">
       <div className="prorector-section-head">
-        <div><h2>Fakultetet</h2><p>Të dhëna reale nga fakultetet, përdoruesit, publikimet dhe financimet.</p></div>
+        <div><h2>Fakultetet</h2><p>Të dhëna reale nga fakultetet, përdoruesit, artikujt dhe financimet.</p></div>
       </div>
       <StateBlock loading={faculties.loading} error={faculties.error} empty={!filteredFacultyRows.length} emptyText="Nuk ka fakultete të regjistruara." />
       {!faculties.loading && !faculties.error && filteredFacultyRows.length ? (
         <div className="prorector-faculty-table-wrap">
           <table className="prorector-table">
-            <thead><tr><th>Fakulteti</th><th>Profesorë</th><th>Publikime</th><th>Financime (€)</th><th>Statusi</th></tr></thead>
+            <thead><tr><th>Fakulteti</th><th>Profesorë</th><th>Artikuj</th><th>Financime (€)</th><th>Statusi</th></tr></thead>
             <tbody>
               {filteredFacultyRows.map((row) => (
                 <tr key={row.id} className="prorector-clickable-row" onClick={() => navigate(`/prorector/faculties/${encodeURIComponent(row.id)}`)}>
@@ -693,7 +674,7 @@ export default function ProRectorDashboard() {
     <div className="prorector-publications-page">
       <section className="prorector-table-section prorector-publications-hero">
         <div className="prorector-section-head">
-          <div><h2>Publikimet</h2><p>Monitorim i cilësisë, indeksimit dhe produktivitetit shkencor nga të dhënat reale të sistemit.</p></div>
+          <div><h2>Artikujt</h2><p>Monitorim i cilësisë, indeksimit dhe produktivitetit shkencor nga të dhënat reale të sistemit.</p></div>
           <span className="prorector-section-pill">Prorektor për Kërkim Shkencor</span>
         </div>
         <StateBlock loading={publications.loading} error={publications.error} />
@@ -718,23 +699,23 @@ export default function ProRectorDashboard() {
         <div className="prorector-publication-main">
           <div className="prorector-publication-charts">
             <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Publikimet sipas viteve</h3><BarChart3 size={20} /></div>
+              <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><BarChart3 size={20} /></div>
               {publicationAnalytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={publicationAnalytics.publicationsByYear}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip />
-                    <Bar dataKey="value" name="Publikime" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="value" name="Artikuj" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : <ChartEmpty />}
             </article>
             <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Publikimet sipas fakulteteve</h3><Building2 size={20} /></div>
+              <div className="prorector-card-head"><h3>Artikujt sipas fakulteteve</h3><Building2 size={20} /></div>
               {publicationAnalytics.publicationsByFaculty.some((row) => toNumber(row.value) > 0) ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={publicationAnalytics.publicationsByFaculty} layout="vertical" margin={{ top: 8, right: 18, bottom: 8, left: 18 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} /><Tooltip />
-                    <Bar dataKey="value" name="Publikime" fill="#15803d" radius={[0, 6, 6, 0]} />
+                    <Bar dataKey="value" name="Artikuj" fill="#15803d" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : <ChartEmpty />}
@@ -755,11 +736,11 @@ export default function ProRectorDashboard() {
           </div>
           <section className="prorector-table-section prorector-publications-table-card">
             <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} publicationMode />
-            <StateBlock loading={publications.loading} error={publications.error} empty={!publicationRows.length} emptyText="Nuk ka publikime për filtrat aktualë." />
+            <StateBlock loading={publications.loading} error={publications.error} empty={!publicationRows.length} emptyText="Nuk ka artikuj për filtrat aktualë." />
             {!publications.loading && !publications.error && publicationRows.length ? (
               <div className="prorector-publication-table-wrap">
                 <table className="prorector-table prorector-publication-table">
-                  <thead><tr><th>Publikimi</th><th>Autori Kryesor</th><th>Fakulteti</th><th>Tipi</th><th>Indeksimi</th><th>Kuartili</th><th>Statusi</th></tr></thead>
+                  <thead><tr><th>Artikulli</th><th>Autori Kryesor</th><th>Fakulteti</th><th>Tipi</th><th>Indeksimi</th><th>Kuartili</th><th>Statusi</th></tr></thead>
                   <tbody>
                     {publicationRows.map((row) => (
                       <tr key={row.id} className="prorector-clickable-row" onClick={() => setSelectedPublication(row)}>
@@ -823,9 +804,9 @@ export default function ProRectorDashboard() {
       </div>
       <div className="prorector-reports-grid">
         <article className="prorector-report-card">
-          <h3>Raport publikimesh</h3>
-          <p>Publikime sipas vitit, fakultetit, indeksimit, kuartilit dhe statusit.</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("publikime-prorektor.csv", publicationRows)}><Download size={16} /> Gjenero</button>
+          <h3>Raport artikujsh</h3>
+          <p>Artikuj sipas vitit, fakultetit, indeksimit, kuartilit dhe statusit.</p>
+          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("artikuj-prorektor.csv", publicationRows)}><Download size={16} /> Gjenero</button>
         </article>
         <article className="prorector-report-card">
           <h3>Raport financimesh</h3>
@@ -834,7 +815,7 @@ export default function ProRectorDashboard() {
         </article>
         <article className="prorector-report-card">
           <h3>Raport fakultetesh</h3>
-          <p>Profesorë, publikime, financime dhe status për çdo fakultet.</p>
+          <p>Profesorë, artikuj, financime dhe status për çdo fakultet.</p>
           <button type="button" className="prorector-btn-primary" onClick={() => exportRows("fakultete-prorektor.csv", facultyRows)}><Download size={16} /> Gjenero</button>
         </article>
       </div>
@@ -842,7 +823,7 @@ export default function ProRectorDashboard() {
   );
 
   const renderContent = () => {
-    if (activePage === "Publikimet") return renderPublications();
+    if (activePage === "Artikujt") return renderPublications();
     if (activePage === "Fakultetet") return renderFaculties();
     if (activePage === "Financimet") return renderFunding();
     if (activePage === "Raportet") return renderReports();

@@ -5,7 +5,7 @@ import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
   { label: "Dashboard", route: "Dashboard", icon: LayoutDashboard },
-  { label: "Publikimet", route: "Publikimet", icon: BookOpen },
+  { label: "Artikujt", route: "Artikujt", icon: BookOpen },
   { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
   { label: "Financimet", route: "Financimet", icon: WalletCards },
   { label: "Raportet", route: "Raportet", icon: FileText },
