@@ -15,7 +15,7 @@ import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
 import { apiUrl } from "../../utils/api";
 
-const navLabels = ["Përmbledhje", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet"];
+const navLabels = ["Statistikat", "Dorëzimet në Pritje", "Shqyrtimi", "Vendimet"];
 
 const overviewTypeColors = {
   F1: "#1f4f84",
@@ -27,9 +27,7 @@ const overviewStatusColors = {
   in_review: "#6f7fb7",
   needs_correction: "#b45309",
   committee_approved: "#1f7a4d",
-  approved: "#15803d",
   rejected: "#b42318",
-  paid: "#64748b",
 };
 
 const publicationStatusLabels = {
@@ -1288,7 +1286,7 @@ function formatReviewDate(value) {
 
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState("Përmbledhje");
+  const [activePage, setActivePage] = useState("Statistikat");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [selectedReimbursementReview, setSelectedReimbursementReview] = useState(null);
@@ -1783,12 +1781,8 @@ export default function CommitteeDashboard() {
           totals.needs_correction += 1;
         } else if (request.status === "committee_approved") {
           totals.committee_approved += 1;
-        } else if (request.status === "approved") {
-          totals.approved += 1;
         } else if (request.status === "rejected") {
           totals.rejected += 1;
-        } else if (request.status === "paid") {
-          totals.paid += 1;
         }
 
         return totals;
@@ -1798,9 +1792,7 @@ export default function CommitteeDashboard() {
         in_review: 0,
         needs_correction: 0,
         committee_approved: 0,
-        approved: 0,
         rejected: 0,
-        paid: 0,
       }
     );
 
@@ -1808,10 +1800,8 @@ export default function CommitteeDashboard() {
       { key: "submitted", label: "Dorëzuar", total: totalsByStatus.submitted, color: overviewStatusColors.submitted },
       { key: "in_review", label: "Në shqyrtim", total: totalsByStatus.in_review, color: overviewStatusColors.in_review },
       { key: "needs_correction", label: "Për korrigjim", total: totalsByStatus.needs_correction, color: overviewStatusColors.needs_correction },
-      { key: "committee_approved", label: "Për aprovim", total: totalsByStatus.committee_approved, color: overviewStatusColors.committee_approved },
-      { key: "approved", label: "Aprovuar", total: totalsByStatus.approved, color: overviewStatusColors.approved },
+      { key: "committee_approved", label: "Aprovuar nga Komisioni", total: totalsByStatus.committee_approved, color: overviewStatusColors.committee_approved },
       { key: "rejected", label: "Refuzuar", total: totalsByStatus.rejected, color: overviewStatusColors.rejected },
-      { key: "paid", label: "Paguar", total: totalsByStatus.paid, color: overviewStatusColors.paid },
     ];
   }, [filteredOverviewRequests]);
 
@@ -4051,7 +4041,7 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Settings") {
-    content = <CommitteeSettings onBack={() => setActivePage("Përmbledhje")} />;
+    content = <CommitteeSettings onBack={() => setActivePage("Statistikat")} />;
   }
 
   return (
