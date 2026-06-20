@@ -170,7 +170,6 @@ const f1CommitteeChecklistItemIds = {
   "Artikulli shkencor": "article_document",
 };
 const validF1CommitteeChecklistStatuses = new Set(f1CommitteeChecklistStatuses.map((item) => item.value));
-const validF1CommitteeChecklistItemIds = new Set(Object.values(f1CommitteeChecklistItemIds));
 
 const f1CommitteeChecklistGroups = [
   {
@@ -522,6 +521,12 @@ function hydrateF1CommitteeChecklist(request = {}) {
       [itemId]: {
         status: item.status,
         comment: String(item.comment || ""),
+        ...(Object.prototype.hasOwnProperty.call(item, "originalValue")
+          ? { originalValue: String(item.originalValue || "") }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(item, "correctedValue")
+          ? { correctedValue: String(item.correctedValue || "") }
+          : {}),
       },
     };
   }, {});
@@ -1292,6 +1297,7 @@ export default function CommitteeDashboard() {
   const [isF1ChecklistSaving, setIsF1ChecklistSaving] = useState(false);
   const [f1ChecklistSaveError, setF1ChecklistSaveError] = useState("");
   const [f1ChecklistSaveMessage, setF1ChecklistSaveMessage] = useState("");
+  const [f1ChecklistValidationErrors, setF1ChecklistValidationErrors] = useState({});
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
   const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
 
@@ -1889,6 +1895,7 @@ export default function CommitteeDashboard() {
     setIsF2AbstractExpanded(false);
     setF1ChecklistSaveError("");
     setF1ChecklistSaveMessage("");
+    setF1ChecklistValidationErrors({});
 
     if (getRequestType(request) === "publication") {
       const draftKey = getCommitteeChecklistDraftKey(request);
@@ -2660,6 +2667,10 @@ export default function CommitteeDashboard() {
 
       return valuesByLabel[label] || createChecklistValue("");
     };
+    const getChecklistOriginalValue = (label) => {
+      const value = getChecklistItemValue(label)?.value;
+      return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+    };
     const getCommitteeChecklistItemKey = (groupTitle, label) => (
       requestType === "publication" ? f1CommitteeChecklistItemIds[label] : `${groupTitle}::${label}`
     );
@@ -2674,6 +2685,16 @@ export default function CommitteeDashboard() {
       });
     };
     const updateCommitteeChecklistItem = (itemKey, updates) => {
+      if (requestType === "publication") {
+        setF1ChecklistValidationErrors((errors) => {
+          const nextErrors = { ...errors };
+          delete nextErrors[itemKey];
+          return nextErrors;
+        });
+        setF1ChecklistSaveError("");
+        setF1ChecklistSaveMessage("");
+      }
+
       updateCommitteeChecklistDraft((currentDraft) => ({
         ...currentDraft,
         items: {
@@ -2757,19 +2778,35 @@ export default function CommitteeDashboard() {
                 const itemKey = getCommitteeChecklistItemKey(group.title, label);
                 const itemDraft = checklistDraft.items?.[itemKey] || {};
                 const selectedStatus = itemDraft.status || defaultStatus;
+                const sourceValue = getChecklistItemValue(label);
+                const originalValue = Object.prototype.hasOwnProperty.call(itemDraft, "originalValue")
+                  ? itemDraft.originalValue
+                  : getChecklistOriginalValue(label);
+                const displayedValue = !isF2Checklist && selectedStatus === "committee_corrected"
+                  ? { ...sourceValue, value: originalValue, href: "" }
+                  : sourceValue;
+                const validationError = !isF2Checklist ? f1ChecklistValidationErrors[itemKey] : "";
 
                 return (
-                  <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
+                  <div className={`committee-review-checklist-row ${validationError ? "has-error" : ""}`} key={`${group.title}-${label}`}>
                     <div className="committee-review-checklist-item-main">
                       <strong>{label}</strong>
-                      {renderChecklistValue(getChecklistItemValue(label), {
+                      {renderChecklistValue(displayedValue, {
                         expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
                       })}
                     </div>
                     <select
                       value={selectedStatus}
                       aria-label={`Statusi për ${label}`}
-                      onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
+                      onChange={(event) => {
+                        const status = event.target.value;
+                        updateCommitteeChecklistItem(itemKey, {
+                          status,
+                          ...(status === "committee_corrected" && !Object.prototype.hasOwnProperty.call(itemDraft, "originalValue")
+                            ? { originalValue: getChecklistOriginalValue(label) }
+                            : {}),
+                        });
+                      }}
                     >
                       {checklistStatusOptions.map((status) => (
                         <option key={status.value} value={status.value}>
@@ -2777,14 +2814,28 @@ export default function CommitteeDashboard() {
                         </option>
                       ))}
                     </select>
+                    {!isF2Checklist && selectedStatus === "committee_corrected" ? (
+                      <label className="committee-review-checklist-corrected-value">
+                        <span>Vlera e korrigjuar</span>
+                        <textarea
+                          value={itemDraft.correctedValue || ""}
+                          aria-invalid={Boolean(validationError)}
+                          onChange={(event) => updateCommitteeChecklistItem(itemKey, { correctedValue: event.target.value })}
+                        />
+                      </label>
+                    ) : null}
                     {shouldShowChecklistComment(selectedStatus) ? (
                       <textarea
                         className="committee-review-checklist-item-comment"
-                        placeholder="Koment për këtë pikë të checklistës"
+                        placeholder={selectedStatus === "requires_correction"
+                          ? "Shpjegoni çfarë duhet të korrigjojë profesori"
+                          : "Koment për këtë pikë të checklistës"}
                         value={itemDraft.comment || ""}
+                        aria-invalid={Boolean(validationError)}
                         onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
                       />
                     ) : null}
+                    {validationError ? <span className="committee-review-checklist-validation-error">{validationError}</span> : null}
                   </div>
                 );
               })}
@@ -2793,19 +2844,6 @@ export default function CommitteeDashboard() {
         );
       };
       const saveF1Checklist = async () => {
-        const savedItems = Object.entries(checklistDraft.items || {}).reduce((items, [itemId, item]) => {
-          if (!validF1CommitteeChecklistItemIds.has(itemId)) {
-            return items;
-          }
-
-          return {
-            ...items,
-            [itemId]: {
-              status: validF1CommitteeChecklistStatuses.has(item?.status) ? item.status : "unchecked",
-              comment: String(item?.comment || ""),
-            },
-          };
-        }, {});
         const items = checklistGroups.flatMap((group) => group.items).reduce((result, label) => {
           const itemId = f1CommitteeChecklistItemIds[label];
           const item = checklistDraft.items?.[itemId] || {};
@@ -2815,14 +2853,37 @@ export default function CommitteeDashboard() {
             [itemId]: {
               status: validF1CommitteeChecklistStatuses.has(item.status) ? item.status : "unchecked",
               comment: String(item.comment || ""),
+              originalValue: Object.prototype.hasOwnProperty.call(item, "originalValue")
+                ? String(item.originalValue || "")
+                : getChecklistOriginalValue(label),
+              correctedValue: String(item.correctedValue || ""),
             },
           };
-        }, savedItems);
+        }, {});
         const checklist = {
           version: F1_COMMITTEE_CHECKLIST_VERSION,
           items,
           generalComment: String(checklistDraft.generalComment || ""),
         };
+        const validationErrors = Object.entries(items).reduce((errors, [itemId, item]) => {
+          if (item.status === "requires_correction" && !item.comment.trim()) {
+            errors[itemId] = "Komenti është i detyrueshëm kur kërkohet korrigjim nga profesori.";
+          }
+
+          if (item.status === "committee_corrected" && !item.correctedValue.trim()) {
+            errors[itemId] = "Shkruani vlerën e korrigjuar nga komisioni.";
+          }
+
+          return errors;
+        }, {});
+
+        setF1ChecklistValidationErrors(validationErrors);
+
+        if (Object.keys(validationErrors).length) {
+          setF1ChecklistSaveError("Plotësoni pikat e shënuara para ruajtjes.");
+          setF1ChecklistSaveMessage("");
+          return;
+        }
 
         setIsF1ChecklistSaving(true);
         setF1ChecklistSaveError("");
@@ -2858,6 +2919,7 @@ export default function CommitteeDashboard() {
             ...drafts,
             [checklistDraftKey]: hydratedDraft,
           }));
+          setF1ChecklistValidationErrors({});
           setF1ChecklistSaveMessage("Progresi i checklistës F1 u ruajt.");
         } catch (error) {
           setF1ChecklistSaveError(error.message || "Checklist F1 nuk u ruajt.");

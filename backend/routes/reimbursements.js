@@ -249,6 +249,8 @@ function normalizeF1CommitteeChecklist(value) {
 
     const status = normalizeText(item.status);
     const comment = String(item.comment ?? "");
+    const originalValue = String(item.originalValue ?? "");
+    const correctedValue = String(item.correctedValue ?? "");
 
     if (!VALID_F1_COMMITTEE_CHECKLIST_STATUSES.has(status)) {
       return { error: "f1_checklist_status_invalid", message: `Statusi i pikës ${itemId} nuk është valid.` };
@@ -258,7 +260,19 @@ function normalizeF1CommitteeChecklist(value) {
       return { error: "f1_checklist_comment_too_long", message: `Komenti i pikës ${itemId} është shumë i gjatë.` };
     }
 
-    items[itemId] = { status, comment };
+    if (originalValue.length > 20000 || correctedValue.length > 20000) {
+      return { error: "f1_checklist_value_too_long", message: `Vlera e pikës ${itemId} është shumë e gjatë.` };
+    }
+
+    if (status === "requires_correction" && !comment.trim()) {
+      return { error: "f1_checklist_comment_required", message: `Komenti është i detyrueshëm për pikën ${itemId}.` };
+    }
+
+    if (status === "committee_corrected" && !correctedValue.trim()) {
+      return { error: "f1_checklist_corrected_value_required", message: `Vlera e korrigjuar është e detyrueshme për pikën ${itemId}.` };
+    }
+
+    items[itemId] = { status, comment, originalValue, correctedValue };
   }
 
   const generalComment = String(value.generalComment ?? "");
