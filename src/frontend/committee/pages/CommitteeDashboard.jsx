@@ -169,16 +169,6 @@ const f1CommitteeChecklistGroups = [
       "Artikulli shkencor",
     ],
   },
-  {
-    title: "Verifikimi Financiar",
-    items: [
-      "Emri në bankë",
-      "Banka",
-      "Numri i llogarisë / IBAN",
-      "SWIFT",
-      "Shuma e kërkuar",
-    ],
-  },
 ];
 
 const f2CommitteeChecklistGroups = [
@@ -2640,7 +2630,7 @@ export default function CommitteeDashboard() {
           ));
       const checklistCategoryIcons = isF2Checklist
         ? [CircleUserRound, BookOpen, Database, FileText, CreditCard]
-        : [BookOpen, Database, FileText, CreditCard];
+        : [BookOpen, Database, FileText];
       const totalItems = checklistGroups.reduce((total, group) => total + group.items.length, 0);
       const defaultStatus = committeeChecklistStatuses[0];
       const itemKeys = checklistGroups.flatMap((group) => (
