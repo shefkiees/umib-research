@@ -48,6 +48,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     if (itemName === "Publikime") {
       setIsReimbursementMenuOpen(false);
       setActiveReimbursementSubmenu("");
+      handleNavigate(itemName);
       return;
     }
 
