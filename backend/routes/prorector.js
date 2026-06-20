@@ -47,7 +47,11 @@ function mapFaculty(row) {
     activeUserCount,
     professorCount: Number(row.professor_count || 0),
     publicationCount: Number(row.publication_count || 0),
+    journalArticleCount: Number(row.journal_article_count || 0),
+    conferencePaperCount: Number(row.conference_paper_count || 0),
+    bookChapterCount: Number(row.book_chapter_count || 0),
     reimbursementCount: Number(row.reimbursement_count || 0),
+    totalAmount: Number(row.total_amount || 0),
     status: activeUserCount > 0 ? "active" : "inactive",
     statusLabel: activeUserCount > 0 ? "Aktiv" : "Pa staf aktiv",
     updatedAt: row.updated_at,
@@ -205,6 +209,8 @@ function buildFacultyPublicationAnalytics(publications = []) {
 }
 
 router.get("/faculties", requireProRectorAccess, async (req, res) => {
+  const selectedYear = /^\d{4}$/.test(normalizeText(req.query.year)) ? Number(req.query.year) : null;
+
   try {
     const result = await db.query(
       `${FACULTY_SOURCE_CTE}
@@ -221,7 +227,11 @@ router.get("/faculties", requireProRectorAccess, async (req, res) => {
          coalesce(users_stats.active_user_count, 0)::int as active_user_count,
          coalesce(users_stats.professor_count, 0)::int as professor_count,
          coalesce(publications_stats.publication_count, 0)::int as publication_count,
-         coalesce(reimbursements_stats.reimbursement_count, 0)::int as reimbursement_count
+         coalesce(publications_stats.journal_article_count, 0)::int as journal_article_count,
+         coalesce(publications_stats.conference_paper_count, 0)::int as conference_paper_count,
+         coalesce(publications_stats.book_chapter_count, 0)::int as book_chapter_count,
+         coalesce(reimbursements_stats.reimbursement_count, 0)::int as reimbursement_count,
+         coalesce(reimbursements_stats.total_amount, 0)::numeric(12, 2) as total_amount
        from faculty_source fs
        left join lateral (
          select count(*)::int as department_count
@@ -248,20 +258,41 @@ router.get("/faculties", requireProRectorAccess, async (req, res) => {
          where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
        ) users_stats on true
        left join lateral (
-         select count(*)::int as publication_count
+         select
+           count(*)::int as publication_count,
+           count(*) filter (where p.publication_type = 'journal_article')::int as journal_article_count,
+           count(*) filter (where p.publication_type = 'conference_paper')::int as conference_paper_count,
+           count(*) filter (
+             where p.publication_type in ('book', 'book_chapter')
+           )::int as book_chapter_count
          from publications p
          join users u on u.id = p.owner_id
          where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
            and p.status <> 'draft'
+           and (
+             $1::int is null
+             or coalesce(
+               p.publication_year,
+               extract(year from p.publication_date)::int,
+               extract(year from p.created_at)::int
+             ) = $1::int
+           )
        ) publications_stats on true
        left join lateral (
-         select count(*)::int as reimbursement_count
+         select
+           count(*)::int as reimbursement_count,
+           coalesce(sum(r.amount), 0)::numeric(12, 2) as total_amount
          from reimbursements r
          join users u on u.id = r.owner_id
          where lower(trim(u.faculty)) in (lower(trim(fs.name)), lower(trim(fs.code)))
            and r.status <> 'draft'
+           and (
+             $1::int is null
+             or extract(year from coalesce(r.submitted_at, r.created_at))::int = $1::int
+           )
        ) reimbursements_stats on true
-       order by fs.name asc`
+       order by fs.name asc`,
+      [selectedYear]
     );
 
     res.json({ faculties: result.rows.map(mapFaculty) });

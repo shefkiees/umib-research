@@ -1,10 +1,10 @@
 import React from "react";
-import { Inbox, FileText, Database, CheckCircle, Shield, BarChart3 as ReportsIcon } from "lucide-react";
+import { Inbox, FileText, Building2, CheckCircle, Shield, BarChart3 as ReportsIcon } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
-  { label: "Fakultetet", route: "Fakultetet", icon: Database },
+  { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
   { label: "Artikujt", route: "Artikujt", icon: CheckCircle },
   { label: "Konferencat dhe Simpoziumet", route: "Konferenca", icon: Inbox },
   { label: "Rimbursimet", route: "Rimbursime", icon: Shield },

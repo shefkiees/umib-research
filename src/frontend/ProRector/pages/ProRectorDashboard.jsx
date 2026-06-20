@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   BadgeCheck,
   BarChart3,
@@ -135,10 +135,6 @@ function getInitials(value) {
     .slice(0, 2)
     .map((word) => word.charAt(0).toLocaleUpperCase("sq-AL"))
     .join("");
-}
-
-function getFacultyRouteId(row = {}) {
-  return row.id || row.code || normalizeFacultyKey(row.name) || "faculty";
 }
 
 const FACULTY_CHART_COLORS = ["#153a63", "#2e6aa6", "#c9a24f", "#15803d", "#be123c", "#7c3aed"];
@@ -439,7 +435,13 @@ export default function ProRectorDashboard() {
       setFacultyStatsError("");
 
       try {
-        const response = await fetch(apiUrl("/prorector/faculties"), {
+        const params = new URLSearchParams();
+
+        if (analyticsFilters.year !== "all") {
+          params.set("year", analyticsFilters.year);
+        }
+
+        const response = await fetch(apiUrl(`/prorector/faculties${params.toString() ? `?${params.toString()}` : ""}`), {
           credentials: "include",
         });
         const data = await response.json().catch(() => ({}));
@@ -566,7 +568,7 @@ export default function ProRectorDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [analyticsFilters.year]);
 
   useEffect(() => {
     let isMounted = true;
@@ -686,10 +688,15 @@ export default function ProRectorDashboard() {
         ...row,
         ...presentation,
         activeUserCount: toNumber(row.activeUserCount),
+        professorCount: toNumber(row.professorCount ?? row.activeUserCount),
         departmentCount: toNumber(row.departmentCount),
         publicationCount: toNumber(row.publicationCount),
+        journalArticleCount: toNumber(row.journalArticleCount),
+        conferencePaperCount: toNumber(row.conferencePaperCount),
+        bookChapterCount: toNumber(row.bookChapterCount),
         conferenceCount: toNumber(row.conferenceCount ?? conferenceCount),
         reimbursementCount: toNumber(row.reimbursementCount),
+        totalAmount: toNumber(row.totalAmount),
         citationCount: toNumber(explicitCitationCount),
         q1Count: toNumber(explicitQ1),
         q2Count: toNumber(explicitQ2),
@@ -705,10 +712,15 @@ export default function ProRectorDashboard() {
       groupedRows.set(key, {
         ...existing,
         activeUserCount: existing.activeUserCount + nextRow.activeUserCount,
+        professorCount: existing.professorCount + nextRow.professorCount,
         departmentCount: Math.max(existing.departmentCount, nextRow.departmentCount),
         publicationCount: existing.publicationCount + nextRow.publicationCount,
+        journalArticleCount: existing.journalArticleCount + nextRow.journalArticleCount,
+        conferencePaperCount: existing.conferencePaperCount + nextRow.conferencePaperCount,
+        bookChapterCount: existing.bookChapterCount + nextRow.bookChapterCount,
         conferenceCount: existing.conferenceCount + nextRow.conferenceCount,
         reimbursementCount: existing.reimbursementCount + nextRow.reimbursementCount,
+        totalAmount: existing.totalAmount + nextRow.totalAmount,
         citationCount: existing.citationCount + nextRow.citationCount,
         q1Count: existing.q1Count + nextRow.q1Count,
         q2Count: existing.q2Count + nextRow.q2Count,
@@ -746,10 +758,12 @@ export default function ProRectorDashboard() {
       (totals, row) => ({
         facultyCount: totals.facultyCount + 1,
         activeUserCount: totals.activeUserCount + row.activeUserCount,
+        professorCount: totals.professorCount + row.professorCount,
         departmentCount: totals.departmentCount + row.departmentCount,
         publicationCount: totals.publicationCount + row.publicationCount,
         conferenceCount: totals.conferenceCount + row.conferenceCount,
         reimbursementCount: totals.reimbursementCount + row.reimbursementCount,
+        totalAmount: totals.totalAmount + row.totalAmount,
         citationCount: totals.citationCount + row.citationCount,
         q1Count: totals.q1Count + row.q1Count,
         q2Count: totals.q2Count + row.q2Count,
@@ -759,10 +773,12 @@ export default function ProRectorDashboard() {
       {
         facultyCount: 0,
         activeUserCount: 0,
+        professorCount: 0,
         departmentCount: 0,
         publicationCount: 0,
         conferenceCount: 0,
         reimbursementCount: 0,
+        totalAmount: 0,
         citationCount: 0,
         q1Count: 0,
         q2Count: 0,
@@ -784,42 +800,35 @@ export default function ProRectorDashboard() {
   const facultyKpiCards = useMemo(
     () => [
       {
-        label: "Fakultete aktive",
+        label: "Numri i fakulteteve",
         value: facultyOverview.facultyCount,
         trend: "njësi akademike",
         icon: BadgeCheck,
         tone: "is-blue",
       },
       {
-        label: "Staf akademik aktiv",
-        value: facultyOverview.activeUserCount,
-        trend: "profile aktive",
+        label: "Totali i profesorëve",
+        value: facultyOverview.professorCount || facultyOverview.activeUserCount,
+        trend: "profile profesori",
         icon: UsersRound,
         tone: "is-green",
       },
       {
-        label: "Artikuj shkencorë",
+        label: "Totali i publikimeve",
         value: facultyOverview.publicationCount,
         trend: "publikime të regjistruara",
         icon: BookOpen,
         tone: "is-gold",
       },
       {
-        label: "Konferencat dhe Simpoziumet",
-        value: facultyOverview.conferenceCount,
-        trend: conferenceStatsLoading ? "duke u sinkronizuar" : "aktivitete reale te regjistruara",
-        icon: LineChartIcon,
-        tone: "is-indigo",
-      },
-      {
-        label: "Rimbursime totale",
+        label: "Totali i rimbursimeve",
         value: facultyOverview.reimbursementCount,
         trend: "kërkesa të regjistruara",
         icon: FileText,
         tone: "is-rose",
       },
     ],
-    [conferenceStatsLoading, facultyOverview]
+    [facultyOverview]
   );
 
   const analyticsFilterOptions = useMemo(() => {
@@ -1013,34 +1022,15 @@ export default function ProRectorDashboard() {
     return filteredFacultyPerformanceRows.map((row) => ({
       name: row.name,
       publications: row.publicationCount,
-      authors: row.activeUserCount,
+      authors: row.professorCount || row.activeUserCount,
       reimbursements: row.reimbursementCount,
-      funding: toNumber(row.reimbursementAmount || row.totalReimbursementAmount || row.amount || 0),
+      funding: toNumber(row.totalAmount || row.reimbursementAmount || row.totalReimbursementAmount || row.amount || 0),
       q1: row.q1Count,
       q2: row.q2Count,
       q3: row.q3Count,
       q4: row.q4Count,
     })).sort((first, second) => second.publications - first.publications || first.name.localeCompare(second.name, "sq"));
   }, [filteredFacultyPerformanceRows]);
-
-  const facultyPublicationMatrix = useMemo(() => {
-    const years = Array.from(new Set(filteredPublications.map(getPublicationYear).filter((year) => year && year !== "-"))).sort();
-    const faculties = facultyContributionRows.slice(0, 5).map((row) => row.name);
-
-    return years.map((year) => {
-      const row = { year, total: 0 };
-
-      faculties.forEach((faculty) => {
-        const count = filteredPublications.filter((publication) =>
-          getPublicationYear(publication) === year && getPublicationUnit(publication) === faculty
-        ).length;
-        row[faculty] = count;
-        row.total += count;
-      });
-
-      return row;
-    });
-  }, [facultyContributionRows, filteredPublications]);
 
   const filteredConferences = useMemo(() => {
     return conferenceStats.filter((item) =>
@@ -1632,7 +1622,7 @@ export default function ProRectorDashboard() {
           <div className="prorector-section-head">
             <div>
               <h2>Fakultetet</h2>
-              <p>Përmbledhje e njësive akademike dhe aktivitetit kërkimor.</p>
+              <p>Pasqyrë e shpejtë e fakulteteve, profesorëve, publikimeve dhe rimbursimeve.</p>
             </div>
           </div>
           {facultyStatsError ? (
@@ -1641,8 +1631,6 @@ export default function ProRectorDashboard() {
             </div>
           ) : null}
           {facultyStatsLoading ? renderFacultySkeletons(4) : null}
-
-          {renderAnalyticsFilters("faculty")}
 
           {!facultyStatsLoading ? (
             <div className="prorector-kpi-grid" aria-label="Treguesit kryesorë të fakulteteve">
@@ -1668,151 +1656,44 @@ export default function ProRectorDashboard() {
             </div>
           ) : null}
 
-          {!facultyStatsLoading && filteredFacultyPerformanceRows.length > 0 ? (
-            <div className="prorector-analytics-grid">
-              <article className="prorector-analytics-card">
-                <div className="prorector-card-head">
-                  <div>
-                    <h3>Publikimet sipas fakultetit</h3>
-                    <p>Krahasim kompakt i kontributit akademik.</p>
-                  </div>
-                  <BarChart3 size={20} />
-                </div>
-                {facultyContributionRows.length ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={facultyContributionRows.slice(0, 8)} layout="vertical" margin={{ top: 8, right: 22, left: 18, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#d8e0ea" />
-                      <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                      <YAxis type="category" dataKey="name" width={150} tickLine={false} axisLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="publications" name="Publikime" radius={[0, 8, 8, 0]} fill="#1688f0" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  renderChartEmpty("Nuk ka të dhëna për këtë periudhë.")
-                )}
-              </article>
-
-              <article className="prorector-analytics-card">
-                <div className="prorector-card-head">
-                  <div>
-                    <h3>Kontributi i fakulteteve</h3>
-                    <p>Përqindja e publikimeve sipas fakultetit.</p>
-                  </div>
-                  <PieChartIcon size={20} />
-                </div>
-                {facultyContributionRows.length ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie data={facultyContributionRows.slice(0, 8)} dataKey="publications" nameKey="name" innerRadius={58} outerRadius={94} paddingAngle={3}>
-                        {facultyContributionRows.map((entry, index) => (
-                          <Cell key={entry.name} fill={FACULTY_CHART_COLORS[index % FACULTY_CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  renderChartEmpty("Nuk ka të dhëna për këtë periudhë.")
-                )}
-              </article>
-
-              <article className="prorector-analytics-card is-wide">
-                <div className="prorector-card-head">
-                  <div>
-                    <h3>Matrix viti x fakulteti</h3>
-                    <p>Publikimet vjetore për fakultetet kryesore.</p>
-                  </div>
-                  <FileText size={20} />
-                </div>
-                {facultyPublicationMatrix.length ? (
-                  <div className="prorector-bi-matrix-wrap">
-                    <table className="prorector-bi-matrix">
-                      <thead>
-                        <tr>
-                          <th>Viti</th>
-                          {facultyContributionRows.slice(0, 5).map((row) => <th key={row.name}>{row.name}</th>)}
-                          <th>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {facultyPublicationMatrix.map((row) => (
-                          <tr key={row.year}>
-                            <td>{row.year}</td>
-                            {facultyContributionRows.slice(0, 5).map((faculty) => <td key={faculty.name}>{formatMetric(row[faculty.name])}</td>)}
-                            <td><strong>{formatMetric(row.total)}</strong></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  renderChartEmpty("Nuk ka të dhëna për këtë periudhë.")
-                )}
-              </article>
-
-              <article className="prorector-analytics-card is-wide">
-                <div className="prorector-card-head">
-                  <div>
-                    <h3>Q1-Q4 dhe financimi</h3>
-                    <p>Publikime, autorë, rimbursime dhe shuma për secilin fakultet.</p>
-                  </div>
-                  <TrendingUp size={20} />
-                </div>
-                <div className="prorector-bi-matrix-wrap">
-                  <table className="prorector-bi-matrix">
-                    <thead>
-                      <tr>
-                        <th>Fakulteti</th>
-                        <th>Autorë</th>
-                        <th>Publikime</th>
-                        <th>Rimbursime</th>
-                        <th>Financim</th>
-                        <th>Q1</th>
-                        <th>Q2</th>
-                        <th>Q3</th>
-                        <th>Q4</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {facultyContributionRows.map((row) => (
-                        <tr key={row.name}>
-                          <td>{row.name}</td>
-                          <td>{formatMetric(row.authors)}</td>
-                          <td>{formatMetric(row.publications)}</td>
-                          <td>{formatMetric(row.reimbursements)}</td>
-                          <td>{formatCurrency(row.funding)}</td>
-                          <td>{formatMetric(row.q1)}</td>
-                          <td>{formatMetric(row.q2)}</td>
-                          <td>{formatMetric(row.q3)}</td>
-                          <td>{formatMetric(row.q4)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
+          {!facultyStatsLoading ? (
+            <div className="prorector-faculty-toolbar" aria-label="Filtrat e fakulteteve">
+              <label className="prorector-faculty-search" htmlFor="prorector-faculty-search-input">
+                <Search size={17} aria-hidden="true" />
+                <input
+                  id="prorector-faculty-search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Kërko sipas emrit të fakultetit"
+                />
+              </label>
+              <label className="prorector-faculty-control">
+                <Filter size={16} aria-hidden="true" />
+                <select value={analyticsFilters.year} onChange={updateAnalyticsFilter("year")} aria-label="Filtro sipas vitit">
+                  <option value="all">Të gjitha vitet</option>
+                  {analyticsFilterOptions.years.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
             </div>
           ) : null}
 
-          {!facultyStatsLoading && filteredFacultyPerformanceRows.length > 0 ? (
+          {!facultyStatsLoading && facultyPerformanceRows.length > 0 ? (
             <div className="prorector-faculty-table-wrap prorector-simple-faculty-table-wrap">
               <table className="prorector-table prorector-faculty-table prorector-simple-faculty-table">
                 <thead>
                   <tr>
                     <th>Fakulteti</th>
-                    <th>Kodi</th>
-                    <th>Staf akademik</th>
-                    <th>Artikuj</th>
-                    <th>Konferenca dhe Simpoziume</th>
+                    <th>Profesorë</th>
+                    <th>Publikime</th>
+                    <th>Artikuj reviste</th>
+                    <th>Punime të konferencave</th>
+                    <th>Libra / Kapituj</th>
                     <th>Rimbursime</th>
-                    <th>Statusi</th>
-                    <th>Veprime</th>
+                    <th>Totali €</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredFacultyPerformanceRows.map((row) => (
+                  {facultyPerformanceRows.map((row) => (
                     <tr key={row.id || row.code || row.name}>
                       <td data-label="Fakulteti">
                         <div className="prorector-faculty-identity">
@@ -1822,24 +1703,13 @@ export default function ProRectorDashboard() {
                           </div>
                         </div>
                       </td>
-                      <td data-label="Kodi"><span className="prorector-table-muted">{row.code || "-"}</span></td>
-                      <td data-label="Staf akademik">{formatMetric(row.activeUserCount)}</td>
-                      <td data-label="Artikuj">{formatMetric(row.publicationCount)}</td>
-                      <td data-label="Konferenca dhe Simpoziume">{formatMetric(row.conferenceCount)}</td>
+                      <td data-label="Profesorë">{formatMetric(row.professorCount || row.activeUserCount)}</td>
+                      <td data-label="Publikime">{formatMetric(row.publicationCount)}</td>
+                      <td data-label="Artikuj reviste">{formatMetric(row.journalArticleCount)}</td>
+                      <td data-label="Punime të konferencave">{formatMetric(row.conferencePaperCount)}</td>
+                      <td data-label="Libra / Kapituj">{formatMetric(row.bookChapterCount)}</td>
                       <td data-label="Rimbursime">{formatMetric(row.reimbursementCount)}</td>
-                      <td data-label="Statusi">
-                        <span className="status-badge status-aprovuar">
-                          {row.statusLabel || "Aktiv"}
-                        </span>
-                      </td>
-                      <td data-label="Veprime">
-                        <Link
-                          to={`/prorector/faculties/${encodeURIComponent(getFacultyRouteId(row))}`}
-                          className="prorector-row-action-btn"
-                        >
-                          Shiko detajet
-                        </Link>
-                      </td>
+                      <td data-label="Totali €">{formatCurrency(row.totalAmount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1847,12 +1717,12 @@ export default function ProRectorDashboard() {
             </div>
           ) : null}
 
-          {!facultyStatsLoading && facultyDashboardRows.length > 0 && filteredFacultyPerformanceRows.length === 0 ? (
+          {!facultyStatsLoading && facultyStats.length > 0 && facultyPerformanceRows.length === 0 ? (
             <div className="prorector-faculty-empty">Nuk ka fakultete që përputhen me kërkimin aktual.</div>
           ) : null}
 
-          {!facultyStatsLoading && facultyDashboardRows.length === 0 ? (
-            <div className="prorector-faculty-empty">Nuk u gjet asnjë fakultet aktiv për këtë kërkim.</div>
+          {!facultyStatsLoading && facultyStats.length === 0 ? (
+            <div className="prorector-faculty-empty">Nuk ka fakultete të regjistruara ende.</div>
           ) : null}
         </div>
       );

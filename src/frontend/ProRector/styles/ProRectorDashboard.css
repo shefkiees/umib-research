@@ -693,12 +693,12 @@
 }
 
 .prorector-simple-faculty-table-wrap {
-  overflow-x: visible;
+  overflow-x: auto;
   border-radius: 10px;
 }
 
 .prorector-simple-faculty-table {
-  min-width: 0;
+  min-width: 980px;
   table-layout: auto;
 }
 
@@ -706,11 +706,12 @@
 .prorector-simple-faculty-table td {
   white-space: normal;
   vertical-align: middle;
+  padding: 14px 13px;
 }
 
 .prorector-simple-faculty-table th:first-child,
 .prorector-simple-faculty-table td:first-child {
-  min-width: 220px;
+  min-width: 260px;
 }
 
 .prorector-simple-faculty-table th:last-child,
