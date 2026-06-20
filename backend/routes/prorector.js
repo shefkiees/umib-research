@@ -80,25 +80,41 @@ function buildFilters(query = {}) {
 }
 
 function mapPublication(row = {}) {
+  const authors = Array.isArray(row.authors) ? row.authors : [];
+  const mainAuthor = authors.find((author) => author?.isMainAuthor) || authors[0] || null;
+  const correspondingAuthor = authors.find((author) => author?.isCorrespondingAuthor) || null;
+
   return {
     id: row.id,
     title: row.title || "",
-    authors: Array.isArray(row.authors) ? row.authors : [],
+    authors,
     authorNames: row.author_names || "",
+    mainAuthor: mainAuthor?.fullName || row.owner_name || "",
+    correspondingAuthor: correspondingAuthor?.fullName || "",
     faculty: row.faculty || "",
     department: row.department || "",
     type: row.publication_type || "",
     typeLabel: row.type_label || "",
     publishedIn: row.published_in || "",
+    venue: row.venue || "",
+    publisher: row.publisher || "",
     indexing: row.indexing || "Pa verifikim",
     platform: row.platform || "Pa verifikim",
     quartile: row.quartile || "Pa verifikim",
     date: row.publication_date || row.created_at,
     year: numberValue(row.publication_year),
     doi: row.doi || "",
+    issn: row.issn || "",
+    eIssn: row.e_issn || "",
+    isbn: row.isbn || "",
+    citeScore: row.cite_score || "",
+    abstract: row.abstract || "",
+    sourceUrl: row.source_url || "",
     status: row.status || "draft",
     statusLabel: row.status_label || row.status || "draft",
     regulationCategory: row.regulation_category || "Pa verifikim",
+    fundingAmount: numberValue(row.funding_amount),
+    currency: row.currency || "EUR",
   };
 }
 
@@ -164,6 +180,11 @@ publication_core as (
     p.publication_type,
     p.venue,
     p.publisher,
+    p.abstract,
+    p.source_url,
+    p.issn,
+    p.e_issn,
+    p.isbn,
     p.publication_date,
     coalesce(p.publication_year, extract(year from p.publication_date)::int, extract(year from p.created_at)::int) as publication_year,
     p.indexing_platform,
@@ -180,6 +201,9 @@ publication_core as (
     coalesce(authors.items, '[]'::jsonb) as authors,
     coalesce(authors.names, u.full_name, '') as author_names,
     coalesce(nullif(p.indexing_platform, ''), nullif(p.custom_indexing_platform, ''), nullif(latest_indexing.source, ''), nullif(latest_indexing.source_key, 'manual'), '') as platform_raw,
+    latest_indexing.cite_score,
+    coalesce(funding.approved_amount, 0) as funding_amount,
+    coalesce(funding.currency, 'EUR') as currency,
     coalesce(
       case when p.indexing_category ~* '^Q[1-4]$' then upper(p.indexing_category) end,
       case when latest_indexing.quartile ~* '^Q[1-4]$' then upper(latest_indexing.quartile) end
@@ -195,6 +219,8 @@ publication_core as (
           'fullName', pa.full_name,
           'orcid', pa.orcid,
           'affiliation', pa.affiliation,
+          'isMainAuthor', pa.is_main_author,
+          'isCorrespondingAuthor', pa.is_corresponding_author,
           'order', coalesce(nullif(pa.author_order, 0), pa.position)
         )
         order by coalesce(nullif(pa.author_order, 0), pa.position), pa.created_at
@@ -210,6 +236,13 @@ publication_core as (
     order by pi.updated_at desc, pi.created_at desc
     limit 1
   ) latest_indexing on true
+  left join lateral (
+    select
+      coalesce(sum(r.amount) filter (where r.status in ('approved', 'paid', 'committee_approved')), 0)::numeric(12, 2) as approved_amount,
+      max(r.currency) as currency
+    from reimbursements r
+    where r.publication_id = p.id
+  ) funding on true
 )`;
 
 const PUBLICATION_SELECT = `
