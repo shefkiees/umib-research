@@ -502,8 +502,25 @@ function getShortUnitLabel(value) {
     .toUpperCase() || "N/A";
 }
 
-function getRequestUnit(request = {}) {
-  return request.owner?.faculty || request.owner?.department || "Pa njësi";
+function getRequestAcademicUnit(request = {}) {
+  const profileSources = [request.owner, request.applicant, request.user].filter(Boolean);
+  const getProfileValue = (field) => {
+    for (const profile of profileSources) {
+      const overrides = profile.profileOverrides || profile.profile_overrides || {};
+      const value = overrides[field] || profile[field];
+
+      if (String(value || "").trim()) {
+        return String(value).trim();
+      }
+    }
+
+    return "";
+  };
+
+  return {
+    faculty: getProfileValue("faculty") || "Pa specifikuar",
+    department: getProfileValue("department") || "Pa specifikuar",
+  };
 }
 
 function getPublicationUnit(publication = {}) {
@@ -1657,17 +1674,17 @@ export default function CommitteeDashboard() {
   const committeeUnitStats = useMemo(() => {
     const unitMap = new Map();
 
-    const ensureUnit = (unitName) => {
-      const department = unitName || "Pa njësi";
-      const key = normalizeForSearch(department) || "pa-njesi";
+    const ensureUnit = ({ faculty, department }) => {
+      const key = `${normalizeForSearch(faculty)}::${normalizeForSearch(department)}`;
 
       if (!unitMap.has(key)) {
         unitMap.set(key, {
-          faculty: getShortUnitLabel(department),
+          id: key,
+          faculty,
           department,
           artikuj: 0,
           konferenca: 0,
-          rimbursime: 0,
+          neShqyrtim: 0,
           aprovime: 0,
           refuzime: 0,
           korrigjime: 0,
@@ -1678,19 +1695,22 @@ export default function CommitteeDashboard() {
     };
 
     reviewRequests.forEach((request) => {
-      const unit = ensureUnit(getRequestUnit(request));
-      const requestType = getRequestType(request);
-      unit.rimbursime += 1;
+      const unit = ensureUnit(getRequestAcademicUnit(request));
+      const requestType = String(getRequestType(request)).trim().toLowerCase();
 
-      if (requestType === "publication") {
+      if (["publication", "f1"].includes(requestType)) {
         unit.artikuj += 1;
       }
 
-      if (requestType === "conference") {
+      if (["conference", "f2"].includes(requestType)) {
         unit.konferenca += 1;
       }
 
-      if (request.status === "approved" || request.status === "committee_approved") {
+      if (["received", "in_review"].includes(request.status)) {
+        unit.neShqyrtim += 1;
+      }
+
+      if (request.status === "committee_approved") {
         unit.aprovime += 1;
       }
 
@@ -1704,7 +1724,7 @@ export default function CommitteeDashboard() {
     });
 
     return Array.from(unitMap.values()).sort((first, second) =>
-      (second.artikuj + second.konferenca + second.rimbursime) - (first.artikuj + first.konferenca + first.rimbursime)
+      (second.artikuj + second.konferenca) - (first.artikuj + first.konferenca)
     );
   }, [reviewRequests]);
 
@@ -1719,7 +1739,7 @@ export default function CommitteeDashboard() {
         item.department,
         item.artikuj,
         item.konferenca,
-        item.rimbursime,
+        item.neShqyrtim,
         item.aprovime,
         item.refuzime,
         item.korrigjime,
@@ -1847,9 +1867,9 @@ export default function CommitteeDashboard() {
       (acc, request) => {
         const requestType = getRequestType(request);
 
-        if (requestType === "publication") {
+        if (["publication", "f1"].includes(String(requestType).trim().toLowerCase())) {
           acc.f1 += 1;
-        } else if (requestType === "conference") {
+        } else if (["conference", "f2"].includes(String(requestType).trim().toLowerCase())) {
           acc.f2 += 1;
         }
 
@@ -2368,7 +2388,8 @@ export default function CommitteeDashboard() {
   const renderAcademicUnitReport = () => (
     <section className="committee-page-card committee-stats-only-card committee-overview-report">
       <div className="committee-page-head">
-        <h3>Raporte sipas njësive akademike</h3>
+        <h3>Statistika sipas njësive akademike</h3>
+        <p>Përmbledhje e kërkesave sipas fakultetit dhe departamentit të aplikantit.</p>
       </div>
 
       <div className="committee-table-wrap committee-dept-table-wrap">
@@ -2379,6 +2400,7 @@ export default function CommitteeDashboard() {
               <th>Departamenti</th>
               <th>Artikuj</th>
               <th>Konferenca</th>
+              <th>Në shqyrtim</th>
               <th>Aprovime</th>
               <th>Refuzime</th>
               <th>Korrigjime</th>
@@ -2386,11 +2408,12 @@ export default function CommitteeDashboard() {
           </thead>
           <tbody>
             {filteredFacultyStats.map((item) => (
-              <tr key={item.faculty}>
+              <tr key={item.id}>
                 <td>{item.faculty}</td>
                 <td>{item.department}</td>
                 <td>{item.artikuj}</td>
                 <td>{item.konferenca}</td>
+                <td>{item.neShqyrtim}</td>
                 <td>{item.aprovime}</td>
                 <td>{item.refuzime}</td>
                 <td>{item.korrigjime}</td>
@@ -2407,14 +2430,14 @@ export default function CommitteeDashboard() {
     <div className="committee-overview">
       <section className="committee-overview-grid">
         {renderOverviewPieChart({
-          title: "Shpërndarja F1 / F2",
-          description: "Kërkesat sipas formularit nga dorëzimet aktuale.",
+          title: "Artikuj Shkencorë dhe Konferenca",
+          description: "Shpërndarja e kërkesave sipas llojit të formularit: Artikuj Shkencorë (F1) dhe Konferenca / Simpoziume (F2).",
           data: committeeOverviewTypeChartData,
           emptyText: "Nuk ka ende kërkesa F1/F2 për raportim.",
         })}
         {renderOverviewPieChart({
-          title: "Statuset e kërkesave",
-          description: "Gjendja aktuale e kërkesave në workflow-in e komisionit.",
+          title: "Gjendja e kërkesave në Komision",
+          description: "Pasqyra e kërkesave sipas fazës aktuale të shqyrtimit nga Komisioni.",
           data: committeeOverviewStatusChartData,
           emptyText: "Nuk ka ende statuse kërkesash për raportim.",
         })}
