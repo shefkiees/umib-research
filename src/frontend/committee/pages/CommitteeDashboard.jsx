@@ -2645,6 +2645,61 @@ export default function CommitteeDashboard() {
         return normalizedStatus === normalizeForSearch("Kërkon korrigjim")
           || normalizedStatus === normalizeForSearch("Korrigjuar nga Komisioni");
       };
+      const renderChecklistGroup = (group, groupIndex) => {
+        const CategoryIcon = checklistCategoryIcons[groupIndex] || FileText;
+
+        return (
+          <article className={`committee-review-checklist-card is-category-${groupIndex + 1}`} key={group.title}>
+            <header>
+              <h5>
+                <span className="committee-review-checklist-category-number">{groupIndex + 1}</span>
+                <span className="committee-review-checklist-category-icon" aria-hidden="true">
+                  <CategoryIcon size={17} strokeWidth={2.5} />
+                </span>
+                <span>{group.title}</span>
+              </h5>
+              <span>{group.items.length} pika</span>
+            </header>
+            <div className="committee-review-checklist-rows">
+              {group.items.map((label) => {
+                const itemKey = getCommitteeChecklistItemKey(group.title, label);
+                const itemDraft = checklistDraft.items?.[itemKey] || {};
+                const selectedStatus = itemDraft.status || defaultStatus;
+
+                return (
+                  <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
+                    <div className="committee-review-checklist-item-main">
+                      <strong>{label}</strong>
+                      {renderChecklistValue(getChecklistItemValue(label), {
+                        expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
+                      })}
+                    </div>
+                    <select
+                      value={selectedStatus}
+                      aria-label={`Statusi për ${label}`}
+                      onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
+                    >
+                      {committeeChecklistStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    {shouldShowChecklistComment(selectedStatus) ? (
+                      <textarea
+                        className="committee-review-checklist-item-comment"
+                        placeholder="Koment për këtë pikë të checklistës"
+                        value={itemDraft.comment || ""}
+                        onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        );
+      };
 
       return (
         <section className="committee-review-section committee-review-checklist-section">
@@ -2663,62 +2718,15 @@ export default function CommitteeDashboard() {
             </div>
           ) : null}
 
-          <div className="committee-review-checklist-groups">
-            {checklistGroups.map((group, groupIndex) => {
-              const CategoryIcon = checklistCategoryIcons[groupIndex] || FileText;
-
-              return (
-                <article className={`committee-review-checklist-card is-category-${groupIndex + 1}`} key={group.title}>
-                  <header>
-                    <h5>
-                      <span className="committee-review-checklist-category-number">{groupIndex + 1}</span>
-                      <span className="committee-review-checklist-category-icon" aria-hidden="true">
-                        <CategoryIcon size={17} strokeWidth={2.5} />
-                      </span>
-                      <span>{group.title}</span>
-                    </h5>
-                    <span>{group.items.length} pika</span>
-                  </header>
-                  <div className="committee-review-checklist-rows">
-                    {group.items.map((label) => {
-                      const itemKey = getCommitteeChecklistItemKey(group.title, label);
-                      const itemDraft = checklistDraft.items?.[itemKey] || {};
-                      const selectedStatus = itemDraft.status || defaultStatus;
-
-                      return (
-                        <div className="committee-review-checklist-row" key={`${group.title}-${label}`}>
-                          <div className="committee-review-checklist-item-main">
-                            <strong>{label}</strong>
-                            {renderChecklistValue(getChecklistItemValue(label), {
-                              expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
-                            })}
-                          </div>
-                          <select
-                            value={selectedStatus}
-                            aria-label={`Statusi për ${label}`}
-                            onChange={(event) => updateCommitteeChecklistItem(itemKey, { status: event.target.value })}
-                          >
-                            {committeeChecklistStatuses.map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </select>
-                          {shouldShowChecklistComment(selectedStatus) ? (
-                            <textarea
-                              className="committee-review-checklist-item-comment"
-                              placeholder="Koment për këtë pikë të checklistës"
-                              value={itemDraft.comment || ""}
-                              onChange={(event) => updateCommitteeChecklistItem(itemKey, { comment: event.target.value })}
-                            />
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-              );
-            })}
+          <div className={`committee-review-checklist-groups ${isF2Checklist ? "" : "is-f1-checklist"}`.trim()}>
+            {isF2Checklist ? checklistGroups.map(renderChecklistGroup) : (
+              <>
+                {renderChecklistGroup(checklistGroups[0], 0)}
+                <div className="committee-review-checklist-f1-secondary">
+                  {checklistGroups.slice(1).map((group, index) => renderChecklistGroup(group, index + 1))}
+                </div>
+              </>
+            )}
           </div>
 
           <label className="committee-review-checklist-general-comment">

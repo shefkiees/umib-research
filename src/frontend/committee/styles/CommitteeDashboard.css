@@ -1961,6 +1961,24 @@
 	column-gap: 18px;
 }
 
+.committee-review-checklist-groups.is-f1-checklist {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px;
+	align-items: start;
+	column-count: initial;
+}
+
+.committee-review-checklist-groups.is-f1-checklist .committee-review-checklist-card {
+	display: block;
+	margin: 0;
+}
+
+.committee-review-checklist-f1-secondary {
+	display: grid;
+	gap: 18px;
+}
+
 .committee-review-checklist-card {
 	--checklist-accent-bg: #f1f7fd;
 	--checklist-accent-border: #cbdff3;
@@ -4584,6 +4602,10 @@ a.committee-review-checklist-value:hover {
 
 	.committee-review-checklist-groups {
 		column-count: 1;
+	}
+
+	.committee-review-checklist-groups.is-f1-checklist {
+		grid-template-columns: 1fr;
 	}
 
 	.committee-review-checklist-drawer {
