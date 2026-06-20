@@ -2791,9 +2791,11 @@ export default function CommitteeDashboard() {
                   <div className={`committee-review-checklist-row ${validationError ? "has-error" : ""}`} key={`${group.title}-${label}`}>
                     <div className="committee-review-checklist-item-main">
                       <strong>{label}</strong>
-                      {renderChecklistValue(displayedValue, {
-                        expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
-                      })}
+                      {selectedStatus !== "committee_corrected" || isF2Checklist
+                        ? renderChecklistValue(displayedValue, {
+                            expandable: requestType === "conference" && label === "Abstrakti / prezantimi",
+                          })
+                        : null}
                     </div>
                     <select
                       value={selectedStatus}
@@ -2816,9 +2818,15 @@ export default function CommitteeDashboard() {
                     </select>
                     {!isF2Checklist && selectedStatus === "committee_corrected" ? (
                       <label className="committee-review-checklist-corrected-value">
-                        <span>Vlera e korrigjuar</span>
-                        <textarea
+                        <span className="committee-review-checklist-corrected-label">Vlera e korrigjuar</span>
+                        <span className="committee-review-checklist-original-value">
+                          {renderChecklistValue(displayedValue)}
+                        </span>
+                        <span className="committee-review-checklist-correction-arrow" aria-hidden="true">→</span>
+                        <input
+                          type="text"
                           value={itemDraft.correctedValue || ""}
+                          aria-label="Vlera e korrigjuar"
                           aria-invalid={Boolean(validationError)}
                           onChange={(event) => updateCommitteeChecklistItem(itemKey, { correctedValue: event.target.value })}
                         />
