@@ -144,6 +144,8 @@ const F1_AMOUNT_UNRESOLVED_MESSAGE = "Shuma nuk mund të llogaritet automatikish
 const RETIRED_REASON_FIELD = "pur" + "pose";
 const ATTACHMENTS_REQUIRED_MESSAGE =
   "Kërkesa nuk mund të dërgohet për shqyrtim sepse nuk janë ngarkuar dokumentet mbështetëse. Kërkesa është ruajtur si draft.";
+const DUPLICATE_PUBLICATION_REIMBURSEMENT_MESSAGE =
+  "Për këtë artikull ekziston tashmë një kërkesë rimbursimi.";
 
 const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "doi",
@@ -1616,6 +1618,40 @@ async function countReimbursementAttachments(client, reimbursementId) {
   return Number(result.rows[0]?.count || 0);
 }
 
+async function hasDuplicatePublicationReimbursement(client, publicationId, excludedReimbursementId = null) {
+  if (!publicationId) {
+    return false;
+  }
+
+  await client.query(
+    `select id
+     from publications
+     where id = $1
+     for update`,
+    [publicationId]
+  );
+
+  const result = await client.query(
+    `select id
+     from reimbursements
+     where request_type = 'publication'
+       and publication_id = $1
+       and ($2::uuid is null or id <> $2::uuid)
+     limit 1`,
+    [publicationId, excludedReimbursementId]
+  );
+
+  return result.rowCount > 0;
+}
+
+function sendDuplicatePublicationReimbursementError(res) {
+  res.status(409).json({
+    error: "duplicate_publication_reimbursement",
+    message: DUPLICATE_PUBLICATION_REIMBURSEMENT_MESSAGE,
+    errors: [{ field: "publicationId", message: DUPLICATE_PUBLICATION_REIMBURSEMENT_MESSAGE }],
+  });
+}
+
 async function canAccessReimbursement(row, user) {
   if (!row) {
     return false;
@@ -2465,6 +2501,12 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
 
     const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublicationSnapshot.publication });
 
+    if (requestType === "publication" && await hasDuplicatePublicationReimbursement(client, payload.publicationId)) {
+      await client.query("rollback");
+      sendDuplicatePublicationReimbursementError(res);
+      return;
+    }
+
     const insertResult = await client.query(
       `insert into reimbursements
        (owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data, submitted_at)
@@ -2597,6 +2639,13 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       ? "submitted"
       : current.status === "needs_correction" ? "needs_correction" : "draft";
     const payload = buildRequestPayload(user, requestType, formData, { publication: linkedPublicationSnapshot.publication });
+
+    if (requestType === "publication" && await hasDuplicatePublicationReimbursement(client, payload.publicationId, current.id)) {
+      await client.query("rollback");
+      sendDuplicatePublicationReimbursementError(res);
+      return;
+    }
+
     const updateResult = await client.query(
       `update reimbursements
        set publication_id = $2,
@@ -2724,6 +2773,12 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
         message: validationErrors[0].message,
         errors: validationErrors,
       });
+      return;
+    }
+
+    if (current.request_type === "publication" && await hasDuplicatePublicationReimbursement(client, current.publication_id, current.id)) {
+      await client.query("rollback");
+      sendDuplicatePublicationReimbursementError(res);
       return;
     }
 
