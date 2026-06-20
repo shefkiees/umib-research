@@ -2417,6 +2417,8 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query);
   const q = normalizeText(req.query.q || req.query.search);
   const status = normalizeText(req.query.status);
+  const rawPublicationType = normalizeText(req.query.publicationType || req.query.publication_type || req.query.type);
+  const publicationType = normalizePublicationType(rawPublicationType);
   const scope = normalizeText(req.query.scope).toLowerCase();
   const isReviewScope = ["review", "committee", "all"].includes(scope);
   const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
@@ -2442,6 +2444,16 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
 
     params.push(status);
     filters.push(`p.status = $${params.length}`);
+  }
+
+  if (rawPublicationType) {
+    if (!publicationType || !VALID_PUBLICATION_TYPES.has(publicationType)) {
+      res.status(400).json({ error: "invalid_publication_type", message: "Tipi i publikimit nuk eshte valid." });
+      return;
+    }
+
+    params.push(publicationType);
+    filters.push(`p.publication_type = $${params.length}`);
   }
 
   try {

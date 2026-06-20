@@ -245,6 +245,31 @@ const PUBLICATION_TYPE_LABEL_KEYS = {
 };
 
 const PUBLICATION_REVIEW_ROLES = new Set(PUBLICATION_REVIEW_ROLE_VALUES);
+const PUBLICATION_LIST_PAGES = new Set([
+  "Artikuj reviste",
+  "Punime konference",
+  "Libra / Kapituj",
+  "Të gjitha publikimet",
+  "Lista e Publikimeve",
+]);
+
+const getPublicationTypeFilterForPage = (page) => {
+  if (page === "Artikuj reviste") {
+    return "journal_article";
+  }
+
+  if (page === "Punime konference") {
+    return "conference_paper";
+  }
+
+  if (page === "Libra / Kapituj") {
+    return "book";
+  }
+
+  return "";
+};
+
+const getPublicationPageTitle = (page) => (page === "Lista e Publikimeve" ? "Të gjitha publikimet" : page);
 
 const supportsPublicationIndexing = (publicationType) => publicationType === "journal_article";
 
@@ -1142,9 +1167,11 @@ export default function ProfessorDashboard() {
     };
   }, [navigate, periodRange]);
 
+  const activePublicationTypeFilter = getPublicationTypeFilterForPage(activePage);
+
   useEffect(() => {
     setPublicationsPage(1);
-  }, [searchQuery]);
+  }, [activePublicationTypeFilter, searchQuery]);
 
   const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
     setIsPublicationsLoading(true);
@@ -1159,6 +1186,10 @@ export default function ProfessorDashboard() {
 
       if (trimmedQuery) {
         params.set("q", trimmedQuery);
+      }
+
+      if (activePublicationTypeFilter) {
+        params.set("publicationType", activePublicationTypeFilter);
       }
 
       const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
@@ -1195,7 +1226,7 @@ export default function ProfessorDashboard() {
     } finally {
       setIsPublicationsLoading(false);
     }
-  }, [publicationsPage, searchQuery]);
+  }, [activePublicationTypeFilter, publicationsPage, searchQuery]);
 
   useEffect(() => {
     loadPublications({ page: publicationsPage, query: searchQuery });
@@ -1204,7 +1235,11 @@ export default function ProfessorDashboard() {
   const pageTitleMap = {
     Statistika: t("navigation.statistics"),
     Publikime: t("navigation.publications"),
-    "Lista e Publikimeve": t("navigation.publicationList"),
+    "Lista e Publikimeve": "Të gjitha publikimet",
+    "Artikuj reviste": "Artikuj reviste",
+    "Punime konference": "Punime konference",
+    "Libra / Kapituj": "Libra / Kapituj",
+    "Të gjitha publikimet": "Të gjitha publikimet",
     Konferenca: t("navigation.conferences"),
     Rimbursime: t("navigation.reimbursements"),
     "Historiku i Rimbursimeve": t("navigation.reimbursementHistory"),
@@ -1301,9 +1336,9 @@ export default function ProfessorDashboard() {
     const pageResults = [
       {
         id: "search-publications-page",
-        title: t("navigation.publicationList"),
+        title: "Të gjitha publikimet",
         meta: t("topbar.searchPageShortcut"),
-        page: "Lista e Publikimeve",
+        page: "Të gjitha publikimet",
       },
       {
         id: "search-conferences-page",
@@ -1326,7 +1361,7 @@ export default function ProfessorDashboard() {
     if (item?.page) {
       setActivePage(item.page);
       setFocusedPublicationId("");
-      if (item.page === "Lista e Publikimeve") {
+      if (PUBLICATION_LIST_PAGES.has(item.page)) {
         setPublicationsPage(1);
       }
       return;
@@ -2177,7 +2212,7 @@ export default function ProfessorDashboard() {
 
   const cancelPublicationEditAndReturn = () => {
     cancelPublicationEdit();
-    setActivePage("Lista e Publikimeve");
+    setActivePage("Të gjitha publikimet");
   };
 
   const resetManualPublicationDraft = () => {
@@ -2236,7 +2271,7 @@ export default function ProfessorDashboard() {
       }
 
       cancelPublicationEdit();
-      setActivePage("Lista e Publikimeve");
+      setActivePage("Të gjitha publikimet");
       await loadPublications({ page: publicationsPage, query: searchQuery });
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
@@ -2800,7 +2835,7 @@ export default function ProfessorDashboard() {
     <article className="prof-card publication-registry-card">
       <div className="prof-card-header publication-registry-header">
         <div>
-          <h3>{t("professor.dashboard.publicationRegistryTitle")}</h3>
+          <h3>{getPublicationPageTitle(activePage)}</h3>
         </div>
       </div>
 
@@ -2964,6 +2999,10 @@ export default function ProfessorDashboard() {
           </section>
         );
 
+      case "Artikuj reviste":
+      case "Punime konference":
+      case "Libra / Kapituj":
+      case "Të gjitha publikimet":
       case "Lista e Publikimeve":
         return (
           <section className="publications-page-shell">

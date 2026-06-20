@@ -3,7 +3,6 @@ import {
   ChevronDown,
   ChevronRight,
   History,
-  List,
   Wallet,
   BarChart3,
 } from "lucide-react";
@@ -16,6 +15,13 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const { t } = useLanguage();
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
+  const publicationSubmenu = [
+    { name: "Artikuj reviste", label: "Artikuj reviste" },
+    { name: "Punime konference", label: "Punime konference" },
+    { name: "Libra / Kapituj", label: "Libra / Kapituj" },
+    { name: "Të gjitha publikimet", label: "Të gjitha publikimet" },
+  ];
+  const publicationPages = publicationSubmenu.map((item) => item.name);
   const reimbursementSubmenu = [
     { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
     { name: "Konferenca dhe Simpoziume", label: t("navigation.reimbursementConferences"), target: "Rimbursime", reimbursementType: "conference" },
@@ -39,6 +45,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   };
 
   const handleMainItemClick = (itemName) => {
+    if (itemName === "Publikime") {
+      setIsReimbursementMenuOpen(false);
+      setActiveReimbursementSubmenu("");
+      return;
+    }
+
     if (itemName === "Rimbursime") {
       setIsReimbursementMenuOpen((isOpen) => !isOpen);
       setActiveReimbursementSubmenu("");
@@ -60,10 +72,10 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     });
   };
 
-  const handlePublicationListClick = () => {
+  const handlePublicationSubmenuClick = (page) => {
     setIsReimbursementMenuOpen(false);
     setActiveReimbursementSubmenu("");
-    handleNavigate("Lista e Publikimeve");
+    handleNavigate(page);
   };
 
   return (
@@ -84,34 +96,32 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
               <button
                 type="button"
                 className={`prof-sidebar-link ${
-                  activePage === item.name ? "active" : ""
+                  activePage === item.name || (item.name === "Publikime" && publicationPages.includes(activePage)) ? "active" : ""
                 }`}
                 onClick={() => handleMainItemClick(item.name)}
-                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : undefined}
+                aria-expanded={item.name === "Rimbursime" ? isReimbursementMenuOpen : item.name === "Publikime" ? true : undefined}
               >
                 <span className="prof-sidebar-icon">{item.icon}</span>
                 <span className="prof-sidebar-text">{item.label}</span>
-                {item.name === "Rimbursime" ? (
+                {item.name === "Publikime" || item.name === "Rimbursime" ? (
                   <span className="prof-sidebar-chevron" aria-hidden="true">
-                    {isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    {item.name === "Publikime" || isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
                 ) : null}
               </button>
 
               {item.name === "Publikime" ? (
                 <div className="prof-sidebar-submenu prof-sidebar-submenu--articles" aria-label="Nenkategorite e artikujve">
-                  <button
-                    type="button"
-                    className={`prof-sidebar-sublink prof-sidebar-sublink--with-icon ${
-                      activePage === "Lista e Publikimeve" ? "active" : ""
-                    }`}
-                    onClick={handlePublicationListClick}
-                  >
-                    <span className="prof-sidebar-subicon" aria-hidden="true">
-                      <List size={15} />
-                    </span>
-                    <span>{t("navigation.publicationList")}</span>
-                  </button>
+                  {publicationSubmenu.map((submenuItem) => (
+                    <button
+                      key={submenuItem.name}
+                      type="button"
+                      className={`prof-sidebar-sublink ${activePage === submenuItem.name ? "active" : ""}`}
+                      onClick={() => handlePublicationSubmenuClick(submenuItem.name)}
+                    >
+                      {submenuItem.label}
+                    </button>
+                  ))}
                 </div>
               ) : null}
 
