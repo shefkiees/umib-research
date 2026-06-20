@@ -638,6 +638,18 @@ create table if not exists reimbursement_status_history (
 alter table reimbursement_status_history add column if not exists actor_role text;
 alter table reimbursement_status_history add column if not exists actor_name text;
 
+alter table reimbursement_status_history
+drop constraint if exists reimbursement_status_history_previous_status_check;
+alter table reimbursement_status_history
+add constraint reimbursement_status_history_previous_status_check
+check (previous_status is null or previous_status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid'));
+
+alter table reimbursement_status_history
+drop constraint if exists reimbursement_status_history_status_check;
+alter table reimbursement_status_history
+add constraint reimbursement_status_history_status_check
+check (status in ('draft', 'submitted', 'received', 'in_review', 'needs_correction', 'committee_approved', 'approved', 'rejected', 'paid'));
+
 create index if not exists reimbursement_status_history_reimbursement_idx
 on reimbursement_status_history (reimbursement_id, created_at);
 
