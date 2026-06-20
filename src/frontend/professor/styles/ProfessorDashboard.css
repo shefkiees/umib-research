@@ -280,6 +280,31 @@ body {
   color: #0d47a1;
 }
 
+.reimbursement-coming-soon {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.reimbursement-coming-soon-content {
+  max-width: 640px;
+}
+
+.reimbursement-coming-soon-content h2 {
+  margin: 0 0 12px;
+  color: #17324f;
+  font-size: clamp(1.6rem, 3vw, 2.15rem);
+}
+
+.reimbursement-coming-soon-content p {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
 .prof-sidebar-logout-wrap {
   margin-top: 18px;
   padding-top: 10px;

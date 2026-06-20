@@ -3031,6 +3031,19 @@ export default function ProfessorDashboard() {
         );
 
       case "Rimbursime":
+        if (activeReimbursementType === "conference") {
+          return (
+            <section className="prof-card reimbursement-coming-soon" aria-labelledby="reimbursement-f2-title">
+              <div className="reimbursement-coming-soon-content">
+                <h2 id="reimbursement-f2-title">Në zhvillim</h2>
+                <p>
+                  Moduli për Konferenca dhe Simpoziume (F2) është aktualisht në proces zhvillimi dhe do të jetë i disponueshëm së shpejti.
+                </p>
+              </div>
+            </section>
+          );
+        }
+
         return (
           <ReimbursementManager
             profile={profile}
