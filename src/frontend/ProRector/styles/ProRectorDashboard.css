@@ -682,23 +682,26 @@
   padding-bottom: 4px;
 }
 
-.prorector-faculties-overview .prorector-kpi-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.prorector-faculties-overview .prorector-kpi-card {
-  min-height: 106px;
-  padding: 13px 14px;
-}
-
 .prorector-simple-faculty-table-wrap {
   overflow-x: auto;
-  border-radius: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.prorector-simple-table-title {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+.prorector-simple-table-title h3 {
+  margin: 0;
+  color: #132238;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .prorector-simple-faculty-table {
-  min-width: 980px;
+  min-width: 1080px;
   table-layout: auto;
 }
 
@@ -706,7 +709,32 @@
 .prorector-simple-faculty-table td {
   white-space: normal;
   vertical-align: middle;
-  padding: 14px 13px;
+  padding: 11px 13px;
+}
+
+.prorector-simple-faculty-table th {
+  color: #46566b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.prorector-simple-faculty-table td {
+  color: #172235;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.prorector-simple-faculty-table tbody tr:hover {
+  background: #f9fbfe;
+}
+
+.prorector-simple-faculty-table .status-badge {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .prorector-simple-faculty-table th:first-child,
