@@ -2,7 +2,10 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  FileText,
   History,
+  Layers,
+  Mic,
   Wallet,
   BarChart3,
 } from "lucide-react";
@@ -16,12 +19,12 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const publicationSubmenu = [
-    { name: "Artikuj reviste", label: "Artikuj reviste" },
-    { name: "Punime të konferencave", label: "Punime të konferencave" },
-    { name: "Libra / Kapituj", label: "Libra / Kapituj" },
-    { name: "Te gjithe Artikujt", label: "Te gjithe Artikujt" },
+    { name: "Artikuj reviste", label: "Artikuj reviste", icon: FileText },
+    { name: "Punime të konferencave", label: "Punime të konferencave", icon: Mic },
+    { name: "Libra / Kapituj", label: "Libra / Kapituj", icon: BookOpen },
+    { name: "Të gjitha publikimet", label: "Të gjitha publikimet", icon: Layers, legacyName: "Te gjithe Artikujt" },
   ];
-  const publicationPages = publicationSubmenu.map((item) => item.name);
+  const publicationPages = publicationSubmenu.flatMap((item) => [item.name, item.legacyName].filter(Boolean));
   const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
   const reimbursementSubmenu = [
     { name: "Artikuj Shkencorë", label: t("navigation.reimbursementScientificArticles"), target: "Rimbursime", reimbursementType: "publication" },
@@ -91,6 +94,8 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     setIsPublicationMenuOpen((isOpen) => !isOpen);
   };
 
+  const isPublicationSubmenuActive = (submenuItem) => activePage === submenuItem.name || activePage === submenuItem.legacyName;
+
   return (
     <aside className="prof-sidebar">
       <div className="prof-sidebar-top">
@@ -136,16 +141,23 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                   className={`prof-sidebar-submenu prof-sidebar-submenu--articles ${isPublicationMenuOpen ? "is-open" : ""}`}
                   aria-label="Nenkategorite e artikujve"
                 >
-                  {publicationSubmenu.map((submenuItem) => (
-                    <button
-                      key={submenuItem.name}
-                      type="button"
-                      className={`prof-sidebar-sublink ${activePage === submenuItem.name ? "active" : ""}`}
-                      onClick={() => handlePublicationSubmenuClick(submenuItem.name)}
-                    >
-                      {submenuItem.label}
-                    </button>
-                  ))}
+                  {publicationSubmenu.map((submenuItem) => {
+                    const SubmenuIcon = submenuItem.icon;
+
+                    return (
+                      <button
+                        key={submenuItem.name}
+                        type="button"
+                        className={`prof-sidebar-sublink prof-sidebar-sublink--with-icon ${isPublicationSubmenuActive(submenuItem) ? "active" : ""}`}
+                        onClick={() => handlePublicationSubmenuClick(submenuItem.name)}
+                      >
+                        <span className="prof-sidebar-subicon" aria-hidden="true">
+                          <SubmenuIcon size={15} strokeWidth={1.9} />
+                        </span>
+                        <span>{submenuItem.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : null}
 
