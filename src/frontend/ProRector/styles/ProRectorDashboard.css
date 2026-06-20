@@ -2326,6 +2326,104 @@ input:checked + .prorector-slider:before {
   gap: 14px;
 }
 
+.prorector-publication-charts--legacy {
+  display: none;
+}
+
+.prorector-publication-bi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prorector-bi-card {
+  min-width: 0;
+  min-height: 348px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px 16px 12px;
+}
+
+.prorector-bi-card h3 {
+  margin: 0 0 8px;
+  color: #232323;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.prorector-donut-wrap {
+  min-height: 300px;
+}
+
+.prorector-faculty-rank {
+  display: grid;
+  gap: 8px;
+  padding: 10px 4px 0;
+}
+
+.prorector-rank-top,
+.prorector-rank-bottom {
+  color: #666666;
+  font-size: 0.82rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.prorector-rank-top {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #b8b8b8;
+}
+
+.prorector-rank-bottom {
+  width: fit-content;
+  min-width: 72px;
+  margin: 2px auto 0;
+  padding-top: 8px;
+  border-top: 1px solid #b8b8b8;
+}
+
+.prorector-rank-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 34%) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.prorector-rank-row > span {
+  min-width: 0;
+  color: #626262;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prorector-rank-track {
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.prorector-rank-bar {
+  height: 100%;
+  min-width: 42px;
+  background: #1e88e5;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prorector-rank-bar strong {
+  color: inherit;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
 .prorector-publications-table-card {
   padding: 16px;
 }
@@ -3040,7 +3138,8 @@ input:checked + .prorector-slider:before {
 
 @media (max-width: 1180px) {
   .prorector-publication-kpis,
-  .prorector-publication-charts {
+  .prorector-publication-charts,
+  .prorector-publication-bi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3061,10 +3160,20 @@ input:checked + .prorector-slider:before {
 @media (max-width: 720px) {
   .prorector-publication-kpis,
   .prorector-publication-charts,
+  .prorector-publication-bi-grid,
   .prorector-publication-sidebar,
   .prorector-drawer-grid,
   .prorector-publication-filterbar {
     grid-template-columns: 1fr;
+  }
+
+  .prorector-bi-card {
+    min-height: 320px;
+  }
+
+  .prorector-rank-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .prorector-publication-table {

@@ -27,6 +27,7 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
+  Treemap,
   XAxis,
   YAxis,
 } from "recharts";
@@ -43,6 +44,7 @@ const QUARTILE_COLORS = {
   Q4: "#64748b",
   "Pa verifikim": "#94a3b8",
 };
+const FACULTY_TREEMAP_COLORS = ["#1e88e5", "#1b2a9b", "#ef6c35", "#7a007d", "#db3fa3", "#7451c4", "#0f766e", "#c9a24f"];
 
 const STATUS_LABELS = {
   draft: "Draft",
@@ -118,6 +120,14 @@ function normalizeQuartile(value) {
   return ["Q1", "Q2", "Q3", "Q4"].includes(quartile) ? quartile : "Pa verifikim";
 }
 
+function normalizeEmploymentStatus(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return "Pa të dhëna punësimi";
+  if (/part|part.time|gjys|pjes|external|honor|angazhuar/.test(text)) return "1st Author Part-time";
+  if (/full|full.time|rregullt|regular|permanent|perhersh/.test(text)) return "1st Author Full-time";
+  return value;
+}
+
 function trendMeta(current, previous) {
   if (!previous && !current) return { label: "Pa ndryshim", direction: "flat", icon: Minus };
   if (!previous) return { label: "Vit i ri", direction: current ? "up" : "flat", icon: current ? TrendingUp : Minus };
@@ -156,6 +166,7 @@ function buildPublicationAnalytics(rows, faculties) {
   const facultyCounts = new Map();
   const byYear = new Map();
   const byQuartile = new Map([["Q1", 0], ["Q2", 0], ["Q3", 0], ["Q4", 0], ["Pa verifikim", 0]]);
+  const byEmploymentStatus = new Map();
 
   rows.forEach((row) => {
     if (row.year) byYear.set(String(row.year), (byYear.get(String(row.year)) || 0) + 1);
@@ -166,6 +177,19 @@ function buildPublicationAnalytics(rows, faculties) {
       ? row.authors.map((author) => author.fullName).filter(Boolean)
       : [row.mainAuthor || row.authorNames?.split(",")[0]].filter(Boolean);
     authors.forEach((name) => authorCounts.set(name, (authorCounts.get(name) || 0) + 1));
+
+    const firstAuthor = Array.isArray(row.authors) && row.authors.length
+      ? [...row.authors].sort((a, b) => toNumber(a.order) - toNumber(b.order))[0]
+      : null;
+    const employmentStatus = normalizeEmploymentStatus(
+      firstAuthor?.employmentStatus
+      || firstAuthor?.employment_status
+      || row.mainAuthorEmploymentStatus
+      || row.main_author_employment_status
+      || row.ownerEmploymentStatus
+      || row.owner_employment_status
+    );
+    byEmploymentStatus.set(employmentStatus, (byEmploymentStatus.get(employmentStatus) || 0) + 1);
   });
 
   const sciePredicate = (row) => /SCI|SCIE|SSCI|AHCI/i.test(`${row.indexing} ${row.platform} ${row.regulationCategory}`);
@@ -196,11 +220,22 @@ function buildPublicationAnalytics(rows, faculties) {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
+  const facultyTreemap = publicationsByFaculty.map((row, index) => ({
+    ...row,
+    fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
+  }));
   const publicationsByQuartile = Array.from(byQuartile.entries()).map(([name, value]) => ({ name, value }));
+  const employmentStatusRows = Array.from(byEmploymentStatus.entries())
+    .map(([name, value], index) => ({
+      name,
+      value,
+      fill: index === 0 ? "#1e88e5" : index === 1 ? "#1b2a9b" : "#94a3b8",
+    }))
+    .sort((a, b) => b.value - a.value);
   const topAuthors = Array.from(authorCounts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   const topFaculties = Array.from(facultyCounts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
 
-  return { kpis, publicationsByYear, publicationsByFaculty, publicationsByQuartile, topAuthors, topFaculties };
+  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, publicationsByQuartile, employmentStatusRows, topAuthors, topFaculties };
 }
 
 function useProrectorResource(path, fallback) {
@@ -267,6 +302,111 @@ function StateBlock({ loading, error, empty, emptyText = "Nuk ka të dhëna për
   if (error) return <div className="prorector-inline-alert" role="alert">{error}</div>;
   if (empty) return <div className="prorector-faculty-empty">{emptyText}</div>;
   return null;
+}
+
+function FacultyTreemapTile({ x, y, width, height, name, value, fill }) {
+  if (width <= 0 || height <= 0) return null;
+
+  const canShowName = width > 92 && height > 42;
+  const canShowValue = width > 44 && height > 30;
+
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={fill || "#1e88e5"} stroke="#ffffff" strokeWidth={2} />
+      {canShowName ? (
+        <text x={x + 8} y={y + 20} fill="#ffffff" fontSize={13} fontWeight={700}>
+          {String(name).length > 28 ? `${String(name).slice(0, 25)}...` : name}
+        </text>
+      ) : null}
+      {canShowValue ? (
+        <text x={x + 8} y={y + height - 9} fill="#ffffff" fontSize={13} fontWeight={900}>
+          {formatNumber(value)}
+        </text>
+      ) : null}
+    </g>
+  );
+}
+
+function PublicationSnapshotCharts({ analytics }) {
+  const maxFacultyValue = Math.max(...analytics.publicationsByFaculty.map((row) => toNumber(row.value)), 0);
+  const minFacultyValue = Math.min(...analytics.publicationsByFaculty.map((row) => toNumber(row.value)).filter((value) => value > 0), 0);
+  const minPercent = maxFacultyValue ? Math.round((minFacultyValue / maxFacultyValue) * 1000) / 10 : 0;
+  const hasFacultyRows = analytics.publicationsByFaculty.some((row) => toNumber(row.value) > 0);
+
+  return (
+    <div className="prorector-publication-bi-grid">
+      <article className="prorector-bi-card">
+        <h3>Publication by year</h3>
+        {analytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={analytics.publicationsByYear} margin={{ top: 18, right: 12, left: 8, bottom: 22 }} barCategoryGap="28%">
+              <CartesianGrid stroke="#d6dce4" strokeDasharray="1 6" vertical={false} />
+              <XAxis dataKey="name" angle={-42} textAnchor="end" height={54} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
+              <Tooltip formatter={(value) => [formatNumber(value), "Artikuj"]} />
+              <Bar dataKey="value" name="Artikuj" fill="#1e88e5" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <ChartEmpty />}
+      </article>
+
+      <article className="prorector-bi-card">
+        <h3>Publications by Faculty</h3>
+        {analytics.facultyTreemap.some((row) => toNumber(row.value) > 0) ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <Treemap
+              data={analytics.facultyTreemap}
+              dataKey="value"
+              nameKey="name"
+              aspectRatio={4 / 3}
+              stroke="#ffffff"
+              content={<FacultyTreemapTile />}
+            />
+          </ResponsiveContainer>
+        ) : <ChartEmpty />}
+      </article>
+
+      <article className="prorector-bi-card">
+        <h3>Publications by Employment Status</h3>
+        {analytics.employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
+          <div className="prorector-donut-wrap">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart margin={{ top: 12, right: 96, bottom: 12, left: 12 }}>
+                <Pie data={analytics.employmentStatusRows} dataKey="value" nameKey="name" innerRadius={70} outerRadius={116} paddingAngle={2}>
+                  {analytics.employmentStatusRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+                </Pie>
+                <Tooltip formatter={(value, name) => [formatNumber(value), name]} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <ChartEmpty />}
+      </article>
+
+      <article className="prorector-bi-card">
+        <h3>Authors by Faculty</h3>
+        {hasFacultyRows ? (
+          <div className="prorector-faculty-rank">
+            <div className="prorector-rank-top">100%</div>
+            {analytics.publicationsByFaculty.map((row) => {
+              const percent = maxFacultyValue ? (toNumber(row.value) / maxFacultyValue) * 100 : 0;
+              return (
+                <div className="prorector-rank-row" key={row.name}>
+                  <span title={row.name}>{row.name}</span>
+                  <div className="prorector-rank-track">
+                    <div className="prorector-rank-bar" style={{ width: `${Math.max(percent, 4)}%` }}>
+                      <strong>{formatNumber(row.value)}</strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="prorector-rank-bottom">{minPercent}%</div>
+          </div>
+        ) : <ChartEmpty />}
+      </article>
+    </div>
+  );
 }
 
 function FilterBar({ filters, onChange, faculties, publicationMode = false, fundingMode = false }) {
@@ -697,7 +837,8 @@ export default function ProRectorDashboard() {
       </section>
       <section className="prorector-publication-grid">
         <div className="prorector-publication-main">
-          <div className="prorector-publication-charts">
+          <PublicationSnapshotCharts analytics={publicationAnalytics} />
+          <div className="prorector-publication-charts prorector-publication-charts--legacy">
             <article className="prorector-analytics-card">
               <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><BarChart3 size={20} /></div>
               {publicationAnalytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
