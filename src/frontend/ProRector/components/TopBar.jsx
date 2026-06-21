@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Bell, Search, User, Settings, Link2, ArrowRight } from "lucide-react";
+import { ArrowRight, Bell, Link2, Pencil, Search, Settings } from "lucide-react";
 
 export default function ProRectorTopBar({
   activePage = "Fakultetet",
@@ -125,16 +125,30 @@ export default function ProRectorTopBar({
         </div>
 
         <div className="prorector-profile-wrap" ref={profileRef}>
-          <button
-            className="prorector-profile-btn"
-            type="button"
-            onClick={() => setIsProfileOpen((current) => !current)}
-          >
-            <div>
-              <h4>{profileName}</h4>
-              <span>{profileRole}</span>
-            </div>
-          </button>
+          <div className="prorector-profile-control">
+            <button
+              className="prorector-profile-btn"
+              type="button"
+              onClick={() => setIsProfileOpen((current) => !current)}
+            >
+              <div>
+                <h4>{profileName}</h4>
+                <span>{profileRole}</span>
+              </div>
+            </button>
+            <button
+              className="prorector-profile-edit-btn"
+              type="button"
+              aria-label="Ndrysho profilin"
+              title="Ndrysho profilin"
+              onClick={() => {
+                onEditProfile?.();
+                setIsProfileOpen(false);
+              }}
+            >
+              <Pencil size={17} />
+            </button>
+          </div>
 
           {isProfileOpen ? (
             <div className="prorector-popover" role="dialog" aria-label="Profili">
@@ -142,7 +156,7 @@ export default function ProRectorTopBar({
                 onEditProfile?.();
                 setIsProfileOpen(false);
               }}>
-                <User size={18} className="prorector-popover-icon" />
+                <Pencil size={18} className="prorector-popover-icon" />
                 <span>Ndrysho profilin</span>
               </button>
               <button type="button" className="prorector-popover-item" onClick={() => {

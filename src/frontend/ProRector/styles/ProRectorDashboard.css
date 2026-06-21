@@ -238,6 +238,12 @@
   margin-left: auto;
 }
 
+.prorector-profile-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .prorector-icon-btn {
   width: 44px;
   height: 44px;
@@ -295,10 +301,33 @@
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
 }
 
-.prorector-profile-btn:hover {
+.prorector-profile-btn:hover,
+.prorector-profile-edit-btn:hover {
   background: #ffffff;
   border-color: #b3c2d6;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.prorector-profile-edit-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #cfd8e3;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #1d4d7d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  flex: 0 0 auto;
+}
+
+.prorector-profile-edit-btn:focus-visible,
+.prorector-profile-btn:focus-visible,
+.prorector-icon-btn:focus-visible {
+  outline: 3px solid rgba(29, 77, 125, 0.22);
+  outline-offset: 2px;
 }
 
 .prorector-profile-btn > div:first-child {
@@ -523,6 +552,9 @@
   transition: var(--transition);
   border-bottom: 1px solid var(--border);
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .prorector-popover-item:last-child {
@@ -538,10 +570,7 @@
 }
 
 .prorector-popover-icon {
-  display: inline-block;
-  margin-right: 8px;
-  font-size: 1.1em;
-  min-width: 20px;
+  flex: 0 0 auto;
   text-align: center;
 }
 
