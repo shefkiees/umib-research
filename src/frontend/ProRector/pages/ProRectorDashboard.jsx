@@ -141,11 +141,9 @@ function getPublicationVenue(row) {
 }
 
 function buildPublicationAnalytics(rows) {
-  const nowYear = new Date().getFullYear();
-  const previousYear = nowYear - 1;
-  const countWhere = (predicate, year) => rows.filter((row) => predicate(row) && (!year || toNumber(row.year) === year)).length;
   const facultyCounts = new Map();
   const byYear = new Map();
+  const yearFacultyCounts = new Map();
   const scopusQuartiles = new Map([
     ["Q1", 0],
     ["Q2", 0],
@@ -159,8 +157,16 @@ function buildPublicationAnalytics(rows) {
   ]);
 
   rows.forEach((row) => {
-    if (row.year) byYear.set(String(row.year), (byYear.get(String(row.year)) || 0) + 1);
-    if (row.faculty) facultyCounts.set(row.faculty, (facultyCounts.get(row.faculty) || 0) + 1);
+    const year = row.year ? String(row.year) : "";
+    const faculty = row.faculty || "Pa fakultet";
+
+    if (year) byYear.set(year, (byYear.get(year) || 0) + 1);
+    facultyCounts.set(faculty, (facultyCounts.get(faculty) || 0) + 1);
+
+    if (year) {
+      if (!yearFacultyCounts.has(year)) yearFacultyCounts.set(year, new Map());
+      yearFacultyCounts.get(year).set(faculty, (yearFacultyCounts.get(year).get(faculty) || 0) + 1);
+    }
 
     const quartile = normalizeQuartile(row.quartile);
     if (/scopus/i.test(`${row.platform} ${row.regulationCategory}`) && scopusQuartiles.has(quartile)) {
@@ -177,29 +183,27 @@ function buildPublicationAnalytics(rows) {
     }
   });
 
-  const sciePredicate = (row) => /SCI|SCIE|SSCI|AHCI/i.test(`${row.indexing} ${row.platform} ${row.regulationCategory}`);
-  const scopusQ1Q2Predicate = (row) => /scopus/i.test(`${row.platform} ${row.regulationCategory}`) && ["Q1", "Q2"].includes(normalizeQuartile(row.quartile));
-  const kpis = [
-    { label: "Numri Total i Publikimeve", value: rows.length, predicate: () => true, icon: BookOpen },
-    { label: "Publikime SCIE / SSCI / AHCI", value: countWhere(sciePredicate), predicate: sciePredicate, icon: TrendingUp },
-    { label: "Publikime Scopus Q1-Q2", value: countWhere(scopusQ1Q2Predicate), predicate: scopusQ1Q2Predicate, icon: BarChart3 },
-    { label: "Publikime gjate vitit aktual", value: countWhere(() => true, nowYear), predicate: (row) => toNumber(row.year) === nowYear, icon: Building2 },
-  ].map((card) => ({
-    ...card,
-    trend: trendMeta(countWhere(card.predicate, nowYear), countWhere(card.predicate, previousYear)),
-  }));
-
   const publicationsByYear = Array.from(byYear.entries())
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => Number(a.name) - Number(b.name));
   const publicationsByFaculty = Array.from(facultyCounts.entries())
     .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8);
-  const facultyTreemap = publicationsByFaculty.map((row, index) => ({
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "sq"));
+  const facultyPercentRows = publicationsByFaculty.map((row, index) => ({
     ...row,
+    percent: rows.length ? (row.value / rows.length) * 100 : 0,
     fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
   }));
+  const facultyColumns = publicationsByFaculty.map((row) => row.name);
+  const yearFacultyRows = publicationsByYear.map((yearRow) => {
+    const facultyMap = yearFacultyCounts.get(yearRow.name) || new Map();
+
+    return {
+      year: yearRow.name,
+      total: yearRow.value,
+      faculties: Object.fromEntries(facultyColumns.map((faculty) => [faculty, facultyMap.get(faculty) || 0])),
+    };
+  });
   const scopusQuartileRows = Array.from(scopusQuartiles.entries()).map(([name, value]) => ({
     name,
     value,
@@ -211,7 +215,16 @@ function buildPublicationAnalytics(rows) {
     fill: name === "SCIE" ? "#1e88e5" : name === "SSCI" ? "#0f766e" : "#c2410c",
   }));
 
-  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, scopusQuartileRows, webOfScienceRows };
+  return {
+    totalPublications: rows.length,
+    publicationsByYear,
+    publicationsByFaculty,
+    facultyPercentRows,
+    facultyColumns,
+    yearFacultyRows,
+    scopusQuartileRows,
+    webOfScienceRows,
+  };
 }
 
 function useProrectorResource(path, fallback) {
@@ -369,6 +382,109 @@ function PublicationSnapshotCharts({ analytics }) {
         ) : <ChartEmpty message="Nuk ka të dhëna për SCIE, SSCI dhe AHCI." />}
       </article>
     </div>
+  );
+}
+
+function PublicationGauge({ total }) {
+  const maxValue = Math.max(total * 2, 1);
+  const percent = Math.min(100, Math.round((total / maxValue) * 100));
+
+  return (
+    <article className="prorector-report-panel prorector-total-panel">
+      <h3>Numri total i publikimeve</h3>
+      <div className="prorector-total-gauge" style={{ "--gauge-value": `${percent}%` }}>
+        <div className="prorector-total-gauge-value">{formatNumber(total)}</div>
+      </div>
+      <div className="prorector-gauge-scale">
+        <span>0</span>
+        <span>{formatNumber(maxValue)}</span>
+      </div>
+    </article>
+  );
+}
+
+function FacultyPercentageChart({ rows }) {
+  return (
+    <article className="prorector-report-panel prorector-faculty-chart-panel">
+      <h3>Përqindja e publikimeve sipas fakultetit</h3>
+      {rows.some((row) => toNumber(row.value) > 0) ? (
+        <div className="prorector-faculty-chart-layout">
+          <ResponsiveContainer width="58%" height={290}>
+            <PieChart>
+              <Pie data={rows} dataKey="value" nameKey="name" outerRadius={112} labelLine label={(entry) => `${formatNumber(entry.value)} (${entry.percent.toFixed(2)}%)`}>
+                {rows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} (${item.payload.percent.toFixed(2)}%)`, "Publikime"]} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="prorector-faculty-legend">
+            <strong>Fakulteti</strong>
+            {rows.map((row) => (
+              <span key={row.name}><i style={{ background: row.fill }} />{row.name}</span>
+            ))}
+          </div>
+        </div>
+      ) : <ChartEmpty />}
+    </article>
+  );
+}
+
+function IndexSummaryTable({ title, rows }) {
+  const total = rows.reduce((sum, row) => sum + toNumber(row.value), 0);
+
+  return (
+    <article className="prorector-index-summary">
+      <h3>{title}</h3>
+      <table>
+        <thead><tr><th>Kategoria</th><th>Nr. i publikimeve</th></tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name}><td>{row.name}</td><td>{formatNumber(row.value)}</td></tr>
+          ))}
+        </tbody>
+        <tfoot><tr><th>Total</th><th>{formatNumber(total)}</th></tr></tfoot>
+      </table>
+    </article>
+  );
+}
+
+function YearFacultyMatrix({ analytics }) {
+  const facultyTotals = Object.fromEntries(analytics.facultyColumns.map((faculty) => [
+    faculty,
+    analytics.yearFacultyRows.reduce((sum, row) => sum + toNumber(row.faculties[faculty]), 0),
+  ]));
+
+  return (
+    <section className="prorector-report-panel prorector-year-faculty-panel">
+      <h3>Publikimet sipas viteve dhe fakulteteve</h3>
+      <div className="prorector-report-table-wrap">
+        <table className="prorector-report-table">
+          <thead>
+            <tr>
+              <th>Viti i publikimit</th>
+              {analytics.facultyColumns.map((faculty) => <th key={faculty}>{faculty}</th>)}
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analytics.yearFacultyRows.map((row) => (
+              <tr key={row.year}>
+                <td>{row.year}</td>
+                {analytics.facultyColumns.map((faculty) => <td key={faculty}>{row.faculties[faculty] || ""}</td>)}
+                <td><strong>{formatNumber(row.total)}</strong></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              {analytics.facultyColumns.map((faculty) => <th key={faculty}>{formatNumber(facultyTotals[faculty])}</th>)}
+              <th>{formatNumber(analytics.totalPublications)}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -772,30 +888,25 @@ export default function ProRectorDashboard() {
     <div className="prorector-publications-page">
       <section className="prorector-table-section prorector-publications-hero">
         <div className="prorector-section-head">
-          <div><h2>Artikujt</h2><p>Monitorim i cilësisë, indeksimit dhe produktivitetit shkencor nga të dhënat reale të sistemit.</p></div>
-          <span className="prorector-section-pill">Prorektor për Kërkim Shkencor</span>
+          <div><h2>Artikujt</h2><p>Raport i publikimeve sipas viteve, fakulteteve dhe platformave të indeksimit.</p></div>
         </div>
         <StateBlock loading={publications.loading} error={publications.error} />
-        <div className="prorector-publication-kpis">
-          {publicationAnalytics.kpis.map((card) => {
-            const Icon = card.icon;
-            const TrendIcon = card.trend.icon;
-            return (
-              <article className="prorector-publication-kpi" key={card.label}>
-                <div className="prorector-publication-kpi-top">
-                  <span><Icon size={17} /></span>
-                  <small className={`trend-${card.trend.direction}`}><TrendIcon size={14} /> {card.trend.label}</small>
-                </div>
-                <strong>{formatNumber(card.value)}</strong>
-                <p>{card.label}</p>
-              </article>
-            );
-          })}
-        </div>
       </section>
       <section className="prorector-publication-grid prorector-publication-grid--full">
         <div className="prorector-publication-main">
-          <PublicationSnapshotCharts analytics={publicationAnalytics} />
+          {!publications.loading && !publications.error ? (
+            <>
+              <section className="prorector-publication-report-top">
+                <PublicationGauge total={publicationAnalytics.totalPublications} />
+                <FacultyPercentageChart rows={publicationAnalytics.facultyPercentRows} />
+                <div className="prorector-index-summary-stack">
+                  <IndexSummaryTable title="Scopus sipas kuartileve" rows={publicationAnalytics.scopusQuartileRows} />
+                  <IndexSummaryTable title="Web of Science" rows={publicationAnalytics.webOfScienceRows} />
+                </div>
+              </section>
+              <YearFacultyMatrix analytics={publicationAnalytics} />
+            </>
+          ) : null}
           <section className="prorector-table-section prorector-publications-table-card">
             <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} publicationMode />
             <StateBlock loading={publications.loading} error={publications.error} empty={!publicationRows.length} emptyText="Nuk ka artikuj për filtrat aktualë." />
