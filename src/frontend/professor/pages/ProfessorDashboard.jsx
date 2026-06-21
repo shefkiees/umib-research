@@ -337,32 +337,6 @@ const normalizeIndexingPlatformValue = (value) => {
   return text;
 };
 
-const splitIndexingPlatforms = (value) => {
-  const values = Array.isArray(value) ? value : String(value || "").split(/\s*(?:,|;|\||\n)\s*/);
-  const seen = new Set();
-  const platforms = [];
-
-  values.forEach((item) => {
-    const platform = normalizeIndexingPlatformValue(item);
-    const key = platform.toLowerCase();
-
-    if (platform && !seen.has(key)) {
-      seen.add(key);
-      platforms.push(platform);
-    }
-  });
-
-  return platforms;
-};
-
-const getSelectedIndexingPlatforms = (indexing = [], fallback = "") =>
-  splitIndexingPlatforms([
-    ...splitIndexingPlatforms(fallback),
-    ...(Array.isArray(indexing) ? indexing.flatMap((item) => splitIndexingPlatforms(item?.source || item?.platform)) : []),
-  ]);
-
-const formatIndexingPlatforms = (platforms = []) => splitIndexingPlatforms(platforms).join(", ");
-
 const normalizeWebOfScienceIndexValue = (value) => {
   const normalized = String(value || "").trim().toUpperCase();
 
@@ -1425,27 +1399,22 @@ export default function ProfessorDashboard() {
     const draftIndexing = supportsIndexing && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = null;
-    const indexingPlatforms = supportsIndexing ? getSelectedIndexingPlatforms(draftIndexing, draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || "") : [];
-    const indexingPlatform = supportsIndexing ? formatIndexingPlatforms(indexingPlatforms) : "";
-    const scopusIndexing = draftIndexing.find((item) => normalizeIndexingPlatformValue(item?.source || item?.platform) === "Scopus") || selectedIndexing;
-    const webOfScienceIndexing = draftIndexing.find((item) => normalizeIndexingPlatformValue(item?.source || item?.platform) === "Web of Science") || selectedIndexing;
-    const hasScopusIndexing = indexingPlatforms.includes("Scopus");
-    const hasWebOfScienceIndexing = indexingPlatforms.includes("Web of Science");
-    const customIndexingPlatform = supportsIndexing && indexingPlatforms.includes("Other") ? String(draft.customIndexingPlatform || draft.custom_indexing_platform || "").trim() : "";
-    const webOfScienceIndex = supportsIndexing && hasWebOfScienceIndexing ? normalizeWebOfScienceIndexValue(draft.webOfScienceIndex || draft.web_of_science_index || webOfScienceIndexing.webOfScienceIndex || webOfScienceIndexing.web_of_science_index || webOfScienceIndexing.category || "") : "";
+    const indexingPlatform = supportsIndexing ? normalizeIndexingPlatformValue(draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "") : "";
+    const customIndexingPlatform = supportsIndexing && indexingPlatform === "Other" ? String(draft.customIndexingPlatform || draft.custom_indexing_platform || "").trim() : "";
+    const webOfScienceIndex = supportsIndexing && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndexValue(draft.webOfScienceIndex || draft.web_of_science_index || selectedIndexing.webOfScienceIndex || selectedIndexing.web_of_science_index || selectedIndexing.category || "") : "";
     const indexingCategory = webOfScienceIndex;
     const publicationDate = isBookPublication && !isBookChapter ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);
     const acceptanceDate = publicationType === "journal_article" ? normalizePublicationDateForPayload(draft.acceptanceDate || draft.acceptance_date) : "";
-    const quartile = supportsIndexing && hasScopusIndexing ? normalizeQuartileValue(draft.quartile || scopusIndexing.quartile || "") : "";
-    const sjr = supportsIndexing && hasScopusIndexing ? draft.sjr || scopusIndexing.sjr || "" : "";
-    const citeScore = supportsIndexing && hasScopusIndexing ? draft.citeScore || draft.cite_score || getIndexingCiteScore(scopusIndexing) : "";
-    const impactFactor = supportsIndexing && hasWebOfScienceIndexing ? draft.impactFactor || draft.impact_factor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || "" : "";
-    const quartileVerificationStatus = supportsIndexing ? draft.quartileVerificationStatus || draft.quartile_verification_status || scopusIndexing.quartileVerificationStatus || scopusIndexing.quartile_verification_status || (quartile ? "manual" : "empty") : "empty";
+    const quartile = supportsIndexing && indexingPlatform === "Scopus" ? normalizeQuartileValue(draft.quartile || selectedIndexing.quartile || "") : "";
+    const sjr = supportsIndexing && indexingPlatform === "Scopus" ? draft.sjr || selectedIndexing.sjr || "" : "";
+    const citeScore = supportsIndexing && indexingPlatform === "Scopus" ? draft.citeScore || draft.cite_score || getIndexingCiteScore(selectedIndexing) : "";
+    const impactFactor = supportsIndexing && indexingPlatform === "Web of Science" ? draft.impactFactor || draft.impact_factor || selectedIndexing.impactFactor || selectedIndexing.impact_factor || "" : "";
+    const quartileVerificationStatus = supportsIndexing ? draft.quartileVerificationStatus || draft.quartile_verification_status || selectedIndexing.quartileVerificationStatus || selectedIndexing.quartile_verification_status || (quartile ? "manual" : "empty") : "empty";
     const normalizedQuartileVerificationStatus = String(quartileVerificationStatus || "").toLowerCase();
-    const quartileVerified = supportsIndexing && normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? scopusIndexing.quartileVerified ?? scopusIndexing.quartile_verified);
+    const quartileVerified = supportsIndexing && normalizeLooseBoolean(draft.quartileVerified ?? draft.quartile_verified ?? selectedIndexing.quartileVerified ?? selectedIndexing.quartile_verified);
     const quartileFromLookup = quartileVerified || normalizedQuartileVerificationStatus === "historical" || normalizedQuartileVerificationStatus === "verified";
     const quartileSource = quartileFromLookup
-      ? draft.quartileSource || draft.quartile_source || scopusIndexing.quartileSource || scopusIndexing.quartile_source || scopusIndexing.sourceKey || scopusIndexing.source_key || "manual"
+      ? draft.quartileSource || draft.quartile_source || selectedIndexing.quartileSource || selectedIndexing.quartile_source || selectedIndexing.sourceKey || selectedIndexing.source_key || "manual"
       : "manual";
     const indexingVerified = supportsIndexing && normalizeLooseBoolean(draft.indexingVerified ?? draft.indexing_verified);
     const indexingSource = indexingVerified || quartileFromLookup
@@ -1492,37 +1461,13 @@ export default function ProfessorDashboard() {
         is_presenter: isPresenter,
       };
     });
-    const indexing = indexingPlatforms.length
-      ? indexingPlatforms.map((platform) => {
-        const item = draftIndexing.find((entry) => normalizeIndexingPlatformValue(entry?.source || entry?.platform) === platform) || {};
-        const isScopus = platform === "Scopus";
-        const isWebOfScience = platform === "Web of Science";
-
-        return {
-          ...item,
-          source: platform,
-          platform,
-          sourceKey: item.sourceKey || item.source_key || indexingSource,
-          source_key: item.source_key || item.sourceKey || indexingSource,
-          category: isWebOfScience ? indexingCategory : "",
-          webOfScienceIndex: isWebOfScience ? webOfScienceIndex : "",
-          web_of_science_index: isWebOfScience ? webOfScienceIndex : "",
-          quartile: isScopus ? quartile : "",
-          quartileVerified: isScopus && normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified),
-          quartile_verified: isScopus && normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified),
-          quartileSource: isScopus ? quartileSource : "manual",
-          quartile_source: isScopus ? quartileSource : "manual",
-          quartileVerificationStatus: isScopus ? quartileVerificationStatus : "empty",
-          quartile_verification_status: isScopus ? quartileVerificationStatus : "empty",
-          quartileSelectionReason: isScopus ? item.quartileSelectionReason || item.quartile_selection_reason || "" : "",
-          quartile_selection_reason: isScopus ? item.quartileSelectionReason || item.quartile_selection_reason || "" : "",
-          sjr: isScopus ? sjr : "",
-          citeScore: isScopus ? citeScore : "",
-          impactFactor: isWebOfScience ? impactFactor : "",
-          impact_factor: isWebOfScience ? impactFactor : "",
-        };
-      })
-      : [];
+    const indexing = draftIndexing.length
+      ? draftIndexing.map((item, index) => index === 0
+        ? { ...item, source: indexingPlatform, platform: indexingPlatform, sourceKey: item.sourceKey || item.source_key || indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile, quartileVerified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartile_verified: normalizeLooseBoolean(item.quartileVerified ?? item.quartile_verified ?? quartileVerified), quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "", quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "", sjr, citeScore, impactFactor, impact_factor: impactFactor }
+        : item)
+      : indexingPlatform || indexingCategory || quartile || sjr || citeScore || impactFactor
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile, quartileVerified, quartile_verified: quartileVerified, quartileSource, quartile_source: quartileSource, quartileVerificationStatus, quartile_verification_status: quartileVerificationStatus, sjr, citeScore, impactFactor, impact_factor: impactFactor }]
+        : [];
 
     delete payload.attachments;
     delete payload.evidenceLinks;
