@@ -241,35 +241,6 @@ function normalizeIndexingPlatform(value) {
   return INDEXING_PLATFORM_OPTIONS.includes(text) ? text : "";
 }
 
-function splitIndexingPlatforms(value) {
-  const values = Array.isArray(value) ? value : String(value || "").split(/\s*(?:,|;|\||•|\n)\s*/);
-  const seen = new Set();
-  const platforms = [];
-
-  for (const item of values) {
-    const platform = normalizeIndexingPlatform(item);
-    const key = platform.toLowerCase();
-
-    if (platform && !seen.has(key)) {
-      seen.add(key);
-      platforms.push(platform);
-    }
-  }
-
-  return platforms;
-}
-
-function getIndexingPlatforms(indexing = [], fallback = "") {
-  return splitIndexingPlatforms([
-    ...splitIndexingPlatforms(fallback),
-    ...(Array.isArray(indexing) ? indexing.flatMap((item) => splitIndexingPlatforms(item?.source || item?.platform || item?.sourceKey || item?.source_key)) : []),
-  ]);
-}
-
-function formatIndexingPlatforms(platforms = []) {
-  return splitIndexingPlatforms(platforms).join(", ");
-}
-
 function normalizeCustomIndexingPlatform(value) {
   return String(value || "").trim();
 }
@@ -558,7 +529,7 @@ export function publicationToDraft(publication = {}) {
     e_issn: publicationType === "journal_article" ? publication.e_issn || publication.eIssn || publication.eissn || "" : "",
     isbn: publicationType === "journal_article" ? "" : publication.isbn || "",
     authorAffiliation: "",
-    indexingPlatform: hasIndexing ? formatIndexingPlatforms(getIndexingPlatforms(indexing, publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source)) : "",
+    indexingPlatform: hasIndexing ? normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
     customIndexingPlatform: hasIndexing ? normalizeCustomIndexingPlatform(publication.customIndexingPlatform || publication.custom_indexing_platform || "") : "",
     custom_indexing_platform: hasIndexing ? normalizeCustomIndexingPlatform(publication.custom_indexing_platform || publication.customIndexingPlatform || "") : "",
     webOfScienceIndex: hasIndexing ? normalizeWebOfScienceIndex(publication.webOfScienceIndex || publication.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "") : "",
@@ -950,7 +921,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
   const quartileVerificationStatus = selectedQuartileStatus || "missing";
-  const indexingPlatform = supportsQuartile(publicationType) ? formatIndexingPlatforms(getIndexingPlatforms(indexing, metadata.indexingPlatform || metadata.indexing_platform)) : "";
+  const indexingPlatform = supportsQuartile(publicationType) ? normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
   const indexingCategory = hasMetadataQuartile ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
   const indexingVerified = supportsQuartile(publicationType) ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
   const indexingSource = supportsQuartile(publicationType) ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
@@ -1129,13 +1100,11 @@ const PublicationForm = ({
     return isTrustedSource(field);
   };
   const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const selectedIndexingPlatforms = getIndexingPlatforms(indexingItems, value.indexingPlatform || value.indexing_platform || primaryIndexing.source);
-  const scopusIndexing = indexingItems.find((item) => normalizeIndexingPlatform(item?.source || item?.platform) === "Scopus") || primaryIndexing;
-  const webOfScienceIndexing = indexingItems.find((item) => normalizeIndexingPlatform(item?.source || item?.platform) === "Web of Science") || primaryIndexing;
-  const isScopusIndexing = selectedIndexingPlatforms.includes("Scopus");
-  const isWebOfScienceIndexing = selectedIndexingPlatforms.includes("Web of Science");
-  const isOtherIndexing = selectedIndexingPlatforms.includes("Other");
-  const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || webOfScienceIndexing.webOfScienceIndex || webOfScienceIndexing.web_of_science_index || webOfScienceIndexing.category || "");
+  const selectedIndexingPlatform = normalizeIndexingPlatform(value.indexingPlatform || primaryIndexing.source || "");
+  const isScopusIndexing = selectedIndexingPlatform === "Scopus";
+  const isWebOfScienceIndexing = selectedIndexingPlatform === "Web of Science";
+  const isOtherIndexing = selectedIndexingPlatform === "Other";
+  const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "");
   const selectedCustomIndexingPlatform = normalizeCustomIndexingPlatform(value.customIndexingPlatform || value.custom_indexing_platform || "");
   const hasAuthorValue = (author = {}) => Boolean(String(author.fullName || "").trim());
   const hasAffiliationValue = (author = {}) => Boolean(String(author.affiliation || "").trim());
@@ -1386,71 +1355,63 @@ const PublicationForm = ({
   };
 
   const updateIndexingField = (field) => (event) => {
-    const nextValue = field === "indexingPlatform"
-      ? Array.from(event.target.selectedOptions || []).map((option) => option.value).filter(Boolean)
-      : event.target.value;
+    const nextValue = event.target.value;
     const indexing = Array.isArray(value.indexing) ? value.indexing : [];
-    const nextPlatforms = field === "indexingPlatform"
-      ? splitIndexingPlatforms(nextValue)
-      : selectedIndexingPlatforms;
-    const nextIndexingPlatform = formatIndexingPlatforms(nextPlatforms);
-    const nextCustomIndexingPlatform = nextPlatforms.includes("Other")
+    const [firstIndexing = {}, ...restIndexing] = indexing;
+    const nextPlatform = normalizeIndexingPlatform(field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "");
+    const nextCustomIndexingPlatform = nextPlatform === "Other"
       ? field === "customIndexingPlatform"
-        ? normalizeCustomIndexingPlatform(event.target.value)
+        ? normalizeCustomIndexingPlatform(nextValue)
         : selectedCustomIndexingPlatform
       : "";
-    const nextWebOfScienceIndex = nextPlatforms.includes("Web of Science")
+    const nextWebOfScienceIndex = nextPlatform === "Web of Science"
       ? field === "webOfScienceIndex"
-        ? normalizeWebOfScienceIndex(event.target.value)
+        ? normalizeWebOfScienceIndex(nextValue)
         : selectedWebOfScienceIndex
       : "";
-    const nextCategory = nextPlatforms.includes("Web of Science") ? nextWebOfScienceIndex : "";
-    const nextQuartile = nextPlatforms.includes("Scopus")
+    const nextCategory = nextPlatform === "Web of Science" ? nextWebOfScienceIndex : "";
+    const nextQuartile = nextPlatform === "Scopus"
       ? field === "quartile"
-        ? normalizeQuartile(event.target.value)
+        ? normalizeQuartile(nextValue)
         : normalizeQuartile(displayableQuartile || "")
       : "";
-    const nextSjr = nextPlatforms.includes("Scopus") ? field === "sjr" ? event.target.value : value.sjr || scopusIndexing.sjr || "" : "";
-    const nextCiteScore = nextPlatforms.includes("Scopus") ? field === "citeScore" ? event.target.value : value.citeScore || getIndexingCiteScore(scopusIndexing) : "";
-    const nextImpactFactor = nextPlatforms.includes("Web of Science") ? field === "impactFactor" ? event.target.value : value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || "" : "";
+    const nextSjr = nextPlatform === "Scopus" ? field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "" : "";
+    const nextCiteScore = nextPlatform === "Scopus" ? field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(primaryIndexing) : "";
+    const nextImpactFactor = nextPlatform === "Web of Science" ? field === "impactFactor" ? nextValue : value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "";
     const nextQuartileStatus = field === "quartile" && nextQuartile
       ? "manual"
-      : scopusIndexing.quartileVerificationStatus || scopusIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
-    const nextIndexing = nextPlatforms.map((platform) => {
-      const existing = indexing.find((item) => normalizeIndexingPlatform(item?.source || item?.platform) === platform) || {};
-      const isScopus = platform === "Scopus";
-      const isWebOfScience = platform === "Web of Science";
-
-      return {
-        ...existing,
-        source: platform,
-        platform,
-        sourceKey: "manual",
-        source_key: "manual",
-        category: isWebOfScience ? nextCategory : "",
-        webOfScienceIndex: isWebOfScience ? nextWebOfScienceIndex : "",
-        web_of_science_index: isWebOfScience ? nextWebOfScienceIndex : "",
-        quartile: isScopus ? nextQuartile : "",
-        quartileVerified: false,
-        quartile_verified: false,
-        quartileSource: "manual",
-        quartile_source: "manual",
-        quartileVerificationStatus: isScopus ? nextQuartileStatus : "empty",
-        quartile_verification_status: isScopus ? nextQuartileStatus : "empty",
-        quartileSelectionReason: isScopus && field === "quartile" ? "manual_edit" : existing.quartileSelectionReason || existing.quartile_selection_reason || "",
-        quartile_selection_reason: isScopus && field === "quartile" ? "manual_edit" : existing.quartileSelectionReason || existing.quartile_selection_reason || "",
-        sjr: isScopus ? nextSjr : "",
-        citeScore: isScopus ? nextCiteScore : "",
-        impactFactor: isWebOfScience ? nextImpactFactor : "",
-        impact_factor: isWebOfScience ? nextImpactFactor : "",
-      };
-    });
+      : primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
+    const nextFirstIndexing = {
+      ...firstIndexing,
+      source: nextPlatform,
+      platform: nextPlatform,
+      sourceKey: "manual",
+      category: nextCategory,
+      webOfScienceIndex: nextWebOfScienceIndex,
+      web_of_science_index: nextWebOfScienceIndex,
+      quartile: nextQuartile,
+      quartileVerified: false,
+      quartile_verified: false,
+      quartileSource: "manual",
+      quartile_source: "manual",
+      quartileVerificationStatus: nextQuartileStatus,
+      quartile_verification_status: nextQuartileStatus,
+      quartileSelectionReason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
+      quartile_selection_reason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
+      sjr: nextSjr,
+      citeScore: nextCiteScore,
+      impactFactor: nextImpactFactor,
+      impact_factor: nextImpactFactor,
+    };
+    const nextIndexing = nextFirstIndexing.source || nextFirstIndexing.category || nextFirstIndexing.quartile || nextFirstIndexing.sjr || nextFirstIndexing.citeScore || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
+      ? [nextFirstIndexing, ...restIndexing]
+      : restIndexing;
 
     onChange({
       ...value,
-      [field]: field === "indexingPlatform" ? nextIndexingPlatform : nextValue,
-      indexingPlatform: nextIndexingPlatform,
-      indexing_platform: nextIndexingPlatform,
+      [field]: nextValue,
+      indexingPlatform: nextPlatform,
+      indexing_platform: nextPlatform,
       customIndexingPlatform: nextCustomIndexingPlatform,
       custom_indexing_platform: nextCustomIndexingPlatform,
       webOfScienceIndex: nextWebOfScienceIndex,
@@ -1557,27 +1518,27 @@ const PublicationForm = ({
         errors.issn = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (!selectedIndexingPlatforms.length) {
+      if (!selectedIndexingPlatform) {
         errors.indexingPlatform = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (isScopusIndexing && !displayableQuartile) {
+      if (selectedIndexingPlatform === "Scopus" && !displayableQuartile) {
         errors.quartile = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (isScopusIndexing && !String(value.citeScore || getIndexingCiteScore(scopusIndexing) || "").trim()) {
+      if (selectedIndexingPlatform === "Scopus" && !String(value.citeScore || getIndexingCiteScore(primaryIndexing) || "").trim()) {
         errors.citeScore = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (isWebOfScienceIndexing && !selectedWebOfScienceIndex) {
+      if (selectedIndexingPlatform === "Web of Science" && !selectedWebOfScienceIndex) {
         errors.webOfScienceIndex = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (isWebOfScienceIndexing && !String(value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || "").trim()) {
+      if (selectedIndexingPlatform === "Web of Science" && !String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()) {
         errors.impactFactor = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (isOtherIndexing && !selectedCustomIndexingPlatform) {
+      if (selectedIndexingPlatform === "Other" && !selectedCustomIndexingPlatform) {
         errors.customIndexingPlatform = REQUIRED_FIELD_MESSAGE;
       }
     }
@@ -2004,8 +1965,7 @@ const PublicationForm = ({
             <label className={`prof-form-field${requiredClassName("indexingPlatform")}`}>
               <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"))}</span>
               <select
-                multiple
-                value={selectedIndexingPlatforms}
+                value={selectedIndexingPlatform}
                 onChange={updateIndexingField("indexingPlatform")}
                 disabled={isFieldLocked("indexingPlatform")}
                 aria-invalid={Boolean(fieldErrors.indexingPlatform)}
@@ -2053,7 +2013,7 @@ const PublicationForm = ({
                 <label className={`prof-form-field${requiredClassName("citeScore")}`}>
                   <span>{requiredLabel(t("professor.dashboard.publicationForm.citeScore"))}</span>
                   <input
-                    value={value.citeScore || getIndexingCiteScore(scopusIndexing)}
+                    value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
                     onChange={updateIndexingField("citeScore")}
                     readOnly={isFieldLocked("citeScore")}
                     aria-invalid={Boolean(fieldErrors.citeScore)}
@@ -2083,7 +2043,7 @@ const PublicationForm = ({
                 <label className={`prof-form-field${requiredClassName("impactFactor")}`}>
                   <span>{requiredLabel(t("professor.dashboard.publicationForm.impactFactor"))}</span>
                   <input
-                    value={value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || ""}
+                    value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
                     onChange={updateIndexingField("impactFactor")}
                     readOnly={isFieldLocked("impactFactor")}
                     aria-invalid={Boolean(fieldErrors.impactFactor)}

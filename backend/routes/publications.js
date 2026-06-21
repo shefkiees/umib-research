@@ -581,28 +581,6 @@ function normalizeIndexingPlatform(value) {
   return text;
 }
 
-function splitIndexingPlatforms(value) {
-  const values = Array.isArray(value) ? value : String(value || "").split(/\s*(?:,|;|\||•|\n)\s*/);
-  const seen = new Set();
-  const platforms = [];
-
-  for (const item of values) {
-    const platform = normalizeIndexingPlatform(item);
-    const key = platform.toLowerCase();
-
-    if (platform && !seen.has(key)) {
-      seen.add(key);
-      platforms.push(platform);
-    }
-  }
-
-  return platforms;
-}
-
-function formatIndexingPlatforms(platforms = []) {
-  return splitIndexingPlatforms(platforms).join(", ");
-}
-
 function normalizeCustomIndexingPlatform(value) {
   return normalizeText(value);
 }
@@ -823,10 +801,9 @@ function sanitizeConferenceAuthorAffiliations(authors = [], publicationType = ""
 }
 
 function deriveIndexingPlatform(indexing = [], fallback = "") {
-  return formatIndexingPlatforms([
-    ...splitIndexingPlatforms(fallback),
-    ...(Array.isArray(indexing) ? indexing.flatMap((item) => splitIndexingPlatforms(item?.source || item?.platform || item?.sourceKey || item?.source_key)) : []),
-  ]);
+  return normalizeIndexingPlatform(fallback)
+    || (Array.isArray(indexing) ? indexing.map((item) => normalizeIndexingPlatform(item?.source || item?.platform || item?.sourceKey || item?.source_key)).find(Boolean) : "")
+    || "";
 }
 
 function deriveIndexingCategory(indexing = [], publicationType = "", fallback = "") {
@@ -1138,19 +1115,16 @@ function normalizePublicationPayload(body = {}, options = {}) {
   }
 
   const authors = normalizeAuthors(body.authors);
-  const requestedIndexingPlatforms = canIndexPublication ? splitIndexingPlatforms(body.indexingPlatform || body.indexing_platform) : [];
-  const requestedIndexingPlatform = requestedIndexingPlatforms[0] || "";
-  const hasRequestedScopus = requestedIndexingPlatforms.includes("Scopus");
-  const hasRequestedWebOfScience = requestedIndexingPlatforms.includes("Web of Science");
-  const bodyCustomIndexingPlatform = canIndexPublication && requestedIndexingPlatforms.includes("Other")
+  const requestedIndexingPlatform = canIndexPublication ? normalizeIndexingPlatform(body.indexingPlatform || body.indexing_platform) : "";
+  const bodyCustomIndexingPlatform = canIndexPublication && requestedIndexingPlatform === "Other"
     ? normalizeCustomIndexingPlatform(body.customIndexingPlatform || body.custom_indexing_platform)
     : "";
-  const bodyWebOfScienceIndex = canIndexPublication && hasRequestedWebOfScience
+  const bodyWebOfScienceIndex = canIndexPublication && requestedIndexingPlatform === "Web of Science"
     ? normalizeWebOfScienceIndex(body.webOfScienceIndex || body.web_of_science_index || body.indexingCategory || body.indexing_category)
     : "";
-  const bodyImpactFactor = canIndexPublication && hasRequestedWebOfScience ? normalizeImpactFactorValue(body.impactFactor || body.impact_factor) : "";
-  const bodyQuartile = canIndexPublication && hasRequestedScopus ? normalizeQuartile(body.quartile) : "";
-  const bodyCiteScore = canIndexPublication && hasRequestedScopus ? normalizeText(body.citeScore || body.cite_score || body.citescore) : "";
+  const bodyImpactFactor = canIndexPublication && requestedIndexingPlatform === "Web of Science" ? normalizeImpactFactorValue(body.impactFactor || body.impact_factor) : "";
+  const bodyQuartile = canIndexPublication && requestedIndexingPlatform === "Scopus" ? normalizeQuartile(body.quartile) : "";
+  const bodyCiteScore = canIndexPublication && requestedIndexingPlatform === "Scopus" ? normalizeText(body.citeScore || body.cite_score || body.citescore) : "";
   const rawIndexing = canIndexPublication
     ? Array.isArray(body.indexing) && body.indexing.length
       ? body.indexing
@@ -1178,12 +1152,10 @@ function normalizePublicationPayload(body = {}, options = {}) {
     : undefined;
   const authorAffiliation = null;
   const indexingPlatform = canIndexPublication ? deriveIndexingPlatform(indexing, body.indexingPlatform || body.indexing_platform) : "";
-  const indexingPlatforms = splitIndexingPlatforms(indexingPlatform);
-  const hasWebOfScienceIndexing = indexingPlatforms.includes("Web of Science");
-  const customIndexingPlatform = canIndexPublication && indexingPlatforms.includes("Other")
+  const customIndexingPlatform = canIndexPublication && indexingPlatform === "Other"
     ? normalizeCustomIndexingPlatform(body.customIndexingPlatform || body.custom_indexing_platform || bodyCustomIndexingPlatform)
     : "";
-  const webOfScienceIndex = canIndexPublication && hasWebOfScienceIndexing
+  const webOfScienceIndex = canIndexPublication && indexingPlatform === "Web of Science"
     ? normalizeWebOfScienceIndex(body.webOfScienceIndex || body.web_of_science_index || bodyWebOfScienceIndex || deriveIndexingCategory(indexing, publicationType))
     : "";
   const indexingCategory = webOfScienceIndex;
@@ -1220,7 +1192,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
       || item.indexed_url
     )
   );
-  const shouldRequireIndexingPlatform = publicationType === "journal_article" && hasIndexingClaim && !indexingPlatforms.length;
+  const shouldRequireIndexingPlatform = publicationType === "journal_article" && hasIndexingClaim && !indexingPlatform;
 
   if (!authors.length) {
     errors.push({ field: "authors", message: "Shto se paku nje autor per publikimin." });
@@ -1232,7 +1204,7 @@ function normalizePublicationPayload(body = {}, options = {}) {
 
   if (shouldRequireIndexingPlatform) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme kerkohet kur publikimi shenohet si i indeksuar." });
-  } else if (indexingPlatforms.some((platform) => !VALID_INDEXING_PLATFORMS.has(platform))) {
+  } else if (indexingPlatform && !VALID_INDEXING_PLATFORMS.has(indexingPlatform)) {
     errors.push({ field: "indexingPlatform", message: "Indeksimi ne platforme nuk eshte valid." });
   }
 
@@ -1252,72 +1224,33 @@ function normalizePublicationPayload(body = {}, options = {}) {
     ? []
     : indexing !== undefined
     ? indexing.length
-      ? indexing.map((item, index) => {
-        const itemPlatform = normalizeIndexingPlatform(item.source || item.platform)
-          || (indexingPlatforms.length === 1 ? indexingPlatforms[0] : "")
-          || (index === 0 ? requestedIndexingPlatform : "");
-        const isScopusItem = itemPlatform === "Scopus";
-        const isWebOfScienceItem = itemPlatform === "Web of Science";
-        const itemQuartile = isScopusItem ? normalizeQuartile(item.quartile || bodyQuartile) : "";
-        const itemWebOfScienceIndex = isWebOfScienceItem
-          ? normalizeWebOfScienceIndex(item.webOfScienceIndex || item.web_of_science_index || item.category || webOfScienceIndex)
-          : "";
-        const itemImpactFactor = isWebOfScienceItem ? normalizeImpactFactorValue(item.impactFactor || item.impact_factor || bodyImpactFactor) : "";
-        const itemCiteScore = isScopusItem ? normalizeText(item.citeScore || item.cite_score || item.citescore || bodyCiteScore) : "";
-
-        return {
+      ? indexing.map((item, index) => index === 0
+        ? {
             ...item,
-            source: itemPlatform,
-            platform: itemPlatform,
+            source: indexingPlatform,
+            platform: indexingPlatform,
             sourceKey: item.sourceKey || item.source_key || indexingSource,
             source_key: item.source_key || item.sourceKey || indexingSource,
-            category: itemWebOfScienceIndex,
-            webOfScienceIndex: itemWebOfScienceIndex,
-            web_of_science_index: itemWebOfScienceIndex,
-            quartile: itemQuartile,
+            category: indexingCategory,
+            webOfScienceIndex,
+            web_of_science_index: webOfScienceIndex,
+            quartile: bodyQuartile,
             quartileVerified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
             quartile_verified: normalizeBoolean(item.quartileVerified ?? item.quartile_verified),
             quartileSource: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
             quartile_source: normalizeIndexingSource(item.quartileSource || item.quartile_source || indexingSource),
-            quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (itemQuartile ? "manual" : "empty"),
-            quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (itemQuartile ? "manual" : "empty"),
+            quartileVerificationStatus: item.quartileVerificationStatus || item.quartile_verification_status || (bodyQuartile ? "manual" : "empty"),
+            quartile_verification_status: item.quartileVerificationStatus || item.quartile_verification_status || (bodyQuartile ? "manual" : "empty"),
             quartileSelectionReason: item.quartileSelectionReason || item.quartile_selection_reason || "",
             quartile_selection_reason: item.quartileSelectionReason || item.quartile_selection_reason || "",
-            impactFactor: itemImpactFactor,
-            impact_factor: itemImpactFactor,
-            citeScore: itemCiteScore,
-            cite_score: itemCiteScore,
-          };
-        })
-      : hasIndexingClaim || indexingPlatforms.length
-        ? indexingPlatforms.map((platform) => {
-          const isScopusItem = platform === "Scopus";
-          const isWebOfScienceItem = platform === "Web of Science";
-
-          return {
-            source: platform,
-            platform,
-            sourceKey: indexingSource,
-            source_key: indexingSource,
-            category: isWebOfScienceItem ? indexingCategory : "",
-            webOfScienceIndex: isWebOfScienceItem ? webOfScienceIndex : "",
-            web_of_science_index: isWebOfScienceItem ? webOfScienceIndex : "",
-            quartile: isScopusItem ? bodyQuartile : "",
-            quartileVerified: isScopusItem && normalizeBoolean(body.quartileVerified ?? body.quartile_verified),
-            quartile_verified: isScopusItem && normalizeBoolean(body.quartileVerified ?? body.quartile_verified),
-            quartileSource: isScopusItem ? normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource) : "manual",
-            quartile_source: isScopusItem ? normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource) : "manual",
-            quartileVerificationStatus: isScopusItem ? body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty") : "empty",
-            quartile_verification_status: isScopusItem ? body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty") : "empty",
-            quartileSelectionReason: isScopusItem ? body.quartileSelectionReason || body.quartile_selection_reason || "" : "",
-            quartile_selection_reason: isScopusItem ? body.quartileSelectionReason || body.quartile_selection_reason || "" : "",
-            impactFactor: isWebOfScienceItem ? bodyImpactFactor : "",
-            impact_factor: isWebOfScienceItem ? bodyImpactFactor : "",
-            sjr: isScopusItem ? normalizeText(body.sjr) : "",
-            citeScore: isScopusItem ? bodyCiteScore : "",
-            indexedUrl: "",
-          };
-        })
+            impactFactor: bodyImpactFactor,
+            impact_factor: bodyImpactFactor,
+            citeScore: bodyCiteScore,
+            cite_score: bodyCiteScore,
+          }
+        : item)
+      : hasIndexingClaim || indexingPlatform
+        ? [{ source: indexingPlatform, platform: indexingPlatform, sourceKey: indexingSource, source_key: indexingSource, category: indexingCategory, webOfScienceIndex, web_of_science_index: webOfScienceIndex, quartile: bodyQuartile, quartileVerified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartile_verified: normalizeBoolean(body.quartileVerified ?? body.quartile_verified), quartileSource: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartile_source: normalizeIndexingSource(body.quartileSource || body.quartile_source || indexingSource), quartileVerificationStatus: body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty"), quartile_verification_status: body.quartileVerificationStatus || body.quartile_verification_status || (bodyQuartile ? "manual" : "empty"), quartileSelectionReason: body.quartileSelectionReason || body.quartile_selection_reason || "", quartile_selection_reason: body.quartileSelectionReason || body.quartile_selection_reason || "", impactFactor: bodyImpactFactor, impact_factor: bodyImpactFactor, sjr: indexingPlatform === "Scopus" ? normalizeText(body.sjr) : "", citeScore: bodyCiteScore, indexedUrl: "" }]
         : []
     : undefined;
 
@@ -1453,9 +1386,8 @@ function mapPublication(row) {
   })) : [];
   const authorAffiliation = null;
   const indexingPlatform = supportsPublicationIndexing(publicationType) ? row.indexing_platform || deriveIndexingPlatform(indexing) : "";
-  const indexingPlatforms = splitIndexingPlatforms(indexingPlatform);
-  const customIndexingPlatform = supportsPublicationIndexing(publicationType) && indexingPlatforms.includes("Other") ? normalizeCustomIndexingPlatform(row.custom_indexing_platform) : "";
-  const webOfScienceIndex = supportsPublicationIndexing(publicationType) && indexingPlatforms.includes("Web of Science") ? normalizeWebOfScienceIndex(row.web_of_science_index || deriveIndexingCategory(indexing, publicationType)) : "";
+  const customIndexingPlatform = supportsPublicationIndexing(publicationType) && indexingPlatform === "Other" ? normalizeCustomIndexingPlatform(row.custom_indexing_platform) : "";
+  const webOfScienceIndex = supportsPublicationIndexing(publicationType) && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndex(row.web_of_science_index || deriveIndexingCategory(indexing, publicationType)) : "";
   const indexingCategory = supportsPublicationIndexing(publicationType) ? webOfScienceIndex : "";
   const indexingVerified = supportsPublicationIndexing(publicationType) && Boolean(row.indexing_verified);
   const indexingSource = supportsPublicationIndexing(publicationType) ? normalizeIndexingSource(row.indexing_source || indexing.find((item) => item.sourceKey)?.sourceKey || indexing.find((item) => item.source)?.source) : "manual";
