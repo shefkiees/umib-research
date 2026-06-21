@@ -7,13 +7,11 @@ import {
   Download,
   ExternalLink,
   FileText,
-  LibraryBig,
   Minus,
   RefreshCw,
   Search,
   Save,
   TrendingUp,
-  UsersRound,
   WalletCards,
   X,
 } from "lucide-react";
@@ -37,13 +35,6 @@ import ProRectorTopBar from "../components/TopBar";
 import { apiUrl } from "../../utils/api";
 
 const CHART_COLORS = ["#1d4d7d", "#15803d", "#c9a24f", "#be123c", "#6d5bd0", "#0f766e", "#b45309", "#475569"];
-const QUARTILE_COLORS = {
-  Q1: "#15803d",
-  Q2: "#2563eb",
-  Q3: "#d97706",
-  Q4: "#64748b",
-  "Pa verifikim": "#94a3b8",
-};
 const FACULTY_TREEMAP_COLORS = ["#1e88e5", "#1b2a9b", "#ef6c35", "#7a007d", "#db3fa3", "#7451c4", "#0f766e", "#c9a24f"];
 
 const STATUS_LABELS = {
@@ -121,11 +112,10 @@ function normalizeQuartile(value) {
 }
 
 function normalizeEmploymentStatus(value) {
-  const text = String(value || "").trim().toLowerCase();
-  if (!text) return "Pa të dhëna punësimi";
-  if (/part|part.time|gjys|pjes|external|honor|angazhuar/.test(text)) return "1st Author Part-time";
-  if (/full|full.time|rregullt|regular|permanent|perhersh/.test(text)) return "1st Author Full-time";
-  return value;
+  const status = String(value || "").trim().toLowerCase();
+  if (["full_time", "full-time", "fulltime"].includes(status)) return "full_time";
+  if (["part_time", "part-time", "parttime"].includes(status)) return "part_time";
+  return "";
 }
 
 function trendMeta(current, previous) {
@@ -157,60 +147,46 @@ function getPublicationVenue(row) {
   return row.venue || row.publishedIn || row.publisher || "-";
 }
 
-function buildPublicationAnalytics(rows, faculties) {
+function buildPublicationAnalytics(rows) {
   const nowYear = new Date().getFullYear();
   const previousYear = nowYear - 1;
   const countWhere = (predicate, year) => rows.filter((row) => predicate(row) && (!year || toNumber(row.year) === year)).length;
-  const activeFaculties = new Set(rows.map((row) => row.faculty).filter(Boolean));
-  const authorCounts = new Map();
+  const facultyAuthorSets = new Map();
   const facultyCounts = new Map();
   const byYear = new Map();
-  const byQuartile = new Map([["Q1", 0], ["Q2", 0], ["Q3", 0], ["Q4", 0], ["Pa verifikim", 0]]);
-  const byEmploymentStatus = new Map();
+  const byEmploymentStatus = new Map([
+    ["full_time", 0],
+    ["part_time", 0],
+  ]);
 
   rows.forEach((row) => {
     if (row.year) byYear.set(String(row.year), (byYear.get(String(row.year)) || 0) + 1);
     if (row.faculty) facultyCounts.set(row.faculty, (facultyCounts.get(row.faculty) || 0) + 1);
-    byQuartile.set(normalizeQuartile(row.quartile), (byQuartile.get(normalizeQuartile(row.quartile)) || 0) + 1);
+    const employmentStatus = normalizeEmploymentStatus(row.employmentStatus);
+    if (employmentStatus) {
+      byEmploymentStatus.set(employmentStatus, (byEmploymentStatus.get(employmentStatus) || 0) + 1);
+    }
 
     const authors = Array.isArray(row.authors) && row.authors.length
       ? row.authors.map((author) => author.fullName).filter(Boolean)
       : [row.mainAuthor || row.authorNames?.split(",")[0]].filter(Boolean);
-    authors.forEach((name) => authorCounts.set(name, (authorCounts.get(name) || 0) + 1));
-
-    const firstAuthor = Array.isArray(row.authors) && row.authors.length
-      ? [...row.authors].sort((a, b) => toNumber(a.order) - toNumber(b.order))[0]
-      : null;
-    const employmentStatus = normalizeEmploymentStatus(
-      firstAuthor?.employmentStatus
-      || firstAuthor?.employment_status
-      || row.mainAuthorEmploymentStatus
-      || row.main_author_employment_status
-      || row.ownerEmploymentStatus
-      || row.owner_employment_status
-    );
-    byEmploymentStatus.set(employmentStatus, (byEmploymentStatus.get(employmentStatus) || 0) + 1);
+    if (row.faculty) {
+      const facultyAuthors = facultyAuthorSets.get(row.faculty) || new Set();
+      authors.forEach((name) => facultyAuthors.add(name));
+      facultyAuthorSets.set(row.faculty, facultyAuthors);
+    }
   });
 
   const sciePredicate = (row) => /SCI|SCIE|SSCI|AHCI/i.test(`${row.indexing} ${row.platform} ${row.regulationCategory}`);
   const scopusQ1Q2Predicate = (row) => /scopus/i.test(`${row.platform} ${row.regulationCategory}`) && ["Q1", "Q2"].includes(normalizeQuartile(row.quartile));
-  const conferencePredicate = (row) => row.type === "conference_paper" || /konference/i.test(row.typeLabel || "");
-  const booksPredicate = (row) => ["book", "book_chapter"].includes(row.type) || /lib|kapitull/i.test(row.typeLabel || "");
-
   const kpis = [
-    { label: "Artikuj Totalë", value: rows.length, predicate: () => true, icon: BookOpen },
-    { label: "Artikuj SCI/SCIE/SSCI/AHCI", value: countWhere(sciePredicate), predicate: sciePredicate, icon: TrendingUp },
-    { label: "Artikuj Scopus Q1-Q2", value: countWhere(scopusQ1Q2Predicate), predicate: scopusQ1Q2Predicate, icon: BarChart3 },
-    { label: "Punime Konference", value: countWhere(conferencePredicate), predicate: conferencePredicate, icon: FileText },
-    { label: "Libra / Kapituj", value: countWhere(booksPredicate), predicate: booksPredicate, icon: LibraryBig },
-    { label: "Fakultete Aktive", value: activeFaculties.size || faculties.filter((faculty) => faculty.status === "active").length, predicate: () => false, icon: Building2, noYearCompare: true },
-    { label: "Autorë Aktivë", value: authorCounts.size, predicate: () => false, icon: UsersRound, noYearCompare: true },
-    { label: "Artikuj këtë vit", value: countWhere(() => true, nowYear), predicate: (row) => toNumber(row.year) === nowYear, icon: TrendingUp },
+    { label: "Numri Total i Publikimeve", value: rows.length, predicate: () => true, icon: BookOpen },
+    { label: "Publikime SCIE / SSCI / AHCI", value: countWhere(sciePredicate), predicate: sciePredicate, icon: TrendingUp },
+    { label: "Publikime Scopus Q1-Q2", value: countWhere(scopusQ1Q2Predicate), predicate: scopusQ1Q2Predicate, icon: BarChart3 },
+    { label: "Publikime gjate vitit aktual", value: countWhere(() => true, nowYear), predicate: (row) => toNumber(row.year) === nowYear, icon: Building2 },
   ].map((card) => ({
     ...card,
-    trend: card.noYearCompare
-      ? { label: "Nga të dhënat aktive", direction: "flat", icon: Minus }
-      : trendMeta(countWhere(card.predicate, nowYear), countWhere(card.predicate, previousYear)),
+    trend: trendMeta(countWhere(card.predicate, nowYear), countWhere(card.predicate, previousYear)),
   }));
 
   const publicationsByYear = Array.from(byYear.entries())
@@ -224,18 +200,15 @@ function buildPublicationAnalytics(rows, faculties) {
     ...row,
     fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
   }));
-  const publicationsByQuartile = Array.from(byQuartile.entries()).map(([name, value]) => ({ name, value }));
-  const employmentStatusRows = Array.from(byEmploymentStatus.entries())
-    .map(([name, value], index) => ({
-      name,
-      value,
-      fill: index === 0 ? "#1e88e5" : index === 1 ? "#1b2a9b" : "#94a3b8",
-    }))
+  const authorsByFaculty = Array.from(facultyAuthorSets.entries())
+    .map(([name, authors]) => ({ name, value: authors.size }))
     .sort((a, b) => b.value - a.value);
-  const topAuthors = Array.from(authorCounts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-  const topFaculties = Array.from(facultyCounts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+  const employmentStatusRows = [
+    { name: "Autor me orar të plotë", value: byEmploymentStatus.get("full_time") || 0, fill: "#1e88e5" },
+    { name: "Autor me orar të pjesshëm", value: byEmploymentStatus.get("part_time") || 0, fill: "#1b2a9b" },
+  ];
 
-  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, publicationsByQuartile, employmentStatusRows, topAuthors, topFaculties };
+  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, authorsByFaculty, employmentStatusRows };
 }
 
 function useProrectorResource(path, fallback) {
@@ -328,30 +301,31 @@ function FacultyTreemapTile({ x, y, width, height, name, value, fill }) {
 }
 
 function PublicationSnapshotCharts({ analytics }) {
-  const maxFacultyValue = Math.max(...analytics.publicationsByFaculty.map((row) => toNumber(row.value)), 0);
-  const minFacultyValue = Math.min(...analytics.publicationsByFaculty.map((row) => toNumber(row.value)).filter((value) => value > 0), 0);
+  const authorFacultyRows = analytics.authorsByFaculty.slice(0, 8);
+  const maxFacultyValue = Math.max(...authorFacultyRows.map((row) => toNumber(row.value)), 0);
+  const minFacultyValue = Math.min(...authorFacultyRows.map((row) => toNumber(row.value)).filter((value) => value > 0), 0);
   const minPercent = maxFacultyValue ? Math.round((minFacultyValue / maxFacultyValue) * 1000) / 10 : 0;
-  const hasFacultyRows = analytics.publicationsByFaculty.some((row) => toNumber(row.value) > 0);
+  const hasFacultyRows = authorFacultyRows.some((row) => toNumber(row.value) > 0);
 
   return (
     <div className="prorector-publication-bi-grid">
       <article className="prorector-bi-card">
-        <h3>Publication by year</h3>
+        <h3>Publikimet sipas viteve</h3>
         {analytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.publicationsByYear} margin={{ top: 18, right: 12, left: 8, bottom: 22 }} barCategoryGap="28%">
               <CartesianGrid stroke="#d6dce4" strokeDasharray="1 6" vertical={false} />
               <XAxis dataKey="name" angle={-42} textAnchor="end" height={54} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
-              <Tooltip formatter={(value) => [formatNumber(value), "Artikuj"]} />
-              <Bar dataKey="value" name="Artikuj" fill="#1e88e5" />
+              <Tooltip formatter={(value) => [formatNumber(value), "Publikime"]} />
+              <Bar dataKey="value" name="Publikime" fill="#1e88e5" />
             </BarChart>
           </ResponsiveContainer>
         ) : <ChartEmpty />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Publications by Faculty</h3>
+        <h3>Publikimet sipas Fakulteteve</h3>
         {analytics.facultyTreemap.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
             <Treemap
@@ -367,28 +341,26 @@ function PublicationSnapshotCharts({ analytics }) {
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Publications by Employment Status</h3>
+        <h3>Publikimet sipas Statusit të Punësimit</h3>
         {analytics.employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
-          <div className="prorector-donut-wrap">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart margin={{ top: 12, right: 96, bottom: 12, left: 12 }}>
-                <Pie data={analytics.employmentStatusRows} dataKey="value" nameKey="name" innerRadius={70} outerRadius={116} paddingAngle={2}>
-                  {analytics.employmentStatusRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
-                </Pie>
-                <Tooltip formatter={(value, name) => [formatNumber(value), name]} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        ) : <ChartEmpty />}
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
+              <Pie data={analytics.employmentStatusRows} dataKey="value" nameKey="name" innerRadius={68} outerRadius={112} paddingAngle={2}>
+                {analytics.employmentStatusRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip formatter={(value, name) => [formatNumber(value), name]} />
+              <Legend iconType="circle" />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : <ChartEmpty message="Nuk ka të dhëna për statusin e punësimit." />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Authors by Faculty</h3>
+        <h3>Autorët sipas Fakulteteve</h3>
         {hasFacultyRows ? (
           <div className="prorector-faculty-rank">
             <div className="prorector-rank-top">100%</div>
-            {analytics.publicationsByFaculty.map((row) => {
+            {authorFacultyRows.map((row) => {
               const percent = maxFacultyValue ? (toNumber(row.value) / maxFacultyValue) * 100 : 0;
               return (
                 <div className="prorector-rank-row" key={row.name}>
@@ -433,11 +405,6 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
           <option value="">Tipi</option>
           {Object.entries(PUBLICATION_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
-        <input
-          value={filters.platform}
-          onChange={(event) => onChange({ ...filters, platform: event.target.value })}
-          placeholder="Platforma e indeksimit"
-        />
         <select value={filters.quartile} onChange={(event) => onChange({ ...filters, quartile: event.target.value })}>
           <option value="">Kuartili</option>
           {["Q1", "Q2", "Q3", "Q4"].map((value) => <option key={value} value={value}>{value}</option>)}
@@ -617,8 +584,8 @@ export default function ProRectorDashboard() {
   const fundingRows = funding.data.funding || [];
   const charts = overview.data.charts || {};
   const publicationAnalytics = useMemo(
-    () => buildPublicationAnalytics(publicationRows, facultyRows),
-    [publicationRows, facultyRows]
+    () => buildPublicationAnalytics(publicationRows),
+    [publicationRows]
   );
 
   const filteredFacultyRows = useMemo(() => {
@@ -835,62 +802,26 @@ export default function ProRectorDashboard() {
           })}
         </div>
       </section>
-      <section className="prorector-publication-grid">
+      <section className="prorector-publication-grid prorector-publication-grid--full">
         <div className="prorector-publication-main">
           <PublicationSnapshotCharts analytics={publicationAnalytics} />
-          <div className="prorector-publication-charts prorector-publication-charts--legacy">
-            <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><BarChart3 size={20} /></div>
-              {publicationAnalytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={publicationAnalytics.publicationsByYear}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip />
-                    <Bar dataKey="value" name="Artikuj" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <ChartEmpty />}
-            </article>
-            <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Artikujt sipas fakulteteve</h3><Building2 size={20} /></div>
-              {publicationAnalytics.publicationsByFaculty.some((row) => toNumber(row.value) > 0) ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={publicationAnalytics.publicationsByFaculty} layout="vertical" margin={{ top: 8, right: 18, bottom: 8, left: 18 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} /><Tooltip />
-                    <Bar dataKey="value" name="Artikuj" fill="#15803d" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <ChartEmpty />}
-            </article>
-            <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Shpërndarja sipas kuartileve</h3><TrendingUp size={20} /></div>
-              {publicationAnalytics.publicationsByQuartile.some((row) => toNumber(row.value) > 0) ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie data={publicationAnalytics.publicationsByQuartile} dataKey="value" nameKey="name" innerRadius={58} outerRadius={86} paddingAngle={2}>
-                      {publicationAnalytics.publicationsByQuartile.map((entry) => <Cell key={entry.name} fill={QUARTILE_COLORS[entry.name]} />)}
-                    </Pie>
-                    <Tooltip /><Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : <ChartEmpty />}
-            </article>
-          </div>
           <section className="prorector-table-section prorector-publications-table-card">
             <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} publicationMode />
             <StateBlock loading={publications.loading} error={publications.error} empty={!publicationRows.length} emptyText="Nuk ka artikuj për filtrat aktualë." />
             {!publications.loading && !publications.error && publicationRows.length ? (
               <div className="prorector-publication-table-wrap">
                 <table className="prorector-table prorector-publication-table">
-                  <thead><tr><th>Artikulli</th><th>Autori Kryesor</th><th>Fakulteti</th><th>Tipi</th><th>Indeksimi</th><th>Kuartili</th><th>Statusi</th></tr></thead>
+                  <thead><tr><th>Titulli</th><th>Autori Kryesor</th><th>Fakulteti</th><th>Tipi</th><th>Indeksimi</th><th>Kuartili</th><th>Viti</th><th>Statusi</th></tr></thead>
                   <tbody>
                     {publicationRows.map((row) => (
                       <tr key={row.id} className="prorector-clickable-row" onClick={() => setSelectedPublication(row)}>
-                        <td><strong>{row.title || "-"}</strong><span className="prorector-table-muted">{row.year || "Pa vit"}</span></td>
+                        <td><strong>{row.title || "-"}</strong></td>
                         <td>{row.mainAuthor || row.authorNames?.split(",")[0] || "-"}</td>
                         <td>{row.faculty || "-"}</td>
                         <td>{getPublicationTypeLabel(row.type, row.typeLabel)}</td>
                         <td>{row.platform || row.indexing || "Pa verifikim"}</td>
                         <td><span className={`quartile-badge quartile-${normalizeQuartile(row.quartile).toLowerCase().replace(/\s+/g, "-")}`}>{normalizeQuartile(row.quartile)}</span></td>
+                        <td>{row.year || "-"}</td>
                         <td><span className={`status-badge status-${statusClass(row.status)}`}>{getPublicationStatusLabel(row.status, row.statusLabel)}</span></td>
                       </tr>
                     ))}
@@ -900,10 +831,6 @@ export default function ProRectorDashboard() {
             ) : null}
           </section>
         </div>
-        <aside className="prorector-publication-sidebar">
-          <article className="prorector-side-widget"><h3>Top Autorët</h3><ol>{publicationAnalytics.topAuthors.length ? publicationAnalytics.topAuthors.map((item) => <li key={item.name}><span>{item.name}</span><strong>{formatNumber(item.value)}</strong></li>) : <li><span>Pa të dhëna</span><strong>0</strong></li>}</ol></article>
-          <article className="prorector-side-widget"><h3>Top Fakultetet</h3><ol>{publicationAnalytics.topFaculties.length ? publicationAnalytics.topFaculties.map((item) => <li key={item.name}><span>{item.name}</span><strong>{formatNumber(item.value)}</strong></li>) : <li><span>Pa të dhëna</span><strong>0</strong></li>}</ol></article>
-        </aside>
       </section>
       {renderPublicationDetails()}
     </div>

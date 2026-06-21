@@ -113,6 +113,8 @@ function mapPublication(row = {}) {
     status: row.status || "draft",
     statusLabel: row.status_label || row.status || "draft",
     regulationCategory: row.regulation_category || "Pa verifikim",
+    employmentStatus: row.employment_status || "",
+    employmentStatusLabel: row.employment_status_label || "",
     fundingAmount: numberValue(row.funding_amount),
     currency: row.currency || "EUR",
   };
@@ -198,6 +200,19 @@ publication_core as (
     coalesce(nullif(u.faculty, ''), 'Pa fakultet') as faculty,
     coalesce(nullif(u.department, ''), 'Pa departament') as department,
     u.full_name as owner_name,
+    case
+      when exists (
+        select 1
+        from jsonb_array_elements(coalesce(u.orcid_employments, '[]'::jsonb)) employment(item)
+        where concat_ws(' ', employment.item->>'roleTitle', employment.item->>'department', employment.item->>'organization') ~* '(part[ -]?time|part[- ]?time|pjessh|gjysm)'
+      ) then 'part_time'
+      when exists (
+        select 1
+        from jsonb_array_elements(coalesce(u.orcid_employments, '[]'::jsonb)) employment(item)
+        where concat_ws(' ', employment.item->>'roleTitle', employment.item->>'department', employment.item->>'organization') ~* '(full[ -]?time|full[- ]?time|plot)'
+      ) then 'full_time'
+      else ''
+    end as employment_status,
     coalesce(authors.items, '[]'::jsonb) as authors,
     coalesce(authors.names, u.full_name, '') as author_names,
     coalesce(nullif(p.indexing_platform, ''), nullif(p.custom_indexing_platform, ''), nullif(latest_indexing.source, ''), nullif(latest_indexing.source_key, 'manual'), '') as platform_raw,
@@ -258,6 +273,11 @@ select
   coalesce(nullif(pc.platform_raw, ''), 'Pa verifikim') as platform,
   coalesce(nullif(pc.indexing_raw, ''), 'Pa verifikim') as indexing,
   coalesce(pc.quartile_raw, 'Pa verifikim') as quartile,
+  case
+    when pc.employment_status = 'full_time' then 'Autor me orar të plotë'
+    when pc.employment_status = 'part_time' then 'Autor me orar të pjesshëm'
+    else ''
+  end as employment_status_label,
   case
     when upper(pc.indexing_raw) in ('SCI', 'SSCI', 'AHCI') or upper(pc.web_of_science_index) in ('SCI', 'SSCI', 'AHCI') then 'SCI, SSCI, AHCI'
     when pc.platform_raw ~* 'scopus' and pc.quartile_raw = 'Q1' then 'Scopus Q1'

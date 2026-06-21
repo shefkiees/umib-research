@@ -2314,6 +2314,10 @@ input:checked + .prorector-slider:before {
   align-items: start;
 }
 
+.prorector-publication-grid--full {
+  grid-template-columns: 1fr;
+}
+
 .prorector-publication-main {
   min-width: 0;
   display: grid;
@@ -2324,10 +2328,6 @@ input:checked + .prorector-slider:before {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-}
-
-.prorector-publication-charts--legacy {
-  display: none;
 }
 
 .prorector-publication-bi-grid {
@@ -2430,7 +2430,7 @@ input:checked + .prorector-slider:before {
 
 .prorector-publication-filterbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(6, minmax(110px, 1fr));
+  grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(110px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -2513,68 +2513,6 @@ input:checked + .prorector-slider:before {
 .quartile-pa-verifikim {
   background: #f1f5f9;
   color: #475569;
-}
-
-.prorector-publication-sidebar {
-  display: grid;
-  gap: 14px;
-  position: sticky;
-  top: 18px;
-}
-
-.prorector-side-widget {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 15px;
-}
-
-.prorector-side-widget h3 {
-  margin: 0 0 12px;
-  color: #132238;
-  font-size: 0.9rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.prorector-side-widget ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.prorector-side-widget li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-height: 34px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #edf2f7;
-}
-
-.prorector-side-widget li:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.prorector-side-widget span {
-  color: #334155;
-  font-size: 0.86rem;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.prorector-side-widget strong {
-  min-width: 30px;
-  border-radius: 999px;
-  background: #eef5ff;
-  color: #1d4d7d;
-  padding: 4px 8px;
-  text-align: center;
-  font-size: 0.8rem;
 }
 
 .prorector-drawer-backdrop {
@@ -3147,11 +3085,6 @@ input:checked + .prorector-slider:before {
     grid-template-columns: 1fr;
   }
 
-  .prorector-publication-sidebar {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .prorector-publication-filterbar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3161,7 +3094,6 @@ input:checked + .prorector-slider:before {
   .prorector-publication-kpis,
   .prorector-publication-charts,
   .prorector-publication-bi-grid,
-  .prorector-publication-sidebar,
   .prorector-drawer-grid,
   .prorector-publication-filterbar {
     grid-template-columns: 1fr;
