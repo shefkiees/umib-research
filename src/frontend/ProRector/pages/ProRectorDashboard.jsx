@@ -111,13 +111,6 @@ function normalizeQuartile(value) {
   return ["Q1", "Q2", "Q3", "Q4"].includes(quartile) ? quartile : "Pa verifikim";
 }
 
-function normalizeEmploymentStatus(value) {
-  const status = String(value || "").trim().toLowerCase();
-  if (["full_time", "full-time", "fulltime"].includes(status)) return "full_time";
-  if (["part_time", "part-time", "parttime"].includes(status)) return "part_time";
-  return "";
-}
-
 function trendMeta(current, previous) {
   if (!previous && !current) return { label: "Pa ndryshim", direction: "flat", icon: Minus };
   if (!previous) return { label: "Vit i ri", direction: current ? "up" : "flat", icon: current ? TrendingUp : Minus };
@@ -151,29 +144,36 @@ function buildPublicationAnalytics(rows) {
   const nowYear = new Date().getFullYear();
   const previousYear = nowYear - 1;
   const countWhere = (predicate, year) => rows.filter((row) => predicate(row) && (!year || toNumber(row.year) === year)).length;
-  const facultyAuthorSets = new Map();
   const facultyCounts = new Map();
   const byYear = new Map();
-  const byEmploymentStatus = new Map([
-    ["full_time", 0],
-    ["part_time", 0],
+  const scopusQuartiles = new Map([
+    ["Q1", 0],
+    ["Q2", 0],
+    ["Q3", 0],
+    ["Q4", 0],
+  ]);
+  const webOfScience = new Map([
+    ["SCIE", 0],
+    ["SSCI", 0],
+    ["AHCI", 0],
   ]);
 
   rows.forEach((row) => {
     if (row.year) byYear.set(String(row.year), (byYear.get(String(row.year)) || 0) + 1);
     if (row.faculty) facultyCounts.set(row.faculty, (facultyCounts.get(row.faculty) || 0) + 1);
-    const employmentStatus = normalizeEmploymentStatus(row.employmentStatus);
-    if (employmentStatus) {
-      byEmploymentStatus.set(employmentStatus, (byEmploymentStatus.get(employmentStatus) || 0) + 1);
+
+    const quartile = normalizeQuartile(row.quartile);
+    if (/scopus/i.test(`${row.platform} ${row.regulationCategory}`) && scopusQuartiles.has(quartile)) {
+      scopusQuartiles.set(quartile, (scopusQuartiles.get(quartile) || 0) + 1);
     }
 
-    const authors = Array.isArray(row.authors) && row.authors.length
-      ? row.authors.map((author) => author.fullName).filter(Boolean)
-      : [row.mainAuthor || row.authorNames?.split(",")[0]].filter(Boolean);
-    if (row.faculty) {
-      const facultyAuthors = facultyAuthorSets.get(row.faculty) || new Set();
-      authors.forEach((name) => facultyAuthors.add(name));
-      facultyAuthorSets.set(row.faculty, facultyAuthors);
+    const indexingText = `${row.indexing} ${row.platform} ${row.regulationCategory}`.toUpperCase();
+    if (/\bSCIE\b/.test(indexingText)) {
+      webOfScience.set("SCIE", (webOfScience.get("SCIE") || 0) + 1);
+    } else if (/\bSSCI\b/.test(indexingText)) {
+      webOfScience.set("SSCI", (webOfScience.get("SSCI") || 0) + 1);
+    } else if (/\bAHCI\b/.test(indexingText)) {
+      webOfScience.set("AHCI", (webOfScience.get("AHCI") || 0) + 1);
     }
   });
 
@@ -200,15 +200,18 @@ function buildPublicationAnalytics(rows) {
     ...row,
     fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
   }));
-  const authorsByFaculty = Array.from(facultyAuthorSets.entries())
-    .map(([name, authors]) => ({ name, value: authors.size }))
-    .sort((a, b) => b.value - a.value);
-  const employmentStatusRows = [
-    { name: "Autor me orar të plotë", value: byEmploymentStatus.get("full_time") || 0, fill: "#1e88e5" },
-    { name: "Autor me orar të pjesshëm", value: byEmploymentStatus.get("part_time") || 0, fill: "#1b2a9b" },
-  ];
+  const scopusQuartileRows = Array.from(scopusQuartiles.entries()).map(([name, value]) => ({
+    name,
+    value,
+    fill: name === "Q1" ? "#15803d" : name === "Q2" ? "#2563eb" : name === "Q3" ? "#d97706" : "#7c3aed",
+  }));
+  const webOfScienceRows = Array.from(webOfScience.entries()).map(([name, value]) => ({
+    name,
+    value,
+    fill: name === "SCIE" ? "#1e88e5" : name === "SSCI" ? "#0f766e" : "#c2410c",
+  }));
 
-  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, authorsByFaculty, employmentStatusRows };
+  return { kpis, publicationsByYear, publicationsByFaculty, facultyTreemap, scopusQuartileRows, webOfScienceRows };
 }
 
 function useProrectorResource(path, fallback) {
@@ -301,12 +304,6 @@ function FacultyTreemapTile({ x, y, width, height, name, value, fill }) {
 }
 
 function PublicationSnapshotCharts({ analytics }) {
-  const authorFacultyRows = analytics.authorsByFaculty.slice(0, 8);
-  const maxFacultyValue = Math.max(...authorFacultyRows.map((row) => toNumber(row.value)), 0);
-  const minFacultyValue = Math.min(...authorFacultyRows.map((row) => toNumber(row.value)).filter((value) => value > 0), 0);
-  const minPercent = maxFacultyValue ? Math.round((minFacultyValue / maxFacultyValue) * 1000) / 10 : 0;
-  const hasFacultyRows = authorFacultyRows.some((row) => toNumber(row.value) > 0);
-
   return (
     <div className="prorector-publication-bi-grid">
       <article className="prorector-bi-card">
@@ -341,41 +338,35 @@ function PublicationSnapshotCharts({ analytics }) {
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Publikimet sipas Statusit të Punësimit</h3>
-        {analytics.employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
+        <h3>Statistikat Scopus sipas Kuartileve</h3>
+        {analytics.scopusQuartileRows.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
-              <Pie data={analytics.employmentStatusRows} dataKey="value" nameKey="name" innerRadius={68} outerRadius={112} paddingAngle={2}>
-                {analytics.employmentStatusRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
-              </Pie>
-              <Tooltip formatter={(value, name) => [formatNumber(value), name]} />
-              <Legend iconType="circle" />
-            </PieChart>
+            <BarChart data={analytics.scopusQuartileRows} margin={{ top: 18, right: 12, left: 8, bottom: 12 }}>
+              <CartesianGrid stroke="#d6dce4" strokeDasharray="1 6" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
+              <YAxis allowDecimals={false} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
+              <Tooltip formatter={(value) => [formatNumber(value), "Publikime"]} />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {analytics.scopusQuartileRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
-        ) : <ChartEmpty message="Nuk ka të dhëna për statusin e punësimit." />}
+        ) : <ChartEmpty message="Nuk ka të dhëna për Scopus Q1-Q4." />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Autorët sipas Fakulteteve</h3>
-        {hasFacultyRows ? (
-          <div className="prorector-faculty-rank">
-            <div className="prorector-rank-top">100%</div>
-            {authorFacultyRows.map((row) => {
-              const percent = maxFacultyValue ? (toNumber(row.value) / maxFacultyValue) * 100 : 0;
-              return (
-                <div className="prorector-rank-row" key={row.name}>
-                  <span title={row.name}>{row.name}</span>
-                  <div className="prorector-rank-track">
-                    <div className="prorector-rank-bar" style={{ width: `${Math.max(percent, 4)}%` }}>
-                      <strong>{formatNumber(row.value)}</strong>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div className="prorector-rank-bottom">{minPercent}%</div>
+        <h3>Statistikat Web of Science</h3>
+        {analytics.webOfScienceRows.some((row) => toNumber(row.value) > 0) ? (
+          <div className="prorector-index-cards">
+            {analytics.webOfScienceRows.map((row) => (
+              <div className="prorector-index-card" key={row.name} style={{ "--index-accent": row.fill }}>
+                <span>{row.name}</span>
+                <strong>{formatNumber(row.value)}</strong>
+                <small>Publikime të indeksuara</small>
+              </div>
+            ))}
           </div>
-        ) : <ChartEmpty />}
+        ) : <ChartEmpty message="Nuk ka të dhëna për SCIE, SSCI dhe AHCI." />}
       </article>
     </div>
   );

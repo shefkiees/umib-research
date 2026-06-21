@@ -2353,75 +2353,46 @@ input:checked + .prorector-slider:before {
   letter-spacing: 0;
 }
 
-.prorector-donut-wrap {
-  min-height: 300px;
-}
-
-.prorector-faculty-rank {
+.prorector-index-cards {
   display: grid;
-  gap: 8px;
-  padding: 10px 4px 0;
-}
-
-.prorector-rank-top,
-.prorector-rank-bottom {
-  color: #666666;
-  font-size: 0.82rem;
-  line-height: 1;
-  text-align: center;
-}
-
-.prorector-rank-top {
-  padding-bottom: 8px;
-  border-bottom: 1px solid #b8b8b8;
-}
-
-.prorector-rank-bottom {
-  width: fit-content;
-  min-width: 72px;
-  margin: 2px auto 0;
-  padding-top: 8px;
-  border-top: 1px solid #b8b8b8;
-}
-
-.prorector-rank-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 34%) minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  min-height: 300px;
+  align-content: center;
 }
 
-.prorector-rank-row > span {
-  min-width: 0;
-  color: #626262;
-  font-size: 0.85rem;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.prorector-index-card {
+  min-height: 154px;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.98)),
+    linear-gradient(135deg, color-mix(in srgb, var(--index-accent, #1e88e5) 14%, #ffffff), #ffffff);
+  padding: 18px 16px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
-.prorector-rank-track {
-  min-width: 0;
-  height: 36px;
-  display: flex;
-  align-items: center;
-}
-
-.prorector-rank-bar {
-  height: 100%;
-  min-width: 42px;
-  background: #1e88e5;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.prorector-rank-bar strong {
-  color: inherit;
-  font-size: 0.88rem;
+.prorector-index-card span {
+  color: var(--index-accent, #1e88e5);
+  font-size: 0.84rem;
   font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prorector-index-card strong {
+  color: #0f172a;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.prorector-index-card small {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .prorector-publications-table-card {
@@ -3094,6 +3065,7 @@ input:checked + .prorector-slider:before {
   .prorector-publication-kpis,
   .prorector-publication-charts,
   .prorector-publication-bi-grid,
+  .prorector-index-cards,
   .prorector-drawer-grid,
   .prorector-publication-filterbar {
     grid-template-columns: 1fr;
@@ -3101,11 +3073,6 @@ input:checked + .prorector-slider:before {
 
   .prorector-bi-card {
     min-height: 320px;
-  }
-
-  .prorector-rank-row {
-    grid-template-columns: 1fr;
-    gap: 6px;
   }
 
   .prorector-publication-table {
