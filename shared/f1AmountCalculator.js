@@ -22,6 +22,14 @@ function normalizeToken(value) {
   return normalizeText(value).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+function normalizePlatformValue(value) {
+  return normalizeText(value)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function normalizeWebOfScienceIndex(value) {
   const match = normalizeText(value).toUpperCase().match(/\b(SCIE|SSCI|AHCI|ESCI)\b/);
   return match?.[1] || "";
@@ -33,10 +41,29 @@ function normalizeQuartile(value) {
 }
 
 function isPlatform(value, platform) {
-  const normalized = normalizeText(value).toLowerCase();
-  return platform === "scopus"
-    ? normalized.includes("scopus")
-    : normalized.includes("web of science") || normalized.includes("clarivate");
+  const normalized = normalizePlatformValue(value);
+  const compact = normalized.replace(/\s+/g, "");
+
+  if (platform === "scopus") {
+    return normalized.includes("scopus")
+      || normalized.includes("citescore")
+      || normalized.includes("cite score")
+      || normalized.includes("journal rank citescore");
+  }
+
+  return normalized.includes("web of science")
+    || compact.includes("webofscience")
+    || normalized.includes("wos")
+    || normalized.includes("clarivate");
+}
+
+function getIndexingPlatformValue(item = {}) {
+  return [
+    item.source,
+    item.platform,
+    item.sourceKey,
+    item.source_key,
+  ].filter(Boolean).join(" ");
 }
 
 function getIndexingItems(metadata) {
@@ -53,7 +80,7 @@ function getWebOfScienceIndex(metadata, indexingItems) {
   }
 
   const itemIndex = indexingItems
-    .filter((item) => isPlatform(item.source || item.platform, "web_of_science"))
+    .filter((item) => isPlatform(getIndexingPlatformValue(item), "web_of_science"))
     .map((item) => normalizeWebOfScienceIndex(
       item.webOfScienceIndex || item.web_of_science_index || item.category
     ))
@@ -71,7 +98,7 @@ function getWebOfScienceIndex(metadata, indexingItems) {
 
 function getScopusQuartile(metadata, indexingItems) {
   const scopusItem = indexingItems.find((item) => {
-    const platform = item.source || item.platform || item.sourceKey || item.source_key;
+    const platform = getIndexingPlatformValue(item);
     return isPlatform(platform, "scopus") && normalizeQuartile(item.quartile);
   });
 
