@@ -94,16 +94,6 @@ function normalizeStatus(value) {
   return value || "draft";
 }
 
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "-" : new Intl.DateTimeFormat("sq-AL").format(date);
-}
-
-function statusClass(value) {
-  return String(normalizeStatus(value)).toLowerCase().replace(/[^a-z0-9]+/g, "-");
-}
-
 function normalizeQuartile(value) {
   const quartile = String(value || "").trim().toUpperCase();
   return ["Q1", "Q2", "Q3", "Q4"].includes(quartile) ? quartile : "Pa verifikim";
@@ -214,6 +204,66 @@ function buildPublicationAnalytics(rows) {
     yearFacultyRows,
     scopusQuartileRows,
     webOfScienceRows,
+  };
+}
+
+function buildFundingAnalytics(rows) {
+  const byYear = new Map();
+  const byCategory = new Map();
+  const byStatus = new Map();
+  const totals = rows.reduce((summary, row) => {
+    const requested = toNumber(row.requestedAmount);
+    const approved = toNumber(row.approvedAmount);
+    const date = row.applicationDate ? new Date(row.applicationDate) : null;
+    const year = date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Pa vit";
+    const category = row.regulationCategory || row.fundingType || "Pa kategori";
+    const status = normalizeStatus(row.status);
+
+    if (!byYear.has(year)) byYear.set(year, { name: year, requested: 0, approved: 0, count: 0 });
+    const yearRow = byYear.get(year);
+    yearRow.requested += requested;
+    yearRow.approved += approved;
+    yearRow.count += 1;
+
+    byCategory.set(category, (byCategory.get(category) || 0) + 1);
+    byStatus.set(status, (byStatus.get(status) || 0) + 1);
+
+    return {
+      count: summary.count + 1,
+      requested: summary.requested + requested,
+      approved: summary.approved + approved,
+    };
+  }, { count: 0, requested: 0, approved: 0 });
+
+  const fundingByYear = Array.from(byYear.values())
+    .sort((a, b) => {
+      if (a.name === "Pa vit") return 1;
+      if (b.name === "Pa vit") return -1;
+      return Number(a.name) - Number(b.name);
+    });
+
+  const categoryRows = Array.from(byCategory.entries())
+    .map(([name, value], index) => ({
+      name,
+      value,
+      fill: CHART_COLORS[index % CHART_COLORS.length],
+    }))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "sq"));
+
+  const statusRows = Array.from(byStatus.entries())
+    .map(([name, value], index) => ({
+      name,
+      label: STATUS_LABELS[name] || name,
+      value,
+      fill: CHART_COLORS[(index + 2) % CHART_COLORS.length],
+    }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "sq"));
+
+  return {
+    totals,
+    fundingByYear,
+    categoryRows,
+    statusRows,
   };
 }
 
@@ -701,6 +751,10 @@ export default function ProRectorDashboard() {
     () => buildPublicationAnalytics(publicationRows),
     [publicationRows]
   );
+  const fundingAnalytics = useMemo(
+    () => buildFundingAnalytics(fundingRows),
+    [fundingRows]
+  );
 
   const filteredFacultyRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -917,34 +971,92 @@ export default function ProRectorDashboard() {
   );
 
   const renderFunding = () => (
-    <div className="prorector-table-section">
-      <div className="prorector-section-head"><div><h2>Financimet</h2><p>Pasqyrë lexuese sipas kategorive të rregullores. Pa aprovim/refuzim nga Prorektori.</p></div></div>
-      <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} fundingMode />
+    <div className="prorector-funding-stat-page">
+      <section className="prorector-table-section prorector-funding-stat-head">
+        <div className="prorector-section-head">
+          <div>
+            <h2>Financimet</h2>
+            <p>Pasqyrë statistikore e financimeve sipas viteve, kategorive dhe statusit.</p>
+          </div>
+        </div>
+        <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} fundingMode />
+      </section>
+
       <StateBlock loading={funding.loading} error={funding.error} empty={!fundingRows.length} emptyText="Nuk ka financime për filtrat aktualë." />
       {!funding.loading && !funding.error && fundingRows.length ? (
-        <div className="prorector-faculty-table-wrap">
-          <table className="prorector-table prorector-wide-table">
-            <thead><tr><th>Aplikuesi</th><th>Fakulteti</th><th>Lloji i financimit</th><th>Titulli</th><th>Shuma e kërkuar</th><th>Shuma e aprovuar</th><th>Statusi</th><th>Data e aplikimit</th></tr></thead>
-            <tbody>
-              {fundingRows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.applicant || "-"}</td>
-                  <td>{row.faculty || "-"}</td>
-                  <td><strong>{row.fundingType}</strong><span className="prorector-table-muted">{row.regulationCategory}</span></td>
-                  <td>{row.title || "-"}</td>
-                  <td>{formatCurrency(row.requestedAmount)}</td>
-                  <td>{formatCurrency(row.approvedAmount)}</td>
-                  <td><span className={`status-badge status-${statusClass(row.status)}`}>{row.statusLabel || STATUS_LABELS[row.status] || row.status}</span></td>
-                  <td>{formatDate(row.applicationDate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <section className="prorector-funding-kpi-grid" aria-label="Përmbledhje e financimeve">
+            <article>
+              <WalletCards size={18} />
+              <span>Kërkesa</span>
+              <strong>{formatNumber(fundingAnalytics.totals.count)}</strong>
+            </article>
+            <article>
+              <TrendingUp size={18} />
+              <span>Shuma e kërkuar</span>
+              <strong>{formatCurrency(fundingAnalytics.totals.requested)}</strong>
+            </article>
+            <article>
+              <BarChart3 size={18} />
+              <span>Shuma e aprovuar</span>
+              <strong>{formatCurrency(fundingAnalytics.totals.approved)}</strong>
+            </article>
+          </section>
+
+          <section className="prorector-funding-chart-grid">
+            <article className="prorector-analytics-card is-wide prorector-funding-year-card">
+              <div className="prorector-card-head"><h3>Financimet sipas viteve</h3><TrendingUp size={20} /></div>
+              {fundingAnalytics.fundingByYear.some((row) => toNumber(row.requested) > 0 || toNumber(row.approved) > 0) ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={fundingAnalytics.fundingByYear}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(value) => formatNumber(value)} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Bar dataKey="requested" name="Kërkuar" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="approved" name="Aprovuar" fill="#15803d" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartEmpty />}
+            </article>
+
+            <article className="prorector-analytics-card">
+              <div className="prorector-card-head"><h3>Kategoritë e financimit</h3><WalletCards size={20} /></div>
+              {fundingAnalytics.categoryRows.some((row) => toNumber(row.value) > 0) ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie data={fundingAnalytics.categoryRows} dataKey="value" nameKey="name" innerRadius={58} outerRadius={104} paddingAngle={3}>
+                      {fundingAnalytics.categoryRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
+                    </Pie>
+                    <Tooltip formatter={(value) => [formatNumber(value), "Kërkesa"]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : <ChartEmpty />}
+            </article>
+
+            <article className="prorector-analytics-card">
+              <div className="prorector-card-head"><h3>Statusi i kërkesave</h3><FileText size={20} /></div>
+              {fundingAnalytics.statusRows.some((row) => toNumber(row.value) > 0) ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={fundingAnalytics.statusRows} layout="vertical" margin={{ left: 20, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="label" width={96} />
+                    <Tooltip formatter={(value) => [formatNumber(value), "Kërkesa"]} />
+                    <Bar dataKey="value" name="Kërkesa" radius={[0, 6, 6, 0]}>
+                      {fundingAnalytics.statusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartEmpty />}
+            </article>
+          </section>
+        </>
       ) : null}
     </div>
   );
-
   const renderReports = () => (
     <div className="prorector-table-section">
       <div className="prorector-section-head">

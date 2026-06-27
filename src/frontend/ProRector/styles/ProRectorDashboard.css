@@ -1517,6 +1517,61 @@
   font-weight: 800;
 }
 
+.prorector-funding-stat-page {
+  display: grid;
+  gap: 16px;
+}
+
+.prorector-funding-stat-head {
+  display: grid;
+  gap: 12px;
+}
+
+.prorector-funding-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prorector-funding-kpi-grid article {
+  min-height: 112px;
+  border: 1px solid #e1e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+  display: grid;
+  align-content: space-between;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+.prorector-funding-kpi-grid svg {
+  color: #15803d;
+}
+
+.prorector-funding-kpi-grid span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.prorector-funding-kpi-grid strong {
+  color: #102a43;
+  font-size: clamp(1.28rem, 2vw, 1.72rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.prorector-funding-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prorector-funding-year-card {
+  min-height: 380px;
+}
+
 .prorector-faculty-stat-page {
   display: grid;
   gap: 16px;
@@ -3261,6 +3316,10 @@ input:checked + .prorector-slider:before {
     grid-template-columns: 1fr;
   }
 
+  .prorector-funding-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
   .prorector-analytics-grid {
     grid-template-columns: 1fr;
   }
@@ -3330,6 +3389,7 @@ input:checked + .prorector-slider:before {
   .prorector-insight-strip,
   .prorector-faculty-stat-summary,
   .prorector-faculty-stat-metrics,
+  .prorector-funding-kpi-grid,
   .prorector-faculty-metrics,
   .prorector-kpi-grid,
   .prorector-faculty-skeletons,
