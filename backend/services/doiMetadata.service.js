@@ -3,6 +3,7 @@ const DOI_LOOKUP_TIMEOUT_MS = 10000;
 const SCOPUS_SEARCH_API_URL = "https://api.elsevier.com/content/search/scopus";
 const SCOPUS_SERIAL_TITLE_API_URL = "https://api.elsevier.com/content/serial/title/issn";
 const SCOPUS_SERIAL_TITLE_SEARCH_API_URL = "https://api.elsevier.com/content/serial/title";
+const WEB_OF_SCIENCE_DOCUMENTS_API_URL = "https://api.clarivate.com/apis/wos-starter/v2/documents";
 const JOURNAL_RANK_BASE_URL = "https://journalrank.rcsi.science";
 const SCIMAGO_BASE_URL = "https://www.scimagojr.com";
 const OPENALEX_WORKS_API_URL = "https://api.openalex.org/works";
@@ -257,6 +258,7 @@ function normalizeIndexingSourceKey(value) {
   if (comparable.includes("scimago") || comparable.includes("sjr")) return "scimago";
   if (comparable.includes("doaj")) return "doaj";
   if (comparable.includes("openalex")) return "openalex";
+  if (comparable === "wos" || comparable.includes("webofscience") || comparable.includes("web of science") || comparable.includes("clarivate")) return "webofscience";
 
   return "manual";
 }
@@ -269,7 +271,8 @@ function normalizeIndexingPlatform(value, sourceKey = "") {
   if (normalizedSource === "scimago") return "SCImago";
   if (normalizedSource === "doaj") return "DOAJ";
   if (normalizedSource === "openalex") return "OpenAlex";
-  if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
+  if (normalizedSource === "webofscience") return "Web of Science";
+  if (comparable === "wos" || comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci"].includes(comparable)) return comparable.toUpperCase();
   if (comparable === "other") return "Other";
 
@@ -3147,6 +3150,41 @@ function getScopusHeaders() {
   return headers;
 }
 
+function getWebOfScienceApiKey() {
+  return normalizeText(process.env.WEB_OF_SCIENCE_API_KEY || process.env.WOS_API_KEY || process.env.CLARIVATE_API_KEY);
+}
+
+function getWebOfScienceDocumentsApiUrl() {
+  const configuredUrl = normalizeText(process.env.WEB_OF_SCIENCE_DOCUMENTS_API_URL || process.env.WOS_DOCUMENTS_API_URL);
+  const endpoint = configuredUrl || WEB_OF_SCIENCE_DOCUMENTS_API_URL;
+
+  try {
+    const url = new URL(endpoint);
+    url.pathname = url.pathname
+      .replace(/\/+$/g, "")
+      .replace(/\/wos-starter\/v1(?:\/documents)?$/i, "/wos-starter/v2/documents")
+      .replace(/\/wos-starter\/v2$/i, "/wos-starter/v2/documents");
+
+    if (!/\/documents$/i.test(url.pathname)) {
+      url.pathname = `${url.pathname}/documents`;
+    }
+
+    return url.toString();
+  } catch {
+    return WEB_OF_SCIENCE_DOCUMENTS_API_URL;
+  }
+}
+
+function getWebOfScienceHeaders() {
+  const apiKey = getWebOfScienceApiKey();
+
+  return {
+    Accept: "application/json",
+    "User-Agent": "UMIBres/1.0 (mailto:admin@umibres.com)",
+    "X-ApiKey": apiKey,
+  };
+}
+
 function walkValues(value, visitor) {
   if (Array.isArray(value)) {
     value.forEach((item) => walkValues(item, visitor));
@@ -3205,6 +3243,97 @@ function hasScopusResults(data) {
   ];
 
   return entries.length > 0;
+}
+
+function getWebOfScienceRecords(data = {}) {
+  const records = Array.isArray(data) ? [...data] : [];
+
+  walkValues(data, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (!value || typeof value !== "object") {
+      return;
+    }
+
+    if (
+      normalizedKey === "records"
+      || normalizedKey === "hits"
+      || normalizedKey === "documents"
+      || normalizedKey === "results"
+      || normalizedKey === "data"
+    ) {
+      records.push(...(Array.isArray(value) ? value : [value]));
+    }
+  });
+
+  if (!records.length && data && typeof data === "object") {
+    records.push(data);
+  }
+
+  return [...new Set(records)];
+}
+
+function getWebOfScienceDoiValues(record = {}) {
+  const values = [];
+
+  walkValues(record, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+
+    if (!value || typeof value === "object") {
+      return;
+    }
+
+    if (normalizedKey === "doi" || normalizedKey.endsWith(" doi")) {
+      values.push(value);
+    }
+  });
+
+  return uniqueValues(values.map(normalizeDoi).filter(Boolean));
+}
+
+function getWebOfScienceIndexes(record = {}) {
+  const indexes = [];
+
+  walkValues(record, (key, value) => {
+    const normalizedKey = normalizeComparableText(key);
+    const values = Array.isArray(value) ? value : [value];
+
+    if (
+      normalizedKey.includes("database")
+      || normalizedKey.includes("collection")
+      || normalizedKey.includes("edition")
+      || normalizedKey.includes("index")
+      || normalizedKey.includes("subdb")
+    ) {
+      indexes.push(...values);
+    }
+  });
+
+  return uniqueValues(indexes
+    .flatMap((value) => String(value || "").split(/[;,|]/))
+    .map((value) => {
+      const comparable = normalizeComparableText(value);
+
+      if (comparable.includes("science citation index expanded") || comparable === "scie") return "SCIE";
+      if (comparable.includes("social sciences citation index") || comparable === "ssci") return "SSCI";
+      if (comparable.includes("arts humanities citation index") || comparable.includes("arts and humanities citation index") || comparable === "ahci") return "AHCI";
+      if (comparable.includes("emerging sources citation index") || comparable === "esci") return "ESCI";
+
+      return "";
+    })
+    .filter(Boolean));
+}
+
+function mapWebOfScienceRecordToIndexing(record = {}, indexedUrl = "") {
+  const indexes = getWebOfScienceIndexes(record);
+
+  return createIndexingResult({
+    platform: "Web of Science",
+    source: "Web of Science",
+    sourceKey: "webofscience",
+    category: indexes[0] || "",
+    indexedUrl,
+  });
 }
 
 function getFirstMatchingValue(data, predicate) {
@@ -3543,6 +3672,49 @@ async function fetchScopusIndexingByDoi(metadata = {}) {
   }
 
   return null;
+}
+
+async function fetchWebOfScienceIndexingByDoi(metadata = {}) {
+  const apiKey = getWebOfScienceApiKey();
+  const doi = normalizeDoi(metadata.doi);
+
+  if (!apiKey || !doi) {
+    return null;
+  }
+
+  const url = new URL(getWebOfScienceDocumentsApiUrl());
+  url.searchParams.set("db", "WOS");
+  url.searchParams.set("q", `DO=${doi}`);
+  url.searchParams.set("limit", "10");
+  url.searchParams.set("page", "1");
+
+  const response = await fetchJson(url.toString(), {
+    headers: getWebOfScienceHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  const matchedRecord = getWebOfScienceRecords(data)
+    .find((record) => getWebOfScienceDoiValues(record).includes(doi));
+
+  if (!matchedRecord) {
+    return null;
+  }
+
+  const item = mapWebOfScienceRecordToIndexing(matchedRecord, response.url);
+
+  return item
+    ? {
+        provider: "webofscience_doi",
+        status: "manual_required",
+        reason: "webofscience_doi_match",
+        selected: null,
+        items: [markQuartileSelection(item, false, "manual_required", "webofscience_doi_match")],
+      }
+    : null;
 }
 
 function parseJournalRankRecordId(html, issn) {
@@ -4190,6 +4362,16 @@ async function resolveIndexingMetadata(metadata = {}) {
     console.warn("quartile_lookup_failed", {
       doi: metadata.doi,
       source: "scopus_doi",
+      message: error.message,
+    });
+  }
+
+  try {
+    addBundle("webofscience_doi", await fetchWebOfScienceIndexingByDoi(metadata));
+  } catch (error) {
+    console.warn("indexing_lookup_failed", {
+      doi: metadata.doi,
+      source: "webofscience_doi",
       message: error.message,
     });
   }
