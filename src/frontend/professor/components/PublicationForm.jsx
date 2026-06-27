@@ -241,6 +241,54 @@ function normalizeIndexingPlatform(value) {
   return INDEXING_PLATFORM_OPTIONS.includes(text) ? text : "";
 }
 
+function uniqueIndexingPlatforms(values = []) {
+  return [...new Set(values.map(normalizeIndexingPlatform).filter(Boolean))];
+}
+
+function getIndexingPlatforms(indexing = [], fallback = "") {
+  const itemPlatforms = Array.isArray(indexing)
+    ? indexing.map((item) => item?.source || item?.platform || item?.sourceKey || item?.source_key)
+    : [];
+
+  return uniqueIndexingPlatforms([...itemPlatforms, fallback]);
+}
+
+function createManualIndexingItem(platform, existing = {}) {
+  const normalizedPlatform = normalizeIndexingPlatform(platform);
+
+  return {
+    ...existing,
+    source: normalizedPlatform,
+    platform: normalizedPlatform,
+    sourceKey: existing.sourceKey || existing.source_key || "manual",
+    source_key: existing.source_key || existing.sourceKey || "manual",
+    category: normalizedPlatform === "Web of Science" ? existing.category || "" : "",
+    webOfScienceIndex: normalizedPlatform === "Web of Science" ? existing.webOfScienceIndex || existing.web_of_science_index || existing.category || "" : "",
+    web_of_science_index: normalizedPlatform === "Web of Science" ? existing.web_of_science_index || existing.webOfScienceIndex || existing.category || "" : "",
+    quartile: normalizedPlatform === "Scopus" ? normalizeQuartile(existing.quartile) : "",
+    quartileVerified: false,
+    quartile_verified: false,
+    quartileSource: "manual",
+    quartile_source: "manual",
+    quartileVerificationStatus: normalizedPlatform === "Scopus" && existing.quartile ? existing.quartileVerificationStatus || existing.quartile_verification_status || "manual" : "empty",
+    quartile_verification_status: normalizedPlatform === "Scopus" && existing.quartile ? existing.quartile_verification_status || existing.quartileVerificationStatus || "manual" : "empty",
+    quartileSelectionReason: existing.quartileSelectionReason || existing.quartile_selection_reason || "",
+    quartile_selection_reason: existing.quartile_selection_reason || existing.quartileSelectionReason || "",
+    sjr: normalizedPlatform === "Scopus" ? existing.sjr || "" : "",
+    citeScore: normalizedPlatform === "Scopus" ? existing.citeScore || existing.cite_score || existing.citescore || "" : "",
+    impactFactor: normalizedPlatform === "Web of Science" ? existing.impactFactor || existing.impact_factor || "" : "",
+    impact_factor: normalizedPlatform === "Web of Science" ? existing.impact_factor || existing.impactFactor || "" : "",
+  };
+}
+
+function getIndexingItemByPlatform(indexing = [], platform = "") {
+  const normalizedPlatform = normalizeIndexingPlatform(platform);
+
+  return (Array.isArray(indexing) ? indexing : []).find((item) =>
+    normalizeIndexingPlatform(item?.source || item?.platform || item?.sourceKey || item?.source_key) === normalizedPlatform
+  ) || {};
+}
+
 function normalizeCustomIndexingPlatform(value) {
   return String(value || "").trim();
 }
@@ -1086,6 +1134,8 @@ const PublicationForm = ({
   const abstractRows = isAbstractExpandable && !isAbstractExpanded ? 3 : 6;
   const indexingItems = Array.isArray(value.indexing) ? value.indexing : [];
   const primaryIndexing = getSelectedIndexingItem(indexingItems, value.quartile);
+  const scopusIndexing = getIndexingItemByPlatform(indexingItems, "Scopus");
+  const webOfScienceIndexing = getIndexingItemByPlatform(indexingItems, "Web of Science");
   const fieldSources = normalizeFieldSources(value);
   const isTrustedSource = (field) => ["api", "lookup"].includes(fieldSources[field]?.source);
   const isFieldLocked = (field) => {
@@ -1099,12 +1149,13 @@ const PublicationForm = ({
 
     return isTrustedSource(field);
   };
-  const displayableQuartile = value.quartile || (isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
-  const selectedIndexingPlatform = normalizeIndexingPlatform(value.indexingPlatform || primaryIndexing.source || "");
-  const isScopusIndexing = selectedIndexingPlatform === "Scopus";
-  const isWebOfScienceIndexing = selectedIndexingPlatform === "Web of Science";
-  const isOtherIndexing = selectedIndexingPlatform === "Other";
-  const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "");
+  const selectedIndexingPlatforms = getIndexingPlatforms(indexingItems, value.indexingPlatform || primaryIndexing.source || "");
+  const selectedIndexingPlatform = selectedIndexingPlatforms[0] || "";
+  const isScopusIndexing = selectedIndexingPlatforms.includes("Scopus");
+  const isWebOfScienceIndexing = selectedIndexingPlatforms.includes("Web of Science");
+  const isOtherIndexing = selectedIndexingPlatforms.includes("Other");
+  const displayableQuartile = value.quartile || (isDisplayableQuartile(scopusIndexing) ? scopusIndexing.quartile : isDisplayableQuartile(primaryIndexing) ? primaryIndexing.quartile : "");
+  const selectedWebOfScienceIndex = normalizeWebOfScienceIndex(value.webOfScienceIndex || value.web_of_science_index || webOfScienceIndexing.webOfScienceIndex || webOfScienceIndexing.web_of_science_index || webOfScienceIndexing.category || "");
   const selectedCustomIndexingPlatform = normalizeCustomIndexingPlatform(value.customIndexingPlatform || value.custom_indexing_platform || "");
   const hasAuthorValue = (author = {}) => Boolean(String(author.fullName || "").trim());
   const hasAffiliationValue = (author = {}) => Boolean(String(author.affiliation || "").trim());
@@ -1357,61 +1408,73 @@ const PublicationForm = ({
   const updateIndexingField = (field) => (event) => {
     const nextValue = event.target.value;
     const indexing = Array.isArray(value.indexing) ? value.indexing : [];
-    const [firstIndexing = {}, ...restIndexing] = indexing;
-    const nextPlatform = normalizeIndexingPlatform(field === "indexingPlatform" ? nextValue : value.indexingPlatform || primaryIndexing.source || "");
-    const nextCustomIndexingPlatform = nextPlatform === "Other"
+    const nextPlatforms = field === "indexingPlatform"
+      ? event.target.checked
+        ? uniqueIndexingPlatforms([...selectedIndexingPlatforms, nextValue])
+        : selectedIndexingPlatforms.filter((platform) => platform !== normalizeIndexingPlatform(nextValue))
+      : selectedIndexingPlatforms;
+    const nextPrimaryPlatform = nextPlatforms[0] || "";
+    const nextScopusSelected = nextPlatforms.includes("Scopus");
+    const nextWebOfScienceSelected = nextPlatforms.includes("Web of Science");
+    const nextOtherSelected = nextPlatforms.includes("Other");
+    const nextCustomIndexingPlatform = nextOtherSelected
       ? field === "customIndexingPlatform"
         ? normalizeCustomIndexingPlatform(nextValue)
         : selectedCustomIndexingPlatform
       : "";
-    const nextWebOfScienceIndex = nextPlatform === "Web of Science"
+    const nextWebOfScienceIndex = nextWebOfScienceSelected
       ? field === "webOfScienceIndex"
         ? normalizeWebOfScienceIndex(nextValue)
         : selectedWebOfScienceIndex
       : "";
-    const nextCategory = nextPlatform === "Web of Science" ? nextWebOfScienceIndex : "";
-    const nextQuartile = nextPlatform === "Scopus"
+    const nextCategory = nextWebOfScienceIndex;
+    const nextQuartile = nextScopusSelected
       ? field === "quartile"
         ? normalizeQuartile(nextValue)
         : normalizeQuartile(displayableQuartile || "")
       : "";
-    const nextSjr = nextPlatform === "Scopus" ? field === "sjr" ? nextValue : value.sjr || primaryIndexing.sjr || "" : "";
-    const nextCiteScore = nextPlatform === "Scopus" ? field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(primaryIndexing) : "";
-    const nextImpactFactor = nextPlatform === "Web of Science" ? field === "impactFactor" ? nextValue : value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "";
+    const nextSjr = nextScopusSelected ? field === "sjr" ? nextValue : value.sjr || scopusIndexing.sjr || primaryIndexing.sjr || "" : "";
+    const nextCiteScore = nextScopusSelected ? field === "citeScore" ? nextValue : value.citeScore || getIndexingCiteScore(scopusIndexing) || getIndexingCiteScore(primaryIndexing) : "";
+    const nextImpactFactor = nextWebOfScienceSelected ? field === "impactFactor" ? nextValue : value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "" : "";
     const nextQuartileStatus = field === "quartile" && nextQuartile
       ? "manual"
-      : primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
-    const nextFirstIndexing = {
-      ...firstIndexing,
-      source: nextPlatform,
-      platform: nextPlatform,
-      sourceKey: "manual",
-      category: nextCategory,
-      webOfScienceIndex: nextWebOfScienceIndex,
-      web_of_science_index: nextWebOfScienceIndex,
-      quartile: nextQuartile,
-      quartileVerified: false,
-      quartile_verified: false,
-      quartileSource: "manual",
-      quartile_source: "manual",
-      quartileVerificationStatus: nextQuartileStatus,
-      quartile_verification_status: nextQuartileStatus,
-      quartileSelectionReason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
-      quartile_selection_reason: field === "quartile" ? "manual_edit" : primaryIndexing.quartileSelectionReason || primaryIndexing.quartile_selection_reason || "",
-      sjr: nextSjr,
-      citeScore: nextCiteScore,
-      impactFactor: nextImpactFactor,
-      impact_factor: nextImpactFactor,
-    };
-    const nextIndexing = nextFirstIndexing.source || nextFirstIndexing.category || nextFirstIndexing.quartile || nextFirstIndexing.sjr || nextFirstIndexing.citeScore || nextFirstIndexing.impactFactor || nextFirstIndexing.indexedUrl
-      ? [nextFirstIndexing, ...restIndexing]
-      : restIndexing;
+      : scopusIndexing.quartileVerificationStatus || scopusIndexing.quartile_verification_status || primaryIndexing.quartileVerificationStatus || primaryIndexing.quartile_verification_status || (nextQuartile ? "manual" : "empty");
+    const nextIndexing = nextPlatforms.map((platform) => {
+      const normalizedPlatform = normalizeIndexingPlatform(platform);
+      const existing = getIndexingItemByPlatform(indexing, normalizedPlatform);
+
+      if (normalizedPlatform === "Scopus") {
+        return createManualIndexingItem("Scopus", {
+          ...existing,
+          quartile: nextQuartile,
+          quartileVerificationStatus: nextQuartileStatus,
+          quartile_verification_status: nextQuartileStatus,
+          quartileSelectionReason: field === "quartile" ? "manual_edit" : existing.quartileSelectionReason || existing.quartile_selection_reason || "",
+          quartile_selection_reason: field === "quartile" ? "manual_edit" : existing.quartileSelectionReason || existing.quartile_selection_reason || "",
+          sjr: nextSjr,
+          citeScore: nextCiteScore,
+        });
+      }
+
+      if (normalizedPlatform === "Web of Science") {
+        return createManualIndexingItem("Web of Science", {
+          ...existing,
+          category: nextCategory,
+          webOfScienceIndex: nextWebOfScienceIndex,
+          web_of_science_index: nextWebOfScienceIndex,
+          impactFactor: nextImpactFactor,
+          impact_factor: nextImpactFactor,
+        });
+      }
+
+      return createManualIndexingItem(normalizedPlatform, existing);
+    });
 
     onChange({
       ...value,
-      [field]: nextValue,
-      indexingPlatform: nextPlatform,
-      indexing_platform: nextPlatform,
+      [field]: field === "indexingPlatform" ? nextPrimaryPlatform : nextValue,
+      indexingPlatform: nextPrimaryPlatform,
+      indexing_platform: nextPrimaryPlatform,
       customIndexingPlatform: nextCustomIndexingPlatform,
       custom_indexing_platform: nextCustomIndexingPlatform,
       webOfScienceIndex: nextWebOfScienceIndex,
@@ -1522,23 +1585,23 @@ const PublicationForm = ({
         errors.indexingPlatform = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (selectedIndexingPlatform === "Scopus" && !displayableQuartile) {
+      if (isScopusIndexing && !displayableQuartile) {
         errors.quartile = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (selectedIndexingPlatform === "Scopus" && !String(value.citeScore || getIndexingCiteScore(primaryIndexing) || "").trim()) {
+      if (isScopusIndexing && !String(value.citeScore || getIndexingCiteScore(scopusIndexing) || getIndexingCiteScore(primaryIndexing) || "").trim()) {
         errors.citeScore = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (selectedIndexingPlatform === "Web of Science" && !selectedWebOfScienceIndex) {
+      if (isWebOfScienceIndexing && !selectedWebOfScienceIndex) {
         errors.webOfScienceIndex = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (selectedIndexingPlatform === "Web of Science" && !String(value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()) {
+      if (isWebOfScienceIndexing && !String(value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || "").trim()) {
         errors.impactFactor = REQUIRED_FIELD_MESSAGE;
       }
 
-      if (selectedIndexingPlatform === "Other" && !selectedCustomIndexingPlatform) {
+      if (isOtherIndexing && !selectedCustomIndexingPlatform) {
         errors.customIndexingPlatform = REQUIRED_FIELD_MESSAGE;
       }
     }
@@ -1962,22 +2025,29 @@ const PublicationForm = ({
         ) : null}
         {showIndexingFields ? (
           <>
-            <label className={`prof-form-field${requiredClassName("indexingPlatform")}`}>
+            <div className={`prof-form-field publication-indexing-platform-field${requiredClassName("indexingPlatform")}`}>
               <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"))}</span>
-              <select
-                value={selectedIndexingPlatform}
-                onChange={updateIndexingField("indexingPlatform")}
-                disabled={isFieldLocked("indexingPlatform")}
+              <div
+                className="publication-indexing-platform-options"
+                role="group"
                 aria-invalid={Boolean(fieldErrors.indexingPlatform)}
+                aria-label={t("professor.dashboard.publicationForm.indexingPlatform")}
               >
-                {INDEXING_PLATFORM_OPTIONS.map((option) => (
-                  <option key={option || "empty-platform"} value={option}>
-                    {option || t("professor.dashboard.publicationForm.selectIndexingPlatform")}
-                  </option>
+                {INDEXING_PLATFORM_VALUES.map((option) => (
+                  <label className="publication-indexing-platform-option" key={option}>
+                    <input
+                      type="checkbox"
+                      value={option}
+                      checked={selectedIndexingPlatforms.includes(option)}
+                      onChange={updateIndexingField("indexingPlatform")}
+                      disabled={isFieldLocked("indexingPlatform")}
+                    />
+                    <span>{option}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
               {renderFieldError("indexingPlatform")}
-            </label>
+            </div>
             {isOtherIndexing ? (
               <label className={`prof-form-field${requiredClassName("customIndexingPlatform")}`}>
                 <span>{requiredLabel(t("professor.dashboard.publicationForm.customIndexingPlatform"))}</span>
@@ -2013,7 +2083,7 @@ const PublicationForm = ({
                 <label className={`prof-form-field${requiredClassName("citeScore")}`}>
                   <span>{requiredLabel(t("professor.dashboard.publicationForm.citeScore"))}</span>
                   <input
-                    value={value.citeScore || getIndexingCiteScore(primaryIndexing)}
+                    value={value.citeScore || getIndexingCiteScore(scopusIndexing) || getIndexingCiteScore(primaryIndexing)}
                     onChange={updateIndexingField("citeScore")}
                     readOnly={isFieldLocked("citeScore")}
                     aria-invalid={Boolean(fieldErrors.citeScore)}
@@ -2043,7 +2113,7 @@ const PublicationForm = ({
                 <label className={`prof-form-field${requiredClassName("impactFactor")}`}>
                   <span>{requiredLabel(t("professor.dashboard.publicationForm.impactFactor"))}</span>
                   <input
-                    value={value.impactFactor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
+                    value={value.impactFactor || webOfScienceIndexing.impactFactor || webOfScienceIndexing.impact_factor || primaryIndexing.impactFactor || primaryIndexing.impact_factor || ""}
                     onChange={updateIndexingField("impactFactor")}
                     readOnly={isFieldLocked("impactFactor")}
                     aria-invalid={Boolean(fieldErrors.impactFactor)}
