@@ -62,6 +62,7 @@ function normalizeMetadataPublicationType(value) {
   const normalized = normalizeComparableText(value).replace(/\s+/g, "_");
   const typeMap = {
     article_journal: "journal_article",
+    article: "journal_article",
     journal: "journal_article",
     journal_article: "journal_article",
     conference: "conference_paper",

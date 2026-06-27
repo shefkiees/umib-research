@@ -2557,12 +2557,14 @@ export default function ProfessorDashboard() {
           review: summary.publicationsInReview,
         }),
         icon: <BookOpen size={22} />,
+        page: "Te gjithe Artikujt",
       },
       {
         label: t("professor.dashboard.totalConferencesCard"),
         value: summary.conferencesTotal,
         change: "",
         icon: <CalendarDays size={22} />,
+        page: "Konferenca",
       },
       {
         label: t("professor.dashboard.totalReimbursementsCard"),
@@ -2571,6 +2573,7 @@ export default function ProfessorDashboard() {
           amount: formatRequestedAmounts(summary.requestedAmounts),
         }),
         icon: <Wallet size={22} />,
+        page: "Historiku i Rimbursimeve",
       },
     ];
 
@@ -2582,9 +2585,14 @@ export default function ProfessorDashboard() {
           </div>
         ) : null}
 
-        <section className="prof-stats-grid">
+        <section className="prof-stats-grid prof-stats-grid--centered">
           {statCards.map((stat) => (
-            <article key={stat.label} className="prof-stat-card">
+            <button
+              key={stat.label}
+              className="prof-stat-card prof-stat-card--button"
+              type="button"
+              onClick={() => handleDashboardNavigate(stat.page)}
+            >
               <div className="prof-stat-top">
                 <div>
                   <span className="prof-stat-title">{stat.label}</span>
@@ -2593,7 +2601,7 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="prof-stat-icon">{stat.icon}</div>
               </div>
-            </article>
+            </button>
           ))}
         </section>
 

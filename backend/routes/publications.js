@@ -505,6 +505,7 @@ function normalizePublicationType(value) {
   const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
   const typeMap = {
     article_journal: "journal_article",
+    article: "journal_article",
     journal: "journal_article",
     journal_article: "journal_article",
     conference_proceeding: "conference_paper",
@@ -546,8 +547,9 @@ function normalizePublicationTypeFilterValues(value) {
   return VALID_PUBLICATION_TYPES.has(publicationType) ? [publicationType] : null;
 }
 
-const PUBLICATION_TYPE_SQL = `(case replace(lower(coalesce(nullif(p.publication_type, ''), m.type, '')), '-', '_')
+const PUBLICATION_TYPE_SQL = `(case regexp_replace(lower(trim(coalesce(nullif(p.publication_type, ''), m.type, ''))), '[-[:space:]]+', '_', 'g')
   when 'article_journal' then 'journal_article'
+  when 'article' then 'journal_article'
   when 'journal' then 'journal_article'
   when 'journal_article' then 'journal_article'
   when 'conference_proceeding' then 'conference_paper'
@@ -561,7 +563,7 @@ const PUBLICATION_TYPE_SQL = `(case replace(lower(coalesce(nullif(p.publication_
   when 'book' then 'book'
   when 'book_chapter' then 'book_chapter'
   when 'chapter' then 'book_chapter'
-  else replace(lower(coalesce(nullif(p.publication_type, ''), m.type, '')), '-', '_')
+  else regexp_replace(lower(trim(coalesce(nullif(p.publication_type, ''), m.type, ''))), '[-[:space:]]+', '_', 'g')
 end)`;
 
 function normalizePublicationSubtype(value) {
@@ -2025,6 +2027,34 @@ async function ensurePublicationReviewSchema(client) {
       on publication_review_history (publication_id, created_at desc);
     create index if not exists publications_metadata_review_status_idx
       on publications (metadata_review_status, updated_at desc);
+  `);
+
+  await client.query(`
+    update publications p
+    set publication_type = case regexp_replace(lower(trim(m.type)), '[-[:space:]]+', '_', 'g')
+      when 'article_journal' then 'journal_article'
+      when 'article' then 'journal_article'
+      when 'journal' then 'journal_article'
+      when 'journal_article' then 'journal_article'
+      when 'conference_proceeding' then 'conference_paper'
+      when 'conference_proceedings' then 'conference_paper'
+      when 'paper_conference' then 'conference_paper'
+      when 'proceedings' then 'conference_paper'
+      when 'proceedings_article' then 'conference_paper'
+      when 'proceedings_series' then 'conference_paper'
+      when 'conference' then 'conference_paper'
+      when 'conference_paper' then 'conference_paper'
+      when 'book' then 'book'
+      when 'book_chapter' then 'book'
+      when 'chapter' then 'book'
+      else p.publication_type
+    end
+    from publication_metadata m
+    where m.doi = coalesce(p.external_metadata_id, p.doi)
+      and (
+        nullif(p.publication_type, '') is null
+        or regexp_replace(lower(trim(p.publication_type)), '[-[:space:]]+', '_', 'g') not in ('journal_article', 'conference_paper', 'book')
+      );
   `);
 
   publicationReviewSchemaReady = true;

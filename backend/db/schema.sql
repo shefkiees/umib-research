@@ -540,10 +540,18 @@ where not exists (
 and jsonb_typeof(author_item.value) = 'string';
 
 update publications p
-set publication_type = case replace(lower(m.type), '-', '_')
+set publication_type = case regexp_replace(lower(trim(m.type)), '[-[:space:]]+', '_', 'g')
   when 'article_journal' then 'journal_article'
+  when 'article' then 'journal_article'
+  when 'journal' then 'journal_article'
   when 'journal_article' then 'journal_article'
+  when 'conference_proceeding' then 'conference_paper'
+  when 'conference_proceedings' then 'conference_paper'
+  when 'paper_conference' then 'conference_paper'
+  when 'proceedings' then 'conference_paper'
   when 'proceedings_article' then 'conference_paper'
+  when 'proceedings_series' then 'conference_paper'
+  when 'conference' then 'conference_paper'
   when 'conference_paper' then 'conference_paper'
   when 'book' then 'book'
   when 'book_chapter' then 'book'
@@ -558,7 +566,7 @@ where m.doi = coalesce(p.external_metadata_id, p.doi)
   and (
     nullif(p.publication_type, '') is null
     or p.publication_type = m.type
-    or p.publication_type not in ('journal_article', 'conference_paper', 'book')
+    or regexp_replace(lower(trim(p.publication_type)), '[-[:space:]]+', '_', 'g') not in ('journal_article', 'conference_paper', 'book')
   );
 
 insert into publication_authors

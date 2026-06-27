@@ -631,6 +631,7 @@ function normalizeDoiType(value) {
   const normalized = String(value || "").toLowerCase().replace(/[-\s]+/g, "_");
   const map = {
     article_journal: "journal_article",
+    article: "journal_article",
     journal: "journal_article",
     journal_article: "journal_article",
     conference: "conference_paper",
