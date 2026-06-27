@@ -264,7 +264,7 @@ const getPublicationTypeFilterForPage = (page) => {
   }
 
   if (page === "Libra / Kapituj") {
-    return "book";
+    return "books_chapters";
   }
 
   return "";

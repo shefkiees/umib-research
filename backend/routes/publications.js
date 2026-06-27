@@ -526,6 +526,44 @@ function normalizePublicationType(value) {
   return typeMap[normalized] || normalized;
 }
 
+function normalizePublicationTypeFilterValues(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
+
+  if (!normalized) {
+    return [];
+  }
+
+  if (["books", "books_chapters", "book_chapters", "libra_kapituj"].includes(normalized)) {
+    return ["book", "book_chapter"];
+  }
+
+  const publicationType = normalizePublicationType(normalized);
+
+  if (publicationType === "book") {
+    return ["book", "book_chapter"];
+  }
+
+  return VALID_PUBLICATION_TYPES.has(publicationType) ? [publicationType] : null;
+}
+
+const PUBLICATION_TYPE_SQL = `(case replace(lower(coalesce(nullif(p.publication_type, ''), m.type, '')), '-', '_')
+  when 'article_journal' then 'journal_article'
+  when 'journal' then 'journal_article'
+  when 'journal_article' then 'journal_article'
+  when 'conference_proceeding' then 'conference_paper'
+  when 'conference_proceedings' then 'conference_paper'
+  when 'paper_conference' then 'conference_paper'
+  when 'proceedings' then 'conference_paper'
+  when 'proceedings_article' then 'conference_paper'
+  when 'proceedings_series' then 'conference_paper'
+  when 'conference' then 'conference_paper'
+  when 'conference_paper' then 'conference_paper'
+  when 'book' then 'book'
+  when 'book_chapter' then 'book_chapter'
+  when 'chapter' then 'book_chapter'
+  else replace(lower(coalesce(nullif(p.publication_type, ''), m.type, '')), '-', '_')
+end)`;
+
 function normalizePublicationSubtype(value) {
   const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
 
@@ -2434,7 +2472,7 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
   const q = normalizeText(req.query.q || req.query.search);
   const status = normalizeText(req.query.status);
   const rawPublicationType = normalizeText(req.query.publicationType || req.query.publication_type || req.query.type);
-  const publicationType = normalizePublicationType(rawPublicationType);
+  const publicationTypeFilterValues = normalizePublicationTypeFilterValues(rawPublicationType);
   const scope = normalizeText(req.query.scope).toLowerCase();
   const isReviewScope = ["review", "committee", "all"].includes(scope);
   const currentUser = (await loadCurrentUser(req.user.id)) || req.user;
@@ -2462,18 +2500,22 @@ router.get("/", requireAuthenticatedUser, async (req, res) => {
     filters.push(`p.status = $${params.length}`);
   }
 
-  if (rawPublicationType) {
-    if (!publicationType || !VALID_PUBLICATION_TYPES.has(publicationType)) {
-      res.status(400).json({ error: "invalid_publication_type", message: "Tipi i publikimit nuk eshte valid." });
-      return;
-    }
-
-    params.push(publicationType);
-    filters.push(`p.publication_type = $${params.length}`);
-  }
-
   try {
     const isUnified = await hasUnifiedPublicationSchema(db);
+
+    if (rawPublicationType) {
+      if (!publicationTypeFilterValues) {
+        res.status(400).json({ error: "invalid_publication_type", message: "Tipi i publikimit nuk eshte valid." });
+        return;
+      }
+
+      params.push(publicationTypeFilterValues);
+      filters.push(
+        isUnified
+          ? `${PUBLICATION_TYPE_SQL} = any($${params.length}::text[])`
+          : `p.publication_type = any($${params.length}::text[])`
+      );
+    }
 
     if (q) {
       params.push(`%${q}%`);
