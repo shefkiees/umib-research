@@ -835,7 +835,7 @@ function firstMetadataText(...values) {
         return nested;
       }
     } else if (value && typeof value === "object") {
-      const candidate = firstMetadataText(value.value, value.name, value.title, value.URL, value.url);
+      const candidate = firstMetadataText(value.value, value.name, value.displayName, value.display_name, value.title, value.URL, value.url);
 
       if (candidate) {
         return candidate;
@@ -894,14 +894,122 @@ function isIndexingPlatform(item, platform) {
     : value.includes("web of science") || value.includes("clarivate");
 }
 
+function normalizeMetadataAuthor(author = {}, index = 0) {
+  const givenName = normalizeText(author.givenName || author.given_name || author.given || author.firstName || author.first_name);
+  const familyName = normalizeText(author.familyName || author.family_name || author.family || author.lastName || author.last_name);
+  const fullName = normalizeText(
+    author.fullName
+    || author.full_name
+    || author.displayName
+    || author.display_name
+    || author.name
+    || [givenName, familyName].filter(Boolean).join(" ")
+  );
+  const affiliation = firstMetadataText(
+    author.affiliation,
+    author.affiliations,
+    author.institution,
+    author.organization,
+    author.currentAffiliation,
+    author.current_affiliation
+  );
+
+  return {
+    fullName,
+    full_name: fullName,
+    givenName,
+    given_name: givenName,
+    familyName,
+    family_name: familyName,
+    orcid: normalizeText(author.orcid),
+    affiliation,
+    isMainAuthor: index === 0 || Boolean(author.isMainAuthor || author.is_main_author),
+    is_main_author: index === 0 || Boolean(author.isMainAuthor || author.is_main_author),
+    isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor || author.is_corresponding_author || author.correspondingAuthor || author.corresponding_author || author.corresponding),
+    is_corresponding_author: Boolean(author.isCorrespondingAuthor || author.is_corresponding_author || author.correspondingAuthor || author.corresponding_author || author.corresponding),
+    position: index + 1,
+  };
+}
+
+function getMetadataAuthors(row = {}, raw = {}) {
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const openalex = raw._openalex || {};
+  const authors = [
+    ...safeJsonArray(row.metadata_authors),
+    ...safeJsonArray(raw.authors),
+    ...safeJsonArray(raw.author),
+    ...safeJsonArray(crossref.authors),
+    ...safeJsonArray(crossref.author),
+    ...safeJsonArray(doiOrg.authors),
+    ...safeJsonArray(doiOrg.author),
+    ...safeJsonArray(openalex.authors),
+    ...safeJsonArray(openalex.authorships).map((authorship) => ({
+      ...(authorship.author || {}),
+      affiliation: authorship.institutions,
+      isCorrespondingAuthor: authorship.is_corresponding || authorship.corresponding,
+    })),
+  ];
+
+  return authors
+    .map(normalizeMetadataAuthor)
+    .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
+}
+
+function getMetadataIndexing(raw = {}) {
+  const quartileLookup = raw._quartile_lookup || {};
+  const candidates = [
+    ...safeJsonArray(raw._indexing),
+    ...safeJsonArray(raw.indexing),
+    ...safeJsonArray(raw.indexingMetadata),
+    ...safeJsonArray(raw.indexing_metadata),
+  ];
+
+  if (quartileLookup.selectedQuartile || raw.quartile || raw.scopusQuartile || raw.scopus_quartile) {
+    candidates.push({
+      source: quartileLookup.selectedSource || raw.indexingPlatform || raw.indexing_platform || raw.indexingSource || raw.indexing_source || "Scopus",
+      platform: raw.indexingPlatform || raw.indexing_platform || quartileLookup.selectedSource || "Scopus",
+      sourceKey: quartileLookup.selectedSource || raw.indexingSource || raw.indexing_source,
+      category: quartileLookup.selectedCategory || raw.indexingCategory || raw.indexing_category,
+      quartile: quartileLookup.selectedQuartile || raw.quartile || raw.scopusQuartile || raw.scopus_quartile,
+      citeScore: raw.citeScore || raw.cite_score || raw.citescore,
+      impactFactor: raw.impactFactor || raw.impact_factor,
+    });
+  }
+
+  return candidates
+    .map((item = {}) => ({
+      source: normalizeText(item.source || item.platform || item.indexingPlatform || item.indexing_platform),
+      platform: normalizeText(item.platform || item.source || item.indexingPlatform || item.indexing_platform),
+      sourceKey: normalizeText(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
+      source_key: normalizeText(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
+      category: normalizeText(item.category),
+      webOfScienceIndex: normalizeText(item.webOfScienceIndex || item.web_of_science_index),
+      web_of_science_index: normalizeText(item.web_of_science_index || item.webOfScienceIndex),
+      quartile: normalizeText(item.quartile),
+      impactFactor: normalizeText(item.impactFactor || item.impact_factor),
+      impact_factor: normalizeText(item.impact_factor || item.impactFactor),
+      sjr: normalizeText(item.sjr),
+      citeScore: normalizeText(item.citeScore || item.cite_score || item.citescore),
+      cite_score: normalizeText(item.cite_score || item.citeScore || item.citescore),
+      indexedUrl: normalizeText(item.indexedUrl || item.indexed_url),
+      indexed_url: normalizeText(item.indexed_url || item.indexedUrl),
+    }))
+    .filter((item) => item.source || item.platform || item.category || item.webOfScienceIndex || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
+}
+
 function mapPublicationRow(row) {
-  const authors = safeJsonArray(row.authors);
-  const indexing = safeJsonArray(row.indexing);
   const raw = safeJsonObject(row.metadata_raw_json || row.raw_json);
   const crossref = raw._crossref || {};
   const doiOrg = raw._doi_org || {};
   const datacite = raw._datacite || {};
   const openalex = raw._openalex || {};
+  const authors = safeJsonArray(row.authors);
+  const metadataAuthors = getMetadataAuthors(row, raw);
+  const resolvedAuthors = authors.length ? authors : metadataAuthors;
+  const indexing = safeJsonArray(row.indexing);
+  const metadataIndexing = getMetadataIndexing(raw);
+  const resolvedIndexing = indexing.length ? indexing : metadataIndexing;
   const venue = firstMetadataText(
     row.venue,
     row.container_title,
@@ -941,18 +1049,18 @@ function mapPublicationRow(row) {
   const eIssn = firstMetadataText(row.e_issn, row.eIssn, row.eissn, raw.e_issn, raw.eIssn, raw.eissn, raw["e-issn"], crossref.e_issn, crossref.eIssn, crossref["e-issn"]);
   const isbn = firstMetadataText(row.isbn, raw.isbn, raw.ISBN, crossref.isbn, crossref.ISBN, doiOrg.isbn, doiOrg.ISBN);
   const indexingPlatform = normalizeText(row.indexing_platform)
-    || uniqueNonEmptyValues(indexing.map(getIndexingPlatform)).join(", ");
+    || uniqueNonEmptyValues(resolvedIndexing.map(getIndexingPlatform)).join(", ");
   const indexingCategory = normalizeText(row.indexing_category)
-    || indexing.map((item) => normalizeText(item.category)).find(Boolean)
+    || resolvedIndexing.map((item) => normalizeText(item.category)).find(Boolean)
     || "";
-  const webOfScienceItem = indexing.find((item) => isIndexingPlatform(item, "web_of_science"));
+  const webOfScienceItem = resolvedIndexing.find((item) => isIndexingPlatform(item, "web_of_science"));
   const webOfScienceIndex = normalizeText(row.web_of_science_index)
     || normalizeText(webOfScienceItem?.webOfScienceIndex || webOfScienceItem?.web_of_science_index || webOfScienceItem?.category);
-  const scopusItem = indexing.find((item) => isIndexingPlatform(item, "scopus") && normalizeText(item.quartile));
-  const firstQuartile = scopusItem || indexing.find((item) => normalizeText(item.quartile));
+  const scopusItem = resolvedIndexing.find((item) => isIndexingPlatform(item, "scopus") && normalizeText(item.quartile));
+  const firstQuartile = scopusItem || resolvedIndexing.find((item) => normalizeText(item.quartile));
   const scopusQuartile = normalizeText(row.scopus_quartile || row.quartile || firstQuartile?.quartile);
   const indexingSource = normalizeText(row.indexing_source)
-    || normalizeText(scopusItem?.sourceKey || scopusItem?.source_key || indexing[0]?.sourceKey || indexing[0]?.source_key);
+    || normalizeText(scopusItem?.sourceKey || scopusItem?.source_key || resolvedIndexing[0]?.sourceKey || resolvedIndexing[0]?.source_key);
 
   return {
     id: row.id,
@@ -997,8 +1105,8 @@ function mapPublicationRow(row) {
     quartile: scopusQuartile,
     indexingSource,
     indexing_source: indexingSource,
-    authors,
-    indexing,
+    authors: resolvedAuthors,
+    indexing: resolvedIndexing,
     identifiers: safeJsonArray(row.identifiers),
     evidenceLinks: safeJsonArray(row.evidence_links || row.evidenceLinks),
     evidence_links: safeJsonArray(row.evidence_links || row.evidenceLinks),
@@ -1410,7 +1518,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                 p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
-                m.type as metadata_type, m.raw_json as metadata_raw_json,
+                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
@@ -1507,7 +1615,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
                 m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
-                m.type as metadata_type, m.raw_json as metadata_raw_json
+                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.id = $1
@@ -2258,7 +2366,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                 p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
-                m.type as metadata_type, m.raw_json as metadata_raw_json,
+                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
@@ -2352,7 +2460,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
                 m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
-                m.type as metadata_type, m.raw_json as metadata_raw_json,
+                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
                 coalesce(
                   (
                     select json_agg(
