@@ -623,7 +623,12 @@ router.get("/publications", requireProRectorAccess, async (req, res) => {
          and ($3::text is null or publication_type = $3)
          and ($4::text is null or platform ilike '%' || $4 || '%')
          and ($5::text is null or quartile = $5)
-         and ($6::text is null or status = $6 or ($6 = 'correction' and status = 'needs_correction'))
+         and (
+           ($6::text is null and status <> 'draft')
+           or status = $6
+           or ($6 = 'in_review' and status = 'submitted')
+           or ($6 = 'correction' and status = 'needs_correction')
+         )
          and ($7::text is null or title ilike '%' || $7 || '%' or author_names ilike '%' || $7 || '%' or doi ilike '%' || $7 || '%')
        order by coalesce(publication_date, created_at) desc, title asc
        limit 500`,
