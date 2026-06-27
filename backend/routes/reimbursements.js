@@ -826,6 +826,32 @@ function safeJsonObject(value) {
   }
 }
 
+function firstMetadataText(...values) {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      const nested = firstMetadataText(...value);
+
+      if (nested) {
+        return nested;
+      }
+    } else if (value && typeof value === "object") {
+      const candidate = firstMetadataText(value.value, value.name, value.title, value.URL, value.url);
+
+      if (candidate) {
+        return candidate;
+      }
+    } else {
+      const text = normalizeText(value);
+
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return "";
+}
+
 function normalizePublicationSubtype(value) {
   const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
   return normalized === "book_chapter" || normalized === "chapter" ? "book_chapter" : "";
@@ -871,8 +897,49 @@ function isIndexingPlatform(item, platform) {
 function mapPublicationRow(row) {
   const authors = safeJsonArray(row.authors);
   const indexing = safeJsonArray(row.indexing);
-  const venue = row.venue || row.container_title || "";
+  const raw = safeJsonObject(row.metadata_raw_json || row.raw_json);
+  const crossref = raw._crossref || {};
+  const doiOrg = raw._doi_org || {};
+  const datacite = raw._datacite || {};
+  const openalex = raw._openalex || {};
+  const venue = firstMetadataText(
+    row.venue,
+    row.container_title,
+    raw.container_title,
+    raw.containerTitle,
+    raw["container-title"],
+    raw.source_title,
+    raw.sourceTitle,
+    crossref.container_title,
+    crossref["container-title"],
+    doiOrg.container_title,
+    doiOrg["container-title"],
+    openalex.source?.display_name,
+    openalex.primary_location?.source?.display_name
+  );
   const publicationSubtype = getPublicationSubtypeFromRow(row);
+  const publisher = firstMetadataText(row.publisher, raw.publisher, crossref.publisher, doiOrg.publisher, datacite.publisher, openalex.host_venue?.publisher);
+  const sourceUrl = firstMetadataText(
+    row.source_url,
+    raw.source_url,
+    raw.sourceUrl,
+    raw.URL,
+    raw.url,
+    raw.link?.[0]?.URL,
+    raw.resource?.primary?.URL,
+    crossref.URL,
+    crossref.resource?.primary?.URL,
+    doiOrg.URL,
+    doiOrg.resource?.primary?.URL,
+    openalex.doi,
+    openalex.primary_location?.landing_page_url
+  );
+  const volume = firstMetadataText(row.volume, raw.volume, crossref.volume, doiOrg.volume);
+  const issue = firstMetadataText(row.issue, raw.issue, crossref.issue, doiOrg.issue);
+  const pages = firstMetadataText(row.pages, raw.pages, raw.page, crossref.pages, crossref.page, doiOrg.pages, doiOrg.page);
+  const issn = firstMetadataText(row.issn, raw.issn, raw.ISSN, crossref.issn, crossref.ISSN, doiOrg.issn, doiOrg.ISSN);
+  const eIssn = firstMetadataText(row.e_issn, row.eIssn, row.eissn, raw.e_issn, raw.eIssn, raw.eissn, raw["e-issn"], crossref.e_issn, crossref.eIssn, crossref["e-issn"]);
+  const isbn = firstMetadataText(row.isbn, raw.isbn, raw.ISBN, crossref.isbn, crossref.ISBN, doiOrg.isbn, doiOrg.ISBN);
   const indexingPlatform = normalizeText(row.indexing_platform)
     || uniqueNonEmptyValues(indexing.map(getIndexingPlatform)).join(", ");
   const indexingCategory = normalizeText(row.indexing_category)
@@ -891,7 +958,7 @@ function mapPublicationRow(row) {
     id: row.id,
     doi: row.doi || "",
     title: row.title || "",
-    abstract: row.abstract || "",
+    abstract: firstMetadataText(row.abstract, raw.abstract, crossref.abstract, doiOrg.abstract, datacite.abstract),
     publicationType: row.publication_type || row.publicationType || "",
     publication_type: row.publication_type || row.publicationType || "",
     publicationSubtype,
@@ -902,7 +969,7 @@ function mapPublicationRow(row) {
     published_in: venue,
     conferenceLocation: row.conference_location || row.conferenceLocation || "",
     conference_location: row.conference_location || row.conferenceLocation || "",
-    publisher: row.publisher || "",
+    publisher,
     acceptanceDate: formatDate(row.acceptance_date || row.acceptanceDate),
     acceptance_date: formatDate(row.acceptance_date || row.acceptanceDate),
     publicationDate: formatDate(row.publication_date || row.publicationDate || row.published_date),
@@ -910,15 +977,15 @@ function mapPublicationRow(row) {
     publicationYear: row.publication_year || row.year || "",
     publication_year: row.publication_year || row.year || "",
     status: row.status || "",
-    sourceUrl: row.source_url || "",
-    source_url: row.source_url || "",
-    volume: row.volume || "",
-    issue: row.issue || "",
-    pages: row.pages || "",
-    issn: row.issn || "",
-    eIssn: row.e_issn || row.eIssn || row.eissn || "",
-    e_issn: row.e_issn || row.eIssn || row.eissn || "",
-    isbn: row.isbn || "",
+    sourceUrl,
+    source_url: sourceUrl,
+    volume,
+    issue,
+    pages,
+    issn,
+    eIssn,
+    e_issn: eIssn,
+    isbn,
     indexingPlatform,
     indexing_platform: indexingPlatform,
     indexingCategory,
@@ -1426,7 +1493,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
                   '[]'::json
                 ) as evidence_links
          from publications p
-         left join publication_metadata m on m.doi = p.doi
+         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
          where p.id = $1
            and ($2::uuid is null or p.owner_id = $2)
          limit 1`,
@@ -2274,7 +2341,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
                   '[]'::json
                 ) as evidence_links
          from publications p
-         left join publication_metadata m on m.doi = p.doi
+         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`

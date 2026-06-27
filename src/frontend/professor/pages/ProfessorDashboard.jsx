@@ -2564,7 +2564,7 @@ export default function ProfessorDashboard() {
         value: summary.conferencesTotal,
         change: "",
         icon: <CalendarDays size={22} />,
-        page: "Konferenca",
+        page: { page: "Rimbursime", reimbursementType: "conference" },
       },
       {
         label: t("professor.dashboard.totalReimbursementsCard"),
