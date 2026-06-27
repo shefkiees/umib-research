@@ -5,7 +5,6 @@ import {
   BookOpen,
   Building2,
   Download,
-  ExternalLink,
   FileText,
   Minus,
   RefreshCw,
@@ -123,10 +122,6 @@ function trendMeta(current, previous) {
   };
 }
 
-function getPublicationTypeLabel(value, fallback) {
-  return fallback || PUBLICATION_TYPES[value] || value || "-";
-}
-
 function getPublicationStatusLabel(value, fallback) {
   const normalized = normalizeStatus(value);
   if (normalized === "approved") return "Aprovuar";
@@ -134,10 +129,6 @@ function getPublicationStatusLabel(value, fallback) {
   if (normalized === "correction") return "Korrigjim";
   if (normalized === "rejected") return "Refuzuar";
   return fallback || STATUS_LABELS[normalized] || value || "-";
-}
-
-function getPublicationVenue(row) {
-  return row.venue || row.publishedIn || row.publisher || "-";
 }
 
 function buildPublicationAnalytics(rows) {
@@ -677,7 +668,6 @@ export default function ProRectorDashboard() {
   const [activePage, setActivePage] = useState(location.state?.activePage || "Dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({ search: "", year: "", faculty: "", type: "", platform: "", quartile: "", status: "" });
-  const [selectedPublication, setSelectedPublication] = useState(null);
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -854,54 +844,6 @@ export default function ProRectorDashboard() {
     </div>
   );
 
-  const renderPublicationDetails = () => {
-    const row = selectedPublication;
-    if (!row) return null;
-
-    const authors = Array.isArray(row.authors) && row.authors.length
-      ? row.authors.map((author) => author.fullName).filter(Boolean).join(", ")
-      : row.authorNames || "-";
-    const identifier = [row.issn, row.eIssn].filter(Boolean).join(" / ") || row.isbn || "-";
-    const details = [
-      ["DOI", row.doi || "-"],
-      ["Autorët", authors],
-      ["Autori Korrespondent", row.correspondingAuthor || "-"],
-      ["Fakulteti", row.faculty || "-"],
-      ["Revista/Konferenca/Libri", getPublicationVenue(row)],
-      ["Shtëpia Botuese", row.publisher || "-"],
-      ["Data e Publikimit", formatDate(row.date)],
-      ["ISSN/E-ISSN ose ISBN", identifier],
-      ["Platforma e Indeksimit", row.platform || row.indexing || "Pa verifikim"],
-      ["Kuartili", normalizeQuartile(row.quartile)],
-      ["CiteScore", row.citeScore || "-"],
-      ["Statusi", getPublicationStatusLabel(row.status, row.statusLabel)],
-      ["Shuma e financimit", row.fundingAmount ? formatCurrency(row.fundingAmount) : "-"],
-    ];
-
-    return (
-      <div className="prorector-drawer-backdrop" role="presentation" onClick={() => setSelectedPublication(null)}>
-        <aside className="prorector-publication-drawer" role="dialog" aria-modal="true" aria-label="Detajet e publikimit" onClick={(event) => event.stopPropagation()}>
-          <div className="prorector-drawer-head">
-            <div><span>Detajet e publikimit</span><h3>{row.title || "Publikim pa titull"}</h3></div>
-            <button type="button" onClick={() => setSelectedPublication(null)} aria-label="Mbyll detajet"><X size={20} /></button>
-          </div>
-          <div className="prorector-drawer-body">
-            <div className="prorector-drawer-grid">
-              {details.map(([label, value]) => (
-                <div key={label} className="prorector-drawer-field"><span>{label}</span><strong>{value}</strong></div>
-              ))}
-            </div>
-            <div className="prorector-drawer-field is-wide"><span>Abstrakti</span><p>{row.abstract || "Abstrakti nuk është i disponueshëm."}</p></div>
-            <div className="prorector-drawer-field is-wide">
-              <span>Linku i Publikimit</span>
-              {row.sourceUrl ? <a href={row.sourceUrl} target="_blank" rel="noreferrer">Hap publikimin <ExternalLink size={15} /></a> : <strong>-</strong>}
-            </div>
-          </div>
-        </aside>
-      </div>
-    );
-  };
-
   const renderPublications = () => (
     <div className="prorector-publications-page">
       <section className="prorector-table-section prorector-publications-hero">
@@ -925,34 +867,8 @@ export default function ProRectorDashboard() {
               <YearFacultyMatrix analytics={publicationAnalytics} />
             </>
           ) : null}
-          <section className="prorector-table-section prorector-publications-table-card">
-            <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} publicationMode />
-            <StateBlock loading={publications.loading} error={publications.error} empty={!publicationRows.length} emptyText="Nuk ka artikuj për filtrat aktualë." />
-            {!publications.loading && !publications.error && publicationRows.length ? (
-              <div className="prorector-publication-table-wrap">
-                <table className="prorector-table prorector-publication-table">
-                  <thead><tr><th>Titulli</th><th>Autori Kryesor</th><th>Fakulteti</th><th>Tipi</th><th>Indeksimi</th><th>Kuartili</th><th>Viti</th><th>Statusi</th></tr></thead>
-                  <tbody>
-                    {publicationRows.map((row) => (
-                      <tr key={row.id} className="prorector-clickable-row" onClick={() => setSelectedPublication(row)}>
-                        <td><strong>{row.title || "-"}</strong></td>
-                        <td>{row.mainAuthor || row.authorNames?.split(",")[0] || "-"}</td>
-                        <td>{row.faculty || "-"}</td>
-                        <td>{getPublicationTypeLabel(row.type, row.typeLabel)}</td>
-                        <td>{row.platform || row.indexing || "Pa verifikim"}</td>
-                        <td><span className={`quartile-badge quartile-${normalizeQuartile(row.quartile).toLowerCase().replace(/\s+/g, "-")}`}>{normalizeQuartile(row.quartile)}</span></td>
-                        <td>{row.year || "-"}</td>
-                        <td><span className={`status-badge status-${statusClass(row.status)}`}>{getPublicationStatusLabel(row.status, row.statusLabel)}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </section>
         </div>
       </section>
-      {renderPublicationDetails()}
     </div>
   );
 
