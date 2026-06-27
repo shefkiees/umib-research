@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CalendarDays, FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -1094,6 +1094,7 @@ const PublicationForm = ({
   const { t } = useLanguage();
   const formRef = useRef(null);
   const publicationDateInputRef = useRef(null);
+  const indexingDropdownRef = useRef(null);
   const [doiLookupValue, setDoiLookupValue] = useState(value.doi || "");
   const [showPublicationFields, setShowPublicationFields] = useState(() => mode === "edit" || hasPublicationDraftContent(value));
   const [doiError, setDoiError] = useState("");
@@ -1101,6 +1102,7 @@ const PublicationForm = ({
   const [fieldErrors, setFieldErrors] = useState({});
   const [isLookingUpDoi, setIsLookingUpDoi] = useState(false);
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
+  const [isIndexingDropdownOpen, setIsIndexingDropdownOpen] = useState(false);
   const isDoiImported = value.metadataSource === "doi" && value.metadataVerified;
   const isEditingPublication = mode === "edit";
   const isConferencePaper = isConferencePaperType(value.publicationType);
@@ -1151,6 +1153,9 @@ const PublicationForm = ({
   };
   const selectedIndexingPlatforms = getIndexingPlatforms(indexingItems, value.indexingPlatform || primaryIndexing.source || "");
   const selectedIndexingPlatform = selectedIndexingPlatforms[0] || "";
+  const selectedIndexingPlatformLabel = selectedIndexingPlatforms.length
+    ? selectedIndexingPlatforms.join(", ")
+    : t("professor.dashboard.publicationForm.selectIndexingPlatform");
   const isScopusIndexing = selectedIndexingPlatforms.includes("Scopus");
   const isWebOfScienceIndexing = selectedIndexingPlatforms.includes("Web of Science");
   const isOtherIndexing = selectedIndexingPlatforms.includes("Other");
@@ -1207,6 +1212,24 @@ const PublicationForm = ({
     value.e_issn,
     value.authors,
   ]);
+
+  useEffect(() => {
+    if (!isIndexingDropdownOpen) {
+      return undefined;
+    }
+
+    const closeOnOutsideClick = (event) => {
+      if (!indexingDropdownRef.current?.contains(event.target)) {
+        setIsIndexingDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+    };
+  }, [isIndexingDropdownOpen]);
 
   const updateDoiLookupValue = (event) => {
     setDoiLookupValue(event.target.value);
@@ -2028,23 +2051,40 @@ const PublicationForm = ({
             <div className={`prof-form-field publication-indexing-platform-field${requiredClassName("indexingPlatform")}`}>
               <span>{requiredLabel(t("professor.dashboard.publicationForm.indexingPlatform"))}</span>
               <div
-                className="publication-indexing-platform-options"
-                role="group"
-                aria-invalid={Boolean(fieldErrors.indexingPlatform)}
-                aria-label={t("professor.dashboard.publicationForm.indexingPlatform")}
+                className={`publication-indexing-platform-dropdown${isIndexingDropdownOpen ? " is-open" : ""}`}
+                ref={indexingDropdownRef}
               >
-                {INDEXING_PLATFORM_VALUES.map((option) => (
-                  <label className="publication-indexing-platform-option" key={option}>
-                    <input
-                      type="checkbox"
-                      value={option}
-                      checked={selectedIndexingPlatforms.includes(option)}
-                      onChange={updateIndexingField("indexingPlatform")}
-                      disabled={isFieldLocked("indexingPlatform")}
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
+                <button
+                  type="button"
+                  className="publication-indexing-platform-trigger"
+                  onClick={() => setIsIndexingDropdownOpen((isOpen) => !isOpen)}
+                  disabled={isFieldLocked("indexingPlatform")}
+                  aria-expanded={isIndexingDropdownOpen}
+                  aria-invalid={Boolean(fieldErrors.indexingPlatform)}
+                >
+                  <span className={selectedIndexingPlatforms.length ? "" : "is-placeholder"}>{selectedIndexingPlatformLabel}</span>
+                  <ChevronDown size={18} aria-hidden="true" />
+                </button>
+                {isIndexingDropdownOpen ? (
+                  <div
+                    className="publication-indexing-platform-options"
+                    role="group"
+                    aria-label={t("professor.dashboard.publicationForm.indexingPlatform")}
+                  >
+                    {INDEXING_PLATFORM_VALUES.map((option) => (
+                      <label className="publication-indexing-platform-option" key={option}>
+                        <input
+                          type="checkbox"
+                          value={option}
+                          checked={selectedIndexingPlatforms.includes(option)}
+                          onChange={updateIndexingField("indexingPlatform")}
+                          disabled={isFieldLocked("indexingPlatform")}
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               {renderFieldError("indexingPlatform")}
             </div>
