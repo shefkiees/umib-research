@@ -2,6 +2,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  FileBadge2,
   FileText,
   History,
   Layers,
@@ -27,9 +28,9 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const publicationPages = publicationSubmenu.flatMap((item) => [item.name, item.legacyName].filter(Boolean));
   const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
   const reimbursementSubmenu = [
-    { name: "Rregullorja", label: "Rregullorja", href: "/rregullorja-rimbursimeve.pdf" },
-    { name: "Artikuj Shkencorë", label: `${t("navigation.reimbursementScientificArticles")} (F1)`, target: "Rimbursime", reimbursementType: "publication" },
-    { name: "Konferenca dhe Simpoziume", label: `${t("navigation.reimbursementConferences")} (F2)`, target: "Rimbursime", reimbursementType: "conference" },
+    { name: "Rregullorja", label: "Rregullorja", href: "/rregullorja-rimbursimeve.pdf", icon: FileText },
+    { name: "Artikuj Shkencorë", label: `${t("navigation.reimbursementScientificArticles")} (F1)`, target: "Rimbursime", reimbursementType: "publication", icon: FileBadge2 },
+    { name: "Konferenca dhe Simpoziume", label: `${t("navigation.reimbursementConferences")} (F2)`, target: "Rimbursime", reimbursementType: "conference", icon: PresentationChart },
   ];
   const menuMain = [
     { name: "Statistika", label: t("navigation.statistics"), icon: <BarChart3 size={18} /> },
@@ -170,20 +171,27 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
 
               {item.name === "Rimbursime" && isReimbursementMenuOpen ? (
                 <div className="prof-sidebar-submenu" aria-label="Nenkategorite e rimbursimeve">
-                  {reimbursementSubmenu.map((submenuItem) => (
-                    <button
-                      key={submenuItem.name}
-                      type="button"
-                      className={`prof-sidebar-sublink ${
-                        activeReimbursementType
-                          ? activeReimbursementType === submenuItem.reimbursementType ? "active" : ""
-                          : activeReimbursementSubmenu === submenuItem.name ? "active" : ""
-                      }`}
-                      onClick={() => handleReimbursementSubmenuClick(submenuItem)}
-                    >
-                      {submenuItem.label}
-                    </button>
-                  ))}
+                  {reimbursementSubmenu.map((submenuItem) => {
+                    const SubmenuIcon = submenuItem.icon;
+
+                    return (
+                      <button
+                        key={submenuItem.name}
+                        type="button"
+                        className={`prof-sidebar-sublink prof-sidebar-sublink--with-icon ${
+                          activeReimbursementType
+                            ? activeReimbursementType === submenuItem.reimbursementType ? "active" : ""
+                            : activeReimbursementSubmenu === submenuItem.name ? "active" : ""
+                        }`}
+                        onClick={() => handleReimbursementSubmenuClick(submenuItem)}
+                      >
+                        <span className="prof-sidebar-subicon" aria-hidden="true">
+                          <SubmenuIcon size={16} strokeWidth={1.9} />
+                        </span>
+                        <span>{submenuItem.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
