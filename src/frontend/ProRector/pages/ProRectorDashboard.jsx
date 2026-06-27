@@ -972,16 +972,6 @@ export default function ProRectorDashboard() {
 
   const renderFunding = () => (
     <div className="prorector-funding-stat-page">
-      <section className="prorector-table-section prorector-funding-stat-head">
-        <div className="prorector-section-head">
-          <div>
-            <h2>Financimet</h2>
-            <p>Pasqyrë statistikore e financimeve sipas viteve, kategorive dhe statusit.</p>
-          </div>
-        </div>
-        <FilterBar filters={filters} onChange={setFilters} faculties={facultyRows} fundingMode />
-      </section>
-
       <StateBlock loading={funding.loading} error={funding.error} empty={!fundingRows.length} emptyText="Nuk ka financime për filtrat aktualë." />
       {!funding.loading && !funding.error && fundingRows.length ? (
         <>

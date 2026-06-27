@@ -1522,11 +1522,6 @@
   gap: 16px;
 }
 
-.prorector-funding-stat-head {
-  display: grid;
-  gap: 12px;
-}
-
 .prorector-funding-kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
