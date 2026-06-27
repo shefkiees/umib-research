@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
-  BookOpen,
   Download,
   FileText,
   Minus,
@@ -135,13 +134,23 @@ function buildPublicationAnalytics(rows) {
     ["SSCI", 0],
     ["AHCI", 0],
   ]);
+  const employmentStatusCounts = new Map([
+    ["1st Author Full-time", 0],
+    ["1st Author Part-time", 0],
+  ]);
 
   rows.forEach((row) => {
     const year = row.year ? String(row.year) : "";
     const faculty = row.faculty || "Pa fakultet";
+    const employmentStatus = String(row.employmentStatus || "").toLowerCase();
 
     if (year) byYear.set(year, (byYear.get(year) || 0) + 1);
     facultyCounts.set(faculty, (facultyCounts.get(faculty) || 0) + 1);
+    if (employmentStatus === "part_time") {
+      employmentStatusCounts.set("1st Author Part-time", (employmentStatusCounts.get("1st Author Part-time") || 0) + 1);
+    } else {
+      employmentStatusCounts.set("1st Author Full-time", (employmentStatusCounts.get("1st Author Full-time") || 0) + 1);
+    }
 
     if (year) {
       if (!yearFacultyCounts.has(year)) yearFacultyCounts.set(year, new Map());
@@ -194,6 +203,12 @@ function buildPublicationAnalytics(rows) {
     value,
     fill: name === "SCIE" ? "#1e88e5" : name === "SSCI" ? "#0f766e" : "#c2410c",
   }));
+  const employmentStatusRows = Array.from(employmentStatusCounts.entries()).map(([name, value], index) => ({
+    name,
+    value,
+    percent: rows.length ? (value / rows.length) * 100 : 0,
+    fill: index === 0 ? "#1e88e5" : "#1b2a9b",
+  }));
 
   return {
     totalPublications: rows.length,
@@ -204,6 +219,7 @@ function buildPublicationAnalytics(rows) {
     yearFacultyRows,
     scopusQuartileRows,
     webOfScienceRows,
+    employmentStatusRows,
   };
 }
 
@@ -640,77 +656,68 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
   );
 }
 
-function AnalyticsCharts({ charts = {} }) {
-  const categoryRows = charts.publicationsByCategory || [];
-  const statusRows = charts.requestsByStatus || [];
-  const publicationsByYear = charts.publicationsByYear || [];
-  const fundingByYear = charts.fundingByYear || [];
+function AnalyticsCharts({ analytics }) {
+  const publicationsByYear = analytics.publicationsByYear || [];
+  const employmentStatusRows = analytics.employmentStatusRows || [];
+  const employmentStatusTotal = employmentStatusRows.reduce((sum, row) => sum + toNumber(row.value), 0);
 
   return (
-    <div className="prorector-analytics-grid">
-      <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Artikujt sipas viteve</h3><TrendingUp size={20} /></div>
+    <div className="prorector-dashboard-chart-stack">
+      <article className="prorector-analytics-card prorector-dashboard-chart-card">
+        <div className="prorector-card-head"><h3>Publication by year</h3><TrendingUp size={20} /></div>
         {publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={340}>
             <BarChart data={publicationsByYear}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" name="Artikuj" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" name="Publications" fill="#1e88e5" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : <ChartEmpty />}
       </article>
 
-      <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Financimet sipas viteve</h3><WalletCards size={20} /></div>
-        {fundingByYear.some((row) => toNumber(row.value) > 0) ? (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={fundingByYear}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => formatCurrency(value)} />
-              <Bar dataKey="value" name="Financime" fill="#15803d" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : <ChartEmpty />}
-      </article>
-
-      <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Artikujt sipas kategorive</h3><BookOpen size={20} /></div>
-        {categoryRows.some((row) => toNumber(row.value) > 0) ? (
-          <ResponsiveContainer width="100%" height={310}>
-            <PieChart>
-              <Pie data={categoryRows} dataKey="value" nameKey="name" outerRadius={95}>
-                {categoryRows.map((entry, index) => <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : <ChartEmpty />}
-      </article>
-
-      <article className="prorector-analytics-card">
-        <div className="prorector-card-head"><h3>Kërkesat sipas statusit</h3><FileText size={20} /></div>
-        {statusRows.some((row) => toNumber(row.value) > 0) ? (
-          <ResponsiveContainer width="100%" height={310}>
-            <BarChart data={statusRows}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tickFormatter={(value) => STATUS_LABELS[value] || value} />
-              <YAxis allowDecimals={false} />
-              <Tooltip labelFormatter={(value) => STATUS_LABELS[value] || value} />
-              <Bar dataKey="value" name="Kërkesa" fill="#c9a24f" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      <article className="prorector-analytics-card prorector-dashboard-chart-card">
+        <div className="prorector-card-head"><h3>Publications by Employment Status</h3><FileText size={20} /></div>
+        {employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
+          <div className="prorector-employment-chart-layout">
+            <div className="prorector-employment-pie-box">
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={employmentStatusRows}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={76}
+                    outerRadius={136}
+                    paddingAngle={2}
+                    stroke="#ffffff"
+                    strokeWidth={3}
+                  >
+                    {employmentStatusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [`${formatNumber(value)} (${employmentStatusTotal ? ((toNumber(value) / employmentStatusTotal) * 100).toFixed(2) : "0.00"}%)`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="prorector-employment-legend">
+              <strong>Full-Time vs Part-Time</strong>
+              {employmentStatusRows.map((row) => (
+                <span key={row.name}>
+                  <i style={{ background: row.fill }} />
+                  <b>{row.name}</b>
+                </span>
+              ))}
+            </div>
+          </div>
         ) : <ChartEmpty />}
       </article>
     </div>
   );
 }
-
 export default function ProRectorDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -724,7 +731,6 @@ export default function ProRectorDashboard() {
   const [profileError, setProfileError] = useState("");
   const [profileDraft, setProfileDraft] = useState(EMPTY_PROFILE_DRAFT);
 
-  const overview = useProrectorResource("/prorector/overview", { kpis: {}, charts: {} });
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
   const publications = useProrectorResource(`/prorector/publications?${new URLSearchParams({
     search: filters.search || searchQuery,
@@ -746,7 +752,6 @@ export default function ProRectorDashboard() {
   const facultyRows = faculties.data.faculties || [];
   const publicationRows = publications.data.publications || [];
   const fundingRows = funding.data.funding || [];
-  const charts = overview.data.charts || {};
   const publicationAnalytics = useMemo(
     () => buildPublicationAnalytics(publicationRows),
     [publicationRows]
@@ -882,8 +887,8 @@ export default function ProRectorDashboard() {
 
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
-      <StateBlock loading={overview.loading} error={overview.error} />
-      <AnalyticsCharts charts={charts} />
+      <StateBlock loading={publications.loading} error={publications.error} />
+      <AnalyticsCharts analytics={publicationAnalytics} />
     </div>
   );
 
