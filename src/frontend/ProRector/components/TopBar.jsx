@@ -40,6 +40,7 @@ export default function ProRectorTopBar({
 
   const profileName = profile?.name || "Pro Rector for Research";
   const profileRole = profile?.role || "Zëvendës Rektor";
+  const profilePhotoUrl = profile?.profilePhotoUrl || profile?.avatarUrl || profile?.photoUrl || profile?.picture || "";
   const initials = profileName
     .split(" ")
     .map((part) => part[0])
@@ -125,30 +126,19 @@ export default function ProRectorTopBar({
         </div>
 
         <div className="prorector-profile-wrap" ref={profileRef}>
-          <div className="prorector-profile-control">
-            <button
-              className="prorector-profile-btn"
-              type="button"
-              onClick={() => setIsProfileOpen((current) => !current)}
-            >
-              <div>
-                <h4>{profileName}</h4>
-                <span>{profileRole}</span>
-              </div>
-            </button>
-            <button
-              className="prorector-profile-edit-btn"
-              type="button"
-              aria-label="Ndrysho profilin"
-              title="Ndrysho profilin"
-              onClick={() => {
-                onEditProfile?.();
-                setIsProfileOpen(false);
-              }}
-            >
-              <Pencil size={17} />
-            </button>
-          </div>
+          <button
+            className="prorector-profile-btn"
+            type="button"
+            onClick={() => setIsProfileOpen((current) => !current)}
+          >
+            <div className="prorector-profile-copy">
+              <h4>{profileName}</h4>
+              <span>{profileRole}</span>
+            </div>
+            <span className="prorector-profile-avatar" aria-hidden="true">
+              {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" /> : initials}
+            </span>
+          </button>
 
           {isProfileOpen ? (
             <div className="prorector-popover" role="dialog" aria-label="Profili">
