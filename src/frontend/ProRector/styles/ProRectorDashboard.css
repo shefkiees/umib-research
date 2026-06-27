@@ -2424,18 +2424,56 @@ input:checked + .prorector-slider:before {
   font-size: 0.9rem;
 }
 
+.prorector-faculty-chart-panel {
+  overflow: visible;
+}
+
 .prorector-faculty-chart-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.92fr) minmax(240px, 1fr);
   align-items: center;
   gap: 18px;
+  min-height: 270px;
+}
+
+.prorector-faculty-pie-box {
+  width: 100%;
+  min-width: 0;
+  min-height: 260px;
+  position: relative;
+}
+
+.prorector-faculty-pie-total {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.prorector-faculty-pie-total strong {
+  color: #132238;
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.prorector-faculty-pie-total span {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .prorector-faculty-legend {
-  min-width: 210px;
+  min-width: 0;
   display: grid;
-  gap: 11px;
-  color: #646464;
-  font-size: 0.94rem;
+  gap: 9px;
+  color: #555f6d;
+  font-size: 0.88rem;
 }
 
 .prorector-faculty-legend strong {
@@ -2444,10 +2482,26 @@ input:checked + .prorector-slider:before {
 }
 
 .prorector-faculty-legend span {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
   line-height: 1.25;
+}
+
+.prorector-faculty-legend b {
+  min-width: 0;
+  color: #344256;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.prorector-faculty-legend em {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .prorector-faculty-legend i {
@@ -2455,6 +2509,7 @@ input:checked + .prorector-slider:before {
   height: 12px;
   flex: 0 0 12px;
   border-radius: 50%;
+  margin-top: 2px;
 }
 
 .prorector-index-summary-stack {
@@ -3275,12 +3330,7 @@ input:checked + .prorector-slider:before {
   }
 
   .prorector-faculty-chart-layout {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .prorector-faculty-chart-layout .recharts-responsive-container {
-    width: 100% !important;
+    grid-template-columns: 1fr;
   }
 
   .prorector-bi-card {

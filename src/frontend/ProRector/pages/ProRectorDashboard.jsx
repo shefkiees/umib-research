@@ -404,23 +404,41 @@ function PublicationGauge({ total }) {
 }
 
 function FacultyPercentageChart({ rows }) {
+  const total = rows.reduce((sum, row) => sum + toNumber(row.value), 0);
+
   return (
     <article className="prorector-report-panel prorector-faculty-chart-panel">
       <h3>Përqindja e publikimeve sipas fakultetit</h3>
       {rows.some((row) => toNumber(row.value) > 0) ? (
         <div className="prorector-faculty-chart-layout">
-          <ResponsiveContainer width="58%" height={290}>
-            <PieChart>
-              <Pie data={rows} dataKey="value" nameKey="name" outerRadius={112} labelLine label={(entry) => `${formatNumber(entry.value)} (${entry.percent.toFixed(2)}%)`}>
-                {rows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
-              </Pie>
-              <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} (${item.payload.percent.toFixed(2)}%)`, "Publikime"]} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="prorector-faculty-pie-box">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                <Pie
+                  data={rows}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={62}
+                  outerRadius={102}
+                  paddingAngle={1}
+                  isAnimationActive={false}
+                >
+                  {rows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+                </Pie>
+                <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} (${item.payload.percent.toFixed(2)}%)`, "Publikime"]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="prorector-faculty-pie-total" aria-hidden="true">
+              <strong>{formatNumber(total)}</strong>
+              <span>publikime</span>
+            </div>
+          </div>
           <div className="prorector-faculty-legend">
             <strong>Fakulteti</strong>
             {rows.map((row) => (
-              <span key={row.name}><i style={{ background: row.fill }} />{row.name}</span>
+              <span key={row.name}><i style={{ background: row.fill }} /><b>{row.name}</b><em>{formatNumber(row.value)} ({row.percent.toFixed(2)}%)</em></span>
             ))}
           </div>
         </div>
