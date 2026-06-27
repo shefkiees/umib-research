@@ -1396,6 +1396,199 @@
   font-weight: 700;
 }
 
+.prorector-faculty-stat-page {
+  display: grid;
+  gap: 16px;
+}
+
+.prorector-faculty-stat-hero {
+  min-height: 170px;
+  border: 1px solid #dce8f4;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1d4d7d 0%, #0f766e 100%);
+  color: #ffffff;
+  padding: clamp(18px, 3vw, 28px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.prorector-stat-kicker {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prorector-faculty-stat-hero h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.prorector-faculty-stat-hero p {
+  max-width: 650px;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.prorector-faculty-stat-total {
+  min-width: 136px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 14px;
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.prorector-faculty-stat-total strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.prorector-faculty-stat-total span {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.prorector-faculty-stat-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prorector-faculty-stat-summary article {
+  min-height: 112px;
+  border: 1px solid #e1e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+  display: grid;
+  align-content: space-between;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+.prorector-faculty-stat-summary svg {
+  color: #0f766e;
+}
+
+.prorector-faculty-stat-summary span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.prorector-faculty-stat-summary strong {
+  color: #102a43;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  line-height: 1.05;
+}
+
+.prorector-faculty-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+
+.prorector-faculty-stat-card {
+  border: 1px solid #e1e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.prorector-faculty-stat-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.prorector-faculty-stat-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #edf7f5;
+  color: #0f766e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prorector-faculty-stat-card h3 {
+  margin: 0;
+  color: #102a43;
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.prorector-faculty-stat-card p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.prorector-faculty-stat-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prorector-faculty-stat-metrics div {
+  min-height: 92px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+  display: grid;
+  align-content: space-between;
+  gap: 6px;
+}
+
+.prorector-faculty-stat-metrics div:nth-child(1) svg {
+  color: #1d4d7d;
+}
+
+.prorector-faculty-stat-metrics div:nth-child(2) svg {
+  color: #15803d;
+}
+
+.prorector-faculty-stat-metrics div:nth-child(3) svg {
+  color: #be123c;
+}
+
+.prorector-faculty-stat-metrics span {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.prorector-faculty-stat-metrics strong {
+  color: #0f172a;
+  font-size: 1.05rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
 .prorector-faculty-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -2931,10 +3124,16 @@ input:checked + .prorector-slider:before {
   .prorector-faculty-summary,
   .prorector-overview-grid,
   .prorector-insight-strip,
+  .prorector-faculty-stat-summary,
   .prorector-faculty-metrics,
   .prorector-kpi-grid,
   .prorector-faculty-skeletons {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prorector-faculty-stat-hero {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .prorector-analytics-grid {
@@ -3004,6 +3203,8 @@ input:checked + .prorector-slider:before {
   .prorector-faculty-summary,
   .prorector-overview-grid,
   .prorector-insight-strip,
+  .prorector-faculty-stat-summary,
+  .prorector-faculty-stat-metrics,
   .prorector-faculty-metrics,
   .prorector-kpi-grid,
   .prorector-faculty-skeletons,
