@@ -1190,7 +1190,7 @@ export default function ProfessorDashboard() {
     setPublicationsPage(1);
   }, [activePublicationTypeFilter, searchQuery]);
 
-  const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery } = {}) => {
+  const loadPublications = useCallback(async ({ page = publicationsPage, query = searchQuery, publicationTypeFilter = activePublicationTypeFilter } = {}) => {
     setIsPublicationsLoading(true);
     setPublicationsError("");
 
@@ -1205,8 +1205,8 @@ export default function ProfessorDashboard() {
         params.set("q", trimmedQuery);
       }
 
-      if (activePublicationTypeFilter) {
-        params.set("publicationType", activePublicationTypeFilter);
+      if (publicationTypeFilter) {
+        params.set("publicationType", publicationTypeFilter);
       }
 
       const response = await fetch(apiUrl(`/publications?${params.toString()}`), {
@@ -2262,6 +2262,11 @@ export default function ProfessorDashboard() {
       resetManualPublicationDraft();
       setPublicationsPage(1);
       setActivePage(targetPublicationPage);
+      await loadPublications({
+        page: 1,
+        query: searchQuery,
+        publicationTypeFilter: getPublicationTypeFilterForPage(targetPublicationPage),
+      });
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
