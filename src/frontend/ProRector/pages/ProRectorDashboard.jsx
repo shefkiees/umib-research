@@ -726,7 +726,7 @@ export default function ProRectorDashboard() {
     const nextProfile = {
       name: user.name || user.fullName || DEFAULT_PROFILE.name,
       profilePhotoUrl: user.profilePhotoUrl || user.profile_photo_url || user.avatarUrl || user.avatar_url || user.photoUrl || user.photo_url || user.picture || "",
-      role: user.role === "prorector" ? "Prorektor për Kërkim Shkencor" : user.role || DEFAULT_PROFILE.role,
+      role: ["prorector", "prorektor"].includes(String(user.role || "").toLowerCase()) ? "ProRector" : user.role || DEFAULT_PROFILE.role,
     };
 
     setProfile(nextProfile);

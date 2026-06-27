@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, Bell, Link2, Pencil, Search, Settings } from "lucide-react";
 
+function getDisplayRole(role) {
+  const normalized = String(role || "").trim().toLowerCase();
+
+  if (["prorector", "prorektor", "pro-rector", "pro-rektor"].includes(normalized)) {
+    return "ProRector";
+  }
+
+  return role || "Zëvendës Rektor";
+}
+
 export default function ProRectorTopBar({
   activePage = "Fakultetet",
   searchQuery = "",
@@ -39,7 +49,7 @@ export default function ProRectorTopBar({
   }, []);
 
   const profileName = profile?.name || "Pro Rector for Research";
-  const profileRole = profile?.role || "Zëvendës Rektor";
+  const profileRole = getDisplayRole(profile?.role);
   const profilePhotoUrl = profile?.profilePhotoUrl || profile?.avatarUrl || profile?.photoUrl || profile?.picture || "";
   const initials = profileName
     .split(" ")

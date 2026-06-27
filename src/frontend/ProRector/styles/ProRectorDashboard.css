@@ -239,8 +239,8 @@
 }
 
 .prorector-icon-btn {
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   border: 1px solid #d8e2ee;
   background: #ffffff;
   color: #4b5563;
@@ -280,13 +280,13 @@
 
 .prorector-profile-btn {
   display: grid;
-  grid-template-columns: 1fr 54px;
+  grid-template-columns: 1fr 46px;
   align-items: center;
-  gap: 14px;
-  width: clamp(260px, 18vw, 340px);
-  min-width: 260px;
-  height: 72px;
-  padding: 0 16px 0 28px;
+  gap: 12px;
+  width: clamp(220px, 15vw, 280px);
+  min-width: 220px;
+  height: 58px;
+  padding: 0 12px 0 20px;
   border: 1px solid #cfd8e3;
   background: #f7f9fc;
   cursor: pointer;
@@ -312,14 +312,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   text-align: center;
 }
 
 .prorector-profile-btn h4 {
   margin: 0;
-  font-size: 1.12rem;
+  font-size: 1rem;
   font-weight: 800;
   color: var(--text-dark);
   line-height: 1.1;
@@ -331,15 +331,15 @@
 
 .prorector-profile-btn span {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 400;
   color: var(--text-light);
   line-height: 1.15;
 }
 
 .prorector-profile-avatar {
-  width: 54px;
-  height: 54px;
+  width: 46px;
+  height: 46px;
   border-radius: 999px;
   overflow: hidden;
   background: #e8eef6;
@@ -2907,14 +2907,14 @@ input:checked + .prorector-slider:before {
   .prorector-profile-btn {
     width: 100%;
     min-width: 0;
-    height: 66px;
-    grid-template-columns: 1fr 48px;
+    height: 56px;
+    grid-template-columns: 1fr 44px;
     padding: 0 12px 0 18px;
   }
 
   .prorector-profile-avatar {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
   }
 
   .prorector-content {
