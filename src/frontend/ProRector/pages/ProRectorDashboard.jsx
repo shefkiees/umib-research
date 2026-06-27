@@ -55,7 +55,7 @@ const PUBLICATION_TYPES = {
   book_chapter: "Kapitull libri",
 };
 
-const PUBLICATION_STATUS_OPTIONS = ["approved", "in_review", "correction", "rejected"];
+const PUBLICATION_STATUS_OPTIONS = ["approved", "in_review", "rejected"];
 
 const DEFAULT_PROFILE = {
   name: "Prorektor për Kërkim Shkencor",
