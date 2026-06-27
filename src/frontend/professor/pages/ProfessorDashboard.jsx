@@ -272,6 +272,22 @@ const getPublicationTypeFilterForPage = (page) => {
 
 const getPublicationPageTitle = (page) => (page === "Lista e Publikimeve" || page === "Të gjitha publikimet" ? "Te gjithe Artikujt" : page);
 
+const getPublicationPageForType = (publicationType) => {
+  if (publicationType === "journal_article") {
+    return "Artikuj reviste";
+  }
+
+  if (publicationType === "conference_paper") {
+    return "Punime të konferencave";
+  }
+
+  if (publicationType === "book") {
+    return "Libra / Kapituj";
+  }
+
+  return "Të gjitha publikimet";
+};
+
 const supportsPublicationIndexing = (publicationType) => publicationType === "journal_article";
 
 const isBookPublicationType = (publicationType) => publicationType === "book";
@@ -2227,13 +2243,15 @@ export default function ProfessorDashboard() {
     setPublicationSuccessToast("");
 
     try {
+      const payload = buildPublicationPayload(manualPublicationDraft);
+      const targetPublicationPage = getPublicationPageForType(payload.publicationType || payload.publication_type);
       const response = await fetch(apiUrl("/publications"), {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(buildPublicationPayload(manualPublicationDraft)),
+        body: JSON.stringify(payload),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -2243,7 +2261,7 @@ export default function ProfessorDashboard() {
 
       resetManualPublicationDraft();
       setPublicationsPage(1);
-      await loadPublications({ page: 1, query: searchQuery });
+      setActivePage(targetPublicationPage);
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
       setPublicationsError(error.message || t("professor.dashboard.publicationSaveError"));
