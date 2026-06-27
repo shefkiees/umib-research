@@ -242,7 +242,15 @@ function normalizeIndexingPlatform(value) {
 }
 
 function uniqueIndexingPlatforms(values = []) {
-  return [...new Set(values.map(normalizeIndexingPlatform).filter(Boolean))];
+  return [...new Set(values
+    .map(normalizeSelectableIndexingPlatform)
+    .filter(Boolean))];
+}
+
+function normalizeSelectableIndexingPlatform(value) {
+  const platform = normalizeIndexingPlatform(value);
+
+  return INDEXING_PLATFORM_VALUES.includes(platform) ? platform : "";
 }
 
 function getIndexingPlatforms(indexing = [], fallback = "") {
@@ -577,7 +585,7 @@ export function publicationToDraft(publication = {}) {
     e_issn: publicationType === "journal_article" ? publication.e_issn || publication.eIssn || publication.eissn || "" : "",
     isbn: publicationType === "journal_article" ? "" : publication.isbn || "",
     authorAffiliation: "",
-    indexingPlatform: hasIndexing ? normalizeIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
+    indexingPlatform: hasIndexing ? normalizeSelectableIndexingPlatform(publication.indexingPlatform || publication.indexing_platform || primaryIndexing.source) : "",
     customIndexingPlatform: hasIndexing ? normalizeCustomIndexingPlatform(publication.customIndexingPlatform || publication.custom_indexing_platform || "") : "",
     custom_indexing_platform: hasIndexing ? normalizeCustomIndexingPlatform(publication.custom_indexing_platform || publication.customIndexingPlatform || "") : "",
     webOfScienceIndex: hasIndexing ? normalizeWebOfScienceIndex(publication.webOfScienceIndex || publication.web_of_science_index || primaryIndexing.webOfScienceIndex || primaryIndexing.web_of_science_index || primaryIndexing.category || "") : "",
@@ -969,7 +977,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
   const quartileVerificationStatus = selectedQuartileStatus || "missing";
-  const indexingPlatform = supportsQuartile(publicationType) ? normalizeIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
+  const indexingPlatform = supportsQuartile(publicationType) ? normalizeSelectableIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
   const indexingCategory = hasMetadataQuartile ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
   const indexingVerified = supportsQuartile(publicationType) ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
   const indexingSource = supportsQuartile(publicationType) ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
