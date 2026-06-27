@@ -46,6 +46,7 @@ export const INDEXING_SOURCE_VALUES = [
   "scimago",
   "doaj",
   "openalex",
+  "webofscience",
   "manual",
 ];
 

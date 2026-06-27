@@ -349,7 +349,7 @@ alter table publications add constraint publications_metadata_review_status_chec
 check (metadata_review_status in ('unchecked', 'in_review', 'ok', 'correction'));
 alter table publications drop constraint if exists publications_indexing_source_check;
 alter table publications add constraint publications_indexing_source_check
-check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'manual'));
+check (indexing_source in ('scopus', 'scimago', 'doaj', 'openalex', 'webofscience', 'manual'));
 alter table publications alter column abstract drop not null;
 alter table publications alter column abstract drop default;
 alter table publications alter column pages drop not null;

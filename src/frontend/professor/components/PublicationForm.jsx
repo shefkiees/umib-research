@@ -234,7 +234,7 @@ function normalizeIndexingPlatform(value) {
   if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
   if (comparable.includes("openalex")) return "OpenAlex";
   if (comparable.includes("doaj")) return "DOAJ";
-  if (comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
+  if (comparable === "wos" || comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
 
@@ -446,8 +446,9 @@ function normalizeIndexingSource(value) {
   if (text.includes("scimago") || text.includes("sjr")) return "scimago";
   if (text.includes("doaj")) return "doaj";
   if (text.includes("openalex")) return "openalex";
+  if (text === "wos" || text.includes("webofscience") || text.includes("web of science") || text.includes("clarivate")) return "webofscience";
 
-  return ["scopus", "scimago", "doaj", "openalex", "manual"].includes(text) ? text : "manual";
+  return ["scopus", "scimago", "doaj", "openalex", "webofscience", "manual"].includes(text) ? text : "manual";
 }
 
 function isDisplayableQuartile(item = {}) {

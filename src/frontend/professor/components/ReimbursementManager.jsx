@@ -961,8 +961,9 @@ function normalizeIndexingSourceKey(value) {
   if (text.includes("scimago") || text.includes("sjr")) return "scimago";
   if (text.includes("doaj")) return "doaj";
   if (text.includes("openalex")) return "openalex";
+  if (text === "wos" || text.includes("webofscience") || text.includes("web of science") || text.includes("clarivate")) return "webofscience";
 
-  return ["scopus", "scimago", "doaj", "openalex", "manual"].includes(text) ? text : "manual";
+  return ["scopus", "scimago", "doaj", "openalex", "webofscience", "manual"].includes(text) ? text : "manual";
 }
 
 function getIndexingYear(item = {}) {
