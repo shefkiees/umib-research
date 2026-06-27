@@ -965,7 +965,7 @@ function normalizeIndexingInput(value, publicationType) {
     : item);
 }
 
-function getPrimaryQuartile(indexing = []) {
+export function getPrimaryQuartile(indexing = []) {
   const primary = getSelectedIndexingItem(indexing)?.quartile;
 
   return normalizeText(primary);
@@ -989,7 +989,7 @@ function isSelectedIndexingItem(item = {}) {
     );
 }
 
-function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
+export function getSelectedIndexingItem(indexing = [], fallbackQuartile = "") {
   const items = Array.isArray(indexing) ? indexing : [];
   const normalizedFallbackQuartile = normalizeQuartile(fallbackQuartile);
   const selected = items.find(isSelectedIndexingItem);
@@ -1401,7 +1401,7 @@ function getPublicationAuthors(row) {
   );
 }
 
-function mapPublication(row) {
+export function mapPublication(row) {
   const evidenceLinks = getArrayField(row, "evidence_links").length
     ? getArrayField(row, "evidence_links")
     : getArrayField(row, "attachments");
@@ -1691,7 +1691,7 @@ function mapPublication(row) {
   };
 }
 
-const PUBLICATION_SELECT_SQL = `
+export const PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
   p.conference_city, p.conference_country, p.conference_format, p.presentation_type,
   p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.source_url, p.volume,
@@ -1773,7 +1773,7 @@ const PUBLICATION_SELECT_SQL = `
   ), '[]'::jsonb) as review_history
 `;
 
-const LEGACY_PUBLICATION_SELECT_SQL = `
+export const LEGACY_PUBLICATION_SELECT_SQL = `
   p.id, p.owner_id, p.doi, p.title, p.venue, p.publication_year, p.status, p.created_at, p.updated_at,
   p.metadata_review_status, p.metadata_review_checklist, p.metadata_review_comment,
   p.revision_requested_by, p.revision_requested_at, p.resubmitted_at,
@@ -1786,7 +1786,7 @@ const LEGACY_PUBLICATION_SELECT_SQL = `
 
 let unifiedPublicationSchemaCache = null;
 
-async function hasUnifiedPublicationSchema(dbOrClient) {
+export async function hasUnifiedPublicationSchema(dbOrClient) {
   await ensurePublicationReviewSchema(dbOrClient);
 
   if (unifiedPublicationSchemaCache !== null) {

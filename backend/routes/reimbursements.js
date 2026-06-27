@@ -18,6 +18,12 @@ import {
   buildF1FinalizationNote,
   validateF1FinalAction,
 } from "../services/f1ChecklistFinalization.service.js";
+import {
+  LEGACY_PUBLICATION_SELECT_SQL,
+  PUBLICATION_SELECT_SQL,
+  hasUnifiedPublicationSchema,
+  mapPublication as mapNormalizedPublication,
+} from "./publications.js";
 
 const router = express.Router();
 
@@ -817,70 +823,9 @@ function parseOptionalInteger(value) {
   return Number(text);
 }
 
-function safeJsonObject(value) {
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function firstMetadataText(...values) {
-  for (const value of values) {
-    if (Array.isArray(value)) {
-      const nested = firstMetadataText(...value);
-
-      if (nested) {
-        return nested;
-      }
-    } else if (value && typeof value === "object") {
-      const candidate = firstMetadataText(value.value, value.name, value.displayName, value.display_name, value.title, value.URL, value.url);
-
-      if (candidate) {
-        return candidate;
-      }
-    } else {
-      const text = normalizeText(value);
-
-      if (text) {
-        return text;
-      }
-    }
-  }
-
-  return "";
-}
-
 function normalizePublicationSubtype(value) {
   const normalized = normalizeText(value).toLowerCase().replace(/[-\s]+/g, "_");
   return normalized === "book_chapter" || normalized === "chapter" ? "book_chapter" : "";
-}
-
-function getPublicationSubtypeFromRow(row) {
-  const raw = safeJsonObject(row.metadata_raw_json || row.raw_json);
-
-  return normalizePublicationSubtype(
-    row.publication_subtype
-    || row.publicationSubtype
-    || raw.publication_subtype
-    || raw.publicationSubtype
-    || raw.subtype
-    || raw.type
-    || raw._crossref?.publication_subtype
-    || raw._crossref?.publicationSubtype
-    || raw._crossref?.subtype
-    || raw._crossref?.type
-    || raw._doi_org?.publication_subtype
-    || raw._doi_org?.publicationSubtype
-    || raw._doi_org?.subtype
-    || raw._doi_org?.type
-    || raw._openalex?.publication_subtype
-    || raw._openalex?.publicationSubtype
-    || raw._openalex?.type
-    || raw._openalex?.type_crossref
-    || row.metadata_type
-  );
 }
 
 function getIndexingPlatform(item = {}) {
@@ -892,285 +837,6 @@ function isIndexingPlatform(item, platform) {
   return platform === "scopus"
     ? value.includes("scopus")
     : value.includes("web of science") || value.includes("clarivate");
-}
-
-function normalizeMetadataAuthor(author = {}, index = 0) {
-  const givenName = normalizeText(author.givenName || author.given_name || author.given || author.firstName || author.first_name);
-  const familyName = normalizeText(author.familyName || author.family_name || author.family || author.lastName || author.last_name);
-  const fullName = normalizeText(
-    author.fullName
-    || author.full_name
-    || author.displayName
-    || author.display_name
-    || author.name
-    || [givenName, familyName].filter(Boolean).join(" ")
-  );
-  const affiliation = firstMetadataText(
-    author.affiliation,
-    author.affiliations,
-    author.institution,
-    author.organization,
-    author.currentAffiliation,
-    author.current_affiliation
-  );
-
-  return {
-    fullName,
-    full_name: fullName,
-    givenName,
-    given_name: givenName,
-    familyName,
-    family_name: familyName,
-    orcid: normalizeText(author.orcid),
-    affiliation,
-    isMainAuthor: index === 0 || Boolean(author.isMainAuthor || author.is_main_author),
-    is_main_author: index === 0 || Boolean(author.isMainAuthor || author.is_main_author),
-    isCorrespondingAuthor: Boolean(author.isCorrespondingAuthor || author.is_corresponding_author || author.correspondingAuthor || author.corresponding_author || author.corresponding),
-    is_corresponding_author: Boolean(author.isCorrespondingAuthor || author.is_corresponding_author || author.correspondingAuthor || author.corresponding_author || author.corresponding),
-    position: index + 1,
-  };
-}
-
-function getMetadataAuthors(row = {}, raw = {}) {
-  const crossref = raw._crossref || {};
-  const doiOrg = raw._doi_org || {};
-  const openalex = raw._openalex || {};
-  const authors = [
-    ...safeJsonArray(row.metadata_authors),
-    ...safeJsonArray(raw.authors),
-    ...safeJsonArray(raw.author),
-    ...safeJsonArray(crossref.authors),
-    ...safeJsonArray(crossref.author),
-    ...safeJsonArray(doiOrg.authors),
-    ...safeJsonArray(doiOrg.author),
-    ...safeJsonArray(openalex.authors),
-    ...safeJsonArray(openalex.authorships).map((authorship) => ({
-      ...(authorship.author || {}),
-      affiliation: authorship.institutions,
-      isCorrespondingAuthor: authorship.is_corresponding || authorship.corresponding,
-    })),
-  ];
-
-  return authors
-    .map(normalizeMetadataAuthor)
-    .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
-}
-
-function getMetadataIndexing(raw = {}) {
-  const quartileLookup = raw._quartile_lookup || {};
-  const candidates = [
-    ...safeJsonArray(raw._indexing),
-    ...safeJsonArray(raw.indexing),
-    ...safeJsonArray(raw.indexingMetadata),
-    ...safeJsonArray(raw.indexing_metadata),
-  ];
-
-  if (quartileLookup.selectedQuartile || raw.quartile || raw.scopusQuartile || raw.scopus_quartile) {
-    candidates.push({
-      source: quartileLookup.selectedSource || raw.indexingPlatform || raw.indexing_platform || raw.indexingSource || raw.indexing_source || "Scopus",
-      platform: raw.indexingPlatform || raw.indexing_platform || quartileLookup.selectedSource || "Scopus",
-      sourceKey: quartileLookup.selectedSource || raw.indexingSource || raw.indexing_source,
-      category: quartileLookup.selectedCategory || raw.indexingCategory || raw.indexing_category,
-      quartile: quartileLookup.selectedQuartile || raw.quartile || raw.scopusQuartile || raw.scopus_quartile,
-      citeScore: raw.citeScore || raw.cite_score || raw.citescore,
-      impactFactor: raw.impactFactor || raw.impact_factor,
-    });
-  }
-
-  return candidates
-    .map((item = {}) => ({
-      source: normalizeText(item.source || item.platform || item.indexingPlatform || item.indexing_platform),
-      platform: normalizeText(item.platform || item.source || item.indexingPlatform || item.indexing_platform),
-      sourceKey: normalizeText(item.sourceKey || item.source_key || item.indexingSource || item.indexing_source || item.source),
-      source_key: normalizeText(item.source_key || item.sourceKey || item.indexing_source || item.indexingSource || item.source),
-      category: normalizeText(item.category),
-      webOfScienceIndex: normalizeText(item.webOfScienceIndex || item.web_of_science_index),
-      web_of_science_index: normalizeText(item.web_of_science_index || item.webOfScienceIndex),
-      quartile: normalizeText(item.quartile),
-      impactFactor: normalizeText(item.impactFactor || item.impact_factor),
-      impact_factor: normalizeText(item.impact_factor || item.impactFactor),
-      sjr: normalizeText(item.sjr),
-      citeScore: normalizeText(item.citeScore || item.cite_score || item.citescore),
-      cite_score: normalizeText(item.cite_score || item.citeScore || item.citescore),
-      indexedUrl: normalizeText(item.indexedUrl || item.indexed_url),
-      indexed_url: normalizeText(item.indexed_url || item.indexedUrl),
-    }))
-    .filter((item) => item.source || item.platform || item.category || item.webOfScienceIndex || item.quartile || item.impactFactor || item.sjr || item.citeScore || item.indexedUrl);
-}
-
-function mapPublicationRow(row) {
-  const raw = safeJsonObject(row.metadata_raw_json || row.raw_json);
-  const crossref = raw._crossref || {};
-  const doiOrg = raw._doi_org || {};
-  const datacite = raw._datacite || {};
-  const openalex = raw._openalex || {};
-  const authors = safeJsonArray(row.authors);
-  const metadataAuthors = getMetadataAuthors(row, raw);
-  const resolvedAuthors = authors.length ? authors : metadataAuthors;
-  const indexing = safeJsonArray(row.indexing);
-  const metadataIndexing = getMetadataIndexing(raw);
-  const resolvedIndexing = indexing.length ? indexing : metadataIndexing;
-  const venue = firstMetadataText(
-    row.venue,
-    row.container_title,
-    raw.container_title,
-    raw.containerTitle,
-    raw["container-title"],
-    raw.source_title,
-    raw.sourceTitle,
-    crossref.container_title,
-    crossref["container-title"],
-    doiOrg.container_title,
-    doiOrg["container-title"],
-    openalex.source?.display_name,
-    openalex.primary_location?.source?.display_name
-  );
-  const publicationSubtype = getPublicationSubtypeFromRow(row);
-  const publisher = firstMetadataText(row.publisher, raw.publisher, crossref.publisher, doiOrg.publisher, datacite.publisher, openalex.host_venue?.publisher);
-  const sourceUrl = firstMetadataText(
-    row.source_url,
-    raw.source_url,
-    raw.sourceUrl,
-    raw.URL,
-    raw.url,
-    raw.link?.[0]?.URL,
-    raw.resource?.primary?.URL,
-    crossref.URL,
-    crossref.resource?.primary?.URL,
-    doiOrg.URL,
-    doiOrg.resource?.primary?.URL,
-    openalex.doi,
-    openalex.primary_location?.landing_page_url
-  );
-  const volume = firstMetadataText(row.volume, raw.volume, crossref.volume, doiOrg.volume);
-  const issue = firstMetadataText(row.issue, raw.issue, crossref.issue, doiOrg.issue);
-  const pages = firstMetadataText(row.pages, raw.pages, raw.page, crossref.pages, crossref.page, doiOrg.pages, doiOrg.page);
-  const issn = firstMetadataText(row.issn, raw.issn, raw.ISSN, crossref.issn, crossref.ISSN, doiOrg.issn, doiOrg.ISSN);
-  const eIssn = firstMetadataText(row.e_issn, row.eIssn, row.eissn, raw.e_issn, raw.eIssn, raw.eissn, raw["e-issn"], crossref.e_issn, crossref.eIssn, crossref["e-issn"]);
-  const isbn = firstMetadataText(row.isbn, raw.isbn, raw.ISBN, crossref.isbn, crossref.ISBN, doiOrg.isbn, doiOrg.ISBN);
-  const indexingPlatform = normalizeText(row.indexing_platform)
-    || uniqueNonEmptyValues(resolvedIndexing.map(getIndexingPlatform)).join(", ");
-  const indexingCategory = normalizeText(row.indexing_category)
-    || resolvedIndexing.map((item) => normalizeText(item.category)).find(Boolean)
-    || "";
-  const webOfScienceItem = resolvedIndexing.find((item) => isIndexingPlatform(item, "web_of_science"));
-  const webOfScienceIndex = normalizeText(row.web_of_science_index)
-    || normalizeText(webOfScienceItem?.webOfScienceIndex || webOfScienceItem?.web_of_science_index || webOfScienceItem?.category);
-  const scopusItem = resolvedIndexing.find((item) => isIndexingPlatform(item, "scopus") && normalizeText(item.quartile));
-  const firstQuartile = scopusItem || resolvedIndexing.find((item) => normalizeText(item.quartile));
-  const scopusQuartile = normalizeText(row.scopus_quartile || row.quartile || firstQuartile?.quartile);
-  const indexingSource = normalizeText(row.indexing_source)
-    || normalizeText(scopusItem?.sourceKey || scopusItem?.source_key || resolvedIndexing[0]?.sourceKey || resolvedIndexing[0]?.source_key);
-
-  return {
-    id: row.id,
-    doi: row.doi || "",
-    title: row.title || "",
-    abstract: firstMetadataText(row.abstract, raw.abstract, crossref.abstract, doiOrg.abstract, datacite.abstract),
-    publicationType: row.publication_type || row.publicationType || "",
-    publication_type: row.publication_type || row.publicationType || "",
-    publicationSubtype,
-    publication_subtype: publicationSubtype,
-    venue,
-    journal: venue,
-    publishedIn: venue,
-    published_in: venue,
-    conferenceLocation: row.conference_location || row.conferenceLocation || "",
-    conference_location: row.conference_location || row.conferenceLocation || "",
-    publisher,
-    acceptanceDate: formatDate(row.acceptance_date || row.acceptanceDate),
-    acceptance_date: formatDate(row.acceptance_date || row.acceptanceDate),
-    publicationDate: formatDate(row.publication_date || row.publicationDate || row.published_date),
-    publication_date: formatDate(row.publication_date || row.publicationDate || row.published_date),
-    publicationYear: row.publication_year || row.year || "",
-    publication_year: row.publication_year || row.year || "",
-    status: row.status || "",
-    sourceUrl,
-    source_url: sourceUrl,
-    volume,
-    issue,
-    pages,
-    issn,
-    eIssn,
-    e_issn: eIssn,
-    isbn,
-    indexingPlatform,
-    indexing_platform: indexingPlatform,
-    indexingCategory,
-    indexing_category: indexingCategory,
-    webOfScienceIndex,
-    web_of_science_index: webOfScienceIndex,
-    scopusQuartile,
-    scopus_quartile: scopusQuartile,
-    quartile: scopusQuartile,
-    indexingSource,
-    indexing_source: indexingSource,
-    authors: resolvedAuthors,
-    indexing: resolvedIndexing,
-    identifiers: safeJsonArray(row.identifiers),
-    evidenceLinks: safeJsonArray(row.evidence_links || row.evidenceLinks),
-    evidence_links: safeJsonArray(row.evidence_links || row.evidenceLinks),
-  };
-}
-
-let publicationContextSchemaCache = null;
-
-async function hasPublicationContextColumns(dbOrClient) {
-  if (publicationContextSchemaCache !== null) {
-    return publicationContextSchemaCache;
-  }
-
-  const { rows } = await dbOrClient.query(
-    `select count(*)::int as count
-     from information_schema.columns
-     where table_schema = current_schema()
-       and table_name = 'publications'
-       and column_name in (
-         'abstract',
-         'publication_type',
-         'conference_location',
-         'publisher',
-         'acceptance_date',
-         'publication_date',
-         'source_url',
-         'volume',
-         'issue',
-         'pages',
-         'issn',
-         'e_issn',
-         'isbn',
-         'indexing_platform',
-         'indexing_category',
-         'web_of_science_index',
-         'indexing_source'
-        )`
-  );
-  const indexingColumnsResult = await dbOrClient.query(
-    `select count(*)::int as count
-     from information_schema.columns
-     where table_schema = current_schema()
-       and table_name = 'publication_indexing'
-       and column_name in (
-         'source_key',
-         'web_of_science_index',
-         'quartile_verified',
-         'quartile_source',
-         'quartile_verification_status',
-         'quartile_selection_reason'
-       )`
-  );
-  const tableResult = await dbOrClient.query(
-    `select count(*)::int as count
-     from information_schema.tables
-     where table_schema = current_schema()
-       and table_name in ('publication_authors', 'publication_indexing', 'publication_identifiers', 'publication_attachments')`
-  );
-
-  publicationContextSchemaCache =
-    Number(rows[0]?.count || 0) === 17
-    && Number(tableResult.rows[0]?.count || 0) === 4
-    && Number(indexingColumnsResult.rows[0]?.count || 0) === 6;
-  return publicationContextSchemaCache;
 }
 
 function mapConferenceRow(row) {
@@ -1216,6 +882,57 @@ function uniqueNonEmptyValues(values = []) {
     .filter((value, index, items) => items.indexOf(value) === index);
 }
 
+function normalizeAuthorDedupeText(value) {
+  return normalizeText(value).toLowerCase().replace(/\s+/g, " ");
+}
+
+function getAuthorDedupeKey(author = {}) {
+  const orcid = normalizeText(author.orcid).toLowerCase();
+
+  if (orcid) {
+    return `orcid:${orcid}`;
+  }
+
+  const fullName = normalizeAuthorDedupeText(
+    author.fullName
+    || author.full_name
+    || [author.givenName || author.given_name, author.familyName || author.family_name].filter(Boolean).join(" ")
+  );
+
+  return fullName ? `name:${fullName}` : "";
+}
+
+function dedupePublicationAuthors(publication) {
+  if (!publication || !Array.isArray(publication.authors)) {
+    return publication;
+  }
+
+  const seen = new Set();
+  const authors = publication.authors.filter((author) => {
+    const key = getAuthorDedupeKey(author);
+
+    if (!key) {
+      return true;
+    }
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+
+  return {
+    ...publication,
+    authors,
+  };
+}
+
+function mapPublicationForReimbursement(row) {
+  return dedupePublicationAuthors(mapNormalizedPublication(row));
+}
+
 function buildPublicationWorkSummary(publication) {
   return [
     normalizeText(publication?.title),
@@ -1249,7 +966,8 @@ function publicationToReadOnlyRequestData(publication) {
     return {};
   }
 
-  const authors = Array.isArray(publication.authors) ? publication.authors : [];
+  const normalizedPublication = dedupePublicationAuthors(publication);
+  const authors = Array.isArray(normalizedPublication.authors) ? normalizedPublication.authors : [];
   const mainAuthor = authors.find((author) => author.isMainAuthor || author.is_main_author) || authors[0] || null;
   const correspondingAuthor = authors.find((author) => author.isCorrespondingAuthor || author.is_corresponding_author) || mainAuthor;
   const mainAuthorName = authorDisplayName(mainAuthor);
@@ -1260,7 +978,7 @@ function publicationToReadOnlyRequestData(publication) {
     })
     .map(authorDisplayName)
     .join("; ");
-  const indexing = Array.isArray(publication.indexing) ? publication.indexing : [];
+  const indexing = Array.isArray(normalizedPublication.indexing) ? normalizedPublication.indexing : [];
   const indexingPlatform = uniqueNonEmptyValues(indexing.map((item) => item.source || item.platform))
     .join(", ") || normalizeText(publication.indexingPlatform || publication.indexing_platform);
   const indexingCategory = indexing
@@ -1511,111 +1229,20 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
     return null;
   }
 
-  const hasPublicationColumns = await hasPublicationContextColumns(dbOrClient);
-  const result = hasPublicationColumns
+  const isUnified = await hasUnifiedPublicationSchema(dbOrClient);
+  const result = isUnified
     ? await dbOrClient.query(
-        `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
-                p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
-                p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
-                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'id', pa.id,
-                        'fullName', pa.full_name,
-                        'givenName', pa.given_name,
-                        'familyName', pa.family_name,
-                        'orcid', pa.orcid,
-                        'affiliation', pa.affiliation,
-                        'isMainAuthor', pa.is_main_author,
-                        'isCorrespondingAuthor', pa.is_corresponding_author,
-                        'position', pa.position
-                      )
-                      order by pa.position asc, pa.created_at asc
-                    )
-                    from publication_authors pa
-                    where pa.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as authors,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'id', pi.id,
-                        'source', pi.source,
-                         'platform', pi.source,
-                         'sourceKey', pi.source_key,
-                         'source_key', pi.source_key,
-                         'category', pi.category,
-                         'webOfScienceIndex', pi.web_of_science_index,
-                         'web_of_science_index', pi.web_of_science_index,
-                         'quartile', pi.quartile,
-                         'quartileVerified', pi.quartile_verified,
-                         'quartile_verified', pi.quartile_verified,
-                         'quartileSource', pi.quartile_source,
-                         'quartile_source', pi.quartile_source,
-                         'quartileVerificationStatus', pi.quartile_verification_status,
-                         'quartile_verification_status', pi.quartile_verification_status,
-                         'quartileSelectionReason', pi.quartile_selection_reason,
-                         'quartile_selection_reason', pi.quartile_selection_reason,
-                        'impactFactor', pi.impact_factor,
-                        'sjr', pi.sjr,
-                        'citeScore', pi.cite_score,
-                        'indexedUrl', pi.indexed_url
-                      )
-                      order by pi.created_at asc
-                    )
-                    from publication_indexing pi
-                    where pi.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as indexing
-                ,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'type', pii.identifier_type,
-                        'value', pii.identifier_value
-                      )
-                      order by pii.identifier_type asc, pii.identifier_value asc
-                    )
-                    from publication_identifiers pii
-                    where pii.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as identifiers,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'url', pat.file_url,
-                        'label', pat.file_type,
-                        'uploadedAt', pat.uploaded_at
-                      )
-                      order by pat.uploaded_at desc
-                    )
-                    from publication_attachments pat
-                    where pat.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as evidence_links
+        `select ${PUBLICATION_SELECT_SQL}
          from publications p
          left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+         left join users u on u.id = p.owner_id
          where p.id = $1
            and ($2::uuid is null or p.owner_id = $2)
          limit 1`,
         [publicationId, ownerId || null]
       )
     : await dbOrClient.query(
-        `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
-                m.container_title, m.publisher, m.published_date as publication_date,
-                m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
-                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json
+        `select ${LEGACY_PUBLICATION_SELECT_SQL}
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.id = $1
@@ -1624,7 +1251,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
         [publicationId, ownerId || null]
       );
 
-  return result.rows[0] ? mapPublicationRow(result.rows[0]) : null;
+  return result.rows[0] ? mapPublicationForReimbursement(result.rows[0]) : null;
 }
 
 async function hydrateReimbursementRowForPublication(dbOrClient, row) {
@@ -2360,129 +1987,16 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
-    const hasPublicationColumns = await hasPublicationContextColumns(db);
-    const publicationsQuery = hasPublicationColumns
-      ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
-                p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
-                p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
-                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'id', pa.id,
-                        'fullName', pa.full_name,
-                        'givenName', pa.given_name,
-                        'familyName', pa.family_name,
-                        'orcid', pa.orcid,
-                        'affiliation', pa.affiliation,
-                        'isMainAuthor', pa.is_main_author,
-                        'isCorrespondingAuthor', pa.is_corresponding_author,
-                        'position', pa.position
-                      )
-                      order by pa.position asc, pa.created_at asc
-                    )
-                    from publication_authors pa
-                    where pa.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as authors,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'id', pi.id,
-                         'source', pi.source,
-                         'platform', pi.source,
-                         'sourceKey', pi.source_key,
-                         'source_key', pi.source_key,
-                         'category', pi.category,
-                         'webOfScienceIndex', pi.web_of_science_index,
-                         'web_of_science_index', pi.web_of_science_index,
-                         'quartile', pi.quartile,
-                         'quartileVerified', pi.quartile_verified,
-                         'quartile_verified', pi.quartile_verified,
-                         'quartileSource', pi.quartile_source,
-                         'quartile_source', pi.quartile_source,
-                         'quartileVerificationStatus', pi.quartile_verification_status,
-                         'quartile_verification_status', pi.quartile_verification_status,
-                         'quartileSelectionReason', pi.quartile_selection_reason,
-                         'quartile_selection_reason', pi.quartile_selection_reason,
-                        'impactFactor', pi.impact_factor,
-                        'sjr', pi.sjr,
-                        'citeScore', pi.cite_score,
-                        'indexedUrl', pi.indexed_url
-                      )
-                      order by pi.created_at asc
-                    )
-                    from publication_indexing pi
-                    where pi.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as indexing
-                ,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'type', pii.identifier_type,
-                        'value', pii.identifier_value
-                      )
-                      order by pii.identifier_type asc, pii.identifier_value asc
-                    )
-                    from publication_identifiers pii
-                    where pii.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as identifiers,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'url', pat.file_url,
-                        'label', pat.file_type,
-                        'uploadedAt', pat.uploaded_at
-                      )
-                      order by pat.uploaded_at desc
-                    )
-                    from publication_attachments pat
-                    where pat.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as evidence_links
+    const isUnified = await hasUnifiedPublicationSchema(db);
+    const publicationsQuery = isUnified
+      ? `select ${PUBLICATION_SELECT_SQL}
          from publications p
          left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+         left join users u on u.id = p.owner_id
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`
-      : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
-                m.container_title, m.publisher, m.published_date as publication_date,
-                m.year, m.source_url, m.type as publication_type, m.abstract,
-                m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
-                m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
-                coalesce(
-                  (
-                    select json_agg(
-                      json_build_object(
-                        'id', pa.id,
-                        'fullName', pa.full_name,
-                        'firstName', pa.given_name,
-                        'lastName', pa.family_name,
-                        'givenName', pa.given_name,
-                        'familyName', pa.family_name,
-                        'affiliation', pa.affiliation,
-                        'isMainAuthor', pa.is_main_author,
-                        'authorOrder', pa.author_order,
-                        'position', pa.position
-                      )
-                      order by coalesce(nullif(pa.author_order, 0), pa.position), pa.created_at
-                    )
-                    from publication_authors pa
-                    where pa.publication_id = p.id
-                  ),
-                  '[]'::json
-                ) as authors
+      : `select ${LEGACY_PUBLICATION_SELECT_SQL}
          from publications p
          left join publication_metadata m on m.doi = p.doi
          where p.owner_id = $1
@@ -2505,7 +2019,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
       profile: getCurrentUserProfile(user),
       requestTypes: Object.entries(REQUEST_TYPES).map(([id, label]) => ({ id, label })),
       statuses: Object.entries(STATUS_LABELS).map(([id, label]) => ({ id, label })),
-      publications: publicationsResult.rows.map(mapPublicationRow),
+      publications: publicationsResult.rows.map(mapPublicationForReimbursement),
       conferences: conferencesResult.rows.map(mapConferenceRow),
     });
   } catch (error) {
