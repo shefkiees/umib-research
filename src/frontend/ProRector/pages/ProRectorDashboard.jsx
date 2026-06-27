@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
-  Building2,
   Download,
   FileText,
   Minus,
@@ -709,17 +708,21 @@ export default function ProRectorDashboard() {
     return facultyRows.filter((row) => `${row.name} ${row.code} ${row.statusLabel}`.toLowerCase().includes(query));
   }, [facultyRows, searchQuery]);
 
-  const facultyStatisticTotals = useMemo(() => facultyRows.reduce((totals, row) => ({
-    faculties: totals.faculties + 1,
-    professors: totals.professors + toNumber(row.professorCount),
-    publications: totals.publications + toNumber(row.publicationCount),
-    funding: totals.funding + toNumber(row.approvedFundingTotal),
-  }), {
-    faculties: 0,
-    professors: 0,
-    publications: 0,
-    funding: 0,
-  }), [facultyRows]);
+  const activeFacultyRows = useMemo(
+    () => filteredFacultyRows.filter((row) => row.status === "active"),
+    [filteredFacultyRows]
+  );
+
+  const activeFacultyPieRows = useMemo(
+    () => activeFacultyRows.map((row, index) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      value: 1,
+      fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
+    })),
+    [activeFacultyRows]
+  );
 
   const exportRows = (filename, rows) => {
     const csv = rows.length
@@ -831,76 +834,58 @@ export default function ProRectorDashboard() {
   );
 
   const renderFaculties = () => (
-    <div className="prorector-faculty-stat-page">
-      <section className="prorector-faculty-stat-hero">
-        <div>
-          <span className="prorector-stat-kicker">Pasqyrë statistikore</span>
-          <h2>Fakultetet</h2>
-          <p>Të dhënat e fakulteteve shfaqen vetëm si statistika për profesorë, publikime dhe financime.</p>
+    <div className="prorector-faculty-pie-page">
+      <section className="prorector-faculty-pie-panel">
+        <div className="prorector-faculty-pie-head">
+          <div>
+            <span className="prorector-stat-kicker">Fakultetet aktive</span>
+            <h2>Fakultetet</h2>
+            <p>Pie chart i fakulteteve aktive që janë të regjistruara në sistem.</p>
+          </div>
+          <strong>{formatNumber(activeFacultyPieRows.length)}</strong>
         </div>
-        <div className="prorector-faculty-stat-total">
-          <Building2 size={24} />
-          <strong>{formatNumber(facultyStatisticTotals.faculties)}</strong>
-          <span>fakultete</span>
-        </div>
-      </section>
 
-      <section className="prorector-faculty-stat-summary" aria-label="Përmbledhje e fakulteteve">
-        <article>
-          <Building2 size={18} />
-          <span>Fakultete</span>
-          <strong>{formatNumber(facultyStatisticTotals.faculties)}</strong>
-        </article>
-        <article>
-          <BarChart3 size={18} />
-          <span>Profesorë</span>
-          <strong>{formatNumber(facultyStatisticTotals.professors)}</strong>
-        </article>
-        <article>
-          <BookOpen size={18} />
-          <span>Artikuj</span>
-          <strong>{formatNumber(facultyStatisticTotals.publications)}</strong>
-        </article>
-        <article>
-          <WalletCards size={18} />
-          <span>Financime</span>
-          <strong>{formatCurrency(facultyStatisticTotals.funding)}</strong>
-        </article>
-      </section>
+        <StateBlock loading={faculties.loading} error={faculties.error} empty={!activeFacultyPieRows.length} emptyText="Nuk ka fakultete aktive në sistem." />
+        {!faculties.loading && !faculties.error && activeFacultyPieRows.length ? (
+          <div className="prorector-active-faculty-pie-layout">
+            <div className="prorector-active-faculty-pie-box">
+              <ResponsiveContainer width="100%" height={360}>
+                <PieChart margin={{ top: 14, right: 14, bottom: 14, left: 14 }}>
+                  <Pie
+                    data={activeFacultyPieRows}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={82}
+                    outerRadius={132}
+                    paddingAngle={3}
+                    stroke="#ffffff"
+                    strokeWidth={3}
+                  >
+                    {activeFacultyPieRows.map((row) => <Cell key={row.id} fill={row.fill} />)}
+                  </Pie>
+                  <Tooltip formatter={() => ["Aktiv", "Statusi"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="prorector-active-faculty-pie-total" aria-hidden="true">
+                <strong>{formatNumber(activeFacultyPieRows.length)}</strong>
+                <span>aktive</span>
+              </div>
+            </div>
 
-      <StateBlock loading={faculties.loading} error={faculties.error} empty={!filteredFacultyRows.length} emptyText="Nuk ka fakultete të regjistruara." />
-      {!faculties.loading && !faculties.error && filteredFacultyRows.length ? (
-        <section className="prorector-faculty-stat-grid" aria-label="Statistikat sipas fakultetit">
-          {filteredFacultyRows.map((row) => (
-            <article key={row.id} className="prorector-faculty-stat-card">
-              <div className="prorector-faculty-stat-card-head">
-                <span className="prorector-faculty-stat-avatar">{row.code || row.name?.slice(0, 2) || "FK"}</span>
-                <div>
-                  <h3>{row.name}</h3>
-                  <p>{row.code || "Fakultet"}</p>
-                </div>
-              </div>
-              <div className="prorector-faculty-stat-metrics">
-                <div>
-                  <BarChart3 size={17} />
-                  <span>Profesorë</span>
-                  <strong>{formatNumber(row.professorCount)}</strong>
-                </div>
-                <div>
-                  <BookOpen size={17} />
-                  <span>Artikuj</span>
-                  <strong>{formatNumber(row.publicationCount)}</strong>
-                </div>
-                <div>
-                  <WalletCards size={17} />
-                  <span>Financime</span>
-                  <strong>{formatCurrency(row.approvedFundingTotal)}</strong>
-                </div>
-              </div>
-            </article>
-          ))}
-        </section>
-      ) : null}
+            <div className="prorector-active-faculty-legend">
+              {activeFacultyPieRows.map((row) => (
+                <span key={row.id}>
+                  <i style={{ background: row.fill }} />
+                  <b>{row.name}</b>
+                  <em>{row.code || "Aktiv"}</em>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
     </div>
   );
   const renderPublications = () => (
