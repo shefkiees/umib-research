@@ -1218,6 +1218,9 @@ function publicationToReadOnlyRequestData(publication) {
     publicationDate: formatDate(publication.publicationDate || publication.publication_date),
     publicationYear: normalizeText(publication.publicationYear || publication.publication_year || publication.year),
     publicationLink: normalizeText(publication.sourceUrl || publication.source_url),
+    articleLink: normalizeText(publication.sourceUrl || publication.source_url),
+    sourceUrl: normalizeText(publication.sourceUrl || publication.source_url),
+    source_url: normalizeText(publication.source_url || publication.sourceUrl),
     volume: normalizeText(publication.volume),
     issue: normalizeText(publication.issue),
     pages: normalizeText(publication.pages),
@@ -1388,7 +1391,7 @@ async function applyLinkedPublicationSnapshot(dbOrClient, ownerId, requestType, 
   return {
     formData: requestType === "conference"
       ? mergeConferencePublicationData(initialFormData, publication)
-      : amountResult.formData,
+      : mergePublicationReadOnlyData(amountResult.formData, publication),
     publication,
     amountCalculation: amountResult.calculation,
     error: null,
@@ -1911,7 +1914,7 @@ function buildRequestPayload(user, requestType, formData, linkedRecords = {}) {
     requestTypeLabel: REQUEST_TYPES[requestType],
   };
   const documentRequestData = mergeLinkedPublicationData(requestType, requestData, linkedRecords.publication);
-  const storedRequestData = requestType === "conference" ? documentRequestData : requestData;
+  const storedRequestData = shouldLinkPublicationForRequest(requestType) ? documentRequestData : requestData;
   const title = buildRequestTitle(requestType, documentRequestData);
   const conferenceId = requestType === "conference" ? parseOptionalInteger(formData.conferenceId) : null;
 
