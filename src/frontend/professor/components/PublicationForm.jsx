@@ -1163,6 +1163,7 @@ const PublicationForm = ({
   };
   const selectedIndexingPlatforms = getIndexingPlatforms(indexingItems, value.indexingPlatform || primaryIndexing.source || "");
   const selectedIndexingPlatform = selectedIndexingPlatforms[0] || "";
+  const isPublicationDateLocked = isFieldLocked("publicationDate") && Boolean(publicationDatePickerValue);
   const selectedIndexingPlatformLabel = selectedIndexingPlatforms.length
     ? selectedIndexingPlatforms.join(", ")
     : t("professor.dashboard.publicationForm.selectIndexingPlatform");
@@ -2005,7 +2006,7 @@ const PublicationForm = ({
                 onClick={openPublicationDatePicker}
                 onKeyDown={preventManualDateEntry}
                 onPaste={(event) => event.preventDefault()}
-                readOnly={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+                readOnly={isPublicationDateLocked}
                 aria-label={t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}
                 aria-invalid={Boolean(fieldErrors.publicationDate)}
               />
@@ -2013,7 +2014,7 @@ const PublicationForm = ({
                 type="button"
                 className="publication-date-picker-button"
                 onClick={openPublicationDatePicker}
-                disabled={isFieldLocked("publicationDate") || isFieldLocked("publicationYear")}
+                disabled={isPublicationDateLocked}
                 aria-label={t(isConferencePaper ? "professor.dashboard.publicationForm.publicationDate" : "professor.dashboard.publicationForm.publishedAt")}
               >
                 <CalendarDays size={18} aria-hidden="true" />
