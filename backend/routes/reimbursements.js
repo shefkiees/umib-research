@@ -951,9 +951,23 @@ function getMetadataAuthors(row = {}, raw = {}) {
     })),
   ];
 
+  const seenAuthors = new Set();
+
   return authors
     .map(normalizeMetadataAuthor)
-    .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation);
+    .filter((author) => author.fullName || author.givenName || author.familyName || author.orcid || author.affiliation)
+    .filter((author) => {
+      const key = normalizeText(author.orcid)
+        ? `orcid:${normalizeText(author.orcid).toLowerCase()}`
+        : `name:${normalizeText(author.fullName).toLowerCase()}`;
+
+      if (seenAuthors.has(key)) {
+        return false;
+      }
+
+      seenAuthors.add(key);
+      return true;
+    });
 }
 
 function getMetadataIndexing(raw = {}) {
