@@ -2693,7 +2693,7 @@ export default function ReimbursementManager({
   const handleEditRequest = (request) => {
     const nextType = request.requestType || "publication";
     const banking = request.requestData?.banking || {};
-    const nextForm = {
+    const snapshotForm = {
       ...createDefaultForm(effectiveProfile),
       ...(request.requestData || {}),
       amount: request.requestData?.amount || banking.amount || "",
@@ -2720,6 +2720,14 @@ export default function ReimbursementManager({
         ? request.requestData.costItems
         : createDefaultCostItems(),
     };
+    const publicationId = snapshotForm.publicationId || request.requestData?.publicationId || "";
+    const matchedPublication = nextType === "publication" && publicationId
+      ? f1Publications.find((item) => String(item.id) === String(publicationId))
+        || context.publications.find((item) => String(item.id) === String(publicationId))
+      : null;
+    const nextForm = matchedPublication
+      ? applyPublicationToForm(snapshotForm, matchedPublication)
+      : snapshotForm;
 
     setSelectedType(nextType);
     setForm(nextForm);
