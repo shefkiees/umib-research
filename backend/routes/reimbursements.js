@@ -1515,7 +1515,9 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
   const result = hasPublicationColumns
     ? await dbOrClient.query(
         `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
+                p.publisher, p.acceptance_date,
+                coalesce(p.publication_date::text, m.published_date) as publication_date,
+                coalesce(p.publication_year, m.year) as publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
                 m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
@@ -1611,7 +1613,7 @@ async function selectPublicationForReimbursement(dbOrClient, ownerId, publicatio
         [publicationId, ownerId || null]
       )
     : await dbOrClient.query(
-        `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
+        `select p.id, p.doi, p.title, p.venue, p.acceptance_date, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
                 m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
@@ -2363,7 +2365,9 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
     const hasPublicationColumns = await hasPublicationContextColumns(db);
     const publicationsQuery = hasPublicationColumns
       ? `select p.id, p.doi, p.title, p.abstract, p.publication_type, p.venue, p.conference_location,
-                p.publisher, p.acceptance_date, p.publication_date, p.publication_year, p.status,
+                p.publisher, p.acceptance_date,
+                coalesce(p.publication_date::text, m.published_date) as publication_date,
+                coalesce(p.publication_year, m.year) as publication_year, p.status,
                 p.source_url, p.volume, p.issue, p.pages, p.issn, p.e_issn, p.isbn,
                 p.indexing_platform, p.indexing_category, p.web_of_science_index, p.indexing_source,
                 m.type as metadata_type, m.authors as metadata_authors, m.raw_json as metadata_raw_json,
@@ -2456,7 +2460,7 @@ router.get("/context", requireAuthenticatedUser, async (req, res) => {
          where p.owner_id = $1
          order by p.updated_at desc, p.created_at desc
          limit 100`
-      : `select p.id, p.doi, p.title, p.venue, p.publication_year, p.status,
+      : `select p.id, p.doi, p.title, p.venue, p.acceptance_date, p.publication_year, p.status,
                 m.container_title, m.publisher, m.published_date as publication_date,
                 m.year, m.source_url, m.type as publication_type, m.abstract,
                 m.volume, m.issue, m.pages, m.issn, m.e_issn, m.isbn,
