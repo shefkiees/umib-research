@@ -1811,6 +1811,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'publisher',
          'acceptance_date',
          'publication_date',
+         'publication_year',
          'source_url',
          'volume',
          'issue',
@@ -1838,7 +1839,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 28 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 29 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1957,13 +1958,26 @@ async function ensurePublicationReviewSchema(client) {
   }
 
   await client.query(`
+    alter table publications add column if not exists abstract text not null default '';
+    alter table publications add column if not exists publication_type text not null default '';
     alter table publications add column if not exists metadata_review_status text not null default 'unchecked';
     alter table publications add column if not exists conference_location text not null default '';
     alter table publications add column if not exists conference_city text not null default '';
     alter table publications add column if not exists conference_country text not null default '';
     alter table publications add column if not exists conference_format text not null default '';
     alter table publications add column if not exists presentation_type text not null default '';
+    alter table publications add column if not exists publisher text not null default '';
     alter table publications add column if not exists acceptance_date date;
+    alter table publications add column if not exists publication_date date;
+    alter table publications add column if not exists publication_year integer;
+    alter table publications add column if not exists source_url text not null default '';
+    alter table publications add column if not exists volume text not null default '';
+    alter table publications add column if not exists issue text not null default '';
+    alter table publications add column if not exists pages text not null default '';
+    alter table publications add column if not exists book_series_title text not null default '';
+    alter table publications add column if not exists issn text not null default '';
+    alter table publications add column if not exists e_issn text not null default '';
+    alter table publications add column if not exists isbn text not null default '';
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
     alter table publications add column if not exists custom_indexing_platform text not null default '';
@@ -1971,13 +1985,68 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists indexing_category text not null default '';
     alter table publications add column if not exists indexing_verified boolean not null default false;
     alter table publications add column if not exists indexing_source text not null default 'manual';
+    alter table publications add column if not exists metadata_source text not null default 'manual';
+    alter table publications add column if not exists metadata_verified boolean not null default false;
+    alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
     alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
     alter table publications add column if not exists metadata_review_comment text not null default '';
     alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
     alter table publications add column if not exists revision_requested_at timestamptz;
     alter table publications add column if not exists resubmitted_at timestamptz;
+    create table if not exists publication_authors (
+      id uuid primary key default gen_random_uuid(),
+      publication_id uuid not null references publications(id) on delete cascade,
+      full_name text not null default '',
+      given_name text not null default '',
+      family_name text not null default '',
+      orcid text not null default '',
+      affiliation text,
+      is_main_author boolean not null default false,
+      is_corresponding_author boolean not null default false,
+      is_presenter boolean not null default false,
+      author_order integer not null default 0,
+      position integer not null default 0,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists publication_indexing (
+      id uuid primary key default gen_random_uuid(),
+      publication_id uuid not null references publications(id) on delete cascade,
+      source text not null default '',
+      source_key text not null default 'manual',
+      category text not null default '',
+      web_of_science_index text not null default '',
+      quartile text not null default '',
+      quartile_verified boolean not null default false,
+      quartile_source text not null default 'manual',
+      quartile_verification_status text not null default 'empty',
+      quartile_selection_reason text not null default '',
+      impact_factor text not null default '',
+      sjr text not null default '',
+      cite_score text,
+      indexed_url text not null default '',
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists publication_attachments (
+      id uuid primary key default gen_random_uuid(),
+      publication_id uuid not null references publications(id) on delete cascade,
+      file_url text not null default '',
+      file_type text not null default '',
+      uploaded_at timestamptz not null default now(),
+      created_at timestamptz not null default now()
+    );
+    create table if not exists publication_identifiers (
+      id uuid primary key default gen_random_uuid(),
+      publication_id uuid not null references publications(id) on delete cascade,
+      identifier_type text not null,
+      identifier_value text not null,
+      created_at timestamptz not null default now(),
+      unique (publication_id, identifier_type, identifier_value)
+    );
     alter table if exists publication_authors add column if not exists is_corresponding_author boolean not null default false;
     alter table if exists publication_authors add column if not exists is_presenter boolean not null default false;
+    alter table if exists publication_authors add column if not exists author_order integer not null default 0;
     alter table publications alter column abstract drop not null;
     alter table publications alter column abstract drop default;
     alter table publications alter column pages drop not null;
