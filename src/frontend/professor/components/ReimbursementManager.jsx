@@ -1023,7 +1023,7 @@ function getPublicationIndexingFields(publication) {
   const fallbackImpactFactor = indexing.find((item) => item.impactFactor || item.impact_factor);
   const fallbackQuartile = indexing.find((item) => item.quartile);
   const fallbackCiteScore = indexing.find((item) => item.citeScore || item.cite_score || item.citescore);
-  const indexingPlatform = selectedIndexing.source || selectedIndexing.platform || fallbackPlatform || publication?.indexingPlatform || publication?.indexing_platform || "";
+  const indexingPlatform = fallbackPlatform || selectedIndexing.source || selectedIndexing.platform || publication?.indexingPlatform || publication?.indexing_platform || "";
   const indexingCategory = selectedIndexing.category || fallbackCategory || publication?.indexingCategory || publication?.indexing_category || "";
   const impactFactor = selectedIndexing.impactFactor
     || selectedIndexing.impact_factor
