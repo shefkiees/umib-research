@@ -1811,6 +1811,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
          'publisher',
          'acceptance_date',
          'publication_date',
+         'publication_year',
          'source_url',
          'volume',
          'issue',
@@ -1838,7 +1839,7 @@ async function hasUnifiedPublicationSchema(dbOrClient) {
        and table_name in ('publication_authors', 'publication_indexing', 'publication_attachments', 'publication_identifiers')`
   );
 
-  unifiedPublicationSchemaCache = columnsResult.rows.length === 28 && tablesResult.rows.length === 4;
+  unifiedPublicationSchemaCache = columnsResult.rows.length === 29 && tablesResult.rows.length === 4;
   return unifiedPublicationSchemaCache;
 }
 
@@ -1963,7 +1964,17 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists conference_country text not null default '';
     alter table publications add column if not exists conference_format text not null default '';
     alter table publications add column if not exists presentation_type text not null default '';
+    alter table publications add column if not exists publisher text not null default '';
     alter table publications add column if not exists acceptance_date date;
+    alter table publications add column if not exists publication_date date;
+    alter table publications add column if not exists publication_year integer;
+    alter table publications add column if not exists source_url text not null default '';
+    alter table publications add column if not exists volume text not null default '';
+    alter table publications add column if not exists issue text not null default '';
+    alter table publications add column if not exists pages text not null default '';
+    alter table publications add column if not exists book_series_title text not null default '';
+    alter table publications add column if not exists issn text not null default '';
+    alter table publications add column if not exists isbn text not null default '';
     alter table publications add column if not exists author_affiliation text not null default '';
     alter table publications add column if not exists indexing_platform text not null default '';
     alter table publications add column if not exists custom_indexing_platform text not null default '';
@@ -1971,6 +1982,9 @@ async function ensurePublicationReviewSchema(client) {
     alter table publications add column if not exists indexing_category text not null default '';
     alter table publications add column if not exists indexing_verified boolean not null default false;
     alter table publications add column if not exists indexing_source text not null default 'manual';
+    alter table publications add column if not exists metadata_source text not null default 'manual';
+    alter table publications add column if not exists metadata_verified boolean not null default false;
+    alter table publications add column if not exists external_metadata_id text references publication_metadata(doi) on delete set null;
     alter table publications add column if not exists metadata_review_checklist jsonb not null default '{}'::jsonb;
     alter table publications add column if not exists metadata_review_comment text not null default '';
     alter table publications add column if not exists revision_requested_by uuid references users(id) on delete set null;
