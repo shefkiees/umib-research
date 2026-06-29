@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, UserRound, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -33,7 +33,9 @@ const MAX_SELECTED_ATTACHMENTS = 5;
 const DECLARATION_REQUIRED_ERROR = "reimbursement.declaration.required";
 const BANK_ACCOUNT_REQUIRED_ERROR = "reimbursement.bankAccount.required";
 const F1_PDF_ONLY_ERROR = "reimbursement.supportingDocuments.f1PdfOnly";
+const F1_PDF_REQUIRED_ERROR = "reimbursement.supportingDocuments.f1PdfRequired";
 const MAX_DOCUMENTS_ERROR = "reimbursement.supportingDocuments.maximumDocuments";
+const SUBMIT_DRAFT_SAVED_ERROR = "reimbursement.submit.draftSavedAfterFailure";
 const REIMBURSEMENT_DOCUMENT_TYPES = {
   publication: [
     {
@@ -1679,6 +1681,7 @@ export default function ReimbursementManager({
   const [hasHydratedPublicationFields, setHasHydratedPublicationFields] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null);
+  const isSubmittingRef = useRef(false);
 
   const effectiveProfile = useMemo(
     () => resolveProfile(context.profile, profile),
@@ -2429,13 +2432,42 @@ export default function ReimbursementManager({
     return result.data;
   };
 
+  const hasF1SupportingPdf = () => {
+    if (selectedType !== "publication") {
+      return true;
+    }
+
+    const hasSelectedArticlePdf = selectedFiles.some((item) =>
+      item.documentType === "article_pdf" && item.file?.type === "application/pdf"
+    );
+    const hasUploadedArticlePdf = editingRequest?.attachments?.some((attachment) =>
+      (attachment.documentType || attachment.document_type) === "article_pdf"
+    );
+
+    return Boolean(hasSelectedArticlePdf || hasUploadedArticlePdf);
+  };
+
   const submitRequest = async (action) => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
+
     if (!validateForm(action)) {
       setError(
         action === "submit" && selectedType === "publication" && !isDeclarationAccepted
           ? DECLARATION_REQUIRED_ERROR
           : "Ploteso fushat obligative para dergimit."
       );
+      isSubmittingRef.current = false;
+      return;
+    }
+
+    if (action === "submit" && selectedType === "publication" && !hasF1SupportingPdf()) {
+      setSuccess(null);
+      setError(F1_PDF_REQUIRED_ERROR);
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -2489,8 +2521,12 @@ export default function ReimbursementManager({
           setSelectedFiles([]);
         }
       } catch {
-        setSuccess(savedRequest);
-        throw new Error("Kërkesa është ruajtur si draft, por ngarkimi i dokumenteve dështoi. Ju lutem provoni përsëri.");
+        if (action !== "submit") {
+          setSuccess(savedRequest);
+        }
+        throw new Error(action === "submit"
+          ? SUBMIT_DRAFT_SAVED_ERROR
+          : "Kërkesa është ruajtur si draft, por ngarkimi i dokumenteve dështoi. Ju lutem provoni përsëri.");
       }
 
       if (action === "submit") {
@@ -2507,12 +2543,18 @@ export default function ReimbursementManager({
         if (!submitResponse.ok) {
           setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
           setHasLoadedRequests(true);
-          setSuccess(savedRequest);
           setEditingRequest(savedRequest);
-          throw new Error(submitResult.message || "Kerkesa nuk u dergua per shqyrtim.");
+          throw new Error(SUBMIT_DRAFT_SAVED_ERROR);
         }
 
         savedRequest = submitResult.data;
+
+        if (savedRequest?.status !== "submitted") {
+          setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
+          setHasLoadedRequests(true);
+          setEditingRequest(savedRequest);
+          throw new Error(SUBMIT_DRAFT_SAVED_ERROR);
+        }
       }
 
       setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
@@ -2524,9 +2566,13 @@ export default function ReimbursementManager({
       setEditingRequest(null);
       setHasHydratedAutoFields(true);
     } catch (submitError) {
+      if (action === "submit") {
+        setSuccess(null);
+      }
       setError(submitError.message || "Ndodhi nje gabim gjate dergimit.");
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -3973,7 +4019,11 @@ export default function ReimbursementManager({
                       ? r.supportingDocuments.f1PdfOnly
                       : error === MAX_DOCUMENTS_ERROR
                         ? maximumDocumentsMessage
-                        : tx(error)}
+                        : error === F1_PDF_REQUIRED_ERROR
+                          ? r.supportingDocuments.f1PdfRequired
+                          : error === SUBMIT_DRAFT_SAVED_ERROR
+                            ? r.submitDraftSavedAfterFailure
+                            : tx(error)}
                 </p>
               ) : null}
               {success ? (
@@ -3981,7 +4031,9 @@ export default function ReimbursementManager({
                   <span>
                     {success.status === "draft"
                       ? r.draftSaved
-                      : r.requestSaved}
+                      : success.status === "submitted"
+                        ? r.submittedSuccess
+                        : r.requestSaved}
                   </span>
                   <div className="reimbursement-message-actions">
                     <button

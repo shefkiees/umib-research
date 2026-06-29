@@ -744,6 +744,8 @@ export const translations = {
         submitting: "Duke derguar...",
         draftSaved: "Draft-i u ruajt ne databaze.",
         requestSaved: "Kerkesa u ruajt ne databaze dhe dokumentet u gjeneruan.",
+        submittedSuccess: "Kërkesa u dërgua me sukses për shqyrtim te Komisioni.",
+        submitDraftSavedAfterFailure: "Kërkesa nuk u dërgua për shqyrtim. Draft-i u ruajt. Ju lutem korrigjoni gabimin dhe provoni përsëri.",
         sentTitle: "Historiku i rimbursimeve",
         sentDescription: "Kerkesat e ruajtura ne databaze me historikun e statusit dhe dokumentet perkatese.",
         latestHistory: "Historiku i fundit",
@@ -797,6 +799,7 @@ export const translations = {
           uploadDocument: "Ngarko dokument",
           removeFile: "Hiq {{filename}}",
           f1PdfOnly: "Lejohet vetëm artikulli shkencor në formatin PDF.",
+          f1PdfRequired: "Ngarkoni artikullin shkencor në formatin PDF para se ta dërgoni për shqyrtim.",
           maximumDocuments: "Maksimumi është {{max}} dokumente gjithsej.",
         },
         history: {
@@ -1380,6 +1383,8 @@ export const translations = {
         submitting: "Submitting...",
         draftSaved: "Draft saved to the database.",
         requestSaved: "Request saved to the database and documents were generated.",
+        submittedSuccess: "The request was submitted successfully for Committee review.",
+        submitDraftSavedAfterFailure: "The request was not submitted for review. The draft was saved. Please correct the issue and try again.",
         sentTitle: "Reimbursement history",
         sentDescription: "Requests saved in the database with status history and related documents.",
         latestHistory: "Latest history",
@@ -1433,6 +1438,7 @@ export const translations = {
           uploadDocument: "Upload document",
           removeFile: "Remove {{filename}}",
           f1PdfOnly: "Only the scientific article in PDF format is allowed.",
+          f1PdfRequired: "Upload the scientific article as a PDF before submitting for review.",
           maximumDocuments: "A maximum of {{max}} documents is allowed.",
         },
         history: {
