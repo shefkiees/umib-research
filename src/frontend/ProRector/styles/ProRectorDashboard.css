@@ -2810,14 +2810,15 @@ input:checked + .prorector-slider:before {
 }
 
 .prorector-total-panel {
-  display: grid;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .prorector-total-gauge {
   width: min(100%, 270px);
   aspect-ratio: 2 / 1;
-  margin: 16px auto 0;
+  margin: clamp(42px, 8vw, 76px) auto 0;
   position: relative;
   overflow: hidden;
   border-radius: 999px 999px 0 0;
