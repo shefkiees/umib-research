@@ -940,11 +940,18 @@ export default function ProRectorDashboard() {
       <section className="prorector-faculty-pie-panel">
         <div className="prorector-faculty-pie-head">
           <div>
-            <span className="prorector-stat-kicker">Fakultetet</span>
             <h2>Lista e fakulteteve</h2>
-            <p>Fakultetet</p>
           </div>
-          <strong>{formatNumber(activeFacultyPieRows.length)}</strong>
+          <label className="prorector-faculty-head-search" htmlFor="prorector-faculty-search-input">
+            <Search size={18} />
+            <input
+              id="prorector-faculty-search-input"
+              type="text"
+              placeholder="Kerko fakultetet..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </label>
         </div>
 
         <StateBlock loading={faculties.loading} error={faculties.error} empty={!activeFacultyPieRows.length} emptyText="Nuk ka fakultete aktive në sistem." />
@@ -967,7 +974,7 @@ export default function ProRectorDashboard() {
                   >
                     {activeFacultyPieRows.map((row) => <Cell key={row.id} fill={row.fill} />)}
                   </Pie>
-                  <Tooltip formatter={() => ["Aktiv", "Statusi"]} />
+                  <Tooltip formatter={(_value, name) => [name, "Fakulteti"]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="prorector-active-faculty-pie-total" aria-hidden="true">
