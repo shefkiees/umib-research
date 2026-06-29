@@ -507,7 +507,6 @@ function FacultyPercentageChart({ rows }) {
             </div>
           </div>
           <div className="prorector-faculty-legend">
-            <strong>Fakulteti</strong>
             {rows.map((row) => (
               <span key={row.name}><i style={{ background: row.fill }} /><b>{row.name}</b><em>{formatNumber(row.value)} ({row.percent.toFixed(2)}%)</em></span>
             ))}
