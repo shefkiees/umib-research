@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Bell, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, Settings } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, RefreshCw, Settings } from "lucide-react";
 import {
   Cell,
   Pie,
@@ -1430,52 +1430,68 @@ export default function CommitteeDashboard() {
     };
   }, [navigate]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadPendingSubmissions = async () => {
+  const loadPendingSubmissions = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
       setIsPendingSubmissionsLoading(true);
-      setPendingSubmissionsError("");
+    }
+    setPendingSubmissionsError("");
 
-      try {
-        const response = await fetch(apiUrl("/reimbursements?scope=all"), {
-          credentials: "include",
-        });
+    try {
+      const response = await fetch(apiUrl("/reimbursements?scope=review"), {
+        credentials: "include",
+      });
 
-        if (response.status === 401) {
-          throw new Error("Sesioni nuk eshte aktiv.");
-        }
+      if (response.status === 401) {
+        throw new Error("Sesioni nuk eshte aktiv.");
+      }
 
-        if (!response.ok) {
-          throw new Error("Dorëzimet në pritje nuk u ngarkuan nga databaza.");
-        }
+      if (!response.ok) {
+        throw new Error("Dorëzimet në pritje nuk u ngarkuan nga databaza.");
+      }
 
-        const data = await response.json();
-        const rows = Array.isArray(data) ? data : [];
+      const data = await response.json();
+      const rows = Array.isArray(data) ? data : [];
 
-        if (isMounted) {
-          setReviewRequests(rows);
-          setPendingSubmissions(rows.filter((item) => item.status === "submitted"));
-        }
-      } catch (error) {
-        if (isMounted) {
-          setReviewRequests([]);
-          setPendingSubmissions([]);
-          setPendingSubmissionsError(error.message || "Dorëzimet në pritje nuk u ngarkuan.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsPendingSubmissionsLoading(false);
-        }
+      setReviewRequests(rows);
+      setPendingSubmissions(rows.filter((item) => item.status === "submitted"));
+    } catch (error) {
+      setReviewRequests([]);
+      setPendingSubmissions([]);
+      setPendingSubmissionsError(error.message || "Dorëzimet në pritje nuk u ngarkuan.");
+    } finally {
+      if (!silent) {
+        setIsPendingSubmissionsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingSubmissions();
+  }, [loadPendingSubmissions]);
+
+  useEffect(() => {
+    if (activePage !== "Kërkesat për Shqyrtim") {
+      return;
+    }
+
+    loadPendingSubmissions({ silent: true });
+  }, [activePage, loadPendingSubmissions]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        loadPendingSubmissions({ silent: true });
       }
     };
 
-    loadPendingSubmissions();
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
 
     return () => {
-      isMounted = false;
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
     };
-  }, []);
+  }, [loadPendingSubmissions]);
 
   useEffect(() => {
     window.localStorage.setItem(METADATA_REVIEW_STORAGE_KEY, JSON.stringify(metadataReviews));
@@ -3431,8 +3447,19 @@ export default function CommitteeDashboard() {
   const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head">
-        <h3>Kërkesat për Shqyrtim</h3>
-        <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>
+        <div>
+          <h3>Kërkesat për Shqyrtim</h3>
+          <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>
+        </div>
+        <button
+          type="button"
+          className="committee-details-btn"
+          onClick={() => loadPendingSubmissions()}
+          disabled={isPendingSubmissionsLoading}
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          Rifresko
+        </button>
       </div>
 
       {isPendingSubmissionsLoading ? (
