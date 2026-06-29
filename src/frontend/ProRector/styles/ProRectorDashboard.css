@@ -1221,6 +1221,12 @@
   min-height: 350px;
 }
 
+.prorector-employment-pie-label {
+  fill: #555555;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .prorector-employment-legend {
   display: grid;
   align-content: center;

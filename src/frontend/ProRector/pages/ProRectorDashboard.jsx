@@ -79,6 +79,10 @@ function formatNumber(value) {
   return new Intl.NumberFormat("sq-AL").format(toNumber(value));
 }
 
+function formatPercent(value) {
+  return `${toNumber(value).toFixed(2)}%`;
+}
+
 function normalizePublicationYear(value) {
   const year = Number.parseInt(value, 10);
   const maxYear = new Date().getFullYear() + 1;
@@ -669,7 +673,29 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
 function AnalyticsCharts({ analytics }) {
   const publicationsByYear = analytics.publicationsByYear || [];
   const employmentStatusRows = analytics.employmentStatusRows || [];
-  const employmentStatusTotal = employmentStatusRows.reduce((sum, row) => sum + toNumber(row.value), 0);
+  const visibleEmploymentStatusRows = employmentStatusRows.filter((row) => toNumber(row.value) > 0);
+  const employmentStatusTotal = visibleEmploymentStatusRows.reduce((sum, row) => sum + toNumber(row.value), 0);
+  const renderEmploymentStatusLabel = ({ cx, cy, midAngle, outerRadius, value, percent }) => {
+    if (!toNumber(value)) {
+      return null;
+    }
+
+    const radius = outerRadius + 22;
+    const x = cx + radius * Math.cos((-midAngle * Math.PI) / 180);
+    const y = cy + radius * Math.sin((-midAngle * Math.PI) / 180);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        className="prorector-employment-pie-label"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+      >
+        {formatNumber(value)} ({formatPercent(percent * 100)})
+      </text>
+    );
+  };
 
   return (
     <div className="prorector-dashboard-chart-stack">
@@ -690,32 +716,39 @@ function AnalyticsCharts({ analytics }) {
 
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
         <div className="prorector-card-head"><h3>Publikimet sipas statusit të punësimit</h3><FileText size={20} /></div>
-        {employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
+        {visibleEmploymentStatusRows.length ? (
           <div className="prorector-employment-chart-layout">
             <div className="prorector-employment-pie-box">
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={360}>
                 <PieChart>
                   <Pie
-                    data={employmentStatusRows}
+                    data={visibleEmploymentStatusRows}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={76}
-                    outerRadius={136}
+                    innerRadius={82}
+                    outerRadius={140}
                     paddingAngle={2}
                     stroke="#ffffff"
                     strokeWidth={3}
+                    label={renderEmploymentStatusLabel}
+                    labelLine={{ stroke: "#8a8a8a", strokeWidth: 1 }}
                   >
-                    {employmentStatusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
+                    {visibleEmploymentStatusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
                   </Pie>
-                  <Tooltip formatter={(value, name) => [`${formatNumber(value)} (${employmentStatusTotal ? ((toNumber(value) / employmentStatusTotal) * 100).toFixed(2) : "0.00"}%)`, name]} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      `${formatNumber(value)} (${employmentStatusTotal ? formatPercent((toNumber(value) / employmentStatusTotal) * 100) : "0.00%"})`,
+                      name,
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <div className="prorector-employment-legend">
               <strong>Orar i plotë vs gjysmë orari</strong>
-              {employmentStatusRows.map((row) => (
+              {visibleEmploymentStatusRows.map((row) => (
                 <span key={row.name}>
                   <i style={{ background: row.fill }} />
                   <b>{row.name}</b>
