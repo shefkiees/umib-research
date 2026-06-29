@@ -8,8 +8,6 @@ import {
   Users, 
   Globe, 
   ChevronRight, 
-  GraduationCap,
-  LibraryBig,
   Lock,
   UserRound
 } from "lucide-react";
@@ -240,6 +238,13 @@ export default function HomePage() {
   const communitySliderProfiles = community.profileCards.length
     ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
     : [];
+  const platformStats = [
+    { label: "Përdorues", value: community.stats.users },
+    { label: "Publikime", value: community.stats.publications },
+    { label: "Konferenca", value: community.stats.conferences },
+    { label: "Fakultete", value: community.stats.faculties },
+  ];
+  const platformStatsMax = Math.max(1, ...platformStats.map((stat) => stat.value));
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -370,27 +375,28 @@ export default function HomePage() {
             <h2>Statistikat e Platformës</h2>
             <p className="section-desc">Pasqyrë e komunitetit akademik, publikimeve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
           </div>
-          <div className="platform-stats-grid">
-            <article className="platform-stat-card">
-              <Users size={24} />
-              <span>Përdorues</span>
-              <strong>{formatNumber(community.stats.users)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <BookOpen size={24} />
-              <span>Publikime</span>
-              <strong>{formatNumber(community.stats.publications)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <GraduationCap size={24} />
-              <span>Konferenca</span>
-              <strong>{formatNumber(community.stats.conferences)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <LibraryBig size={24} />
-              <span>Fakultete</span>
-              <strong>{formatNumber(community.stats.faculties)}</strong>
-            </article>
+          <div className="platform-stats-chart-card" aria-label="Statistikat e platformës">
+            <div className="platform-stats-bars">
+              {platformStats.map((stat) => (
+                <div className="platform-stats-bar-row" key={stat.label}>
+                  <div className="platform-stats-bar-label">{stat.label}</div>
+                  <div className="platform-stats-bar-track">
+                    <div
+                      className="platform-stats-bar-fill"
+                      style={{ width: `${(stat.value / platformStatsMax) * 100}%` }}
+                      role="meter"
+                      aria-label={`${stat.label}: ${formatNumber(stat.value)}`}
+                      aria-valuemin={0}
+                      aria-valuemax={platformStatsMax}
+                      aria-valuenow={stat.value}
+                    >
+                      <span>{formatNumber(stat.value)}</span>
+                    </div>
+                  </div>
+                  <strong className="platform-stats-bar-value">{formatNumber(stat.value)}</strong>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
