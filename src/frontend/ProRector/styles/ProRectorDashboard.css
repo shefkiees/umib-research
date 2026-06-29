@@ -374,14 +374,14 @@
 
 .prorector-popover {
   position: absolute;
-  top: calc(100% + 14px);
+  top: calc(100% + 10px);
   right: 0;
-  width: min(400px, calc(100vw - 32px));
+  width: min(250px, calc(100vw - 32px));
   background: #ffffff;
   border: 1px solid #dbe4ef;
-  border-radius: 16px;
-  box-shadow: 0 18px 40px rgba(17, 39, 66, 0.12);
-  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 14px 28px rgba(17, 39, 66, 0.1);
+  padding: 8px 0;
   z-index: 30;
   overflow: hidden;
 }
@@ -553,17 +553,17 @@
 
 .prorector-popover-item {
   width: 100%;
-  min-height: 53px;
+  min-height: 52px;
   border: none;
   background: transparent;
   color: var(--text-dark);
   text-align: left;
-  padding: 0 20px;
-  font-weight: 800;
+  padding: 0 22px;
+  font-weight: 400;
   cursor: pointer;
   transition: var(--transition);
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 1rem;
+  border-bottom: none;
+  font-size: 1.02rem;
   display: flex;
   align-items: center;
   gap: 12px;
