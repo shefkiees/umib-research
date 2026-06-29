@@ -382,6 +382,8 @@
 .umib-homepage-root .platform-stat-card {
     position: relative;
     overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
     min-height: 158px;
     border-radius: 18px;
     padding: 18px;
@@ -401,8 +403,8 @@
 .umib-homepage-root .platform-stat-card-top {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
+    justify-content: flex-start;
+    margin-bottom: 8px;
 }
 .umib-homepage-root .platform-stat-icon {
     width: 42px;
@@ -416,12 +418,20 @@
     box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.22);
 }
 .umib-homepage-root .platform-stat-card-body h3 {
-    margin: 0 0 7px;
+    margin: 0 0 8px;
     color: #667085;
     font-size: 0.86rem;
     font-weight: 850;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+.umib-homepage-root .platform-stat-card-body {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 .umib-homepage-root .platform-stat-card-body strong {
     display: block;

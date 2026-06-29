@@ -250,7 +250,7 @@ export default function HomePage() {
     : [];
   const platformStats = [
     { label: "Përdorues", value: community.stats.users },
-    { label: "Publikime", value: community.stats.publications },
+    { label: "Artikuj", value: community.stats.publications },
     { label: "Konferenca", value: community.stats.conferences },
     { label: "Fakultete", value: community.stats.faculties },
   ];
@@ -261,10 +261,10 @@ export default function HomePage() {
     { key: "faculties", icon: Building2 },
   ];
   const platformStatDescriptions = [
-    "Anëtarë aktivë",
-    "Artikuj të publikuar",
-    "Konferenca të regjistruara",
-    "Fakultete të përfshira",
+    "Anëtarë të regjistruar",
+    "Artikuj shkencorë të regjistruar",
+    "Konferenca shkencore të regjistruara",
+    "Njësi akademike të përfshira",
   ];
   const platformCurrentChartData = platformStats.map((stat, index) => ({
     ...stat,
@@ -398,7 +398,7 @@ export default function HomePage() {
         <div className="container">
           <div className="section-header compact">
             <h2>Statistikat e Platformës</h2>
-            <p className="section-desc">Pasqyrë e komunitetit akademik, publikimeve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
+            <p className="section-desc">Pasqyrë e komunitetit akademik, artikujve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
           </div>
           <div className="platform-stats-dashboard" aria-label="Statistikat e platformës">
             <div className="platform-stat-card-grid">
@@ -426,8 +426,8 @@ export default function HomePage() {
 
             <div className="platform-analytics-panel">
               <div className="platform-analytics-summary">
-                <h3>Gjendja aktuale</h3>
-                <p>Grafiku paraqet vlerat aktuale nga të dhënat ekzistuese të platformës.</p>
+                <h3>Pasqyrë Statistikore</h3>
+                <p>Vizualizimi paraqet treguesit kryesorë të aktivitetit akademik dhe të dhënat aktuale të platformës UMIBRes.</p>
               </div>
               <div className="platform-analytics-chart" aria-label="Grafiku i aktivitetit të platformës">
                 <ResponsiveContainer width="100%" height={240}>
@@ -437,14 +437,14 @@ export default function HomePage() {
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={formatNumber} />
                     <Tooltip
                       cursor={false}
-                      formatter={(value) => [formatNumber(value), "Gjendja aktuale"]}
+                      formatter={(value) => [formatNumber(value), "Vlera aktuale"]}
                       labelStyle={{ color: "#1a2b49", fontWeight: 800 }}
                       contentStyle={{ borderRadius: 14, border: "1px solid #dfe7f0", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)" }}
                     />
                     <Line
                       type="monotone"
                       dataKey="value"
-                      name="Gjendja aktuale"
+                      name="Vlera aktuale"
                       stroke="#c9a227"
                       strokeWidth={3}
                       dot={{ r: 4, fill: "#ffffff", stroke: "#c9a227", strokeWidth: 2 }}
