@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, Bell, Link2, Pencil, Search, Settings } from "lucide-react";
+import { ArrowRight, Bell, Pencil, Search, Settings } from "lucide-react";
 
 function getDisplayRole(role) {
   const normalized = String(role || "").trim().toLowerCase();
@@ -165,13 +165,6 @@ export default function ProRectorTopBar({
               }}>
                 <Settings size={18} className="prorector-popover-icon" />
                 <span>Cilësimet</span>
-              </button>
-              <button type="button" className="prorector-popover-item" onClick={() => {
-                onProfileAction?.("Integrime");
-                setIsProfileOpen(false);
-              }}>
-                <Link2 size={18} className="prorector-popover-icon" />
-                <span>Integrime</span>
               </button>
               <button type="button" className="prorector-popover-item prorector-popover-item--danger" onClick={() => {
                 onProfileAction?.("Logout");

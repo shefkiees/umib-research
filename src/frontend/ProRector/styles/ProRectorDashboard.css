@@ -280,29 +280,25 @@
 
 .prorector-profile-btn {
   display: grid;
-  grid-template-columns: 1fr 46px;
+  grid-template-columns: 1fr 50px;
   align-items: center;
-  gap: 12px;
-  width: clamp(260px, 18vw, 300px);
-  min-width: 260px;
-  height: 66px;
-  padding: 0 14px 0 24px;
-  border: 1px solid #cbd7e5;
+  gap: 14px;
+  width: clamp(300px, 21vw, 340px);
+  min-width: 300px;
+  height: 72px;
+  padding: 0 16px 0 28px;
+  border: 1px solid #d6e0ec;
   background: #f8fbff;
   cursor: pointer;
-  border-radius: 16px;
+  border-radius: 12px;
   transition: var(--transition);
-  box-shadow:
-    0 0 0 3px rgba(148, 163, 184, 0.14),
-    0 8px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .prorector-profile-btn:hover {
   background: #ffffff;
-  border-color: #b6c5d8;
-  box-shadow:
-    0 0 0 3px rgba(148, 163, 184, 0.2),
-    0 10px 22px rgba(15, 23, 42, 0.1);
+  border-color: #c3d0df;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
 }
 
 .prorector-profile-btn:focus-visible,
@@ -323,8 +319,8 @@
 
 .prorector-profile-btn h4 {
   margin: 0;
-  font-size: 1.12rem;
-  font-weight: 900;
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--text-dark);
   line-height: 1.1;
   max-width: 100%;
@@ -335,15 +331,15 @@
 
 .prorector-profile-btn span {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 400;
   color: var(--text-light);
   line-height: 1.15;
 }
 
 .prorector-profile-avatar {
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   border-radius: 999px;
   overflow: hidden;
   background: #e8eef6;
