@@ -79,6 +79,13 @@ function formatNumber(value) {
   return new Intl.NumberFormat("sq-AL").format(toNumber(value));
 }
 
+function normalizePublicationYear(value) {
+  const year = Number.parseInt(value, 10);
+  const maxYear = new Date().getFullYear() + 1;
+
+  return Number.isInteger(year) && year >= 1900 && year <= maxYear ? String(year) : "";
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat("sq-AL", {
     style: "currency",
@@ -135,21 +142,24 @@ function buildPublicationAnalytics(rows) {
     ["AHCI", 0],
   ]);
   const employmentStatusCounts = new Map([
-    ["1st Author Full-time", 0],
-    ["1st Author Part-time", 0],
+    ["Autori i parë me orar të plotë", 0],
+    ["Autori i parë me gjysmë orari", 0],
+    ["Pa të dhëna për statusin", 0],
   ]);
 
   rows.forEach((row) => {
-    const year = row.year ? String(row.year) : "";
+    const year = normalizePublicationYear(row.year);
     const faculty = row.faculty || "Pa fakultet";
     const employmentStatus = String(row.employmentStatus || "").toLowerCase();
 
     if (year) byYear.set(year, (byYear.get(year) || 0) + 1);
     facultyCounts.set(faculty, (facultyCounts.get(faculty) || 0) + 1);
     if (employmentStatus === "part_time") {
-      employmentStatusCounts.set("1st Author Part-time", (employmentStatusCounts.get("1st Author Part-time") || 0) + 1);
+      employmentStatusCounts.set("Autori i parë me gjysmë orari", (employmentStatusCounts.get("Autori i parë me gjysmë orari") || 0) + 1);
+    } else if (employmentStatus === "full_time") {
+      employmentStatusCounts.set("Autori i parë me orar të plotë", (employmentStatusCounts.get("Autori i parë me orar të plotë") || 0) + 1);
     } else {
-      employmentStatusCounts.set("1st Author Full-time", (employmentStatusCounts.get("1st Author Full-time") || 0) + 1);
+      employmentStatusCounts.set("Pa të dhëna për statusin", (employmentStatusCounts.get("Pa të dhëna për statusin") || 0) + 1);
     }
 
     if (year) {
@@ -207,7 +217,7 @@ function buildPublicationAnalytics(rows) {
     name,
     value,
     percent: rows.length ? (value / rows.length) * 100 : 0,
-    fill: index === 0 ? "#1e88e5" : "#1b2a9b",
+    fill: index === 0 ? "#1e88e5" : index === 1 ? "#1b2a9b" : "#64748b",
   }));
 
   return {
@@ -664,7 +674,7 @@ function AnalyticsCharts({ analytics }) {
   return (
     <div className="prorector-dashboard-chart-stack">
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
-        <div className="prorector-card-head"><h3>Publication by year</h3><TrendingUp size={20} /></div>
+        <div className="prorector-card-head"><h3>Publikimet sipas vitit</h3><TrendingUp size={20} /></div>
         {publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={340}>
             <BarChart data={publicationsByYear}>
@@ -672,14 +682,14 @@ function AnalyticsCharts({ analytics }) {
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" name="Publications" fill="#1e88e5" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" name="Publikime" fill="#1e88e5" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : <ChartEmpty />}
       </article>
 
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
-        <div className="prorector-card-head"><h3>Publications by Employment Status</h3><FileText size={20} /></div>
+        <div className="prorector-card-head"><h3>Publikimet sipas statusit të punësimit</h3><FileText size={20} /></div>
         {employmentStatusRows.some((row) => toNumber(row.value) > 0) ? (
           <div className="prorector-employment-chart-layout">
             <div className="prorector-employment-pie-box">
@@ -704,7 +714,7 @@ function AnalyticsCharts({ analytics }) {
               </ResponsiveContainer>
             </div>
             <div className="prorector-employment-legend">
-              <strong>Full-Time vs Part-Time</strong>
+              <strong>Orar i plotë vs gjysmë orari</strong>
               {employmentStatusRows.map((row) => (
                 <span key={row.name}>
                   <i style={{ background: row.fill }} />
