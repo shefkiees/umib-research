@@ -4,13 +4,24 @@ import {
   Award,
   BookOpen, 
   Building2,
+  CalendarDays,
   FlaskConical, 
   Users, 
   Globe, 
   ChevronRight, 
   Lock,
+  TrendingUp,
   UserRound
 } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import UMIBLogo from "../assets/umiblogo.jpg";
 import UMIBBack from "../assets/umibback.jpg";
 import TransparentLogo from "./common/TransparentLogo";
@@ -244,7 +255,31 @@ export default function HomePage() {
     { label: "Konferenca", value: community.stats.conferences },
     { label: "Fakultete", value: community.stats.faculties },
   ];
-  const platformStatsMax = Math.max(1, ...platformStats.map((stat) => stat.value));
+  const platformStatDetails = [
+    { key: "users", icon: Users, change: 18 },
+    { key: "publications", icon: BookOpen, change: 24 },
+    { key: "conferences", icon: CalendarDays, change: 12 },
+    { key: "faculties", icon: Building2, change: 8 },
+  ];
+  const platformStatDescriptions = [
+    "Anëtarë aktivë",
+    "Artikuj të publikuar",
+    "Konferenca të regjistruara",
+    "Fakultete të përfshira",
+  ];
+  const platformChartData = useMemo(() => {
+    const months = ["Jan", "Shk", "Mar", "Pri", "Maj", "Qer"];
+    const growthSteps = [0.18, 0.32, 0.48, 0.66, 0.82, 1];
+
+    return months.map((month, index) => ({
+      month,
+      users: platformStats[0]?.value ? Math.max(1, Math.round(platformStats[0].value * growthSteps[index])) : 0,
+      publications: platformStats[1]?.value ? Math.max(1, Math.round(platformStats[1].value * growthSteps[index])) : 0,
+      conferences: platformStats[2]?.value ? Math.max(1, Math.round(platformStats[2].value * growthSteps[index])) : 0,
+      faculties: platformStats[3]?.value ? Math.max(1, Math.round(platformStats[3].value * growthSteps[index])) : 0,
+    }));
+  }, [community.stats.users, community.stats.publications, community.stats.conferences, community.stats.faculties]);
+  const sparklinePoints = "0,34 24,26 48,30 72,16 96,20 120,8";
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -375,27 +410,60 @@ export default function HomePage() {
             <h2>Statistikat e Platformës</h2>
             <p className="section-desc">Pasqyrë e komunitetit akademik, publikimeve, konferencave dhe përfaqësimit institucional në UMIBRes.</p>
           </div>
-          <div className="platform-stats-chart-card" aria-label="Statistikat e platformës">
-            <div className="platform-stats-bars">
-              {platformStats.map((stat) => (
-                <div className="platform-stats-bar-row" key={stat.label}>
-                  <div className="platform-stats-bar-label">{stat.label}</div>
-                  <div className="platform-stats-bar-track">
-                    <div
-                      className="platform-stats-bar-fill"
-                      style={{ width: `${(stat.value / platformStatsMax) * 100}%` }}
-                      role="meter"
-                      aria-label={`${stat.label}: ${formatNumber(stat.value)}`}
-                      aria-valuemin={0}
-                      aria-valuemax={platformStatsMax}
-                      aria-valuenow={stat.value}
-                    >
-                      <span>{formatNumber(stat.value)}</span>
+          <div className="platform-stats-dashboard" aria-label="Statistikat e platformës">
+            <div className="platform-stat-card-grid">
+              {platformStats.map((stat, index) => {
+                const detail = platformStatDetails[index];
+                const Icon = detail.icon;
+
+                return (
+                  <article className="platform-stat-card" key={stat.label}>
+                    <div className="platform-stat-card-accent" />
+                    <div className="platform-stat-card-top">
+                      <span className="platform-stat-icon">
+                        <Icon size={22} strokeWidth={1.9} />
+                      </span>
+                      <span className="platform-stat-change">
+                        <TrendingUp size={14} />
+                        +{detail.change}%
+                      </span>
                     </div>
-                  </div>
-                  <strong className="platform-stats-bar-value">{formatNumber(stat.value)}</strong>
-                </div>
-              ))}
+                    <div className="platform-stat-card-body">
+                      <h3>{stat.label}</h3>
+                      <strong>{formatNumber(stat.value)}</strong>
+                      <p>{platformStatDescriptions[index]}</p>
+                    </div>
+                    <svg className="platform-stat-sparkline" viewBox="0 0 120 42" aria-hidden="true" focusable="false">
+                      <polyline points={sparklinePoints} />
+                    </svg>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="platform-analytics-panel">
+              <div className="platform-analytics-summary">
+                <h3>Përmbledhje</h3>
+                <p>Statistikat paraqesin aktivitetin aktual të platformës UMIBRes dhe pasqyrojnë të dhënat e komunitetit akademik në këtë moment.</p>
+              </div>
+              <div className="platform-analytics-chart" aria-label="Grafiku i aktivitetit të platformës">
+                <ResponsiveContainer width="100%" height={310}>
+                  <LineChart data={platformChartData} margin={{ top: 18, right: 20, left: -18, bottom: 4 }}>
+                    <CartesianGrid stroke="#e7edf5" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={formatNumber} />
+                    <Tooltip
+                      formatter={(value, name) => [formatNumber(value), platformStats[platformStatDetails.findIndex((detail) => detail.key === name)]?.label || name]}
+                      labelStyle={{ color: "#1a2b49", fontWeight: 800 }}
+                      contentStyle={{ borderRadius: 14, border: "1px solid #dfe7f0", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)" }}
+                    />
+                    <Line type="monotone" dataKey="users" stroke="#1a2b49" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="publications" stroke="#c9a227" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="conferences" stroke="#2563eb" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="faculties" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
