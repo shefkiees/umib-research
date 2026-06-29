@@ -611,9 +611,9 @@ function normalizeIndexingPlatform(value) {
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
-  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
-  if (comparable.includes("openalex")) return "OpenAlex";
-  if (comparable.includes("doaj")) return "DOAJ";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "Other";
+  if (comparable.includes("openalex")) return "Other";
+  if (comparable.includes("doaj")) return "Other";
   if (comparable === "wos" || comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";

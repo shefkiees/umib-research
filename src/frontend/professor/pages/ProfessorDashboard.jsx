@@ -346,11 +346,24 @@ const normalizeIndexingPlatformValue = (value) => {
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "Other";
+  if (comparable.includes("openalex")) return "Other";
+  if (comparable.includes("doaj")) return "Other";
   if (comparable === "wos" || comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
 
   return text;
+};
+
+const getCustomIndexingPlatformValue = (value) => {
+  const text = String(value || "").trim();
+
+  if (!text || text.toLowerCase() === "other") {
+    return "";
+  }
+
+  return normalizeIndexingPlatformValue(text) === "Other" ? text : "";
 };
 
 const normalizeWebOfScienceIndexValue = (value) => {
@@ -1416,8 +1429,11 @@ export default function ProfessorDashboard() {
     const draftIndexing = supportsIndexing && Array.isArray(draft.indexing) ? draft.indexing : [];
     const selectedIndexing = getSelectedIndexingItem(draftIndexing, draft.quartile);
     const authorAffiliation = null;
-    const indexingPlatform = supportsIndexing ? normalizeIndexingPlatformValue(draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "") : "";
-    const customIndexingPlatform = supportsIndexing && indexingPlatform === "Other" ? String(draft.customIndexingPlatform || draft.custom_indexing_platform || "").trim() : "";
+    const rawIndexingPlatform = draft.indexingPlatform || draft.indexing_platform || selectedIndexing.source || draftIndexing.find((item) => item?.source)?.source || "";
+    const indexingPlatform = supportsIndexing ? normalizeIndexingPlatformValue(rawIndexingPlatform) : "";
+    const customIndexingPlatform = supportsIndexing && indexingPlatform === "Other"
+      ? String(draft.customIndexingPlatform || draft.custom_indexing_platform || getCustomIndexingPlatformValue(rawIndexingPlatform)).trim()
+      : "";
     const webOfScienceIndex = supportsIndexing && indexingPlatform === "Web of Science" ? normalizeWebOfScienceIndexValue(draft.webOfScienceIndex || draft.web_of_science_index || selectedIndexing.webOfScienceIndex || selectedIndexing.web_of_science_index || selectedIndexing.category || "") : "";
     const indexingCategory = webOfScienceIndex;
     const publicationDate = isBookPublication && !isBookChapter ? "" : normalizePublicationDateForPayload(draft.publicationDate || draft.publication_date);

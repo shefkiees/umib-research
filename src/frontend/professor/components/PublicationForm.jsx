@@ -231,9 +231,9 @@ function normalizeIndexingPlatform(value) {
 
   if (!text) return "";
   if (comparable.includes("scopus") || comparable.includes("citescore")) return "Scopus";
-  if (comparable.includes("scimago") || comparable.includes("sjr")) return "SCImago";
-  if (comparable.includes("openalex")) return "OpenAlex";
-  if (comparable.includes("doaj")) return "DOAJ";
+  if (comparable.includes("scimago") || comparable.includes("sjr")) return "Other";
+  if (comparable.includes("openalex")) return "Other";
+  if (comparable.includes("doaj")) return "Other";
   if (comparable === "wos" || comparable.includes("web of science") || comparable.includes("clarivate")) return "Web of Science";
   if (["scie", "ssci", "ahci", "esci"].includes(comparable)) return "Web of Science";
   if (comparable === "other") return "Other";
@@ -299,6 +299,17 @@ function getIndexingItemByPlatform(indexing = [], platform = "") {
 
 function normalizeCustomIndexingPlatform(value) {
   return String(value || "").trim();
+}
+
+function getCustomIndexingPlatformCandidate(value) {
+  const text = normalizeCustomIndexingPlatform(value);
+  const comparable = text.toLowerCase();
+
+  if (!text || comparable === "other") {
+    return "";
+  }
+
+  return normalizeIndexingPlatform(text) === "Other" ? text : "";
 }
 
 function firstTextValue(value) {
@@ -969,6 +980,7 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
   const isBookPublication = publicationType === "book";
   const isBookChapter = isBookChapterPublication(publicationType, publicationSubtype);
   const indexing = Array.isArray(metadata.indexing) ? metadata.indexing : [];
+  const rawIndexingPlatform = metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source || "";
   const selectedQuartileIndexing = getSelectedIndexingItem(indexing, metadata.quartile);
   const selectedQuartileStatus = String(metadata.quartileVerificationStatus || metadata.quartile_verification_status || selectedQuartileIndexing?.quartileVerificationStatus || selectedQuartileIndexing?.quartile_verification_status || "").toLowerCase();
   const quartileVerified = normalizeBoolean(metadata.quartileVerified ?? metadata.quartile_verified ?? selectedQuartileIndexing?.quartileVerified ?? selectedQuartileIndexing?.quartile_verified);
@@ -979,7 +991,8 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     ? normalizeIndexingSource(metadata.quartileSource || metadata.quartile_source || selectedQuartileIndexing?.quartileSource || selectedQuartileIndexing?.quartile_source || selectedQuartileIndexing?.sourceKey || selectedQuartileIndexing?.source_key || selectedQuartileIndexing?.source)
     : "manual";
   const quartileVerificationStatus = selectedQuartileStatus || "missing";
-  const indexingPlatform = supportsQuartile(publicationType) ? normalizeSelectableIndexingPlatform(metadata.indexingPlatform || metadata.indexing_platform || indexing.find((item) => item?.source)?.source) : "";
+  const indexingPlatform = supportsQuartile(publicationType) ? normalizeSelectableIndexingPlatform(rawIndexingPlatform) : "";
+  const customIndexingPlatform = indexingPlatform === "Other" ? getCustomIndexingPlatformCandidate(rawIndexingPlatform) : "";
   const indexingCategory = hasMetadataQuartile ? normalizeIndexingCategory(metadata.indexingCategory || metadata.indexing_category || selectedQuartileIndexing?.category || "") : "";
   const indexingVerified = supportsQuartile(publicationType) ? normalizeBoolean(metadata.indexingVerified ?? metadata.indexing_verified) : false;
   const indexingSource = supportsQuartile(publicationType) ? normalizeIndexingSource(metadata.indexingSource || metadata.indexing_source || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.sourceKey || indexing.find((item) => item?.sourceKey || item?.source_key || item?.source)?.source_key || indexing.find((item) => item?.source)?.source) : "manual";
@@ -1044,6 +1057,8 @@ function metadataToDraft(metadata = {}, currentUserAuthor = {}) {
     isbn: publicationType === "journal_article" ? "" : metadata.isbn || firstTextValue(metadata.raw_json?.ISBN || metadata.raw_json?.isbn),
     authorAffiliation: "",
     indexingPlatform,
+    customIndexingPlatform,
+    custom_indexing_platform: customIndexingPlatform,
     indexingCategory,
     quartile,
     quartileVerified,
