@@ -2658,15 +2658,26 @@ export default function ProfessorDashboard() {
           ) : hasFilteredStatisticsChartData ? (
             <div className="prof-stat-chart-wrap">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredStatisticsChartData} barGap={10}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8e0ea" />
+                <BarChart data={filteredStatisticsChartData} barGap={8} barCategoryGap="24%" margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#edf2f7" />
                   <XAxis dataKey="month" tickLine={false} axisLine={false} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="publikime" name={t("professor.dashboard.publications")} radius={[8, 8, 0, 0]} fill="#153a63" />
-                  <Bar dataKey="konferenca" name={t("professor.dashboard.conferences")} radius={[8, 8, 0, 0]} fill="#7aa7d3" />
-                  <Bar dataKey="rimbursime" name={t("professor.dashboard.reimbursements")} radius={[8, 8, 0, 0]} fill="#c9a24f" />
+                  <Tooltip
+                    cursor={{ fill: "transparent" }}
+                    contentStyle={{
+                      background: "#ffffff",
+                      border: "1px solid #dbe5ef",
+                      borderRadius: 10,
+                      boxShadow: "0 12px 28px rgba(15, 31, 50, 0.12)",
+                      padding: "10px 12px",
+                    }}
+                    labelStyle={{ color: "#0f1f32", fontWeight: 700, marginBottom: 4 }}
+                    itemStyle={{ color: "#263a50", fontSize: 13, padding: "2px 0" }}
+                  />
+                  <Legend iconSize={10} wrapperStyle={{ paddingTop: 6, fontSize: 13 }} />
+                  <Bar dataKey="publikime" name={t("professor.dashboard.publications")} radius={[10, 10, 0, 0]} fill="#153a63" barSize={28} />
+                  <Bar dataKey="konferenca" name={t("professor.dashboard.conferences")} radius={[10, 10, 0, 0]} fill="#7aa7d3" barSize={28} />
+                  <Bar dataKey="rimbursime" name={t("professor.dashboard.reimbursements")} radius={[10, 10, 0, 0]} fill="#c9a24f" barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
