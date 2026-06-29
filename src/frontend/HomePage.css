@@ -356,22 +356,22 @@
 
 /* Platform Statistics */
 .umib-homepage-root .platform-stats-section {
-    padding: 96px 0 76px;
+    padding: 72px 0 58px;
     background: linear-gradient(180deg, #f6f8fb 0%, #eef3f8 100%);
 }
 .umib-homepage-root .section-header.compact {
-    margin-bottom: 42px;
+    margin-bottom: 30px;
 }
 .umib-homepage-root .platform-stats-dashboard {
     max-width: 1180px;
     margin: 0 auto;
     display: grid;
-    gap: 28px;
+    gap: 20px;
 }
 .umib-homepage-root .platform-stat-card-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 20px;
+    gap: 16px;
 }
 .umib-homepage-root .platform-stat-card,
 .umib-homepage-root .platform-analytics-panel {
@@ -382,9 +382,9 @@
 .umib-homepage-root .platform-stat-card {
     position: relative;
     overflow: hidden;
-    min-height: 238px;
-    border-radius: 20px;
-    padding: 22px;
+    min-height: 158px;
+    border-radius: 18px;
+    padding: 18px;
     transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
 }
 .umib-homepage-root .platform-stat-card:hover {
@@ -402,12 +402,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 .umib-homepage-root .platform-stat-icon {
-    width: 52px;
-    height: 52px;
+    width: 42px;
+    height: 42px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
@@ -416,19 +415,8 @@
     background: #f7f1df;
     box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.22);
 }
-.umib-homepage-root .platform-stat-change {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    border-radius: 999px;
-    padding: 6px 10px;
-    color: #166534;
-    background: #ecfdf3;
-    font-size: 0.78rem;
-    font-weight: 850;
-}
 .umib-homepage-root .platform-stat-card-body h3 {
-    margin: 0 0 8px;
+    margin: 0 0 7px;
     color: #667085;
     font-size: 0.86rem;
     font-weight: 850;
@@ -438,59 +426,43 @@
 .umib-homepage-root .platform-stat-card-body strong {
     display: block;
     color: var(--navy);
-    font-size: clamp(2rem, 3vw, 2.7rem);
+    font-size: clamp(1.65rem, 2.4vw, 2.15rem);
     font-weight: 900;
     line-height: 1;
 }
 .umib-homepage-root .platform-stat-card-body p {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
     color: var(--text-light);
     font-size: 0.95rem;
-}
-.umib-homepage-root .platform-stat-sparkline {
-    position: absolute;
-    left: 22px;
-    right: 22px;
-    bottom: 18px;
-    width: calc(100% - 44px);
-    height: 42px;
-}
-.umib-homepage-root .platform-stat-sparkline polyline {
-    fill: none;
-    stroke: var(--gold);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    opacity: 0.88;
 }
 .umib-homepage-root .platform-analytics-panel {
     display: grid;
     grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.65fr);
-    gap: 34px;
+    gap: 24px;
     align-items: center;
-    border-radius: 20px;
-    padding: 32px;
+    border-radius: 18px;
+    padding: 24px;
 }
 .umib-homepage-root .platform-analytics-summary {
     border-left: 4px solid var(--gold);
     padding-left: 22px;
 }
 .umib-homepage-root .platform-analytics-summary h3 {
-    margin: 0 0 12px;
+    margin: 0 0 10px;
     color: var(--navy);
-    font-size: 1.45rem;
+    font-size: 1.25rem;
     font-weight: 900;
 }
 .umib-homepage-root .platform-analytics-summary p {
     margin: 0;
     color: var(--text-light);
     font-size: 1rem;
-    line-height: 1.7;
+    line-height: 1.55;
 }
 .umib-homepage-root .platform-analytics-chart {
     min-width: 0;
-    height: 326px;
-    border-radius: 18px;
+    height: 250px;
+    border-radius: 16px;
     padding: 8px 8px 0;
     background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
@@ -755,8 +727,8 @@
         gap: 16px;
     }
     .umib-homepage-root .platform-stat-card {
-        min-height: 220px;
-        padding: 20px;
+        min-height: 148px;
+        padding: 16px;
     }
     .umib-homepage-root .platform-analytics-panel {
         gap: 24px;
@@ -766,7 +738,7 @@
         padding-left: 16px;
     }
     .umib-homepage-root .platform-analytics-chart {
-        height: 286px;
+        height: 232px;
         margin: 0 -8px;
     }
     .umib-homepage-root .community-profile-card {

@@ -10,13 +10,12 @@ import {
   Globe, 
   ChevronRight, 
   Lock,
-  TrendingUp,
   UserRound
 } from "lucide-react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -256,10 +255,10 @@ export default function HomePage() {
     { label: "Fakultete", value: community.stats.faculties },
   ];
   const platformStatDetails = [
-    { key: "users", icon: Users, change: 18 },
-    { key: "publications", icon: BookOpen, change: 24 },
-    { key: "conferences", icon: CalendarDays, change: 12 },
-    { key: "faculties", icon: Building2, change: 8 },
+    { key: "users", icon: Users },
+    { key: "publications", icon: BookOpen },
+    { key: "conferences", icon: CalendarDays },
+    { key: "faculties", icon: Building2 },
   ];
   const platformStatDescriptions = [
     "Anëtarë aktivë",
@@ -267,19 +266,10 @@ export default function HomePage() {
     "Konferenca të regjistruara",
     "Fakultete të përfshira",
   ];
-  const platformChartData = useMemo(() => {
-    const months = ["Jan", "Shk", "Mar", "Pri", "Maj", "Qer"];
-    const growthSteps = [0.18, 0.32, 0.48, 0.66, 0.82, 1];
-
-    return months.map((month, index) => ({
-      month,
-      users: platformStats[0]?.value ? Math.max(1, Math.round(platformStats[0].value * growthSteps[index])) : 0,
-      publications: platformStats[1]?.value ? Math.max(1, Math.round(platformStats[1].value * growthSteps[index])) : 0,
-      conferences: platformStats[2]?.value ? Math.max(1, Math.round(platformStats[2].value * growthSteps[index])) : 0,
-      faculties: platformStats[3]?.value ? Math.max(1, Math.round(platformStats[3].value * growthSteps[index])) : 0,
-    }));
-  }, [community.stats.users, community.stats.publications, community.stats.conferences, community.stats.faculties]);
-  const sparklinePoints = "0,34 24,26 48,30 72,16 96,20 120,8";
+  const platformCurrentChartData = platformStats.map((stat, index) => ({
+    ...stat,
+    key: platformStatDetails[index].key,
+  }));
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -421,11 +411,7 @@ export default function HomePage() {
                     <div className="platform-stat-card-accent" />
                     <div className="platform-stat-card-top">
                       <span className="platform-stat-icon">
-                        <Icon size={22} strokeWidth={1.9} />
-                      </span>
-                      <span className="platform-stat-change">
-                        <TrendingUp size={14} />
-                        +{detail.change}%
+                        <Icon size={20} strokeWidth={1.9} />
                       </span>
                     </div>
                     <div className="platform-stat-card-body">
@@ -433,9 +419,6 @@ export default function HomePage() {
                       <strong>{formatNumber(stat.value)}</strong>
                       <p>{platformStatDescriptions[index]}</p>
                     </div>
-                    <svg className="platform-stat-sparkline" viewBox="0 0 120 42" aria-hidden="true" focusable="false">
-                      <polyline points={sparklinePoints} />
-                    </svg>
                   </article>
                 );
               })}
@@ -443,25 +426,22 @@ export default function HomePage() {
 
             <div className="platform-analytics-panel">
               <div className="platform-analytics-summary">
-                <h3>Përmbledhje</h3>
-                <p>Statistikat paraqesin aktivitetin aktual të platformës UMIBRes dhe pasqyrojnë të dhënat e komunitetit akademik në këtë moment.</p>
+                <h3>Gjendja aktuale</h3>
+                <p>Grafiku paraqet vlerat aktuale nga të dhënat ekzistuese të platformës.</p>
               </div>
               <div className="platform-analytics-chart" aria-label="Grafiku i aktivitetit të platformës">
-                <ResponsiveContainer width="100%" height={310}>
-                  <LineChart data={platformChartData} margin={{ top: 18, right: 20, left: -18, bottom: 4 }}>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={platformCurrentChartData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}>
                     <CartesianGrid stroke="#e7edf5" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={formatNumber} />
                     <Tooltip
-                      formatter={(value, name) => [formatNumber(value), platformStats[platformStatDetails.findIndex((detail) => detail.key === name)]?.label || name]}
+                      formatter={(value) => [formatNumber(value), "Gjendja aktuale"]}
                       labelStyle={{ color: "#1a2b49", fontWeight: 800 }}
                       contentStyle={{ borderRadius: 14, border: "1px solid #dfe7f0", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)" }}
                     />
-                    <Line type="monotone" dataKey="users" stroke="#1a2b49" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="publications" stroke="#c9a227" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="conferences" stroke="#2563eb" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="faculties" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                  </LineChart>
+                    <Bar dataKey="value" name="Gjendja aktuale" fill="#c9a227" radius={[8, 8, 0, 0]} barSize={46} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
