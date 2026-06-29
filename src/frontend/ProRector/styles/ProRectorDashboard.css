@@ -1560,21 +1560,46 @@
 }
 
 .prorector-active-faculty-legend span {
+  position: relative;
   min-height: 50px;
   border: 1px solid #edf2f7;
   border-radius: 8px;
   background: #f8fafc;
   padding: 10px 12px;
+  margin-left: 58px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
 }
 
+.prorector-active-faculty-legend span::before {
+  content: "";
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  width: 46px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--faculty-color, #1e88e5);
+}
+
+.prorector-active-faculty-legend span::after {
+  content: "";
+  position: absolute;
+  right: calc(100% - 1px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 9px solid var(--faculty-color, #1e88e5);
+}
+
 .prorector-active-faculty-legend i {
   width: 12px;
   height: 12px;
   border-radius: 999px;
+  background: var(--faculty-color, #1e88e5);
 }
 
 .prorector-active-faculty-legend b {
@@ -3377,6 +3402,15 @@ input:checked + .prorector-slider:before {
 
   .prorector-active-faculty-pie-layout {
     grid-template-columns: 1fr;
+  }
+
+  .prorector-active-faculty-legend span {
+    margin-left: 0;
+  }
+
+  .prorector-active-faculty-legend span::before,
+  .prorector-active-faculty-legend span::after {
+    display: none;
   }
 
   .prorector-employment-chart-layout {

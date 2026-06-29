@@ -985,8 +985,8 @@ export default function ProRectorDashboard() {
 
             <div className="prorector-active-faculty-legend">
               {activeFacultyPieRows.map((row) => (
-                <span key={row.id}>
-                  <i style={{ background: row.fill }} />
+                <span key={row.id} style={{ "--faculty-color": row.fill }}>
+                  <i />
                   <b>{row.name}</b>
                 </span>
               ))}
