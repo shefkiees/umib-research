@@ -224,29 +224,14 @@ export default function HomePage() {
       .slice(0, 6);
 
     const faculties = groupByCount(users, (user) => user.faculty || "");
-    const institutions = groupByCount(users, (user) => user.institution || SYSTEM_INSTITUTION)
-      .map((institution) => {
-        const institutionUsers = users.filter((user) => (user.institution || SYSTEM_INSTITUTION) === institution.label);
-        return {
-          ...institution,
-          publications: institutionUsers.reduce((total, user) => total + user.publicationCount, 0),
-        };
-      });
-
-    const totalCitations = users.reduce((total, user) => total + user.citationCount, 0)
-      || communityData.publications.reduce((total, publication) => total + getCitationCount(publication), 0);
-
     return {
       users,
       profileCards,
       faculties,
-      institutions,
       stats: {
         users: toNumber(communityData.analytics?.userSummary?.total || users.length),
         publications: communityData.publicationTotal || users.reduce((total, user) => total + user.publicationCount, 0),
         conferences: communityData.conferenceTotal || users.reduce((total, user) => total + user.conferenceCount, 0),
-        citations: totalCitations,
-        institutions: institutions.length,
         faculties: faculties.length,
       },
     };
@@ -400,16 +385,6 @@ export default function HomePage() {
               <GraduationCap size={24} />
               <span>Konferenca</span>
               <strong>{formatNumber(community.stats.conferences)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <Award size={24} />
-              <span>Citime</span>
-              <strong>{formatNumber(community.stats.citations)}</strong>
-            </article>
-            <article className="platform-stat-card">
-              <Building2 size={24} />
-              <span>Institucione</span>
-              <strong>{formatNumber(community.stats.institutions)}</strong>
             </article>
             <article className="platform-stat-card">
               <LibraryBig size={24} />

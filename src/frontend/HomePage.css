@@ -363,8 +363,10 @@
 }
 .umib-homepage-root .platform-stats-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
+    max-width: 920px;
+    margin: 0 auto;
 }
 .umib-homepage-root .platform-stat-card {
     min-height: 156px;
@@ -521,6 +523,7 @@
     height: 66px;
     width: 66px;
     object-fit: contain;
+    filter: brightness(0) invert(1);
 }
 .umib-homepage-root .footer-brand-head strong {
     display: block;
@@ -619,7 +622,8 @@
         max-width: 760px;
     }
     .umib-homepage-root .platform-stats-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 680px;
     }
     .umib-homepage-root .footer-content {
         grid-template-columns: 1fr;
@@ -649,6 +653,7 @@
     }
     .umib-homepage-root .platform-stats-grid {
         grid-template-columns: 1fr;
+        max-width: 360px;
     }
     .umib-homepage-root .community-profile-card {
         flex-basis: min(78vw, 260px);
