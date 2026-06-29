@@ -435,7 +435,6 @@ export default function HomePage() {
               </div>
               <h3>Për Profesorët</h3>
               <p>Menaxhoni profilin tuaj akademik, raportoni botimet dhe kërkoni rimbursime për konferenca në mënyrë digjitale.</p>
-              <button className="service-link">Mëso më shumë <ChevronRight size={16} /></button>
             </div>
             <div className="service-card">
               <div className="service-icon-ui">
@@ -443,7 +442,6 @@ export default function HomePage() {
               </div>
               <h3>Për Komisionet</h3>
               <p>Procesi i rishikimit dhe miratimit të aktiviteteve shkencore është tani më transparent dhe më i shpejtë se kurrë.</p>
-              <button className="service-link">Mëso më shumë <ChevronRight size={16} /></button>
             </div>
             <div className="service-card">
               <div className="service-icon-ui">
@@ -451,7 +449,6 @@ export default function HomePage() {
               </div>
               <h3>Për Rektoratin</h3>
               <p>Analizoni performancën e fakulteteve në kohë reale përmes dashboardeve të avancuara dhe raporteve analitike.</p>
-              <button className="service-link">Mëso më shumë <ChevronRight size={16} /></button>
             </div>
           </div>
         </div>
