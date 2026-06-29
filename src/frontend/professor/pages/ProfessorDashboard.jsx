@@ -2665,7 +2665,6 @@ export default function ProfessorDashboard() {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="publikime" name={t("professor.dashboard.publications")} radius={[8, 8, 0, 0]} fill="#153a63" />
-                  <Bar dataKey="citime" name={t("professor.dashboard.citations")} radius={[8, 8, 0, 0]} fill="#2e6aa6" />
                   <Bar dataKey="konferenca" name={t("professor.dashboard.conferences")} radius={[8, 8, 0, 0]} fill="#7aa7d3" />
                   <Bar dataKey="rimbursime" name={t("professor.dashboard.reimbursements")} radius={[8, 8, 0, 0]} fill="#c9a24f" />
                 </BarChart>
