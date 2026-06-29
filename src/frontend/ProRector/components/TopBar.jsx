@@ -18,6 +18,9 @@ export default function ProRectorTopBar({
   resultCount,
   notificationCount,
   notifications = [],
+  notificationsLoading = false,
+  notificationsError = "",
+  onNotificationsOpen,
   onMarkAllRead,
   onProfileAction,
   profileMenuItems,
@@ -58,7 +61,9 @@ export default function ProRectorTopBar({
     .slice(0, 2)
     .toUpperCase();
   
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = Number.isFinite(notificationCount)
+    ? notificationCount
+    : notifications.filter((n) => !n.isRead).length;
 
   const handleMarkAllRead = () => {
     if (typeof onMarkAllRead === "function") {
@@ -89,7 +94,13 @@ export default function ProRectorTopBar({
             className="prorector-icon-btn"
             type="button"
             aria-label="Njoftime"
-            onClick={() => setIsNotificationsOpen((current) => !current)}
+            onClick={() => setIsNotificationsOpen((current) => {
+              const next = !current;
+              if (next) {
+                onNotificationsOpen?.();
+              }
+              return next;
+            })}
           >
             <Bell size={20} />
             {unreadCount > 0 ? (
@@ -109,7 +120,17 @@ export default function ProRectorTopBar({
                 </button>
               </div>
               <ul className="prorector-notification-list">
-                {notifications.map((item) => (
+                {notificationsLoading ? (
+                  <li className="is-read prorector-notification-empty">
+                    <p>Duke ngarkuar njoftimet...</p>
+                  </li>
+                ) : null}
+                {!notificationsLoading && notificationsError ? (
+                  <li className="is-read prorector-notification-empty">
+                    <p>{notificationsError}</p>
+                  </li>
+                ) : null}
+                {!notificationsLoading && !notificationsError && notifications.map((item) => (
                   <li key={item.id} className={item.isRead ? "is-read" : "is-unread"}>
                     <button
                       type="button"
@@ -125,7 +146,7 @@ export default function ProRectorTopBar({
                     </button>
                   </li>
                 ))}
-                {notifications.length === 0 ? (
+                {!notificationsLoading && !notificationsError && notifications.length === 0 ? (
                   <li className="is-read prorector-notification-empty">
                     <p>Nuk ka njoftime aktualisht.</p>
                   </li>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   Save,
+  Settings,
   TrendingUp,
   Users,
   WalletCards,
@@ -71,6 +72,10 @@ const EMPTY_PROFILE_DRAFT = {
   scientificTitle: "",
 };
 
+const DEFAULT_SYSTEM_PREFERENCES = {
+  emailNotifications: true,
+};
+
 function toNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -82,6 +87,38 @@ function formatNumber(value) {
 
 function formatPercent(value) {
   return `${toNumber(value).toFixed(2)}%`;
+}
+
+function formatNotificationDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("sq-AL", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function mapNotificationRow(row = {}) {
+  const message = row.message || row.description || row.text || "";
+
+  return {
+    id: row.id,
+    title: row.title || message || "Njoftim",
+    text: message,
+    description: message,
+    category: row.category || "Njoftim",
+    metadata: row.metadata || {},
+    isRead: Boolean(row.is_read ?? row.isRead),
+    createdAt: formatNotificationDate(row.created_at || row.createdAt),
+  };
 }
 
 function normalizePublicationYear(value) {
@@ -742,6 +779,11 @@ export default function ProRectorDashboard() {
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileDraft, setProfileDraft] = useState(EMPTY_PROFILE_DRAFT);
+  const [notifications, setNotifications] = useState([]);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+  const [systemPreferences, setSystemPreferences] = useState(DEFAULT_SYSTEM_PREFERENCES);
+  const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
   const publications = useProrectorResource(`/prorector/publications?${new URLSearchParams({
@@ -893,9 +935,169 @@ export default function ProRectorDashboard() {
     }
   };
 
+  const unreadNotifications = notifications.filter((item) => !item.isRead).length;
+
+  const loadNotifications = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) {
+      setIsNotificationsLoading(true);
+    }
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl("/notifications"), {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("notifications_load_failed");
+      }
+
+      const data = await response.json();
+      setNotifications(Array.isArray(data) ? data.map(mapNotificationRow) : []);
+    } catch (error) {
+      console.error("Prorector notifications load failed:", error);
+      setNotifications([]);
+      setNotificationsError("Njoftimet nuk u ngarkuan.");
+    } finally {
+      if (showLoading) {
+        setIsNotificationsLoading(false);
+      }
+    }
+  }, []);
+
+  const loadNotificationPreferences = useCallback(async () => {
+    try {
+      const response = await fetch(apiUrl("/notifications/preferences"), {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("preferences_load_failed");
+      }
+
+      const data = await response.json();
+      setSystemPreferences((prev) => ({
+        ...prev,
+        emailNotifications: Boolean(data.emailNotifications),
+      }));
+    } catch (error) {
+      console.error("Prorector preferences load failed:", error);
+    }
+  }, []);
+
+  const updateEmailNotificationsPreference = async (value) => {
+    const previousPreferences = systemPreferences;
+    setSystemPreferences((prev) => ({ ...prev, emailNotifications: value }));
+    setSystemPreferencesMessage("");
+
+    try {
+      const response = await fetch(apiUrl("/notifications/preferences"), {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailNotifications: value }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error("preferences_update_failed");
+      }
+
+      setSystemPreferences((prev) => ({
+        ...prev,
+        emailNotifications: Boolean(data.emailNotifications),
+      }));
+      setSystemPreferencesMessage("Cilësimet u ruajtën.");
+    } catch (error) {
+      console.error("Prorector preferences save failed:", error);
+      setSystemPreferences(previousPreferences);
+      setSystemPreferencesMessage("Cilësimet nuk u ruajtën.");
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (unreadNotifications === 0 || notifications.length === 0) {
+      return;
+    }
+
+    const previousNotifications = notifications;
+    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl("/notifications/read-all"), {
+        method: "PATCH",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("notifications_read_all_failed");
+      }
+    } catch (error) {
+      console.error("Prorector mark all notifications failed:", error);
+      setNotifications(previousNotifications);
+      setNotificationsError("Njoftimet nuk u përditësuan.");
+    }
+  };
+
+  const markNotificationAsRead = async (id) => {
+    const notification = notifications.find((item) => item.id === id);
+
+    if (!notification || notification.isRead) {
+      return;
+    }
+
+    const previousNotifications = notifications;
+    setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
+    setNotificationsError("");
+
+    try {
+      const response = await fetch(apiUrl(`/notifications/${id}/read`), {
+        method: "PATCH",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("notification_read_failed");
+      }
+
+      const data = await response.json();
+      const updatedNotification = mapNotificationRow(data);
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...updatedNotification, isRead: true } : item))
+      );
+    } catch (error) {
+      console.error("Prorector mark notification failed:", error);
+      setNotifications(previousNotifications);
+      setNotificationsError("Njoftimi nuk u përditësua.");
+    }
+  };
+
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    loadNotificationPreferences();
+
+    const interval = window.setInterval(() => {
+      loadNotifications({ showLoading: false });
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [loadNotificationPreferences, loadNotifications]);
+
+  useEffect(() => {
+    if (!systemPreferencesMessage) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setSystemPreferencesMessage(""), 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [systemPreferencesMessage]);
 
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
@@ -1095,11 +1297,71 @@ export default function ProRectorDashboard() {
     </div>
   );
 
+  const renderSettings = () => (
+    <div className="prorector-table-section">
+      <div className="prorector-section-head">
+        <div>
+          <h2>Cilësimet</h2>
+          <p>Preferencat bazë të panelit të ProRektorit.</p>
+        </div>
+      </div>
+
+      <div className="prorector-settings-grid">
+        <article className="prorector-settings-card">
+          <div className="prorector-settings-card-header">
+            <Settings size={20} className="prorector-settings-icon" />
+            <h3>Njoftimet</h3>
+          </div>
+          <div className="prorector-settings-options">
+            <div className="prorector-settings-option-item">
+              <div className="prorector-settings-option-info">
+                <span className="prorector-settings-label">Njoftime me email</span>
+                <p className="prorector-settings-subtext">Merr njoftime për përditësimet e rëndësishme në sistem.</p>
+              </div>
+              <label className="prorector-switch">
+                <input
+                  type="checkbox"
+                  checked={systemPreferences.emailNotifications}
+                  onChange={(event) => updateEmailNotificationsPreference(event.target.checked)}
+                />
+                <span className="prorector-slider"></span>
+              </label>
+            </div>
+            {systemPreferencesMessage ? (
+              <p className="prorector-settings-subtext" role="status">{systemPreferencesMessage}</p>
+            ) : null}
+          </div>
+        </article>
+
+        <article className="prorector-settings-card">
+          <div className="prorector-settings-card-header">
+            <Users size={20} className="prorector-settings-icon" />
+            <h3>Profili</h3>
+          </div>
+          <div className="prorector-settings-list">
+            <div className="prorector-settings-item">
+              <span className="prorector-settings-label">Emri</span>
+              <strong className="prorector-settings-value">{profile.name}</strong>
+            </div>
+            <div className="prorector-settings-item">
+              <span className="prorector-settings-label">Roli</span>
+              <strong className="prorector-settings-value">{profile.role}</strong>
+            </div>
+            <button type="button" className="prorector-settings-edit-btn" onClick={openProfileEditor}>
+              Ndrysho profilin
+            </button>
+          </div>
+        </article>
+      </div>
+    </div>
+  );
+
   const renderContent = () => {
     if (activePage === "Artikujt") return renderPublications();
     if (activePage === "Fakultetet") return renderFaculties();
     if (activePage === "Financimet") return renderFunding();
     if (activePage === "Raportet") return renderReports();
+    if (activePage === "Cilësimet") return renderSettings();
     return renderDashboard();
   };
 
@@ -1112,11 +1374,18 @@ export default function ProRectorDashboard() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           profile={profile}
-          notifications={[]}
+          notificationCount={unreadNotifications}
+          notifications={notifications}
+          notificationsLoading={isNotificationsLoading}
+          notificationsError={notificationsError}
+          onMarkAllRead={markAllNotificationsAsRead}
+          onNotificationRead={markNotificationAsRead}
+          onNotificationsOpen={() => loadNotifications({ showLoading: false })}
           onEditProfile={openProfileEditor}
           onProfileAction={(action) => {
             if (action === "Settings") {
-              openProfileEditor();
+              setIsProfileModalOpen(false);
+              setActivePage("Cilësimet");
               return;
             }
             if (action === "Logout") {

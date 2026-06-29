@@ -121,6 +121,10 @@ export default function FacultyDetails() {
           profile={{ name: "Prorektor për Kërkim Shkencor", role: "Monitorim dhe raporte" }}
           notifications={[]}
           onProfileAction={(action) => {
+            if (action === "Settings") {
+              navigate("/prorector/dashboard", { state: { activePage: "Cilësimet" } });
+              return;
+            }
             if (action === "Logout") {
               fetch(apiUrl("/auth/logout"), { method: "POST", credentials: "include" }).finally(() => navigate("/"));
             }
