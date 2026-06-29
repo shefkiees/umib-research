@@ -1556,55 +1556,53 @@
 
 .prorector-active-faculty-legend {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .prorector-active-faculty-legend span {
   position: relative;
-  min-height: 50px;
-  border: 1px solid #edf2f7;
+  min-height: 56px;
+  border: 1px solid #dfe7f0;
   border-radius: 8px;
-  background: #f8fafc;
-  padding: 10px 12px;
-  margin-left: 58px;
+  background: #ffffff;
+  padding: 12px 14px 12px 18px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .prorector-active-faculty-legend span::before {
   content: "";
   position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
-  width: 46px;
-  height: 2px;
-  border-radius: 999px;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
   background: var(--faculty-color, #1e88e5);
 }
 
-.prorector-active-faculty-legend span::after {
-  content: "";
-  position: absolute;
-  right: calc(100% - 1px);
-  top: 50%;
-  transform: translateY(-50%);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 9px solid var(--faculty-color, #1e88e5);
+.prorector-active-faculty-legend span:hover {
+  border-color: color-mix(in srgb, var(--faculty-color, #1e88e5) 34%, #dfe7f0);
+  background: #f9fbfd;
+  transform: translateY(-1px);
 }
 
 .prorector-active-faculty-legend i {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
+  border: 3px solid color-mix(in srgb, var(--faculty-color, #1e88e5) 18%, #ffffff);
   border-radius: 999px;
   background: var(--faculty-color, #1e88e5);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--faculty-color, #1e88e5) 10%, #ffffff);
 }
 
 .prorector-active-faculty-legend b {
   color: #132238;
-  font-size: 0.96rem;
+  font-size: 0.98rem;
+  font-weight: 850;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -3402,15 +3400,6 @@ input:checked + .prorector-slider:before {
 
   .prorector-active-faculty-pie-layout {
     grid-template-columns: 1fr;
-  }
-
-  .prorector-active-faculty-legend span {
-    margin-left: 0;
-  }
-
-  .prorector-active-faculty-legend span::before,
-  .prorector-active-faculty-legend span::after {
-    display: none;
   }
 
   .prorector-employment-chart-layout {
