@@ -413,9 +413,9 @@ export default function HomePage() {
                       <span className="platform-stat-icon">
                         <Icon size={20} strokeWidth={1.9} />
                       </span>
+                      <h3>{stat.label}</h3>
                     </div>
                     <div className="platform-stat-card-body">
-                      <h3>{stat.label}</h3>
                       <strong>{formatNumber(stat.value)}</strong>
                       <p>{platformStatDescriptions[index]}</p>
                     </div>
