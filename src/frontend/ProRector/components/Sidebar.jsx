@@ -4,7 +4,7 @@ import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 
 const mainItems = [
-  { label: "Permbledhje", route: "Dashboard", icon: LayoutDashboard },
+  { label: "Përmbledhje", route: "Dashboard", icon: LayoutDashboard },
   { label: "Artikujt", route: "Artikujt", icon: BookOpen },
   { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
   { label: "Financimet", route: "Financimet", icon: WalletCards },

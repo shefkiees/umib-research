@@ -9,6 +9,7 @@ import {
   Search,
   Save,
   TrendingUp,
+  Users,
   WalletCards,
   X,
 } from "lucide-react";
@@ -670,32 +671,18 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
   );
 }
 
-function AnalyticsCharts({ analytics }) {
+function AnalyticsCharts({ analytics, faculties = [] }) {
   const publicationsByYear = analytics.publicationsByYear || [];
-  const employmentStatusRows = analytics.employmentStatusRows || [];
-  const visibleEmploymentStatusRows = employmentStatusRows.filter((row) => toNumber(row.value) > 0);
-  const employmentStatusTotal = visibleEmploymentStatusRows.reduce((sum, row) => sum + toNumber(row.value), 0);
-  const renderEmploymentStatusLabel = ({ cx, cy, midAngle, outerRadius, value, percent }) => {
-    if (!toNumber(value)) {
-      return null;
-    }
-
-    const radius = outerRadius + 22;
-    const x = cx + radius * Math.cos((-midAngle * Math.PI) / 180);
-    const y = cy + radius * Math.sin((-midAngle * Math.PI) / 180);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        className="prorector-employment-pie-label"
-        textAnchor={x > cx ? "start" : "end"}
-        dominantBaseline="central"
-      >
-        {formatNumber(value)} ({formatPercent(percent * 100)})
-      </text>
-    );
-  };
+  const authorFacultyRows = (faculties || [])
+    .map((faculty) => ({
+      id: faculty.id || faculty.name,
+      name: faculty.name || "Pa fakultet",
+      value: toNumber(faculty.professorCount),
+    }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "sq"))
+    .slice(0, 8);
+  const maxAuthorCount = Math.max(...authorFacultyRows.map((row) => row.value), 1);
 
   return (
     <div className="prorector-dashboard-chart-stack">
@@ -715,45 +702,28 @@ function AnalyticsCharts({ analytics }) {
       </article>
 
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
-        <div className="prorector-card-head"><h3>Publikimet sipas statusit të punësimit</h3><FileText size={20} /></div>
-        {visibleEmploymentStatusRows.length ? (
-          <div className="prorector-employment-chart-layout">
-            <div className="prorector-employment-pie-box">
-              <ResponsiveContainer width="100%" height={360}>
-                <PieChart>
-                  <Pie
-                    data={visibleEmploymentStatusRows}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={82}
-                    outerRadius={140}
-                    paddingAngle={2}
-                    stroke="#ffffff"
-                    strokeWidth={3}
-                    label={renderEmploymentStatusLabel}
-                    labelLine={{ stroke: "#8a8a8a", strokeWidth: 1 }}
-                  >
-                    {visibleEmploymentStatusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [
-                      `${formatNumber(value)} (${employmentStatusTotal ? formatPercent((toNumber(value) / employmentStatusTotal) * 100) : "0.00%"})`,
-                      name,
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+        <div className="prorector-card-head"><h3>Autorët sipas fakultetit</h3><Users size={20} /></div>
+        {authorFacultyRows.length ? (
+          <div className="prorector-author-faculty-chart" aria-label="Autorët sipas fakultetit">
+            <div className="prorector-author-faculty-scale" aria-hidden="true">
+              <span>0</span>
+              <span>{formatNumber(maxAuthorCount)} autorë</span>
             </div>
-            <div className="prorector-employment-legend">
-              <strong>Orar i plotë vs gjysmë orari</strong>
-              {visibleEmploymentStatusRows.map((row) => (
-                <span key={row.name}>
-                  <i style={{ background: row.fill }} />
-                  <b>{row.name}</b>
-                </span>
-              ))}
+            <div className="prorector-author-faculty-bars">
+              {authorFacultyRows.map((row) => {
+                const width = Math.max(18, Math.round((row.value / maxAuthorCount) * 100));
+
+                return (
+                  <div className="prorector-author-faculty-row" key={row.id}>
+                    <span className="prorector-author-faculty-name" title={row.name}>{row.name}</span>
+                    <div className="prorector-author-faculty-track">
+                      <div className="prorector-author-faculty-bar" style={{ width: `${width}%` }}>
+                        <strong>{formatNumber(row.value)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : <ChartEmpty />}
@@ -931,7 +901,7 @@ export default function ProRectorDashboard() {
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
       <StateBlock loading={publications.loading} error={publications.error} />
-      <AnalyticsCharts analytics={publicationAnalytics} />
+      <AnalyticsCharts analytics={publicationAnalytics} faculties={facultyRows} />
     </div>
   );
 
