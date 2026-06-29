@@ -13,9 +13,9 @@ import {
   UserRound
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -431,17 +431,26 @@ export default function HomePage() {
               </div>
               <div className="platform-analytics-chart" aria-label="Grafiku i aktivitetit të platformës">
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={platformCurrentChartData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}>
+                  <LineChart data={platformCurrentChartData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}>
                     <CartesianGrid stroke="#e7edf5" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={formatNumber} />
                     <Tooltip
+                      cursor={false}
                       formatter={(value) => [formatNumber(value), "Gjendja aktuale"]}
                       labelStyle={{ color: "#1a2b49", fontWeight: 800 }}
                       contentStyle={{ borderRadius: 14, border: "1px solid #dfe7f0", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)" }}
                     />
-                    <Bar dataKey="value" name="Gjendja aktuale" fill="#c9a227" radius={[8, 8, 0, 0]} barSize={46} />
-                  </BarChart>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      name="Gjendja aktuale"
+                      stroke="#c9a227"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: "#ffffff", stroke: "#c9a227", strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: "#1a2b49", stroke: "#ffffff", strokeWidth: 2 }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
