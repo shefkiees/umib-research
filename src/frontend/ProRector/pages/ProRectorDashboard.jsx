@@ -897,9 +897,9 @@ export default function ProRectorDashboard() {
       <section className="prorector-faculty-pie-panel">
         <div className="prorector-faculty-pie-head">
           <div>
-            <span className="prorector-stat-kicker">Fakultetet aktive</span>
-            <h2>Fakultetet</h2>
-            <p>Pie chart i fakulteteve aktive që janë të regjistruara në sistem.</p>
+            <span className="prorector-stat-kicker">Fakultetet</span>
+            <h2>Lista e fakulteteve</h2>
+            <p>Fakultetet</p>
           </div>
           <strong>{formatNumber(activeFacultyPieRows.length)}</strong>
         </div>
