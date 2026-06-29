@@ -988,7 +988,6 @@ export default function ProRectorDashboard() {
                 <span key={row.id}>
                   <i style={{ background: row.fill }} />
                   <b>{row.name}</b>
-                  <em>{row.code || "Aktiv"}</em>
                 </span>
               ))}
             </div>
