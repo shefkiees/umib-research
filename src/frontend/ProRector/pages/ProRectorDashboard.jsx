@@ -142,6 +142,34 @@ const PRORECTOR_COPY = {
       requestStatus: "Statusi i kërkesave",
       requested: "Kërkuar",
       approved: "Aprovuar",
+      statusLabels: {
+        draft: "Draft",
+        submitted: "Në Shqyrtim",
+        in_review: "Në Shqyrtim",
+        correction: "Korrigjim",
+        needs_correction: "Korrigjim",
+        approved: "Aprovuar",
+        rejected: "Refuzuar",
+        paid: "Paguar",
+      },
+      noFaculty: "Pa fakultet",
+      noYear: "Pa vit",
+      noCategory: "Pa kategori",
+      fullTimeFirstAuthor: "Autori i parë me orar të plotë",
+      partTimeFirstAuthor: "Autori i parë me gjysmë orari",
+      missingEmploymentStatus: "Pa të dhëna për statusin",
+      fundingCategoriesMap: {
+        "Konferenca/Simpoziume": "Konferenca/Simpoziume",
+        "Libra/Kapituj": "Libra/Kapituj",
+        "Pa verifikim": "Pa verifikim",
+        "Scopus Q1": "Scopus Q1",
+        "Scopus Q2": "Scopus Q2",
+        "Scopus Q3": "Scopus Q3",
+        "Scopus Q4": "Scopus Q4",
+        "Financim për publikime shkencore": "Artikuj shkencorë",
+        "Financim për konferenca/simpoziume": "Konferenca/Simpoziume",
+        "Financim për projekte shkencore": "Projekte shkencore",
+      },
     },
     profile: {
       editTitle: "Ndrysho profilin",
@@ -213,6 +241,34 @@ const PRORECTOR_COPY = {
       requestStatus: "Request status",
       requested: "Requested",
       approved: "Approved",
+      statusLabels: {
+        draft: "Draft",
+        submitted: "In Review",
+        in_review: "In Review",
+        correction: "Correction",
+        needs_correction: "Correction",
+        approved: "Approved",
+        rejected: "Rejected",
+        paid: "Paid",
+      },
+      noFaculty: "No faculty",
+      noYear: "No year",
+      noCategory: "No category",
+      fullTimeFirstAuthor: "First author full time",
+      partTimeFirstAuthor: "First author part time",
+      missingEmploymentStatus: "No employment status data",
+      fundingCategoriesMap: {
+        "Konferenca/Simpoziume": "Conferences/Symposiums",
+        "Libra/Kapituj": "Books/Chapters",
+        "Pa verifikim": "Unverified",
+        "Scopus Q1": "Scopus Q1",
+        "Scopus Q2": "Scopus Q2",
+        "Scopus Q3": "Scopus Q3",
+        "Scopus Q4": "Scopus Q4",
+        "Financim për publikime shkencore": "Scientific articles",
+        "Financim për konferenca/simpoziume": "Conferences/Symposiums",
+        "Financim për projekte shkencore": "Scientific projects",
+      },
     },
     profile: {
       editTitle: "Edit profile",
@@ -286,7 +342,7 @@ function normalizePublicationYear(value) {
   const year = Number.parseInt(value, 10);
   const maxYear = new Date().getFullYear() + 1;
 
-  return Number.isInteger(year) && year >= 1900 && year <= maxYear ? String(year) : "";
+  return Number.isInteger(year) && year >= 1980 && year <= maxYear ? String(year) : "";
 }
 
 function formatCurrency(value) {
@@ -320,16 +376,12 @@ function trendMeta(current, previous) {
   };
 }
 
-function getPublicationStatusLabel(value, fallback) {
+function getPublicationStatusLabel(value, fallback, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
   const normalized = normalizeStatus(value);
-  if (normalized === "approved") return "Aprovuar";
-  if (normalized === "in_review") return "Në Shqyrtim";
-  if (normalized === "correction") return "Korrigjim";
-  if (normalized === "rejected") return "Refuzuar";
-  return fallback || STATUS_LABELS[normalized] || value || "-";
+  return dashboardCopy.statusLabels?.[normalized] || fallback || STATUS_LABELS[normalized] || value || "-";
 }
 
-function buildPublicationAnalytics(rows) {
+function buildPublicationAnalytics(rows, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
   const facultyCounts = new Map();
   const byYear = new Map();
   const yearFacultyCounts = new Map();
@@ -345,24 +397,24 @@ function buildPublicationAnalytics(rows) {
     ["AHCI", 0],
   ]);
   const employmentStatusCounts = new Map([
-    ["Autori i parë me orar të plotë", 0],
-    ["Autori i parë me gjysmë orari", 0],
-    ["Pa të dhëna për statusin", 0],
+    [dashboardCopy.fullTimeFirstAuthor, 0],
+    [dashboardCopy.partTimeFirstAuthor, 0],
+    [dashboardCopy.missingEmploymentStatus, 0],
   ]);
 
   rows.forEach((row) => {
     const year = normalizePublicationYear(row.year);
-    const faculty = row.faculty || "Pa fakultet";
+    const faculty = row.faculty || dashboardCopy.noFaculty;
     const employmentStatus = String(row.employmentStatus || "").toLowerCase();
 
     if (year) byYear.set(year, (byYear.get(year) || 0) + 1);
     facultyCounts.set(faculty, (facultyCounts.get(faculty) || 0) + 1);
     if (employmentStatus === "part_time") {
-      employmentStatusCounts.set("Autori i parë me gjysmë orari", (employmentStatusCounts.get("Autori i parë me gjysmë orari") || 0) + 1);
+      employmentStatusCounts.set(dashboardCopy.partTimeFirstAuthor, (employmentStatusCounts.get(dashboardCopy.partTimeFirstAuthor) || 0) + 1);
     } else if (employmentStatus === "full_time") {
-      employmentStatusCounts.set("Autori i parë me orar të plotë", (employmentStatusCounts.get("Autori i parë me orar të plotë") || 0) + 1);
+      employmentStatusCounts.set(dashboardCopy.fullTimeFirstAuthor, (employmentStatusCounts.get(dashboardCopy.fullTimeFirstAuthor) || 0) + 1);
     } else {
-      employmentStatusCounts.set("Pa të dhëna për statusin", (employmentStatusCounts.get("Pa të dhëna për statusin") || 0) + 1);
+      employmentStatusCounts.set(dashboardCopy.missingEmploymentStatus, (employmentStatusCounts.get(dashboardCopy.missingEmploymentStatus) || 0) + 1);
     }
 
     if (year) {
@@ -436,7 +488,12 @@ function buildPublicationAnalytics(rows) {
   };
 }
 
-function buildFundingAnalytics(rows) {
+function getLocalizedFundingCategory(value, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
+  const text = String(value || "").trim();
+  return dashboardCopy.fundingCategoriesMap?.[text] || text || dashboardCopy.noCategory;
+}
+
+function buildFundingAnalytics(rows, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
   const byYear = new Map();
   const byCategory = new Map();
   const byStatus = new Map();
@@ -444,8 +501,8 @@ function buildFundingAnalytics(rows) {
     const requested = toNumber(row.requestedAmount);
     const approved = toNumber(row.approvedAmount);
     const date = row.applicationDate ? new Date(row.applicationDate) : null;
-    const year = date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Pa vit";
-    const category = row.regulationCategory || row.fundingType || "Pa kategori";
+    const year = date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : dashboardCopy.noYear;
+    const category = getLocalizedFundingCategory(row.regulationCategory || row.fundingType || dashboardCopy.noCategory, dashboardCopy);
     const status = normalizeStatus(row.status);
 
     if (!byYear.has(year)) byYear.set(year, { name: year, requested: 0, approved: 0, count: 0 });
@@ -466,8 +523,8 @@ function buildFundingAnalytics(rows) {
 
   const fundingByYear = Array.from(byYear.values())
     .sort((a, b) => {
-      if (a.name === "Pa vit") return 1;
-      if (b.name === "Pa vit") return -1;
+      if (a.name === dashboardCopy.noYear) return 1;
+      if (b.name === dashboardCopy.noYear) return -1;
       return Number(a.name) - Number(b.name);
     });
 
@@ -482,7 +539,7 @@ function buildFundingAnalytics(rows) {
   const statusRows = Array.from(byStatus.entries())
     .map(([name, value], index) => ({
       name,
-      label: STATUS_LABELS[name] || name,
+      label: dashboardCopy.statusLabels?.[name] || STATUS_LABELS[name] || name,
       value,
       fill: CHART_COLORS[(index + 2) % CHART_COLORS.length],
     }))
@@ -873,7 +930,7 @@ function AnalyticsCharts({ analytics, faculties = [], copy = PRORECTOR_COPY.sq.d
   const authorFacultyRows = (faculties || [])
     .map((faculty) => ({
       id: faculty.id || faculty.name,
-      name: faculty.name || "Pa fakultet",
+      name: faculty.name || copy.noFaculty,
       value: toNumber(faculty.professorCount),
     }))
     .filter((row) => row.value > 0)
@@ -970,12 +1027,12 @@ export default function ProRectorDashboard() {
   const publicationRows = publications.data.publications || [];
   const fundingRows = funding.data.funding || [];
   const publicationAnalytics = useMemo(
-    () => buildPublicationAnalytics(publicationRows),
-    [publicationRows]
+    () => buildPublicationAnalytics(publicationRows, copy.dashboard),
+    [copy.dashboard, publicationRows]
   );
   const fundingAnalytics = useMemo(
-    () => buildFundingAnalytics(fundingRows),
-    [fundingRows]
+    () => buildFundingAnalytics(fundingRows, copy.dashboard),
+    [copy.dashboard, fundingRows]
   );
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
 
