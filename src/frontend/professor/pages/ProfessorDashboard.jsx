@@ -2582,9 +2582,7 @@ export default function ProfessorDashboard() {
       {
         label: t("professor.dashboard.totalReimbursementsCard"),
         value: summary.reimbursementsTotal,
-        change: t("professor.dashboard.requestedAmountChange", {
-          amount: formatRequestedAmounts(summary.requestedAmounts),
-        }),
+        change: formatRequestedAmounts(summary.requestedAmounts).replace(/\bEUR\b/g, "€"),
         icon: <Wallet size={22} />,
         page: "Historiku i Rimbursimeve",
       },
