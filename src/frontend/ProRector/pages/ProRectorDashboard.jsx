@@ -4,11 +4,11 @@ import {
   BarChart3,
   Download,
   FileText,
+  LifeBuoy,
   Minus,
   RefreshCw,
   Search,
   Save,
-  Settings,
   TrendingUp,
   Users,
   WalletCards,
@@ -74,6 +74,7 @@ const EMPTY_PROFILE_DRAFT = {
 
 const DEFAULT_SYSTEM_PREFERENCES = {
   emailNotifications: true,
+  uiLanguage: "sq",
 };
 
 function toNumber(value) {
@@ -782,7 +783,15 @@ export default function ProRectorDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
-  const [systemPreferences, setSystemPreferences] = useState(DEFAULT_SYSTEM_PREFERENCES);
+  const [systemPreferences, setSystemPreferences] = useState(() => {
+    const storedLanguage = typeof window !== "undefined"
+      ? window.localStorage.getItem("prorector.uiLanguage")
+      : null;
+    return {
+      ...DEFAULT_SYSTEM_PREFERENCES,
+      uiLanguage: storedLanguage === "en" ? "en" : "sq",
+    };
+  });
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
@@ -986,34 +995,11 @@ export default function ProRectorDashboard() {
     }
   }, []);
 
-  const updateEmailNotificationsPreference = async (value) => {
-    const previousPreferences = systemPreferences;
-    setSystemPreferences((prev) => ({ ...prev, emailNotifications: value }));
-    setSystemPreferencesMessage("");
-
-    try {
-      const response = await fetch(apiUrl("/notifications/preferences"), {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailNotifications: value }),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error("preferences_update_failed");
-      }
-
-      setSystemPreferences((prev) => ({
-        ...prev,
-        emailNotifications: Boolean(data.emailNotifications),
-      }));
-      setSystemPreferencesMessage("Cilësimet u ruajtën.");
-    } catch (error) {
-      console.error("Prorector preferences save failed:", error);
-      setSystemPreferences(previousPreferences);
-      setSystemPreferencesMessage("Cilësimet nuk u ruajtën.");
-    }
+  const updateLanguagePreference = (event) => {
+    const uiLanguage = event.target.value === "en" ? "en" : "sq";
+    setSystemPreferences((prev) => ({ ...prev, uiLanguage }));
+    window.localStorage.setItem("prorector.uiLanguage", uiLanguage);
+    setSystemPreferencesMessage("Gjuha u përditësua.");
   };
 
   const markAllNotificationsAsRead = async () => {
@@ -1275,7 +1261,7 @@ export default function ProRectorDashboard() {
   const renderReports = () => (
     <div className="prorector-table-section">
       <div className="prorector-section-head">
-        <div><h2>Raportet</h2><p>Eksporte analitike nga të dhënat reale të sistemit.</p></div>
+        <div><h2>Raportet</h2></div>
       </div>
       <div className="prorector-reports-grid">
         <article className="prorector-report-card">
@@ -1302,30 +1288,36 @@ export default function ProRectorDashboard() {
       <div className="prorector-section-head">
         <div>
           <h2>Cilësimet</h2>
-          <p>Preferencat bazë të panelit të ProRektorit.</p>
         </div>
       </div>
 
       <div className="prorector-settings-grid">
         <article className="prorector-settings-card">
           <div className="prorector-settings-card-header">
-            <Settings size={20} className="prorector-settings-icon" />
-            <h3>Njoftimet</h3>
+            <LifeBuoy size={20} className="prorector-settings-icon" />
+            <h3>Mbështetja</h3>
           </div>
           <div className="prorector-settings-options">
             <div className="prorector-settings-option-item">
               <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Njoftime me email</span>
-                <p className="prorector-settings-subtext">Merr njoftime për përditësimet e rëndësishme në sistem.</p>
+                <span className="prorector-settings-label">Ndihma e panelit</span>
+                <p className="prorector-settings-subtext">Kontakto administratën për qasje, raporte ose përditësime të të dhënave.</p>
               </div>
-              <label className="prorector-switch">
-                <input
-                  type="checkbox"
-                  checked={systemPreferences.emailNotifications}
-                  onChange={(event) => updateEmailNotificationsPreference(event.target.checked)}
-                />
-                <span className="prorector-slider"></span>
-              </label>
+            </div>
+            <div className="prorector-settings-option-item">
+              <div className="prorector-settings-option-info">
+                <span className="prorector-settings-label">Gjuha</span>
+                <p className="prorector-settings-subtext">Zgjedh gjuhën e shfaqjes për panelin.</p>
+              </div>
+              <select
+                className="prorector-settings-select"
+                value={systemPreferences.uiLanguage}
+                onChange={updateLanguagePreference}
+                aria-label="Gjuha e panelit"
+              >
+                <option value="sq">Shqip</option>
+                <option value="en">English</option>
+              </select>
             </div>
             {systemPreferencesMessage ? (
               <p className="prorector-settings-subtext" role="status">{systemPreferencesMessage}</p>
