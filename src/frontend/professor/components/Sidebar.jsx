@@ -1,7 +1,6 @@
 import {
   BookOpen,
   ChevronDown,
-  ChevronRight,
   FileBadge2,
   FileText,
   History,
@@ -139,7 +138,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
                     onClick={item.name === "Publikime" ? handlePublicationChevronClick : undefined}
                     aria-hidden="true"
                   >
-                    {item.name === "Publikime" ? <ChevronDown size={16} /> : isReimbursementMenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <ChevronDown size={16} />
                   </span>
                 ) : null}
               </button>
