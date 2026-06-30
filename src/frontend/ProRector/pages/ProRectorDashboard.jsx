@@ -103,13 +103,6 @@ const PRORECTOR_COPY = {
       name: "Emri",
       role: "Roli",
       editProfile: "Ndrysho profilin",
-      roleLabels: {
-        admin: "Administrator",
-        prorector: "Prorektor",
-        prorektor: "Prorektor",
-        professor: "Profesor",
-        committee: "Komision",
-      },
     },
     dashboard: {
       loading: "Duke ngarkuar të dhënat...",
@@ -216,13 +209,6 @@ const PRORECTOR_COPY = {
       name: "Name",
       role: "Role",
       editProfile: "Edit profile",
-      roleLabels: {
-        admin: "Administrator",
-        prorector: "ProRector",
-        prorektor: "ProRector",
-        professor: "Professor",
-        committee: "Committee",
-      },
     },
     dashboard: {
       loading: "Loading data...",
@@ -432,11 +418,6 @@ function getProfileInitials(name) {
     .join("")
     .slice(0, 2)
     .toUpperCase() || "PR";
-}
-
-function getProfileRoleLabel(role, settingsCopy = PRORECTOR_COPY.sq.settings) {
-  const normalized = String(role || "").trim().toLowerCase();
-  return settingsCopy.roleLabels?.[normalized] || role || "-";
 }
 
 function buildPublicationAnalytics(rows, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
@@ -1662,7 +1643,6 @@ export default function ProRectorDashboard() {
               </span>
               <div>
                 <strong>{profile.name}</strong>
-                <span>{getProfileRoleLabel(profile.role, copy.settings)}</span>
               </div>
             </div>
             <button type="button" className="prorector-settings-edit-btn" onClick={openProfileEditor}>

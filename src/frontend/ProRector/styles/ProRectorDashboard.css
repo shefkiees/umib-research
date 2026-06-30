@@ -2645,19 +2645,6 @@
   overflow-wrap: anywhere;
 }
 
-.prorector-profile-summary-head span:last-child {
-  display: inline-flex;
-  width: fit-content;
-  margin-top: 7px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  color: #153a63;
-  background: #eaf3fb;
-  border: 1px solid #cfe2f3;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
 .prorector-settings-options {
   display: flex;
   flex-direction: column;
