@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import {
+  Languages,
+  Users,
+} from "lucide-react";
+import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -170,6 +174,15 @@ const normalizeSettingsProfile = (user = {}) => {
     currentAffiliation: user.currentAffiliation || "",
   };
 };
+
+const getProfileInitials = (name) =>
+  String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AD";
 
 
 export function AdminNotificationsSection({ onNotificationsChange } = {}) {
@@ -523,34 +536,40 @@ export function AdminSettingsSection() {
 
       <div className="admin-settings-grid">
         <article className="admin-settings-card">
-          <h4>{t("admin.settings.profileTitle")}</h4>
-          <div className="admin-settings-list">
-            <div>
-              <span>{t("admin.settings.fullName")}</span>
-              {isEditing ? <input value={draft.name} onChange={setDraftValue("name")} /> : <strong>{profile.name || "-"}</strong>}
+          <div className="admin-settings-card-title">
+            <Languages size={22} className="admin-settings-title-icon" />
+            <h4>{t("admin.settings.languageTitle")}</h4>
+          </div>
+          <div className="admin-settings-options">
+            <div className="admin-settings-option admin-settings-option--language">
+              <div className="admin-settings-option-copy">
+                <span>{t("admin.settings.chooseLanguage")}</span>
+                <p>{t("admin.settings.languageDescription")}</p>
+              </div>
+              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={t("admin.settings.languageLabel")}>
+                <option value="sq">{t("admin.settings.languages.sq")}</option>
+                <option value="en">{t("admin.settings.languages.en")}</option>
+              </select>
             </div>
-            <div>
-              <span>{t("admin.settings.academicTitle")}</span>
-              {isEditing ? <input value={draft.academicTitle} onChange={setDraftValue("academicTitle")} /> : <strong>{profile.academicTitle || profile.role || "-"}</strong>}
-            </div>
-            <div>
-              <span>{t("admin.settings.email")}</span>
-              <strong>{profile.email || "-"}</strong>
-            </div>
-            <div>
-              <span>{t("admin.settings.orcidId")}</span>
-              <strong>{profile.orcidId || t("admin.settings.notConnected")}</strong>
-            </div>
-            <div>
-              <span>{t("admin.settings.orcidSchool")}</span>
-              <strong>{profile.school || t("admin.settings.noPublicData")}</strong>
-            </div>
-            <div>
-              <span>{t("admin.settings.orcidAffiliation")}</span>
-              <strong>{profile.currentAffiliation || t("admin.settings.noPublicData")}</strong>
-            </div>
-            {isEditing ? (
-              <>
+          </div>
+        </article>
+
+        <article className="admin-settings-card admin-settings-profile-card">
+          <div className="admin-settings-card-title">
+            <Users size={22} className="admin-settings-title-icon" />
+            <h4>{t("admin.settings.profileShortTitle")}</h4>
+          </div>
+          {isEditing ? (
+            <>
+              <div className="admin-settings-list">
+                <div>
+                  <span>{t("admin.settings.fullName")}</span>
+                  <input value={draft.name} onChange={setDraftValue("name")} />
+                </div>
+                <div>
+                  <span>{t("admin.settings.academicTitle")}</span>
+                  <input value={draft.academicTitle} onChange={setDraftValue("academicTitle")} />
+                </div>
                 <div>
                   <span>{t("admin.settings.faculty")}</span>
                   <input value={draft.faculty} onChange={setDraftValue("faculty")} />
@@ -567,9 +586,16 @@ export function AdminSettingsSection() {
                   <span>{t("admin.settings.scientificTitle")}</span>
                   <input value={draft.scientificTitle} onChange={setDraftValue("scientificTitle")} />
                 </div>
-              </>
-            ) : null}
-          </div>
+              </div>
+            </>
+          ) : (
+            <div className="admin-settings-profile-summary">
+              <span className="admin-settings-profile-avatar" aria-hidden="true">
+                {getProfileInitials(profile.name)}
+              </span>
+              <strong>{profile.name || "-"}</strong>
+            </div>
+          )}
           <div className="admin-settings-actions">
             {isEditing ? (
               <>
@@ -581,25 +607,6 @@ export function AdminSettingsSection() {
             ) : (
               <button className="admin-small-btn" type="button" onClick={() => setIsEditing(true)}>{t("admin.settings.editProfile")}</button>
             )}
-          </div>
-        </article>
-
-        <article className="admin-settings-card admin-settings-card--preferences">
-          <div className="admin-settings-card-head">
-            <h4>{t("admin.settings.preferencesTitle")}</h4>
-            <span>{t("admin.settings.currentLanguage")}: {t(`admin.settings.languages.${language}`)}</span>
-          </div>
-          <div className="admin-settings-options">
-            <div className="admin-settings-option admin-settings-option--language">
-              <div className="admin-settings-option-copy">
-                <span>{t("admin.settings.languageLabel")}</span>
-                <p>{t("admin.settings.languageDescription")}</p>
-              </div>
-              <select value={language} onChange={(event) => updateLanguage(event.target.value)} aria-label={t("admin.settings.languageLabel")}>
-                <option value="sq">{t("admin.settings.languages.sq")}</option>
-                <option value="en">{t("admin.settings.languages.en")}</option>
-              </select>
-            </div>
           </div>
         </article>
 

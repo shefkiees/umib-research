@@ -40,14 +40,13 @@ const STATUS_LABELS = {
 
 
 
-const auditActionOptions = [
-    { value: "", label: "Të gjitha veprimet" },
-    { value: "admin.auth.login", label: "Kyçje e adminit" },
-    { value: "admin.access.unauthenticated", label: "Tentim qasjeje pa login" },
-    { value: "admin.access.forbidden", label: "Tentim qasjeje pa leje" },
-    { value: "admin.user.role_update", label: "Ndryshim roli" },
-    { value: "admin.user.status_update", label: "Ndryshim statusi" },
-
+const AUDIT_ACTION_VALUES = [
+    "",
+    "admin.auth.login",
+    "admin.access.unauthenticated",
+    "admin.access.forbidden",
+    "admin.user.role_update",
+    "admin.user.status_update",
 ];
 
 
@@ -127,11 +126,6 @@ const formatAuditDateTime = (value) => {
     const minutes = String(date.getMinutes()).padStart(2, "0");
 
     return `${day}.${month}.${year}, ${hours}:${minutes}`;
-};
-
-const auditStatusLabels = {
-    success: "Sukses",
-    failed: "Dështoi",
 };
 
 const AUDIT_PAGE_SIZE = 25;
@@ -218,6 +212,24 @@ export default function AdminDashboard() {
     });
 
     const [profileError, setProfileError] = useState("");
+
+    const getAuditActionLabel = useCallback((action) => {
+        const labels = adminText.audit?.actions || {};
+        const actionLabels = {
+            "": labels.all,
+            "admin.auth.login": labels.login,
+            "admin.access.unauthenticated": labels.unauthenticated,
+            "admin.access.forbidden": labels.forbidden,
+            "admin.user.role_update": labels.roleUpdate,
+            "admin.user.status_update": labels.statusUpdate,
+        };
+
+        return actionLabels[action] || action || "-";
+    }, [adminText.audit]);
+
+    const getAuditStatusLabel = useCallback((status) => (
+        adminText.audit?.statuses?.[status] || status || "-"
+    ), [adminText.audit]);
 
     const [isProfileSaving, setIsProfileSaving] = useState(false);
 
@@ -353,7 +365,7 @@ export default function AdminDashboard() {
 
                 if (isMounted) {
                     setAuditLogs([]);
-                    setAuditError("Historiku i veprimeve nuk u ngarkua.");
+                    setAuditError(adminText.audit.loadError);
                 }
 
             } finally {
@@ -372,7 +384,7 @@ export default function AdminDashboard() {
             isMounted = false;
         };
 
-    }, [auditFilters, auditRefreshKey]);
+    }, [adminText.audit.loadError, auditFilters, auditRefreshKey]);
 
     const normalizedQuery = normalizeSearchValue(searchQuery.trim());
 
@@ -426,11 +438,12 @@ export default function AdminDashboard() {
             formatAuditValue(item.oldValue),
             formatAuditValue(item.newValue),
             item.status,
-            auditStatusLabels[item.status],
+            getAuditStatusLabel(item.status),
+            getAuditActionLabel(item.action),
             item.ipAddress,
             detailsText,
         ].filter(Boolean).join(" "));
-    }, [formatAuditValue]);
+    }, [formatAuditValue, getAuditActionLabel, getAuditStatusLabel]);
 
     const filteredAuditLogs = useMemo(() => {
 
@@ -778,7 +791,7 @@ export default function AdminDashboard() {
 
                 <div>
 
-                    <h3>Historiku i veprimeve</h3>
+                    <h3>{adminText.audit.title}</h3>
 
                 </div>
 
@@ -786,7 +799,7 @@ export default function AdminDashboard() {
 
                     <RotateCcw size={16} />
 
-                    Pastro filtrat
+                    {adminText.audit.clearFilters}
 
                 </button>
 
@@ -794,35 +807,35 @@ export default function AdminDashboard() {
 
             <div className="admin-audit-filters">
                 <label>
-                    <span>Email i adminit</span>
+                    <span>{adminText.audit.adminEmail}</span>
                     <input type="search" value={auditFilters.adminEmail} onChange={updateAuditFilter("adminEmail")} placeholder="admin@umib.net" />
                 </label>
                 <label>
-                    <span>Email i subjektit</span>
+                    <span>{adminText.audit.targetEmail}</span>
                     <input type="search" value={auditFilters.targetEmail} onChange={updateAuditFilter("targetEmail")} placeholder="perdoruesi@umib.net" />
                 </label>
                 <label>
-                    <span>Veprimi</span>
+                    <span>{adminText.audit.action}</span>
                     <select value={auditFilters.action} onChange={updateAuditFilter("action")}>
-                        {auditActionOptions.map((option) => (
-                            <option key={option.value || "all"} value={option.value}>{option.label}</option>
+                        {AUDIT_ACTION_VALUES.map((value) => (
+                            <option key={value || "all"} value={value}>{getAuditActionLabel(value)}</option>
                         ))}
                     </select>
                 </label>
                 <label>
-                    <span>Statusi</span>
+                    <span>{adminText.audit.status}</span>
                     <select value={auditFilters.status} onChange={updateAuditFilter("status")}>
-                        <option value="">Të gjitha</option>
-                        <option value="success">Sukses</option>
-                        <option value="failed">Dështoi</option>
+                        <option value="">{adminText.audit.all}</option>
+                        <option value="success">{getAuditStatusLabel("success")}</option>
+                        <option value="failed">{getAuditStatusLabel("failed")}</option>
                     </select>
                 </label>
                 <label>
-                    <span>Nga data</span>
+                    <span>{adminText.audit.fromDate}</span>
                     <input type="date" value={auditFilters.startDate} onChange={updateAuditFilter("startDate")} />
                 </label>
                 <label>
-                    <span>Deri më</span>
+                    <span>{adminText.audit.toDate}</span>
                     <input type="date" value={auditFilters.endDate} onChange={updateAuditFilter("endDate")} />
                 </label>
             </div>
@@ -830,21 +843,21 @@ export default function AdminDashboard() {
             {auditError ? <p className="admin-inline-error" role="alert">{auditError}</p> : null}
 
             {isAuditLoading ? (
-                <p className="admin-empty">Duke ngarkuar historikun...</p>
+                <p className="admin-empty">{adminText.audit.loading}</p>
             ) : (
                 <div className="admin-table-wrap admin-audit-table-wrap">
                     <table className="admin-table admin-audit-table">
                         <thead>
                             <tr>
-                                <th>Data/Ora</th>
-                                <th>Admini</th>
-                                <th>Veprimi</th>
-                                <th>Përdoruesi</th>
-                                <th>Vlera e vjetër</th>
-                                <th>Vlera e re</th>
-                                <th>Statusi</th>
-                                <th>IP</th>
-                                <th>Detaje</th>
+                                <th>{adminText.audit.columns.dateTime}</th>
+                                <th>{adminText.audit.columns.admin}</th>
+                                <th>{adminText.audit.columns.action}</th>
+                                <th>{adminText.audit.columns.user}</th>
+                                <th>{adminText.audit.columns.oldValue}</th>
+                                <th>{adminText.audit.columns.newValue}</th>
+                                <th>{adminText.audit.columns.status}</th>
+                                <th>{adminText.audit.columns.ip}</th>
+                                <th>{adminText.audit.columns.details}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -855,7 +868,7 @@ export default function AdminDashboard() {
                                         <strong className="admin-audit-primary">{item.admin?.name || "-"}</strong>
                                         <span className="admin-audit-muted">{item.admin?.email || "-"}</span>
                                     </td>
-                                    <td>{item.actionLabel || item.action}</td>
+                                    <td>{getAuditActionLabel(item.action) || item.actionLabel || item.action}</td>
                                     <td>
                                         <strong className="admin-audit-primary">{getAuditTargetLabel(item)}</strong>
                                         {!String(item.action || "").startsWith("admin.access.") ? (
@@ -867,7 +880,7 @@ export default function AdminDashboard() {
                                     <td>
                                         {item.status ? (
                                             <span className={getAuditStatusClass(item.status)}>
-                                                {auditStatusLabels[item.status] || item.status}
+                                                {getAuditStatusLabel(item.status)}
                                             </span>
                                         ) : "-"}
                                     </td>
@@ -876,7 +889,7 @@ export default function AdminDashboard() {
                                         <div className="admin-audit-row-actions">
                                             {item.details ? (
                                                 <button type="button" className="admin-small-btn admin-audit-view-btn" onClick={() => setSelectedAuditLog(item)}>
-                                                    Shiko
+                                                    {adminText.audit.actions.view}
                                                 </button>
                                             ) : null}
                                             <button
@@ -884,8 +897,8 @@ export default function AdminDashboard() {
                                                 className="admin-audit-delete-btn"
                                                 onClick={() => deleteAuditLog(item)}
                                                 disabled={deletingAuditLogId === item.id}
-                                                aria-label="Fshi veprimin"
-                                                title="Fshi veprimin"
+                                                aria-label={adminText.audit.actions.delete}
+                                                title={adminText.audit.actions.delete}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -898,61 +911,61 @@ export default function AdminDashboard() {
                     {hasMoreAuditLogs ? (
                         <div className="admin-audit-load-more">
                             <button type="button" className="admin-small-btn" onClick={() => setAuditVisibleCount((prev) => prev + AUDIT_PAGE_SIZE)}>
-                                Shfaq më shumë
+                                {adminText.audit.actions.loadMore}
                             </button>
-                            <span>{visibleAuditLogs.length} nga {filteredAuditLogs.length}</span>
+                            <span>{adminText.audit.actions.shownOf(visibleAuditLogs.length, filteredAuditLogs.length)}</span>
                         </div>
                     ) : null}
                 </div>
             )}
 
-            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">Nuk ka histori veprimesh për filtrat aktuale.</p> : null}
+            {!isAuditLoading && filteredAuditLogs.length === 0 ? <p className="admin-empty">{adminText.audit.empty}</p> : null}
 
             {selectedAuditLog ? (
                 <div className="admin-audit-drawer-backdrop" role="presentation" onClick={() => setSelectedAuditLog(null)}>
-                    <aside className="admin-audit-details admin-audit-drawer" role="dialog" aria-label="Detajet e veprimit" onClick={(event) => event.stopPropagation()}>
+                    <aside className="admin-audit-details admin-audit-drawer" role="dialog" aria-label={adminText.audit.details.aria} onClick={(event) => event.stopPropagation()}>
                         <div className="admin-audit-details-head">
                             <div>
-                                <h4>Detajet e veprimit</h4>
-                                <p>{selectedAuditLog.actionLabel || selectedAuditLog.action}</p>
+                                <h4>{adminText.audit.details.title}</h4>
+                                <p>{getAuditActionLabel(selectedAuditLog.action) || selectedAuditLog.actionLabel || selectedAuditLog.action}</p>
                             </div>
-                            <button type="button" className="admin-audit-close-btn" onClick={() => setSelectedAuditLog(null)} aria-label="Mbyll detajet">
+                            <button type="button" className="admin-audit-close-btn" onClick={() => setSelectedAuditLog(null)} aria-label={adminText.audit.details.close}>
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="admin-audit-detail-grid">
                             <article>
-                                <span>Admini</span>
+                                <span>{adminText.audit.details.admin}</span>
                                 <strong>{getAuditPersonLabel(selectedAuditLog.admin)}</strong>
                                 <small>{selectedAuditLog.admin?.email || "-"}</small>
                             </article>
                             <article>
-                                <span>Veprimi</span>
-                                <strong>{selectedAuditLog.actionLabel || selectedAuditLog.action || "-"}</strong>
+                                <span>{adminText.audit.details.action}</span>
+                                <strong>{getAuditActionLabel(selectedAuditLog.action) || selectedAuditLog.actionLabel || selectedAuditLog.action || "-"}</strong>
                             </article>
                             <article>
-                            <span>Subjekti</span>
+                            <span>{adminText.audit.details.subject}</span>
                                 <strong>{getAuditTargetLabel(selectedAuditLog)}</strong>
                                 <small>{selectedAuditLog.target?.email || selectedAuditLog.entityId || "-"}</small>
                             </article>
                             <article>
-                                <span>Vlera e vjetër</span>
+                                <span>{adminText.audit.details.oldValue}</span>
                                 <strong>{formatAuditValue(selectedAuditLog.oldValue)}</strong>
                             </article>
                             <article>
-                                <span>{selectedAuditLog.action === "admin.user.status_update" ? "Statusi i ri" : "Vlera e re"}</span>
+                                <span>{selectedAuditLog.action === "admin.user.status_update" ? adminText.audit.details.newStatus : adminText.audit.details.newValue}</span>
                                 <strong>{formatAuditValue(selectedAuditLog.newValue)}</strong>
                             </article>
                             <article>
-                                <span>Statusi</span>
-                                <strong>{auditStatusLabels[selectedAuditLog.status] || selectedAuditLog.status || "-"}</strong>
+                                <span>{adminText.audit.details.status}</span>
+                                <strong>{getAuditStatusLabel(selectedAuditLog.status)}</strong>
                             </article>
                             <article>
                                 <span>IP</span>
                                 <strong>{selectedAuditLog.ipAddress || "-"}</strong>
                             </article>
                             <article>
-                                <span>Data</span>
+                                <span>{adminText.audit.details.date}</span>
                                 <strong>{formatAuditDateTime(selectedAuditLog.createdAt)}</strong>
                             </article>
                         </div>
