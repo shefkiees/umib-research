@@ -455,7 +455,7 @@ router.get("/community", async (req, res) => {
            (select count(*)::int
             from users u
             where coalesce(u.status, 'active') = 'active'
-              and lower(coalesce(nullif(u.role, ''), 'professor')) <> 'admin') as academic_staff_total,
+              and lower(coalesce(u.role, '')) in ('professor', 'profesor')) as academic_staff_total,
            (select count(*)::int from publications) as publication_total,
            (select count(*)::int from conferences) as conference_total,
            (select coalesce(sum(${CITATION_COUNT_SQL}), 0)::int
@@ -464,7 +464,7 @@ router.get("/community", async (req, res) => {
            (select count(distinct nullif(trim(u.faculty), ''))::int
             from users u
             where coalesce(u.status, 'active') = 'active'
-              and lower(coalesce(nullif(u.role, ''), 'professor')) <> 'admin') as faculty_total`
+              and lower(coalesce(u.role, '')) in ('professor', 'profesor')) as faculty_total`
       ),
     ]);
 
