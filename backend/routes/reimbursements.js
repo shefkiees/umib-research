@@ -123,6 +123,7 @@ const KOSOVO_BANKS = [
 ];
 
 const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
+const COMMITTEE_REVIEW_SCOPE_STATUSES = [...COMMITTEE_REVIEW_STATUSES, "committee_approved"];
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -2279,7 +2280,7 @@ function getListScopeWhere(user, scope) {
   if ((role === "committee" && (!normalizedScope || normalizedScope === "review")) || (role === "admin" && normalizedScope === "review")) {
     return {
       where: "where r.status = any($1::text[])",
-      params: [COMMITTEE_REVIEW_STATUSES],
+      params: [COMMITTEE_REVIEW_SCOPE_STATUSES],
     };
   }
 
@@ -2319,7 +2320,7 @@ function getAllowedStatuses(user, currentStatus) {
     const statuses = ["received", "in_review", "needs_correction", "rejected"];
 
     if (["submitted", "in_review"].includes(currentStatus)) {
-      statuses.push("approved");
+      statuses.push("committee_approved");
     }
 
     return statuses;
@@ -3395,7 +3396,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     const current = currentResult.rows[0];
     const actorRole = normalizeRole(actor.role);
 
-    if (nextStatus === "approved" && ["submitted", "in_review"].includes(current.status) && actorRole !== "committee") {
+    if (nextStatus === "committee_approved" && ["submitted", "in_review"].includes(current.status) && actorRole !== "committee") {
       await client.query("rollback");
       res.status(403).json({
         error: "committee_approval_forbidden",
@@ -3424,7 +3425,7 @@ router.patch("/:id/status", requireAuthenticatedUser, async (req, res) => {
     );
 
     const isCommitteeApproval =
-      nextStatus === "approved"
+      nextStatus === "committee_approved"
       && ["submitted", "in_review"].includes(current.status)
       && actorRole === "committee";
     const historyNote = isCommitteeApproval

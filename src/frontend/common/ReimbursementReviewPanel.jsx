@@ -153,7 +153,7 @@ function getActions(role, status, canApprove = true) {
       { status: "in_review", label: "Ne shqyrtim", icon: Search },
       { status: "needs_correction", label: "Korrigjim", icon: RotateCcw, requiresNote: true },
       ...(canApprove && (status === "submitted" || status === "in_review")
-        ? [{ status: "approved", label: "Aprovo", icon: CheckCircle2 }]
+        ? [{ status: "committee_approved", label: "Aprovo", icon: CheckCircle2 }]
         : []),
       { status: "rejected", label: "Refuzo", icon: XCircle, requiresNote: true, tone: "danger" },
     ].filter((item) => item.status !== status);
@@ -368,7 +368,7 @@ export default function ReimbursementReviewPanel({
       setNotes((prev) => ({ ...prev, [request.id]: "" }));
       await loadData();
 
-      if (action.status === "approved" && result.email?.error) {
+      if (action.status === "committee_approved" && result.email?.error) {
         setMessage("");
         setError("Statusi u aprovua, por emaili njoftues nuk u dergua.");
         return;
