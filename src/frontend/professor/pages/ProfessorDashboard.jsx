@@ -2568,10 +2568,7 @@ export default function ProfessorDashboard() {
       {
         label: t("professor.dashboard.totalPublicationsCard"),
         value: summary.publicationsTotal,
-        change: t("professor.dashboard.approvedInReview", {
-          approved: summary.publicationsApproved,
-          review: summary.publicationsInReview,
-        }),
+        change: "",
         icon: <BookOpen size={22} />,
         page: "Te gjithe Artikujt",
       },
