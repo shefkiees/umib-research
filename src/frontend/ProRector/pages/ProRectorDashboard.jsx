@@ -155,6 +155,13 @@ const PRORECTOR_COPY = {
       noFaculty: "Pa fakultet",
       noYear: "Pa vit",
       noCategory: "Pa kategori",
+      facultyNames: {
+        "Fakulteti i Gjeoshkencave": "Fakulteti i Gjeoshkencave",
+        "Fakulteti i Teknologjisë Ushqimore": "Fakulteti i Teknologjisë Ushqimore",
+        "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike": "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike",
+        "Fakulteti Juridik": "Fakulteti Juridik",
+        "Fakulteti Ekonomik": "Fakulteti Ekonomik",
+      },
       fullTimeFirstAuthor: "Autori i parë me orar të plotë",
       partTimeFirstAuthor: "Autori i parë me gjysmë orari",
       missingEmploymentStatus: "Pa të dhëna për statusin",
@@ -254,6 +261,13 @@ const PRORECTOR_COPY = {
       noFaculty: "No faculty",
       noYear: "No year",
       noCategory: "No category",
+      facultyNames: {
+        "Fakulteti i Gjeoshkencave": "Faculty of Geosciences",
+        "Fakulteti i Teknologjisë Ushqimore": "Faculty of Food Technology",
+        "Fakulteti i Inxhinierisë Mekanike dhe Kompjuterike": "Faculty of Mechanical and Computer Engineering",
+        "Fakulteti Juridik": "Faculty of Law",
+        "Fakulteti Ekonomik": "Faculty of Economics",
+      },
       fullTimeFirstAuthor: "First author full time",
       partTimeFirstAuthor: "First author part time",
       missingEmploymentStatus: "No employment status data",
@@ -321,6 +335,21 @@ function matchesSearchText(query, ...values) {
   if (!normalizedQuery) return true;
 
   return normalizeSearchText(values.filter(Boolean).join(" ")).includes(normalizedQuery);
+}
+
+function getLocalizedFacultyName(value, dashboardCopy = PRORECTOR_COPY.sq.dashboard) {
+  const text = String(value || "").trim();
+  if (!text) return dashboardCopy.noFaculty;
+
+  if (normalizeSearchText(text) === normalizeSearchText(PRORECTOR_COPY.sq.dashboard.noFaculty)) {
+    return dashboardCopy.noFaculty;
+  }
+
+  const localizedEntry = Object.entries(dashboardCopy.facultyNames || {}).find(
+    ([name]) => normalizeSearchText(name) === normalizeSearchText(text)
+  );
+
+  return localizedEntry?.[1] || text;
 }
 
 function mapNotificationRow(row = {}) {
@@ -404,7 +433,7 @@ function buildPublicationAnalytics(rows, dashboardCopy = PRORECTOR_COPY.sq.dashb
 
   rows.forEach((row) => {
     const year = normalizePublicationYear(row.year);
-    const faculty = row.faculty || dashboardCopy.noFaculty;
+    const faculty = getLocalizedFacultyName(row.faculty, dashboardCopy);
     const employmentStatus = String(row.employmentStatus || "").toLowerCase();
 
     if (year) byYear.set(year, (byYear.get(year) || 0) + 1);
@@ -831,7 +860,7 @@ function YearFacultyMatrix({ analytics, copy = PRORECTOR_COPY.sq.dashboard }) {
   );
 }
 
-function FilterBar({ filters, onChange, faculties, publicationMode = false, fundingMode = false }) {
+function FilterBar({ filters, onChange, faculties, publicationMode = false, fundingMode = false, copy = PRORECTOR_COPY.sq.dashboard }) {
   if (publicationMode) {
     return (
       <div className="prorector-publication-filterbar">
@@ -843,7 +872,7 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
         <select value={filters.faculty} onChange={(event) => onChange({ ...filters, faculty: event.target.value })}>
           <option value="">Fakulteti</option>
           {faculties.map((faculty) => (
-            <option key={faculty.id || faculty.name} value={faculty.name}>{faculty.name}</option>
+            <option key={faculty.id || faculty.name} value={faculty.name}>{getLocalizedFacultyName(faculty.name, copy)}</option>
           ))}
         </select>
         <input
@@ -886,7 +915,7 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
       <select value={filters.faculty} onChange={(event) => onChange({ ...filters, faculty: event.target.value })}>
         <option value="">Të gjitha fakultetet</option>
         {faculties.map((faculty) => (
-          <option key={faculty.id || faculty.name} value={faculty.name}>{faculty.name}</option>
+          <option key={faculty.id || faculty.name} value={faculty.name}>{getLocalizedFacultyName(faculty.name, copy)}</option>
         ))}
       </select>
       {publicationMode ? (
@@ -930,7 +959,7 @@ function AnalyticsCharts({ analytics, faculties = [], copy = PRORECTOR_COPY.sq.d
   const authorFacultyRows = (faculties || [])
     .map((faculty) => ({
       id: faculty.id || faculty.name,
-      name: faculty.name || copy.noFaculty,
+      name: getLocalizedFacultyName(faculty.name, copy),
       value: toNumber(faculty.professorCount),
     }))
     .filter((row) => row.value > 0)
@@ -1041,6 +1070,7 @@ export default function ProRectorDashboard() {
     return facultyRows.filter((row) => matchesSearchText(
       normalizedSearchQuery,
       row.name,
+      getLocalizedFacultyName(row.name, copy.dashboard),
       row.code,
       row.statusLabel,
       row.status,
@@ -1048,7 +1078,7 @@ export default function ProRectorDashboard() {
       row.publicationCount,
       row.fundingCount
     ));
-  }, [facultyRows, normalizedSearchQuery]);
+  }, [copy.dashboard, facultyRows, normalizedSearchQuery]);
 
   const activeFacultyRows = useMemo(
     () => filteredFacultyRows.filter((row) => row.status === "active"),
@@ -1058,12 +1088,12 @@ export default function ProRectorDashboard() {
   const activeFacultyPieRows = useMemo(
     () => activeFacultyRows.map((row, index) => ({
       id: row.id,
-      name: row.name,
+      name: getLocalizedFacultyName(row.name, copy.dashboard),
       code: row.code,
       value: 1,
       fill: FACULTY_TREEMAP_COLORS[index % FACULTY_TREEMAP_COLORS.length],
     })),
-    [activeFacultyRows]
+    [activeFacultyRows, copy.dashboard]
   );
 
   const reportCards = useMemo(() => ([

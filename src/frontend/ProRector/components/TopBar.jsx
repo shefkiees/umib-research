@@ -6,7 +6,7 @@ const TOPBAR_COPY = {
   sq: {
     fallbackRole: "Zëvendës Rektor",
     prorectorRole: "ProRector",
-    searchPlaceholder: "Kërko dorëzime, autorë, DOI...",
+    searchPlaceholder: "Kërko statistika, autorë, fakultete...",
     notifications: "Njoftimet",
     unread: "pa lexuara",
     markAllRead: "Shëno si të lexuara",
@@ -21,7 +21,7 @@ const TOPBAR_COPY = {
   en: {
     fallbackRole: "Vice Rector",
     prorectorRole: "ProRector",
-    searchPlaceholder: "Search submissions, authors, DOI...",
+    searchPlaceholder: "Search statistics, authors, faculties...",
     notifications: "Notifications",
     unread: "unread",
     markAllRead: "Mark all as read",
