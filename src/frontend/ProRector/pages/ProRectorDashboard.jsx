@@ -1306,8 +1306,8 @@ export default function ProRectorDashboard() {
             </div>
             <div className="prorector-settings-option-item">
               <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Gjuha</span>
-                <p className="prorector-settings-subtext">Zgjedh gjuhën e shfaqjes për panelin.</p>
+                <span className="prorector-settings-label">Zgjedh gjuhën</span>
+                <p className="prorector-settings-subtext">Përzgjidh shqip ose anglisht për pamjen e panelit.</p>
               </div>
               <select
                 className="prorector-settings-select"
