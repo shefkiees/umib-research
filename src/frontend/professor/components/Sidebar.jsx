@@ -20,15 +20,15 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
   const [isReimbursementMenuOpen, setIsReimbursementMenuOpen] = useState(false);
   const [activeReimbursementSubmenu, setActiveReimbursementSubmenu] = useState("");
   const publicationSubmenu = [
-    { name: "Artikuj reviste", label: "Artikuj reviste", icon: FileText },
-    { name: "Punime të konferencave", label: "Punime të konferencave", icon: PresentationChart },
-    { name: "Libra / Kapituj", label: "Libra / Kapituj", icon: BookOpen },
-    { name: "Të gjitha publikimet", label: "Të gjitha publikimet", icon: Layers, legacyName: "Te gjithe Artikujt" },
+    { name: "Artikuj reviste", label: t("navigation.publicationJournalArticles"), icon: FileText },
+    { name: "Punime të konferencave", label: t("navigation.publicationConferencePapers"), icon: PresentationChart },
+    { name: "Libra / Kapituj", label: t("navigation.publicationBooksChapters"), icon: BookOpen },
+    { name: "Të gjitha publikimet", label: t("navigation.publicationAll"), icon: Layers, legacyName: "Te gjithe Artikujt" },
   ];
   const publicationPages = publicationSubmenu.flatMap((item) => [item.name, item.legacyName].filter(Boolean));
   const [isPublicationMenuOpen, setIsPublicationMenuOpen] = useState(() => publicationPages.includes(activePage));
   const reimbursementSubmenu = [
-    { name: "Rregullorja", label: "Rregullorja", href: "/rregullorja-rimbursimeve.pdf", icon: FileText },
+    { name: "Rregullorja", label: t("navigation.regulation"), href: "/rregullorja-rimbursimeve.pdf", icon: FileText },
     { name: "Artikuj Shkencorë", label: `${t("navigation.reimbursementScientificArticles")} (F1)`, target: "Rimbursime", reimbursementType: "publication", icon: FileBadge2 },
     { name: "Konferenca dhe Simpoziume", label: `${t("navigation.reimbursementConferences")} (F2)`, target: "Rimbursime", reimbursementType: "conference", icon: PresentationChart },
   ];
