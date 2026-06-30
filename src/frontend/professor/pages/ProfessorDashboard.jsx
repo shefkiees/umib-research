@@ -2090,12 +2090,6 @@ export default function ProfessorDashboard() {
     }
   };
 
-  const openPasswordResetModal = () => {
-    setPasswordResetEmail(profile.email || "");
-    setPasswordResetError("");
-    setIsPasswordResetOpen(true);
-  };
-
   const getPasswordResetErrorMessage = (error) => {
     const rawMessage = String(error?.message || "");
     const message = rawMessage.toLowerCase();
@@ -3290,26 +3284,6 @@ export default function ProfessorDashboard() {
                       {systemPreferencesMessage}
                     </p>
                   ) : null}
-                </div>
-              </article>
-
-              {/* Card: Security */}
-              <article className="prorector-settings-card">
-                <div className="prorector-settings-card-header">
-                  <div className="prorector-settings-icon">
-                    <ShieldX size={20} />
-                  </div>
-                  <h3>{settingsText.securityTitle}</h3>
-                </div>
-                <div className="prorector-settings-list">
-                  <p className="prorector-settings-subtext">{settingsText.securityDescription}</p>
-                  <button
-                    type="button"
-                    className="prorector-settings-action-btn"
-                    onClick={openPasswordResetModal}
-                  >
-                    {settingsText.changePassword}
-                  </button>
                 </div>
               </article>
 
