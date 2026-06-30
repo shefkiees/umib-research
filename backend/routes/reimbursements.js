@@ -123,7 +123,7 @@ const KOSOVO_BANKS = [
 ];
 
 const COMMITTEE_REVIEW_STATUSES = ["submitted", "received", "in_review", "needs_correction"];
-const COMMITTEE_REVIEW_SCOPE_STATUSES = [...COMMITTEE_REVIEW_STATUSES, "committee_approved"];
+const COMMITTEE_REVIEW_SCOPE_STATUSES = [...COMMITTEE_REVIEW_STATUSES, "committee_approved", "rejected"];
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
