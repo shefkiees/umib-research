@@ -13,6 +13,41 @@ const TOPBAR_COPY = {
     loadingNotifications: "Duke ngarkuar njoftimet...",
     notificationCategory: "Njoftim",
     noNotifications: "Nuk ka njoftime aktualisht.",
+    notificationCategories: {
+      Njoftim: "Njoftim",
+      Publikime: "Publikime",
+      Rimbursime: "Rimbursime",
+      Sistem: "Sistem",
+      UMIBRes: "UMIBRes",
+    },
+    notificationStatuses: {
+      Draft: "Draft",
+      Dorezuar: "Dorëzuar",
+      Pranuar: "Pranuar",
+      "Ne shqyrtim": "Në shqyrtim",
+      "Kthyer per korrigjim": "Kthyer për korrigjim",
+      "Aprovuar nga komisioni": "Aprovuar nga komisioni",
+      Aprovuar: "Aprovuar",
+      Refuzuar: "Refuzuar",
+      Paguar: "Paguar",
+    },
+    notificationText: {
+      publicationNeedsCorrection: "Publikimi juaj kërkon korrigjim",
+      publicationRecommended: "Publikimi juaj është rekomanduar për aprovim",
+      publicationRejected: "Publikimi juaj është refuzuar",
+      publication: "Publikimi",
+      reimbursement: "Rimbursimi",
+      requestApprovedByCommittee: "Kërkesa u aprovua nga komisioni.",
+      requestStatusChanged: "Statusi i kërkesës suaj u ndryshua në {{status}}.",
+      statusChanged: "Statusi u ndryshua në {{status}}.",
+      publicationStatusChanged: "Statusi i publikimit \"{{title}}\" u ndryshua në {{status}}.",
+      metadataUpdateRequested: "Komisioni ka kërkuar përditësim të metadata-s për \"{{title}}\".",
+      reviewItems: "Pikat për kontroll: {{items}}.",
+      reviewPublicationAgain: "Ju lutem rishikoni publikimin dhe ridërgojeni.",
+      notificationsLoadError: "Njoftimet nuk u ngarkuan.",
+      notificationsUpdateError: "Njoftimet nuk u përditësuan.",
+      notificationUpdateError: "Njoftimi nuk u përditësua.",
+    },
     profile: "Profili",
     editProfile: "Ndrysho profilin",
     settings: "Cilësimet",
@@ -28,6 +63,41 @@ const TOPBAR_COPY = {
     loadingNotifications: "Loading notifications...",
     notificationCategory: "Notification",
     noNotifications: "No notifications right now.",
+    notificationCategories: {
+      Njoftim: "Notification",
+      Publikime: "Publications",
+      Rimbursime: "Reimbursements",
+      Sistem: "System",
+      UMIBRes: "UMIBRes",
+    },
+    notificationStatuses: {
+      Draft: "Draft",
+      Dorezuar: "Submitted",
+      Pranuar: "Received",
+      "Ne shqyrtim": "In review",
+      "Kthyer per korrigjim": "Returned for correction",
+      "Aprovuar nga komisioni": "Approved by committee",
+      Aprovuar: "Approved",
+      Refuzuar: "Rejected",
+      Paguar: "Paid",
+    },
+    notificationText: {
+      publicationNeedsCorrection: "Your publication requires correction",
+      publicationRecommended: "Your publication has been recommended for approval",
+      publicationRejected: "Your publication has been rejected",
+      publication: "Publication",
+      reimbursement: "Reimbursement",
+      requestApprovedByCommittee: "Your request was approved by the committee.",
+      requestStatusChanged: "Your request status was changed to {{status}}.",
+      statusChanged: "Status changed to {{status}}.",
+      publicationStatusChanged: "Publication status for \"{{title}}\" was changed to {{status}}.",
+      metadataUpdateRequested: "The committee requested metadata updates for \"{{title}}\".",
+      reviewItems: "Items to check: {{items}}.",
+      reviewPublicationAgain: "Please review the publication and resubmit it.",
+      notificationsLoadError: "Notifications could not be loaded.",
+      notificationsUpdateError: "Notifications could not be updated.",
+      notificationUpdateError: "Notification could not be updated.",
+    },
     profile: "Profile",
     editProfile: "Edit profile",
     settings: "Settings",
@@ -43,6 +113,99 @@ function getDisplayRole(role, copy) {
   }
 
   return role || copy.fallbackRole;
+}
+
+function normalizeNotificationText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function interpolateCopy(template, values = {}) {
+  return String(template || "").replace(/\{\{(\w+)\}\}/g, (_, key) => values[key] ?? "");
+}
+
+function getNotificationStatusLabel(value, copy) {
+  const text = String(value || "").trim();
+  if (!text) return text;
+
+  const match = Object.entries(copy.notificationStatuses || {}).find(
+    ([status]) => normalizeNotificationText(status) === normalizeNotificationText(text)
+  );
+
+  return match?.[1] || text;
+}
+
+function getNotificationCategoryLabel(value, copy) {
+  const text = String(value || "").trim();
+  if (!text) return copy.notificationCategory;
+
+  const match = Object.entries(copy.notificationCategories || {}).find(
+    ([category]) => normalizeNotificationText(category) === normalizeNotificationText(text)
+  );
+
+  return match?.[1] || text;
+}
+
+function localizeNotificationText(value, copy) {
+  const text = String(value || "").trim();
+  if (!text) return text;
+
+  const normalized = normalizeNotificationText(text);
+  const notificationText = copy.notificationText || {};
+
+  const exactMatches = [
+    ["publikimi juaj kerkon korrigjim", notificationText.publicationNeedsCorrection],
+    ["publikimi juaj eshte rekomanduar per aprovim", notificationText.publicationRecommended],
+    ["publikimi juaj eshte refuzuar", notificationText.publicationRejected],
+    ["kerkesa u aprovua nga komisioni.", notificationText.requestApprovedByCommittee],
+    ["njoftimet nuk u ngarkuan.", notificationText.notificationsLoadError],
+    ["njoftimet nuk u perditesuan.", notificationText.notificationsUpdateError],
+    ["njoftimi nuk u perditesua.", notificationText.notificationUpdateError],
+  ];
+  const exactMatch = exactMatches.find(([source]) => source === normalized);
+  if (exactMatch?.[1]) return exactMatch[1];
+
+  const prefixedTitle = text.match(/^(Publikimi|Rimbursimi):\s*(.+)$/i);
+  if (prefixedTitle) {
+    const prefix = normalizeNotificationText(prefixedTitle[1]) === "rimbursimi"
+      ? notificationText.reimbursement
+      : notificationText.publication;
+    return `${prefix}: ${getNotificationStatusLabel(prefixedTitle[2], copy)}`;
+  }
+
+  const requestStatusMatch = text.match(/^Statusi i kerkeses suaj u ndryshua ne (.+)\.$/i);
+  if (requestStatusMatch) {
+    return interpolateCopy(notificationText.requestStatusChanged, {
+      status: getNotificationStatusLabel(requestStatusMatch[1], copy),
+    });
+  }
+
+  const statusMatch = text.match(/^Statusi u ndryshua ne (.+)\.$/i);
+  if (statusMatch) {
+    return interpolateCopy(notificationText.statusChanged, {
+      status: getNotificationStatusLabel(statusMatch[1], copy),
+    });
+  }
+
+  const publicationStatusMatch = text.match(/^Statusi i publikimit "(.+)" u ndryshua ne (.+)\.$/i);
+  if (publicationStatusMatch) {
+    return interpolateCopy(notificationText.publicationStatusChanged, {
+      title: publicationStatusMatch[1],
+      status: getNotificationStatusLabel(publicationStatusMatch[2], copy),
+    });
+  }
+
+  return text
+    .replace(/Komisioni ka kerkuar perditesim te metadata-s per "([^"]+)"\./gi, (_, title) => (
+      interpolateCopy(notificationText.metadataUpdateRequested, { title })
+    ))
+    .replace(/Pikat per kontroll: ([^.]+)\./gi, (_, items) => (
+      interpolateCopy(notificationText.reviewItems, { items })
+    ))
+    .replace(/Ju lutem rishikoni publikimin dhe ridergojeni\./gi, notificationText.reviewPublicationAgain || "$&");
 }
 
 export default function ProRectorTopBar({
@@ -163,7 +326,7 @@ export default function ProRectorTopBar({
                 ) : null}
                 {!notificationsLoading && notificationsError ? (
                   <li className="is-read prorector-notification-empty">
-                    <p>{notificationsError}</p>
+                    <p>{localizeNotificationText(notificationsError, copy)}</p>
                   </li>
                 ) : null}
                 {!notificationsLoading && !notificationsError && notifications.map((item) => (
@@ -174,11 +337,11 @@ export default function ProRectorTopBar({
                       onClick={() => onNotificationRead?.(item.id)}
                     >
                       <div className="prorector-notification-item-meta">
-                        <span className="prorector-notification-badge">{item.category || copy.notificationCategory}</span>
+                        <span className="prorector-notification-badge">{getNotificationCategoryLabel(item.category, copy)}</span>
                         <span>{item.createdAt}</span>
                       </div>
-                      <p className="prorector-notification-title">{item.title || item.text}</p>
-                      <p className="prorector-notification-text">{item.description || item.text}</p>
+                      <p className="prorector-notification-title">{localizeNotificationText(item.title || item.text, copy)}</p>
+                      <p className="prorector-notification-text">{localizeNotificationText(item.description || item.text, copy)}</p>
                     </button>
                   </li>
                 ))}
