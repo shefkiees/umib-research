@@ -1,5 +1,5 @@
 import React from "react";
-import { Inbox, FileText, CheckCircle, LayoutDashboard } from "lucide-react";
+import { Inbox, CheckCircle, LayoutDashboard } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -7,7 +7,6 @@ import { useLanguage } from "../../i18n/LanguageContext";
 const mainItems = [
 	{ labelKey: "statistics", route: "Statistikat", icon: LayoutDashboard },
 	{ labelKey: "pendingReview", route: "Kërkesat për Shqyrtim", icon: Inbox },
-	{ labelKey: "review", route: "Shqyrtimi", icon: FileText },
 	{ labelKey: "decisions", route: "Vendimet", icon: CheckCircle },
 ];
 
