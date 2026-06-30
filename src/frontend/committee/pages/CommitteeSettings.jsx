@@ -2,15 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Globe } from "lucide-react";
 import "../styles/CommitteeDashboard.css";
+import { useLanguage } from "../../i18n/LanguageContext";
 import { apiUrl } from "../../utils/api";
 
 const defaultSettings = {
   emailNotifications: true,
-  language: "Shqip",
 };
 
 export default function CommitteeSettings({ onBack }) {
   const navigate = useNavigate();
+  const { language, setLanguage, t } = useLanguage();
   const [settings, setSettings] = useState(defaultSettings);
   const [savedMessage, setSavedMessage] = useState("");
 
@@ -80,22 +81,22 @@ export default function CommitteeSettings({ onBack }) {
   };
 
   const updateLanguage = (event) => {
-    setSettings((prev) => ({ ...prev, language: event.target.value }));
+    setLanguage(event.target.value);
   };
 
   return (
     <div className="prorector-table-section">
       <div className="committee-settings-top-header">
         <div>
-          <h2>Cilësimet</h2>
-          <p>Menaxho preferencat e njoftimeve për panelin e Komisionit.</p>
+          <h2>{t("committee.settings.title")}</h2>
+          <p>{t("committee.settings.description")}</p>
         </div>
         <button
           className="committee-settings-back"
           type="button"
           onClick={() => (onBack ? onBack() : navigate(-1))}
         >
-          Kthehu
+          {t("committee.settings.back")}
         </button>
       </div>
 
@@ -105,14 +106,14 @@ export default function CommitteeSettings({ onBack }) {
             <div className="prorector-settings-icon">
               <Bell size={20} />
             </div>
-            <h3>Preferencat e Njoftimeve</h3>
+            <h3>{t("committee.settings.notificationPreferences")}</h3>
           </div>
           <div className="prorector-settings-options">
             <div className="prorector-settings-option-item">
               <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Njoftime me email</span>
+                <span className="prorector-settings-label">{t("committee.settings.emailNotifications")}</span>
                 <p className="prorector-settings-subtext">
-                  Merr njoftime me email për aktivitetet e rëndësishme.
+                  {t("committee.settings.emailNotificationsDescription")}
                 </p>
               </div>
               <label className="prorector-switch">
@@ -137,20 +138,20 @@ export default function CommitteeSettings({ onBack }) {
             <div className="prorector-settings-icon">
               <Globe size={20} />
             </div>
-            <h3>Gjuha e Ndërfaqes</h3>
+            <h3>{t("committee.settings.interfaceLanguage")}</h3>
           </div>
           <div className="prorector-settings-options">
             <div className="prorector-settings-option-item">
               <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Gjuha e Ndërfaqes</span>
+                <span className="prorector-settings-label">{t("committee.settings.interfaceLanguage")}</span>
               </div>
               <select
                 className="prorector-settings-select"
-                value={settings.language}
+                value={language}
                 onChange={updateLanguage}
               >
-                <option value="Shqip">Shqip</option>
-                <option value="English">English</option>
+                <option value="sq">{t("committee.settings.albanian")}</option>
+                <option value="en">{t("committee.settings.english")}</option>
               </select>
             </div>
           </div>

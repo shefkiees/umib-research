@@ -1,12 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, User, Settings, ArrowRight } from "lucide-react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const fallbackProfileMenuItems = [
-	{ id: "Njoftime", label: "Njoftime", icon: Bell },
-	{ id: "Profili", label: "Profili", icon: User },
-	{ id: "Settings", label: "Settings", icon: Settings },
-	{ id: "Logout", label: "Logout", icon: ArrowRight, tone: "danger" },
+	{ id: "Njoftime", labelKey: "notifications", icon: Bell },
+	{ id: "Profili", labelKey: "profile", icon: User },
+	{ id: "Settings", labelKey: "settings", icon: Settings },
+	{ id: "Logout", labelKey: "logout", icon: ArrowRight, tone: "danger" },
 ];
+
+const activePageLabelKeys = {
+	Statistikat: "statistics",
+	"Kërkesat për Shqyrtim": "pendingReview",
+	Shqyrtimi: "review",
+	Vendimet: "decisions",
+	Njoftime: "notifications",
+	Settings: "settings",
+};
+
+const profileMenuLabelKeys = {
+	Njoftime: "notifications",
+	Profili: "profile",
+	Settings: "settings",
+	Logout: "logout",
+};
 
 export default function CommitteeTopBar({
 	activePage,
@@ -21,6 +38,7 @@ export default function CommitteeTopBar({
 	profile,
 	onNotificationRead,
 }) {
+	const { t } = useLanguage();
 	const [isProfileOpen, setIsProfileOpen] = useState(false);
 	const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 	const profileRef = useRef(null);
@@ -45,6 +63,9 @@ export default function CommitteeTopBar({
 	}, []);
 
 	const title = "UMIBRes";
+	const activePageTitle = activePageLabelKeys[activePage]
+		? t(`committee.navigation.${activePageLabelKeys[activePage]}`)
+		: activePage;
 	const profileName = profile?.name || "Komision";
 	const profileRole = profile?.role || "Komision";
 	const profileAvatarUrl = profile?.avatarUrl || profile?.avatar_url || profile?.profileImage || profile?.profile_image || "";
@@ -59,11 +80,18 @@ export default function CommitteeTopBar({
 		? profileMenuItems
 		: fallbackProfileMenuItems;
 
+	const getProfileMenuLabel = (item) => {
+		const actionId = item.id || item.label;
+		const labelKey = item.labelKey || profileMenuLabelKeys[actionId];
+
+		return labelKey ? t(`committee.topbar.${labelKey}`) : (item.label || actionId);
+	};
+
 	return (
 		<header className="committee-topbar">
 			<div className="committee-topbar-left">
 				<span className="committee-topbar-kicker">{title}</span>
-				<h1>{activePage}</h1>
+				<h1>{activePageTitle}</h1>
 			</div>
 
 			<div className="committee-topbar-right">
@@ -73,7 +101,7 @@ export default function CommitteeTopBar({
 						id="committee-search-input"
 						type="text"
 						className="committee-search"
-						placeholder="Kërko dorëzime, autorë, DOI..."
+						placeholder={t("committee.topbar.searchPlaceholder")}
 						value={searchQuery}
 						onChange={(event) => onSearchChange(event.target.value)}
 					/>
@@ -83,7 +111,7 @@ export default function CommitteeTopBar({
 					<button
 						className="committee-icon-btn"
 						type="button"
-						aria-label="Njoftime"
+						aria-label={t("committee.topbar.notifications")}
 						onClick={() => setIsNotificationsOpen((current) => !current)}
 					>
 						<Bell size={20} />
@@ -93,14 +121,14 @@ export default function CommitteeTopBar({
 					</button>
 
 					{isNotificationsOpen ? (
-						<div className="committee-popover" role="dialog" aria-label="Njoftimet">
+						<div className="committee-popover" role="dialog" aria-label={t("committee.topbar.notificationsTitle")}>
 							<div className="committee-popover-head">
 								<div>
-									<strong>Njoftimet</strong>
-									<p>{unreadCount} pa lexuara</p>
+									<strong>{t("committee.topbar.notificationsTitle")}</strong>
+									<p>{unreadCount} {t("committee.topbar.unreadLabel")}</p>
 								</div>
 								<button type="button" onClick={onMarkAllRead} disabled={unreadCount === 0}>
-									Shëno si të lexuara
+									{t("committee.topbar.markAllRead")}
 								</button>
 							</div>
 							<ul>
@@ -112,7 +140,7 @@ export default function CommitteeTopBar({
 											onClick={() => onNotificationRead?.(item.id)}
 										>
 											<div className="committee-notification-meta">
-												<span className="committee-notification-tag">{item.category || "Njoftim"}</span>
+												<span className="committee-notification-tag">{item.category || t("committee.topbar.notifications")}</span>
 												<span>{item.createdAt}</span>
 											</div>
 											<p>{item.title || item.text}</p>
@@ -159,7 +187,7 @@ export default function CommitteeTopBar({
 										}}
 									>
 										<ItemIcon size={18} className="committee-popover-icon" />
-										<span>{item.label || actionId}</span>
+										<span>{getProfileMenuLabel(item)}</span>
 									</button>
 								);
 							})}
