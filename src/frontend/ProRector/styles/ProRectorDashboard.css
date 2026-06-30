@@ -2601,6 +2601,84 @@
   color: #334155;
 }
 
+.prorector-profile-settings-card {
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94), #ffffff 44%),
+    #ffffff;
+}
+
+.prorector-profile-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.prorector-profile-summary-head {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.prorector-profile-summary-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.05rem;
+  background: linear-gradient(135deg, #153a63, #2b78c2);
+  box-shadow: 0 10px 20px rgba(21, 58, 99, 0.18);
+}
+
+.prorector-profile-summary-head strong {
+  display: block;
+  color: #0f172a;
+  font-size: 1.1rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.prorector-profile-summary-head span:last-child {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #153a63;
+  background: #eaf3fb;
+  border: 1px solid #cfe2f3;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.prorector-profile-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prorector-profile-summary-grid > div {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.prorector-profile-summary-grid .prorector-settings-value {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: #172033;
+}
+
 .prorector-settings-options {
   display: flex;
   flex-direction: column;
@@ -2710,6 +2788,22 @@ input:checked + .prorector-slider:before {
 .prorector-settings-action-btn:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+}
+
+.prorector-profile-summary .prorector-settings-edit-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  color: #ffffff;
+  background: #153a63;
+  border-color: #153a63;
+  box-shadow: 0 10px 20px rgba(21, 58, 99, 0.16);
+}
+
+.prorector-profile-summary .prorector-settings-edit-btn:hover {
+  background: #1d4d7d;
+  border-color: #1d4d7d;
 }
 
 .prorector-settings-action-btn.danger {
@@ -3535,6 +3629,10 @@ input:checked + .prorector-slider:before {
   }
 
   .prorector-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prorector-profile-summary-grid {
     grid-template-columns: 1fr;
   }
 
