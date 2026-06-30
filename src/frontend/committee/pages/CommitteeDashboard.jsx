@@ -3475,7 +3475,7 @@ export default function CommitteeDashboard() {
 
   const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
-      <div className="committee-page-head">
+      <div className="committee-page-head committee-pending-head">
         <div>
           <h3>Kërkesat për Shqyrtim</h3>
           <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>

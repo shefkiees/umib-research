@@ -1139,6 +1139,22 @@
 	color: var(--text-light);
 }
 
+.committee-pending-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.committee-pending-head > div {
+	min-width: 0;
+}
+
+.committee-pending-head .committee-refresh-btn {
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
 .committee-table-wrap {
 	overflow-x: auto;
 }
