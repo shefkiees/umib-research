@@ -102,10 +102,6 @@ const PRORECTOR_COPY = {
       profile: "Profili",
       name: "Emri",
       role: "Roli",
-      email: "Email",
-      unit: "Njësia",
-      noEmail: "Pa email të regjistruar",
-      noUnit: "Pa njësi të caktuar",
       editProfile: "Ndrysho profilin",
       roleLabels: {
         admin: "Administrator",
@@ -219,10 +215,6 @@ const PRORECTOR_COPY = {
       profile: "Profile",
       name: "Name",
       role: "Role",
-      email: "Email",
-      unit: "Unit",
-      noEmail: "No registered email",
-      noUnit: "No assigned unit",
       editProfile: "Edit profile",
       roleLabels: {
         admin: "Administrator",
@@ -1671,16 +1663,6 @@ export default function ProRectorDashboard() {
               <div>
                 <strong>{profile.name}</strong>
                 <span>{getProfileRoleLabel(profile.role, copy.settings)}</span>
-              </div>
-            </div>
-            <div className="prorector-profile-summary-grid">
-              <div>
-                <span className="prorector-settings-label">{copy.settings.email}</span>
-                <strong className="prorector-settings-value">{profile.email || copy.settings.noEmail}</strong>
-              </div>
-              <div>
-                <span className="prorector-settings-label">{copy.settings.unit}</span>
-                <strong className="prorector-settings-value">{profile.faculty || profile.department || copy.settings.noUnit}</strong>
               </div>
             </div>
             <button type="button" className="prorector-settings-edit-btn" onClick={openProfileEditor}>
