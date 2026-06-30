@@ -4,7 +4,7 @@ import {
   BarChart3,
   Download,
   FileText,
-  LifeBuoy,
+  Languages,
   Minus,
   RefreshCw,
   Search,
@@ -31,6 +31,7 @@ import {
 import "../styles/ProRectorDashboard.css";
 import ProRectorSidebar from "../components/Sidebar";
 import ProRectorTopBar from "../components/TopBar";
+import { useLanguage } from "../../i18n/LanguageContext";
 import { apiUrl } from "../../utils/api";
 
 const CHART_COLORS = ["#1d4d7d", "#15803d", "#c9a24f", "#be123c", "#6d5bd0", "#0f766e", "#b45309", "#475569"];
@@ -74,7 +75,69 @@ const EMPTY_PROFILE_DRAFT = {
 
 const DEFAULT_SYSTEM_PREFERENCES = {
   emailNotifications: true,
-  uiLanguage: "sq",
+};
+
+const PRORECTOR_COPY = {
+  sq: {
+    reports: {
+      title: "Raportet",
+      publications: "Raport artikujsh",
+      publicationsDescription: "Artikuj sipas vitit, fakultetit, indeksimit, kuartilit dhe statusit.",
+      funding: "Raport financimesh",
+      fundingDescription: "Kërkesa dhe financime sipas kategorive të rregullores.",
+      faculties: "Raport fakultetesh",
+      facultiesDescription: "Profesorë, artikuj, financime dhe status për çdo fakultet.",
+      generate: "Gjenero",
+    },
+    settings: {
+      title: "Cilësimet",
+      languageTitle: "Gjuha",
+      chooseLanguage: "Zgjedh gjuhën",
+      languageDescription: "Përzgjidh shqip ose anglisht për pamjen e panelit.",
+      albanian: "Shqip",
+      english: "English",
+      languageUpdated: "Gjuha u përditësua.",
+      profile: "Profili",
+      name: "Emri",
+      role: "Roli",
+      editProfile: "Ndrysho profilin",
+    },
+    profile: {
+      editTitle: "Ndrysho profilin",
+      editSubtitle: "Përditëso të dhënat bazë të profilit të Prorektorit.",
+      close: "Mbyll",
+    },
+  },
+  en: {
+    reports: {
+      title: "Reports",
+      publications: "Article report",
+      publicationsDescription: "Articles by year, faculty, indexing, quartile, and status.",
+      funding: "Funding report",
+      fundingDescription: "Requests and funding by regulation category.",
+      faculties: "Faculty report",
+      facultiesDescription: "Professors, articles, funding, and status for each faculty.",
+      generate: "Generate",
+    },
+    settings: {
+      title: "Settings",
+      languageTitle: "Language",
+      chooseLanguage: "Choose language",
+      languageDescription: "Choose Albanian or English for the dashboard view.",
+      albanian: "Shqip",
+      english: "English",
+      languageUpdated: "Language updated.",
+      profile: "Profile",
+      name: "Name",
+      role: "Role",
+      editProfile: "Edit profile",
+    },
+    profile: {
+      editTitle: "Edit profile",
+      editSubtitle: "Update the ProRector profile information.",
+      close: "Close",
+    },
+  },
 };
 
 function toNumber(value) {
@@ -771,6 +834,8 @@ function AnalyticsCharts({ analytics, faculties = [] }) {
 export default function ProRectorDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { language, setLanguage } = useLanguage();
+  const copy = PRORECTOR_COPY[language] || PRORECTOR_COPY.sq;
   const [activePage, setActivePage] = useState(location.state?.activePage || "Dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({ search: "", year: "", faculty: "", type: "", platform: "", quartile: "", status: "" });
@@ -783,15 +848,7 @@ export default function ProRectorDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
-  const [systemPreferences, setSystemPreferences] = useState(() => {
-    const storedLanguage = typeof window !== "undefined"
-      ? window.localStorage.getItem("prorector.uiLanguage")
-      : null;
-    return {
-      ...DEFAULT_SYSTEM_PREFERENCES,
-      uiLanguage: storedLanguage === "en" ? "en" : "sq",
-    };
-  });
+  const [systemPreferences, setSystemPreferences] = useState(DEFAULT_SYSTEM_PREFERENCES);
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
 
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
@@ -997,9 +1054,8 @@ export default function ProRectorDashboard() {
 
   const updateLanguagePreference = (event) => {
     const uiLanguage = event.target.value === "en" ? "en" : "sq";
-    setSystemPreferences((prev) => ({ ...prev, uiLanguage }));
-    window.localStorage.setItem("prorector.uiLanguage", uiLanguage);
-    setSystemPreferencesMessage("Gjuha u përditësua.");
+    setLanguage(uiLanguage);
+    setSystemPreferencesMessage(PRORECTOR_COPY[uiLanguage].settings.languageUpdated);
   };
 
   const markAllNotificationsAsRead = async () => {
@@ -1261,23 +1317,23 @@ export default function ProRectorDashboard() {
   const renderReports = () => (
     <div className="prorector-table-section">
       <div className="prorector-section-head">
-        <div><h2>Raportet</h2></div>
+        <div><h2>{copy.reports.title}</h2></div>
       </div>
       <div className="prorector-reports-grid">
         <article className="prorector-report-card">
-          <h3>Raport artikujsh</h3>
-          <p>Artikuj sipas vitit, fakultetit, indeksimit, kuartilit dhe statusit.</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("artikuj-prorektor.csv", publicationRows)}><Download size={16} /> Gjenero</button>
+          <h3>{copy.reports.publications}</h3>
+          <p>{copy.reports.publicationsDescription}</p>
+          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("artikuj-prorektor.csv", publicationRows)}><Download size={16} /> {copy.reports.generate}</button>
         </article>
         <article className="prorector-report-card">
-          <h3>Raport financimesh</h3>
-          <p>Kërkesa dhe financime sipas kategorive të rregullores.</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("financime-prorektor.csv", fundingRows)}><Download size={16} /> Gjenero</button>
+          <h3>{copy.reports.funding}</h3>
+          <p>{copy.reports.fundingDescription}</p>
+          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("financime-prorektor.csv", fundingRows)}><Download size={16} /> {copy.reports.generate}</button>
         </article>
         <article className="prorector-report-card">
-          <h3>Raport fakultetesh</h3>
-          <p>Profesorë, artikuj, financime dhe status për çdo fakultet.</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("fakultete-prorektor.csv", facultyRows)}><Download size={16} /> Gjenero</button>
+          <h3>{copy.reports.faculties}</h3>
+          <p>{copy.reports.facultiesDescription}</p>
+          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("fakultete-prorektor.csv", facultyRows)}><Download size={16} /> {copy.reports.generate}</button>
         </article>
       </div>
     </div>
@@ -1287,36 +1343,30 @@ export default function ProRectorDashboard() {
     <div className="prorector-table-section">
       <div className="prorector-section-head">
         <div>
-          <h2>Cilësimet</h2>
+          <h2>{copy.settings.title}</h2>
         </div>
       </div>
 
       <div className="prorector-settings-grid">
         <article className="prorector-settings-card">
           <div className="prorector-settings-card-header">
-            <LifeBuoy size={20} className="prorector-settings-icon" />
-            <h3>Mbështetja</h3>
+            <Languages size={20} className="prorector-settings-icon" />
+            <h3>{copy.settings.languageTitle}</h3>
           </div>
           <div className="prorector-settings-options">
             <div className="prorector-settings-option-item">
               <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Ndihma e panelit</span>
-                <p className="prorector-settings-subtext">Kontakto administratën për qasje, raporte ose përditësime të të dhënave.</p>
-              </div>
-            </div>
-            <div className="prorector-settings-option-item">
-              <div className="prorector-settings-option-info">
-                <span className="prorector-settings-label">Zgjedh gjuhën</span>
-                <p className="prorector-settings-subtext">Përzgjidh shqip ose anglisht për pamjen e panelit.</p>
+                <span className="prorector-settings-label">{copy.settings.chooseLanguage}</span>
+                <p className="prorector-settings-subtext">{copy.settings.languageDescription}</p>
               </div>
               <select
                 className="prorector-settings-select"
-                value={systemPreferences.uiLanguage}
+                value={language}
                 onChange={updateLanguagePreference}
-                aria-label="Gjuha e panelit"
+                aria-label={copy.settings.chooseLanguage}
               >
-                <option value="sq">Shqip</option>
-                <option value="en">English</option>
+                <option value="sq">{copy.settings.albanian}</option>
+                <option value="en">{copy.settings.english}</option>
               </select>
             </div>
             {systemPreferencesMessage ? (
@@ -1328,19 +1378,19 @@ export default function ProRectorDashboard() {
         <article className="prorector-settings-card">
           <div className="prorector-settings-card-header">
             <Users size={20} className="prorector-settings-icon" />
-            <h3>Profili</h3>
+            <h3>{copy.settings.profile}</h3>
           </div>
           <div className="prorector-settings-list">
             <div className="prorector-settings-item">
-              <span className="prorector-settings-label">Emri</span>
+              <span className="prorector-settings-label">{copy.settings.name}</span>
               <strong className="prorector-settings-value">{profile.name}</strong>
             </div>
             <div className="prorector-settings-item">
-              <span className="prorector-settings-label">Roli</span>
+              <span className="prorector-settings-label">{copy.settings.role}</span>
               <strong className="prorector-settings-value">{profile.role}</strong>
             </div>
             <button type="button" className="prorector-settings-edit-btn" onClick={openProfileEditor}>
-              Ndrysho profilin
+              {copy.settings.editProfile}
             </button>
           </div>
         </article>
@@ -1389,13 +1439,13 @@ export default function ProRectorDashboard() {
       </div>
       {isProfileModalOpen ? (
         <div className="prorector-modal-overlay" role="presentation" onClick={() => setIsProfileModalOpen(false)}>
-          <section className="prorector-modal prorector-profile-modal" role="dialog" aria-label="Ndrysho profilin" onClick={(event) => event.stopPropagation()}>
+          <section className="prorector-modal prorector-profile-modal" role="dialog" aria-label={copy.profile.editTitle} onClick={(event) => event.stopPropagation()}>
             <div className="prorector-modal-header">
               <div>
-                <h3 className="prorector-modal-title">Ndrysho profilin</h3>
-                <p className="prorector-modal-subtitle">Përditëso të dhënat bazë të profilit të Prorektorit.</p>
+                <h3 className="prorector-modal-title">{copy.profile.editTitle}</h3>
+                <p className="prorector-modal-subtitle">{copy.profile.editSubtitle}</p>
               </div>
-              <button type="button" className="prorector-modal-close" onClick={() => setIsProfileModalOpen(false)} aria-label="Mbyll">
+              <button type="button" className="prorector-modal-close" onClick={() => setIsProfileModalOpen(false)} aria-label={copy.profile.close}>
                 <X size={20} />
               </button>
             </div>

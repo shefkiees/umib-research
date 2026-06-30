@@ -2,16 +2,45 @@ import React from "react";
 import { BookOpen, Building2, FileText, LayoutDashboard, WalletCards } from "lucide-react";
 import umibLogo from "../../../assets/umiblogo.jpg";
 import TransparentLogo from "../../common/TransparentLogo";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const mainItems = [
-  { label: "Përmbledhje", route: "Dashboard", icon: LayoutDashboard },
-  { label: "Artikujt", route: "Artikujt", icon: BookOpen },
-  { label: "Fakultetet", route: "Fakultetet", icon: Building2 },
-  { label: "Financimet", route: "Financimet", icon: WalletCards },
-  { label: "Raportet", route: "Raportet", icon: FileText },
+  { labelKey: "dashboard", route: "Dashboard", icon: LayoutDashboard },
+  { labelKey: "articles", route: "Artikujt", icon: BookOpen },
+  { labelKey: "faculties", route: "Fakultetet", icon: Building2 },
+  { labelKey: "funding", route: "Financimet", icon: WalletCards },
+  { labelKey: "reports", route: "Raportet", icon: FileText },
 ];
 
+const SIDEBAR_COPY = {
+  sq: {
+    menuLabel: "Menu analitik",
+    navLabel: "Modulet e Prorektorit",
+    items: {
+      dashboard: "Përmbledhje",
+      articles: "Artikujt",
+      faculties: "Fakultetet",
+      funding: "Financimet",
+      reports: "Raportet",
+    },
+  },
+  en: {
+    menuLabel: "Analytics menu",
+    navLabel: "ProRector modules",
+    items: {
+      dashboard: "Overview",
+      articles: "Articles",
+      faculties: "Faculties",
+      funding: "Funding",
+      reports: "Reports",
+    },
+  },
+};
+
 export default function ProRectorSidebar({ activePage, setActivePage }) {
+  const { language } = useLanguage();
+  const copy = SIDEBAR_COPY[language] || SIDEBAR_COPY.sq;
+
   return (
     <aside className="prorector-sidebar">
       <div className="prorector-sidebar-top">
@@ -23,8 +52,8 @@ export default function ProRectorSidebar({ activePage, setActivePage }) {
         </div>
 
         <div className="prorector-sidebar-section">
-          <span className="prorector-sidebar-label">MENU ANALITIK</span>
-          <nav className="prorector-nav" aria-label="Modulet e Prorektorit">
+          <span className="prorector-sidebar-label">{copy.menuLabel}</span>
+          <nav className="prorector-nav" aria-label={copy.navLabel}>
             {mainItems.map((item) => {
               const Icon = item.icon;
 
@@ -37,7 +66,7 @@ export default function ProRectorSidebar({ activePage, setActivePage }) {
                 >
                   <span className="prorector-nav-left">
                     <Icon size={18} />
-                    <span>{item.label}</span>
+                    <span>{copy.items[item.labelKey]}</span>
                   </span>
                 </button>
               );

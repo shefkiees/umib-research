@@ -1,14 +1,48 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, Bell, Pencil, Search, Settings } from "lucide-react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
-function getDisplayRole(role) {
+const TOPBAR_COPY = {
+  sq: {
+    fallbackRole: "Zëvendës Rektor",
+    prorectorRole: "ProRector",
+    searchPlaceholder: "Kërko dorëzime, autorë, DOI...",
+    notifications: "Njoftimet",
+    unread: "pa lexuara",
+    markAllRead: "Shëno si të lexuara",
+    loadingNotifications: "Duke ngarkuar njoftimet...",
+    notificationCategory: "Njoftim",
+    noNotifications: "Nuk ka njoftime aktualisht.",
+    profile: "Profili",
+    editProfile: "Ndrysho profilin",
+    settings: "Cilësimet",
+    logout: "Dil",
+  },
+  en: {
+    fallbackRole: "Vice Rector",
+    prorectorRole: "ProRector",
+    searchPlaceholder: "Search submissions, authors, DOI...",
+    notifications: "Notifications",
+    unread: "unread",
+    markAllRead: "Mark all as read",
+    loadingNotifications: "Loading notifications...",
+    notificationCategory: "Notification",
+    noNotifications: "No notifications right now.",
+    profile: "Profile",
+    editProfile: "Edit profile",
+    settings: "Settings",
+    logout: "Log out",
+  },
+};
+
+function getDisplayRole(role, copy) {
   const normalized = String(role || "").trim().toLowerCase();
 
   if (["prorector", "prorektor", "pro-rector", "pro-rektor"].includes(normalized)) {
-    return "ProRector";
+    return copy.prorectorRole;
   }
 
-  return role || "Zëvendës Rektor";
+  return role || copy.fallbackRole;
 }
 
 export default function ProRectorTopBar({
@@ -28,6 +62,8 @@ export default function ProRectorTopBar({
   onEditProfile,
   onNotificationRead,
 }) {
+  const { language } = useLanguage();
+  const copy = TOPBAR_COPY[language] || TOPBAR_COPY.sq;
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const profileRef = useRef(null);
@@ -52,7 +88,7 @@ export default function ProRectorTopBar({
   }, []);
 
   const profileName = profile?.name || "Pro Rector for Research";
-  const profileRole = getDisplayRole(profile?.role);
+  const profileRole = getDisplayRole(profile?.role, copy);
   const profilePhotoUrl = profile?.profilePhotoUrl || profile?.avatarUrl || profile?.photoUrl || profile?.picture || "";
   const initials = profileName
     .split(" ")
@@ -83,7 +119,7 @@ export default function ProRectorTopBar({
             id="prorector-search-input"
             type="text"
             className="prorector-search"
-            placeholder="Kërko dorëzime, autorë, DOI..."
+            placeholder={copy.searchPlaceholder}
             value={searchQuery}
             onChange={(event) => onSearchChange?.(event.target.value)}
           />
@@ -93,7 +129,7 @@ export default function ProRectorTopBar({
           <button
             className="prorector-icon-btn"
             type="button"
-            aria-label="Njoftime"
+            aria-label={copy.notifications}
             onClick={() => setIsNotificationsOpen((current) => {
               const next = !current;
               if (next) {
@@ -109,20 +145,20 @@ export default function ProRectorTopBar({
           </button>
 
           {isNotificationsOpen ? (
-            <div className="prorector-popover prorector-notification-popover" role="dialog" aria-label="Njoftimet">
+            <div className="prorector-popover prorector-notification-popover" role="dialog" aria-label={copy.notifications}>
               <div className="prorector-popover-head">
                 <div>
-                  <strong>Njoftimet</strong>
-                  <p>{unreadCount} pa lexuara</p>
+                  <strong>{copy.notifications}</strong>
+                  <p>{unreadCount} {copy.unread}</p>
                 </div>
                 <button type="button" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-                  Shëno si të lexuara
+                  {copy.markAllRead}
                 </button>
               </div>
               <ul className="prorector-notification-list">
                 {notificationsLoading ? (
                   <li className="is-read prorector-notification-empty">
-                    <p>Duke ngarkuar njoftimet...</p>
+                    <p>{copy.loadingNotifications}</p>
                   </li>
                 ) : null}
                 {!notificationsLoading && notificationsError ? (
@@ -138,7 +174,7 @@ export default function ProRectorTopBar({
                       onClick={() => onNotificationRead?.(item.id)}
                     >
                       <div className="prorector-notification-item-meta">
-                        <span className="prorector-notification-badge">{item.category || "Njoftim"}</span>
+                        <span className="prorector-notification-badge">{item.category || copy.notificationCategory}</span>
                         <span>{item.createdAt}</span>
                       </div>
                       <p className="prorector-notification-title">{item.title || item.text}</p>
@@ -148,7 +184,7 @@ export default function ProRectorTopBar({
                 ))}
                 {!notificationsLoading && !notificationsError && notifications.length === 0 ? (
                   <li className="is-read prorector-notification-empty">
-                    <p>Nuk ka njoftime aktualisht.</p>
+                    <p>{copy.noNotifications}</p>
                   </li>
                 ) : null}
               </ul>
@@ -172,27 +208,27 @@ export default function ProRectorTopBar({
           </button>
 
           {isProfileOpen ? (
-            <div className="prorector-popover" role="dialog" aria-label="Profili">
+            <div className="prorector-popover" role="dialog" aria-label={copy.profile}>
               <button type="button" className="prorector-popover-item" onClick={() => {
                 onEditProfile?.();
                 setIsProfileOpen(false);
               }}>
                 <Pencil size={18} className="prorector-popover-icon" />
-                <span>Ndrysho profilin</span>
+                <span>{copy.editProfile}</span>
               </button>
               <button type="button" className="prorector-popover-item" onClick={() => {
                 onProfileAction?.("Settings");
                 setIsProfileOpen(false);
               }}>
                 <Settings size={18} className="prorector-popover-icon" />
-                <span>Cilësimet</span>
+                <span>{copy.settings}</span>
               </button>
               <button type="button" className="prorector-popover-item prorector-popover-item--danger" onClick={() => {
                 onProfileAction?.("Logout");
                 setIsProfileOpen(false);
               }}>
                 <ArrowRight size={18} className="prorector-popover-icon" />
-                <span>Dil</span>
+                <span>{copy.logout}</span>
               </button>
             </div>
           ) : null}
