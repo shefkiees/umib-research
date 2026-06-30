@@ -1,6 +1,6 @@
 # UMIBRes
 
-UMIBRes është një aplikacion web për menaxhimin e publikimeve shkencore dhe kërkesave për rimbursim në Universitetin "Isa Boletini" në Mitrovicë.
+UMIBRes është një sistem për menaxhimin e publikimeve shkencore dhe kërkesave për rimbursim në Universitetin "Isa Boletini" në Mitrovicë.
 
 Sistemi u mundëson profesorëve, komisionit, prorektorit dhe administratorit të menaxhojnë publikimet shkencore, kërkesat për rimbursim, procesin e shqyrtimit dhe raportimin institucional në një platformë të vetme.
 
