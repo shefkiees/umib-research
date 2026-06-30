@@ -1334,9 +1334,22 @@ export default function CommitteeDashboard() {
   const [f1ChecklistFinalizingAction, setF1ChecklistFinalizingAction] = useState("");
   const [f1ChecklistSaveError, setF1ChecklistSaveError] = useState("");
   const [f1ChecklistSaveMessage, setF1ChecklistSaveMessage] = useState("");
+  const [f1ChecklistDashboardMessage, setF1ChecklistDashboardMessage] = useState("");
   const [f1ChecklistValidationErrors, setF1ChecklistValidationErrors] = useState({});
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
   const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!f1ChecklistDashboardMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setF1ChecklistDashboardMessage("");
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [f1ChecklistDashboardMessage]);
 
   useEffect(() => {
     if (!isReviewChecklistDrawerOpen) {
@@ -2016,6 +2029,7 @@ export default function CommitteeDashboard() {
     setIsF2AbstractExpanded(false);
     setF1ChecklistSaveError("");
     setF1ChecklistSaveMessage("");
+    setF1ChecklistDashboardMessage("");
     setF1ChecklistValidationErrors({});
     setF1ChecklistFinalizingAction("");
 
@@ -3080,6 +3094,7 @@ export default function CommitteeDashboard() {
         setF1ChecklistValidationErrors(validationErrors);
         setF1ChecklistSaveError(message);
         setF1ChecklistSaveMessage("");
+        setF1ChecklistDashboardMessage("");
 
         if (message) {
           return;
@@ -3105,7 +3120,12 @@ export default function CommitteeDashboard() {
           syncSavedF1Checklist(result.data, checklist);
           setF1ChecklistValidationErrors({});
           setF1ChecklistSaveError("");
-          setF1ChecklistSaveMessage("Vendimi përfundimtar i Komisionit u ruajt.");
+          setF1ChecklistSaveMessage("");
+          setF1ChecklistDashboardMessage({
+            approve: "Kërkesa u aprovua nga Komisioni me sukses.",
+            reject: "Kërkesa u refuzua me sukses.",
+            return: "Kërkesa u kthye për korrigjim me sukses.",
+          }[action] || "Vendimi përfundimtar i Komisionit u ruajt.");
           setIsReviewChecklistDrawerOpen(false);
         } catch (error) {
           setF1ChecklistSaveError(error.message || "Vendimi përfundimtar F1 nuk u ruajt.");
@@ -3371,6 +3391,14 @@ export default function CommitteeDashboard() {
             <p className="committee-empty" role="alert">
               Ky formular nuk ka ende shell shqyrtimi ne kete hap te workflow-it.
             </p>
+          ) : null}
+
+          {f1ChecklistDashboardMessage ? (
+            <div className="committee-review-checklist-save" role="status" aria-live="polite">
+              <div>
+                <span className="is-success">{f1ChecklistDashboardMessage}</span>
+              </div>
+            </div>
           ) : null}
 
           {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
