@@ -1538,6 +1538,17 @@
 	background: #eef5ff;
 }
 
+.committee-refresh-btn {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border-radius: 10px;
+}
+
+.committee-refresh-btn svg {
+	display: block;
+}
+
 .committee-review-btn {
 	border-color: #9db8d7;
 	background: #eef5ff;

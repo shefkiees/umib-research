@@ -3482,12 +3482,13 @@ export default function CommitteeDashboard() {
         </div>
         <button
           type="button"
-          className="committee-details-btn"
+          className="committee-details-btn committee-refresh-btn"
           onClick={() => loadPendingSubmissions()}
           disabled={isPendingSubmissionsLoading}
+          title="Rifresko"
+          aria-label="Rifresko"
         >
           <RefreshCw size={15} aria-hidden="true" />
-          Rifresko
         </button>
       </div>
 
