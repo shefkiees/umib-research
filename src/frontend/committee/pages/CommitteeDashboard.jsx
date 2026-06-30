@@ -3487,6 +3487,34 @@ export default function CommitteeDashboard() {
     return typeDisplay.label;
   };
 
+  const getDecisionRequestTypeLabel = (typeDisplay) => {
+    if (typeDisplay?.badge === "F1") {
+      return t("committee.decisions.labels.scientificArticle");
+    }
+
+    if (typeDisplay?.badge === "F2") {
+      return t("committee.decisions.labels.conferenceSymposium");
+    }
+
+    return typeDisplay?.label || "";
+  };
+
+  const getDecisionStatusLabel = (statusKey, fallback) => {
+    if (statusKey === "needs_correction") {
+      return t("committee.decisions.labels.needsCorrection");
+    }
+
+    if (statusKey === "committee_approved") {
+      return t("committee.decisions.labels.committeeApproved");
+    }
+
+    if (statusKey === "rejected") {
+      return t("committee.decisions.labels.rejected");
+    }
+
+    return fallback;
+  };
+
   const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-pending-head">
@@ -4051,41 +4079,46 @@ export default function CommitteeDashboard() {
     <section className="committee-page-card committee-stats-only-card committee-decisions-section">
       <div className="committee-page-head committee-decisions-head">
         <div>
-          <h3>Vendimet e komisionit</h3>
-          <p>Vendimet e Komisionit për kërkesat e publikimeve dhe konferencave.</p>
+          <h3>{t("committee.decisions.title")}</h3>
+          <p>{t("committee.decisions.description")}</p>
         </div>
       </div>
 
       <div className="committee-decision-summary">
         <article>
-          <span>Gjithsej</span>
+          <span>{t("committee.decisions.total")}</span>
           <strong>{decisionSummary.total}</strong>
         </article>
         <article>
-          <span>Për korrigjim</span>
+          <span>{t("committee.decisions.needsCorrection")}</span>
           <strong>{decisionSummary.corrections}</strong>
         </article>
         <article>
-          <span>Aprovuar nga Komisioni</span>
+          <span>{t("committee.decisions.approvedByCommittee")}</span>
           <strong>{decisionSummary.approved}</strong>
         </article>
         <article>
-          <span>Refuzuar</span>
+          <span>{t("committee.decisions.rejected")}</span>
           <strong>{decisionSummary.rejected}</strong>
         </article>
       </div>
 
+      {isPendingSubmissionsLoading ? (
+        <p className="committee-empty">{t("committee.decisions.loading")}</p>
+      ) : pendingSubmissionsError ? (
+        <p className="committee-empty" role="alert">{t("committee.decisions.loadError")}</p>
+      ) : (
       <div className="committee-table-wrap">
         <table className="committee-table committee-decisions-table">
           <thead>
             <tr>
-              <th className="committee-row-number-column">Nr.</th>
-              <th>{renderDecisionSortHeader("type", "Lloji")}</th>
-              <th>{renderDecisionSortHeader("case", "Rasti")}</th>
-              <th>{renderDecisionSortHeader("actor", "Aplikanti / Autorët")}</th>
-              <th>{renderDecisionSortHeader("unit", "Njësia / Burimi Akademik")}</th>
-              <th>{renderDecisionSortHeader("status", "Statusi")}</th>
-              <th>{renderDecisionSortHeader("date", "Data")}</th>
+              <th className="committee-row-number-column">{t("committee.decisions.rowNumber")}</th>
+              <th>{renderDecisionSortHeader("type", t("committee.decisions.type"))}</th>
+              <th>{renderDecisionSortHeader("case", t("committee.decisions.case"))}</th>
+              <th>{renderDecisionSortHeader("actor", t("committee.decisions.applicantAuthors"))}</th>
+              <th>{renderDecisionSortHeader("unit", t("committee.decisions.academicUnitSource"))}</th>
+              <th>{renderDecisionSortHeader("status", t("committee.decisions.status"))}</th>
+              <th>{renderDecisionSortHeader("date", t("committee.decisions.date"))}</th>
             </tr>
           </thead>
           <tbody>
@@ -4095,7 +4128,7 @@ export default function CommitteeDashboard() {
                 <td>
                   <span className={`committee-request-type-badge ${row.typeDisplay?.className || "is-neutral"}`}>
                     <strong>{row.typeDisplay?.badge || "-"}</strong>
-                    <span>{row.typeDisplay?.label || row.category}</span>
+                    <span>{getDecisionRequestTypeLabel(row.typeDisplay) || row.category}</span>
                   </span>
                 </td>
                 <td className="committee-decision-case">
@@ -4106,7 +4139,7 @@ export default function CommitteeDashboard() {
                 <td className="committee-decision-unit">{row.unit}</td>
                 <td>
                   <span className={`committee-decision-status ${getDecisionStatusClass(row.statusKey)}`}>
-                    {row.status}
+                    {getDecisionStatusLabel(row.statusKey, row.status)}
                   </span>
                 </td>
                 <td>{formatSubmissionDate(row.date)}</td>
@@ -4115,11 +4148,11 @@ export default function CommitteeDashboard() {
           </tbody>
         </table>
       </div>
+      )}
 
-      {committeeDecisionRows.length === 0 ? (
+      {!isPendingSubmissionsLoading && !pendingSubmissionsError && committeeDecisionRows.length === 0 ? (
         <div className="committee-metadata-empty">
-          <strong>Nuk ka vendime për filtrin aktual.</strong>
-          <span>Vendimet shfaqen pasi Komisioni kërkon korrigjim, rekomandon për aprovim ose refuzon një kërkesë.</span>
+          <strong>{t("committee.decisions.empty")}</strong>
         </div>
       ) : null}
     </section>
