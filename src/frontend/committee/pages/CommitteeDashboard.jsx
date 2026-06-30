@@ -1335,6 +1335,7 @@ export default function CommitteeDashboard() {
   const [f1ChecklistSaveError, setF1ChecklistSaveError] = useState("");
   const [f1ChecklistSaveMessage, setF1ChecklistSaveMessage] = useState("");
   const [f1ChecklistDashboardMessage, setF1ChecklistDashboardMessage] = useState("");
+  const [f1ChecklistDashboardTone, setF1ChecklistDashboardTone] = useState("success");
   const [f1ChecklistValidationErrors, setF1ChecklistValidationErrors] = useState({});
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
   const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
@@ -1346,6 +1347,7 @@ export default function CommitteeDashboard() {
 
     const timeoutId = window.setTimeout(() => {
       setF1ChecklistDashboardMessage("");
+      setF1ChecklistDashboardTone("success");
     }, 5000);
 
     return () => window.clearTimeout(timeoutId);
@@ -2030,6 +2032,7 @@ export default function CommitteeDashboard() {
     setF1ChecklistSaveError("");
     setF1ChecklistSaveMessage("");
     setF1ChecklistDashboardMessage("");
+    setF1ChecklistDashboardTone("success");
     setF1ChecklistValidationErrors({});
     setF1ChecklistFinalizingAction("");
 
@@ -3095,6 +3098,7 @@ export default function CommitteeDashboard() {
         setF1ChecklistSaveError(message);
         setF1ChecklistSaveMessage("");
         setF1ChecklistDashboardMessage("");
+        setF1ChecklistDashboardTone("success");
 
         if (message) {
           return;
@@ -3126,6 +3130,11 @@ export default function CommitteeDashboard() {
             reject: "Kërkesa u refuzua me sukses.",
             return: "Kërkesa u kthye për korrigjim me sukses.",
           }[action] || "Vendimi përfundimtar i Komisionit u ruajt.");
+          setF1ChecklistDashboardTone({
+            approve: "success",
+            reject: "danger",
+            return: "warning",
+          }[action] || "success");
           setIsReviewChecklistDrawerOpen(false);
         } catch (error) {
           setF1ChecklistSaveError(error.message || "Vendimi përfundimtar F1 nuk u ruajt.");
@@ -4192,10 +4201,12 @@ export default function CommitteeDashboard() {
           profile={committeeProfile}
         />
         {f1ChecklistDashboardMessage ? (
-          <div className="committee-review-checklist-save" role="status" aria-live="polite">
-            <div>
-              <span className="is-success">{f1ChecklistDashboardMessage}</span>
-            </div>
+          <div
+            className={`committee-dashboard-action-message is-${f1ChecklistDashboardTone}`}
+            role={f1ChecklistDashboardTone === "danger" ? "alert" : "status"}
+            aria-live="polite"
+          >
+            {f1ChecklistDashboardMessage}
           </div>
         ) : null}
         <div className="committee-content">{content}</div>

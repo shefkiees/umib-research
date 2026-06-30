@@ -695,6 +695,31 @@
 	gap: 28px;
 }
 
+.committee-dashboard-action-message {
+	margin: 22px 36px 0;
+	padding: 14px 16px;
+	border: 1px solid #bbebcc;
+	border-radius: 12px;
+	background: #ecfdf3;
+	color: #166534;
+	font-size: 0.92rem;
+	font-weight: 800;
+	line-height: 1.45;
+	box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.committee-dashboard-action-message.is-danger {
+	border-color: #fecdd3;
+	background: #fff1f2;
+	color: #be123c;
+}
+
+.committee-dashboard-action-message.is-warning {
+	border-color: #fde68a;
+	background: #fffbeb;
+	color: #92400e;
+}
+
 .committee-notification-list-detailed {
 	display: grid;
 	gap: 12px;
@@ -4828,6 +4853,10 @@ a.committee-review-checklist-value:hover {
 
 	.committee-content {
 		padding: 20px;
+	}
+
+	.committee-dashboard-action-message {
+		margin: 16px 20px 0;
 	}
 
 	.committee-grid {
