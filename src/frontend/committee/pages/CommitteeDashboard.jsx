@@ -3393,14 +3393,6 @@ export default function CommitteeDashboard() {
             </p>
           ) : null}
 
-          {f1ChecklistDashboardMessage ? (
-            <div className="committee-review-checklist-save" role="status" aria-live="polite">
-              <div>
-                <span className="is-success">{f1ChecklistDashboardMessage}</span>
-              </div>
-            </div>
-          ) : null}
-
           {renderReviewSection("Të dhënat e aplikantit", applicantFields)}
           {requestType === "conference" ? (
             <>
@@ -4199,6 +4191,13 @@ export default function CommitteeDashboard() {
           profileMenuItems={profileMenuItems}
           profile={committeeProfile}
         />
+        {f1ChecklistDashboardMessage ? (
+          <div className="committee-review-checklist-save" role="status" aria-live="polite">
+            <div>
+              <span className="is-success">{f1ChecklistDashboardMessage}</span>
+            </div>
+          </div>
+        ) : null}
         <div className="committee-content">{content}</div>
       </div>
 
