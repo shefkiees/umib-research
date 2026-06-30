@@ -1031,6 +1031,7 @@ export default function ProRectorDashboard() {
   const copy = PRORECTOR_COPY[language] || PRORECTOR_COPY.sq;
   const [activePage, setActivePage] = useState(location.state?.activePage || "Dashboard");
   const [searchQuery, setSearchQuery] = useState("");
+  const [facultySearchQuery, setFacultySearchQuery] = useState("");
   const [filters, setFilters] = useState({ search: "", year: "", faculty: "", type: "", platform: "", quartile: "", status: "" });
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -1090,9 +1091,25 @@ export default function ProRectorDashboard() {
     ));
   }, [copy.dashboard, facultyRows, normalizedSearchQuery]);
 
+  const normalizedFacultySearchQuery = normalizeSearchText(facultySearchQuery);
+  const facultyPageRows = useMemo(() => {
+    if (!normalizedFacultySearchQuery) return facultyRows;
+    return facultyRows.filter((row) => matchesSearchText(
+      normalizedFacultySearchQuery,
+      row.name,
+      getLocalizedFacultyName(row.name, copy.dashboard),
+      row.code,
+      row.statusLabel,
+      row.status,
+      row.professorCount,
+      row.publicationCount,
+      row.fundingCount
+    ));
+  }, [copy.dashboard, facultyRows, normalizedFacultySearchQuery]);
+
   const activeFacultyRows = useMemo(
-    () => filteredFacultyRows.filter((row) => row.status === "active"),
-    [filteredFacultyRows]
+    () => facultyPageRows.filter((row) => row.status === "active"),
+    [facultyPageRows]
   );
 
   const activeFacultyPieRows = useMemo(
@@ -1421,13 +1438,19 @@ export default function ProRectorDashboard() {
               id="prorector-faculty-search-input"
               type="text"
               placeholder={copy.dashboard.facultySearchPlaceholder}
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              value={facultySearchQuery}
+              onChange={(event) => setFacultySearchQuery(event.target.value)}
             />
           </label>
         </div>
 
-        <StateBlock loading={faculties.loading} error={faculties.error} empty={!activeFacultyPieRows.length} emptyText={copy.dashboard.noActiveFaculties} loadingText={copy.dashboard.loading} />
+        <StateBlock
+          loading={faculties.loading}
+          error={faculties.error}
+          empty={!activeFacultyPieRows.length}
+          emptyText={normalizedFacultySearchQuery ? copy.dashboard.searchEmpty : copy.dashboard.noActiveFaculties}
+          loadingText={copy.dashboard.loading}
+        />
         {!faculties.loading && !faculties.error && activeFacultyPieRows.length ? (
           <div className="prorector-active-faculty-pie-layout">
             <div className="prorector-active-faculty-pie-box">
