@@ -81,6 +81,7 @@ const PRORECTOR_COPY = {
   sq: {
     reports: {
       title: "Raportet",
+      noResults: "Nuk ka raporte për kërkimin aktual.",
       publications: "Raport artikujsh",
       publicationsDescription: "Artikuj sipas vitit, fakultetit, indeksimit, kuartilit dhe statusit.",
       funding: "Raport financimesh",
@@ -91,6 +92,7 @@ const PRORECTOR_COPY = {
     },
     settings: {
       title: "Cilësimet",
+      noResults: "Nuk ka cilësime për kërkimin aktual.",
       languageTitle: "Gjuha",
       chooseLanguage: "Zgjedh gjuhën",
       languageDescription: "Përzgjidh shqip ose anglisht për pamjen e panelit.",
@@ -102,6 +104,45 @@ const PRORECTOR_COPY = {
       role: "Roli",
       editProfile: "Ndrysho profilin",
     },
+    dashboard: {
+      loading: "Duke ngarkuar të dhënat...",
+      empty: "Nuk ka të dhëna për t'u shfaqur.",
+      chartEmpty: "Nuk ka të dhëna për këtë grafik.",
+      searchEmpty: "Nuk ka rezultate për kërkimin aktual.",
+      publicationsByYear: "Publikimet sipas vitit",
+      authorsByFaculty: "Autorët sipas fakultetit",
+      authors: "autorë",
+      publicationsByFaculty: "Publikimet sipas fakultetit",
+      scopusByQuartile: "Statistikat Scopus sipas kuartileve",
+      webOfScience: "Statistikat Web of Science",
+      noScopusData: "Nuk ka të dhëna për Scopus Q1-Q4.",
+      noWosData: "Nuk ka të dhëna për SCIE, SSCI dhe AHCI.",
+      publications: "Publikime",
+      indexedPublications: "Publikime të indeksuara",
+      totalPublications: "Numri total i publikimeve",
+      publicationPercentageByFaculty: "Përqindja e publikimeve sipas fakultetit",
+      category: "Kategoria",
+      publicationCount: "Nr. i publikimeve",
+      total: "Total",
+      publicationsByYearsAndFaculties: "Publikimet sipas viteve dhe fakulteteve",
+      publicationYear: "Viti i publikimit",
+      active: "aktive",
+      faculty: "Fakulteti",
+      facultyList: "Lista e fakulteteve",
+      facultySearchPlaceholder: "Kërko fakultetet...",
+      noActiveFaculties: "Nuk ka fakultete aktive në sistem.",
+      articlesTitle: "Artikujt",
+      articlesDescription: "Raport i publikimeve sipas viteve, fakulteteve dhe platformave të indeksimit.",
+      noFunding: "Nuk ka financime për filtrat aktualë.",
+      requests: "Kërkesa",
+      requestedAmount: "Shuma e kërkuar",
+      approvedAmount: "Shuma e aprovuar",
+      fundingByYear: "Financimet sipas viteve",
+      fundingCategories: "Kategoritë e financimit",
+      requestStatus: "Statusi i kërkesave",
+      requested: "Kërkuar",
+      approved: "Aprovuar",
+    },
     profile: {
       editTitle: "Ndrysho profilin",
       editSubtitle: "Përditëso të dhënat bazë të profilit të Prorektorit.",
@@ -111,6 +152,7 @@ const PRORECTOR_COPY = {
   en: {
     reports: {
       title: "Reports",
+      noResults: "No reports match the current search.",
       publications: "Article report",
       publicationsDescription: "Articles by year, faculty, indexing, quartile, and status.",
       funding: "Funding report",
@@ -121,6 +163,7 @@ const PRORECTOR_COPY = {
     },
     settings: {
       title: "Settings",
+      noResults: "No settings match the current search.",
       languageTitle: "Language",
       chooseLanguage: "Choose language",
       languageDescription: "Choose Albanian or English for the dashboard view.",
@@ -131,6 +174,45 @@ const PRORECTOR_COPY = {
       name: "Name",
       role: "Role",
       editProfile: "Edit profile",
+    },
+    dashboard: {
+      loading: "Loading data...",
+      empty: "No data to display.",
+      chartEmpty: "No data for this chart.",
+      searchEmpty: "No results match the current search.",
+      publicationsByYear: "Publications by year",
+      authorsByFaculty: "Authors by faculty",
+      authors: "authors",
+      publicationsByFaculty: "Publications by faculty",
+      scopusByQuartile: "Scopus statistics by quartile",
+      webOfScience: "Web of Science statistics",
+      noScopusData: "No data for Scopus Q1-Q4.",
+      noWosData: "No data for SCIE, SSCI, and AHCI.",
+      publications: "Publications",
+      indexedPublications: "Indexed publications",
+      totalPublications: "Total publications",
+      publicationPercentageByFaculty: "Publication percentage by faculty",
+      category: "Category",
+      publicationCount: "No. of publications",
+      total: "Total",
+      publicationsByYearsAndFaculties: "Publications by year and faculty",
+      publicationYear: "Publication year",
+      active: "active",
+      faculty: "Faculty",
+      facultyList: "Faculty list",
+      facultySearchPlaceholder: "Search faculties...",
+      noActiveFaculties: "No active faculties in the system.",
+      articlesTitle: "Articles",
+      articlesDescription: "Publication report by year, faculty, and indexing platform.",
+      noFunding: "No funding matches the current filters.",
+      requests: "Requests",
+      requestedAmount: "Requested amount",
+      approvedAmount: "Approved amount",
+      fundingByYear: "Funding by year",
+      fundingCategories: "Funding categories",
+      requestStatus: "Request status",
+      requested: "Requested",
+      approved: "Approved",
     },
     profile: {
       editTitle: "Edit profile",
@@ -168,6 +250,21 @@ function formatNotificationDate(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearchText(query, ...values) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  return normalizeSearchText(values.filter(Boolean).join(" ")).includes(normalizedQuery);
 }
 
 function mapNotificationRow(row = {}) {
@@ -441,27 +538,27 @@ function useProrectorResource(path, fallback) {
   return { data, loading, error };
 }
 
-function ChartEmpty({ message = "Nuk ka të dhëna për këtë grafik." }) {
+function ChartEmpty({ message }) {
   return (
     <div className="prorector-chart-empty">
       <BarChart3 size={22} />
-      <span>{message}</span>
+      <span>{message || PRORECTOR_COPY.sq.dashboard.chartEmpty}</span>
     </div>
   );
 }
 
-function StateBlock({ loading, error, empty, emptyText = "Nuk ka të dhëna për t'u shfaqur." }) {
+function StateBlock({ loading, error, empty, emptyText, loadingText }) {
   if (loading) {
     return (
       <div className="prorector-faculty-detail-loading">
         <RefreshCw size={18} className="prorector-spin" />
-        <span>Duke ngarkuar të dhënat...</span>
+        <span>{loadingText || PRORECTOR_COPY.sq.dashboard.loading}</span>
       </div>
     );
   }
 
   if (error) return <div className="prorector-inline-alert" role="alert">{error}</div>;
-  if (empty) return <div className="prorector-faculty-empty">{emptyText}</div>;
+  if (empty) return <div className="prorector-faculty-empty">{emptyText || PRORECTOR_COPY.sq.dashboard.empty}</div>;
   return null;
 }
 
@@ -488,26 +585,26 @@ function FacultyTreemapTile({ x, y, width, height, name, value, fill }) {
   );
 }
 
-function PublicationSnapshotCharts({ analytics }) {
+function PublicationSnapshotCharts({ analytics, copy = PRORECTOR_COPY.sq.dashboard }) {
   return (
     <div className="prorector-publication-bi-grid">
       <article className="prorector-bi-card">
-        <h3>Publikimet sipas viteve</h3>
+        <h3>{copy.publicationsByYear}</h3>
         {analytics.publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.publicationsByYear} margin={{ top: 18, right: 12, left: 8, bottom: 22 }} barCategoryGap="28%">
               <CartesianGrid stroke="#d6dce4" strokeDasharray="1 6" vertical={false} />
               <XAxis dataKey="name" angle={-42} textAnchor="end" height={54} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
-              <Tooltip formatter={(value) => [formatNumber(value), "Publikime"]} />
-              <Bar dataKey="value" name="Publikime" fill="#1e88e5" />
+              <Tooltip formatter={(value) => [formatNumber(value), copy.publications]} />
+              <Bar dataKey="value" name={copy.publications} fill="#1e88e5" />
             </BarChart>
           </ResponsiveContainer>
-        ) : <ChartEmpty />}
+        ) : <ChartEmpty message={copy.chartEmpty} />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Publikimet sipas Fakulteteve</h3>
+        <h3>{copy.publicationsByFaculty}</h3>
         {analytics.facultyTreemap.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
             <Treemap
@@ -519,51 +616,51 @@ function PublicationSnapshotCharts({ analytics }) {
               content={<FacultyTreemapTile />}
             />
           </ResponsiveContainer>
-        ) : <ChartEmpty />}
+        ) : <ChartEmpty message={copy.chartEmpty} />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Statistikat Scopus sipas Kuartileve</h3>
+        <h3>{copy.scopusByQuartile}</h3>
         {analytics.scopusQuartileRows.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.scopusQuartileRows} margin={{ top: 18, right: 12, left: 8, bottom: 12 }}>
               <CartesianGrid stroke="#d6dce4" strokeDasharray="1 6" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
               <YAxis allowDecimals={false} tick={{ fill: "#555", fontSize: 12, fontWeight: 700 }} />
-              <Tooltip formatter={(value) => [formatNumber(value), "Publikime"]} />
+              <Tooltip formatter={(value) => [formatNumber(value), copy.publications]} />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                 {analytics.scopusQuartileRows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        ) : <ChartEmpty message="Nuk ka të dhëna për Scopus Q1-Q4." />}
+        ) : <ChartEmpty message={copy.noScopusData} />}
       </article>
 
       <article className="prorector-bi-card">
-        <h3>Statistikat Web of Science</h3>
+        <h3>{copy.webOfScience}</h3>
         {analytics.webOfScienceRows.some((row) => toNumber(row.value) > 0) ? (
           <div className="prorector-index-cards">
             {analytics.webOfScienceRows.map((row) => (
               <div className="prorector-index-card" key={row.name} style={{ "--index-accent": row.fill }}>
                 <span>{row.name}</span>
                 <strong>{formatNumber(row.value)}</strong>
-                <small>Publikime të indeksuara</small>
+                <small>{copy.indexedPublications}</small>
               </div>
             ))}
           </div>
-        ) : <ChartEmpty message="Nuk ka të dhëna për SCIE, SSCI dhe AHCI." />}
+        ) : <ChartEmpty message={copy.noWosData} />}
       </article>
     </div>
   );
 }
 
-function PublicationGauge({ total }) {
+function PublicationGauge({ total, copy = PRORECTOR_COPY.sq.dashboard }) {
   const maxValue = Math.max(total * 2, 1);
   const percent = Math.min(100, Math.round((total / maxValue) * 100));
 
   return (
     <article className="prorector-report-panel prorector-total-panel">
-      <h3>Numri total i publikimeve</h3>
+      <h3>{copy.totalPublications}</h3>
       <div className="prorector-total-gauge" style={{ "--gauge-value": `${percent}%` }}>
         <div className="prorector-total-gauge-value">{formatNumber(total)}</div>
       </div>
@@ -575,12 +672,12 @@ function PublicationGauge({ total }) {
   );
 }
 
-function FacultyPercentageChart({ rows }) {
+function FacultyPercentageChart({ rows, copy = PRORECTOR_COPY.sq.dashboard }) {
   const total = rows.reduce((sum, row) => sum + toNumber(row.value), 0);
 
   return (
     <article className="prorector-report-panel prorector-faculty-chart-panel">
-      <h3>Përqindja e publikimeve sipas fakultetit</h3>
+      <h3>{copy.publicationPercentageByFaculty}</h3>
       {rows.some((row) => toNumber(row.value) > 0) ? (
         <div className="prorector-faculty-chart-layout">
           <div className="prorector-faculty-pie-box">
@@ -599,12 +696,12 @@ function FacultyPercentageChart({ rows }) {
                 >
                   {rows.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
                 </Pie>
-                <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} (${item.payload.percent.toFixed(2)}%)`, "Publikime"]} />
+                <Tooltip formatter={(value, name, item) => [`${formatNumber(value)} (${item.payload.percent.toFixed(2)}%)`, copy.publications]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="prorector-faculty-pie-total" aria-hidden="true">
               <strong>{formatNumber(total)}</strong>
-              <span>publikime</span>
+              <span>{copy.publications.toLowerCase()}</span>
             </div>
           </div>
           <div className="prorector-faculty-legend">
@@ -613,31 +710,31 @@ function FacultyPercentageChart({ rows }) {
             ))}
           </div>
         </div>
-      ) : <ChartEmpty />}
+      ) : <ChartEmpty message={copy.chartEmpty} />}
     </article>
   );
 }
 
-function IndexSummaryTable({ title, rows }) {
+function IndexSummaryTable({ title, rows, copy = PRORECTOR_COPY.sq.dashboard }) {
   const total = rows.reduce((sum, row) => sum + toNumber(row.value), 0);
 
   return (
     <article className="prorector-index-summary">
       <h3>{title}</h3>
       <table>
-        <thead><tr><th>Kategoria</th><th>Nr. i publikimeve</th></tr></thead>
+        <thead><tr><th>{copy.category}</th><th>{copy.publicationCount}</th></tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.name}><td>{row.name}</td><td>{formatNumber(row.value)}</td></tr>
           ))}
         </tbody>
-        <tfoot><tr><th>Total</th><th>{formatNumber(total)}</th></tr></tfoot>
+        <tfoot><tr><th>{copy.total}</th><th>{formatNumber(total)}</th></tr></tfoot>
       </table>
     </article>
   );
 }
 
-function YearFacultyMatrix({ analytics }) {
+function YearFacultyMatrix({ analytics, copy = PRORECTOR_COPY.sq.dashboard }) {
   const facultyTotals = Object.fromEntries(analytics.facultyColumns.map((faculty) => [
     faculty,
     analytics.yearFacultyRows.reduce((sum, row) => sum + toNumber(row.faculties[faculty]), 0),
@@ -645,14 +742,14 @@ function YearFacultyMatrix({ analytics }) {
 
   return (
     <section className="prorector-report-panel prorector-year-faculty-panel">
-      <h3>Publikimet sipas viteve dhe fakulteteve</h3>
+      <h3>{copy.publicationsByYearsAndFaculties}</h3>
       <div className="prorector-report-table-wrap">
         <table className="prorector-report-table">
           <thead>
             <tr>
-              <th>Viti i publikimit</th>
+              <th>{copy.publicationYear}</th>
               {analytics.facultyColumns.map((faculty) => <th key={faculty}>{faculty}</th>)}
-              <th>Total</th>
+              <th>{copy.total}</th>
             </tr>
           </thead>
           <tbody>
@@ -666,7 +763,7 @@ function YearFacultyMatrix({ analytics }) {
           </tbody>
           <tfoot>
             <tr>
-              <th>Total</th>
+              <th>{copy.total}</th>
               {analytics.facultyColumns.map((faculty) => <th key={faculty}>{formatNumber(facultyTotals[faculty])}</th>)}
               <th>{formatNumber(analytics.totalPublications)}</th>
             </tr>
@@ -771,7 +868,7 @@ function FilterBar({ filters, onChange, faculties, publicationMode = false, fund
   );
 }
 
-function AnalyticsCharts({ analytics, faculties = [] }) {
+function AnalyticsCharts({ analytics, faculties = [], copy = PRORECTOR_COPY.sq.dashboard }) {
   const publicationsByYear = analytics.publicationsByYear || [];
   const authorFacultyRows = (faculties || [])
     .map((faculty) => ({
@@ -787,27 +884,27 @@ function AnalyticsCharts({ analytics, faculties = [] }) {
   return (
     <div className="prorector-dashboard-chart-stack">
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
-        <div className="prorector-card-head"><h3>Publikimet sipas vitit</h3><TrendingUp size={20} /></div>
+        <div className="prorector-card-head"><h3>{copy.publicationsByYear}</h3><TrendingUp size={20} /></div>
         {publicationsByYear.some((row) => toNumber(row.value) > 0) ? (
           <ResponsiveContainer width="100%" height={340}>
             <BarChart data={publicationsByYear}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="value" name="Publikime" fill="#1e88e5" radius={[4, 4, 0, 0]} />
+              <Tooltip formatter={(value) => [formatNumber(value), copy.publications]} />
+              <Bar dataKey="value" name={copy.publications} fill="#1e88e5" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        ) : <ChartEmpty />}
+        ) : <ChartEmpty message={copy.chartEmpty} />}
       </article>
 
       <article className="prorector-analytics-card prorector-dashboard-chart-card">
-        <div className="prorector-card-head"><h3>Autorët sipas fakultetit</h3><Users size={20} /></div>
+        <div className="prorector-card-head"><h3>{copy.authorsByFaculty}</h3><Users size={20} /></div>
         {authorFacultyRows.length ? (
-          <div className="prorector-author-faculty-chart" aria-label="Autorët sipas fakultetit">
+          <div className="prorector-author-faculty-chart" aria-label={copy.authorsByFaculty}>
             <div className="prorector-author-faculty-scale" aria-hidden="true">
               <span>0</span>
-              <span>{formatNumber(maxAuthorCount)} autorë</span>
+              <span>{formatNumber(maxAuthorCount)} {copy.authors}</span>
             </div>
             <div className="prorector-author-faculty-bars">
               {authorFacultyRows.map((row) => {
@@ -826,7 +923,7 @@ function AnalyticsCharts({ analytics, faculties = [] }) {
               })}
             </div>
           </div>
-        ) : <ChartEmpty />}
+        ) : <ChartEmpty message={copy.chartEmpty} />}
       </article>
     </div>
   );
@@ -880,12 +977,21 @@ export default function ProRectorDashboard() {
     () => buildFundingAnalytics(fundingRows),
     [fundingRows]
   );
+  const normalizedSearchQuery = normalizeSearchText(searchQuery);
 
   const filteredFacultyRows = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return facultyRows;
-    return facultyRows.filter((row) => `${row.name} ${row.code} ${row.statusLabel}`.toLowerCase().includes(query));
-  }, [facultyRows, searchQuery]);
+    if (!normalizedSearchQuery) return facultyRows;
+    return facultyRows.filter((row) => matchesSearchText(
+      normalizedSearchQuery,
+      row.name,
+      row.code,
+      row.statusLabel,
+      row.status,
+      row.professorCount,
+      row.publicationCount,
+      row.fundingCount
+    ));
+  }, [facultyRows, normalizedSearchQuery]);
 
   const activeFacultyRows = useMemo(
     () => filteredFacultyRows.filter((row) => row.status === "active"),
@@ -902,6 +1008,57 @@ export default function ProRectorDashboard() {
     })),
     [activeFacultyRows]
   );
+
+  const reportCards = useMemo(() => ([
+    {
+      id: "publications",
+      title: copy.reports.publications,
+      description: copy.reports.publicationsDescription,
+      filename: "artikuj-prorektor.csv",
+      rows: publicationRows,
+    },
+    {
+      id: "funding",
+      title: copy.reports.funding,
+      description: copy.reports.fundingDescription,
+      filename: "financime-prorektor.csv",
+      rows: fundingRows,
+    },
+    {
+      id: "faculties",
+      title: copy.reports.faculties,
+      description: copy.reports.facultiesDescription,
+      filename: "fakultete-prorektor.csv",
+      rows: filteredFacultyRows,
+    },
+  ]), [copy.reports, filteredFacultyRows, fundingRows, publicationRows]);
+
+  const visibleReportCards = useMemo(
+    () => reportCards.filter((item) => matchesSearchText(searchQuery, item.title, item.description, item.id)),
+    [reportCards, searchQuery]
+  );
+
+  const visibleSettingsCards = useMemo(() => ({
+    language: matchesSearchText(
+      searchQuery,
+      copy.settings.title,
+      copy.settings.languageTitle,
+      copy.settings.chooseLanguage,
+      copy.settings.languageDescription,
+      copy.settings.albanian,
+      copy.settings.english
+    ),
+    profile: matchesSearchText(
+      searchQuery,
+      copy.settings.title,
+      copy.settings.profile,
+      copy.settings.name,
+      copy.settings.role,
+      copy.settings.editProfile,
+      profile.name,
+      profile.role
+    ),
+  }), [copy.settings, profile.name, profile.role, searchQuery]);
 
   const exportRows = (filename, rows) => {
     const csv = rows.length
@@ -1143,8 +1300,14 @@ export default function ProRectorDashboard() {
 
   const renderDashboard = () => (
     <div className="prorector-dashboard-stack">
-      <StateBlock loading={publications.loading} error={publications.error} />
-      <AnalyticsCharts analytics={publicationAnalytics} faculties={facultyRows} />
+      <StateBlock
+        loading={publications.loading}
+        error={publications.error}
+        empty={Boolean(normalizedSearchQuery) && !publicationRows.length && !filteredFacultyRows.length}
+        emptyText={copy.dashboard.searchEmpty}
+        loadingText={copy.dashboard.loading}
+      />
+      <AnalyticsCharts analytics={publicationAnalytics} faculties={filteredFacultyRows} copy={copy.dashboard} />
     </div>
   );
 
@@ -1153,21 +1316,21 @@ export default function ProRectorDashboard() {
       <section className="prorector-faculty-pie-panel">
         <div className="prorector-faculty-pie-head">
           <div>
-            <h2>Lista e fakulteteve</h2>
+            <h2>{copy.dashboard.facultyList}</h2>
           </div>
           <label className="prorector-faculty-head-search" htmlFor="prorector-faculty-search-input">
             <Search size={18} />
             <input
               id="prorector-faculty-search-input"
               type="text"
-              placeholder="Kerko fakultetet..."
+              placeholder={copy.dashboard.facultySearchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </label>
         </div>
 
-        <StateBlock loading={faculties.loading} error={faculties.error} empty={!activeFacultyPieRows.length} emptyText="Nuk ka fakultete aktive në sistem." />
+        <StateBlock loading={faculties.loading} error={faculties.error} empty={!activeFacultyPieRows.length} emptyText={copy.dashboard.noActiveFaculties} loadingText={copy.dashboard.loading} />
         {!faculties.loading && !faculties.error && activeFacultyPieRows.length ? (
           <div className="prorector-active-faculty-pie-layout">
             <div className="prorector-active-faculty-pie-box">
@@ -1187,12 +1350,12 @@ export default function ProRectorDashboard() {
                   >
                     {activeFacultyPieRows.map((row) => <Cell key={row.id} fill={row.fill} />)}
                   </Pie>
-                  <Tooltip formatter={(_value, name) => [name, "Fakulteti"]} />
+                  <Tooltip formatter={(_value, name) => [name, copy.dashboard.faculty]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="prorector-active-faculty-pie-total" aria-hidden="true">
                 <strong>{formatNumber(activeFacultyPieRows.length)}</strong>
-                <span>aktive</span>
+                <span>{copy.dashboard.active}</span>
               </div>
             </div>
 
@@ -1213,23 +1376,23 @@ export default function ProRectorDashboard() {
     <div className="prorector-publications-page">
       <section className="prorector-table-section prorector-publications-hero">
         <div className="prorector-section-head">
-          <div><h2>Artikujt</h2><p>Raport i publikimeve sipas viteve, fakulteteve dhe platformave të indeksimit.</p></div>
+          <div><h2>{copy.dashboard.articlesTitle}</h2><p>{copy.dashboard.articlesDescription}</p></div>
         </div>
-        <StateBlock loading={publications.loading} error={publications.error} />
+        <StateBlock loading={publications.loading} error={publications.error} empty={Boolean(normalizedSearchQuery) && !publicationRows.length} emptyText={copy.dashboard.searchEmpty} loadingText={copy.dashboard.loading} />
       </section>
       <section className="prorector-publication-grid prorector-publication-grid--full">
         <div className="prorector-publication-main">
           {!publications.loading && !publications.error ? (
             <>
               <section className="prorector-publication-report-top">
-                <PublicationGauge total={publicationAnalytics.totalPublications} />
-                <FacultyPercentageChart rows={publicationAnalytics.facultyPercentRows} />
+                <PublicationGauge total={publicationAnalytics.totalPublications} copy={copy.dashboard} />
+                <FacultyPercentageChart rows={publicationAnalytics.facultyPercentRows} copy={copy.dashboard} />
                 <div className="prorector-index-summary-stack">
-                  <IndexSummaryTable title="Scopus sipas kuartileve" rows={publicationAnalytics.scopusQuartileRows} />
-                  <IndexSummaryTable title="Web of Science" rows={publicationAnalytics.webOfScienceRows} />
+                  <IndexSummaryTable title="Scopus" rows={publicationAnalytics.scopusQuartileRows} copy={copy.dashboard} />
+                  <IndexSummaryTable title="Web of Science" rows={publicationAnalytics.webOfScienceRows} copy={copy.dashboard} />
                 </div>
               </section>
-              <YearFacultyMatrix analytics={publicationAnalytics} />
+              <YearFacultyMatrix analytics={publicationAnalytics} copy={copy.dashboard} />
             </>
           ) : null}
         </div>
@@ -1239,30 +1402,30 @@ export default function ProRectorDashboard() {
 
   const renderFunding = () => (
     <div className="prorector-funding-stat-page">
-      <StateBlock loading={funding.loading} error={funding.error} empty={!fundingRows.length} emptyText="Nuk ka financime për filtrat aktualë." />
+      <StateBlock loading={funding.loading} error={funding.error} empty={!fundingRows.length} emptyText={normalizedSearchQuery ? copy.dashboard.searchEmpty : copy.dashboard.noFunding} loadingText={copy.dashboard.loading} />
       {!funding.loading && !funding.error && fundingRows.length ? (
         <>
           <section className="prorector-funding-kpi-grid" aria-label="Përmbledhje e financimeve">
             <article>
               <WalletCards size={18} />
-              <span>Kërkesa</span>
+              <span>{copy.dashboard.requests}</span>
               <strong>{formatNumber(fundingAnalytics.totals.count)}</strong>
             </article>
             <article>
               <TrendingUp size={18} />
-              <span>Shuma e kërkuar</span>
+              <span>{copy.dashboard.requestedAmount}</span>
               <strong>{formatCurrency(fundingAnalytics.totals.requested)}</strong>
             </article>
             <article>
               <BarChart3 size={18} />
-              <span>Shuma e aprovuar</span>
+              <span>{copy.dashboard.approvedAmount}</span>
               <strong>{formatCurrency(fundingAnalytics.totals.approved)}</strong>
             </article>
           </section>
 
           <section className="prorector-funding-chart-grid">
             <article className="prorector-analytics-card is-wide prorector-funding-year-card">
-              <div className="prorector-card-head"><h3>Financimet sipas viteve</h3><TrendingUp size={20} /></div>
+              <div className="prorector-card-head"><h3>{copy.dashboard.fundingByYear}</h3><TrendingUp size={20} /></div>
               {fundingAnalytics.fundingByYear.some((row) => toNumber(row.requested) > 0 || toNumber(row.approved) > 0) ? (
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={fundingAnalytics.fundingByYear}>
@@ -1271,43 +1434,43 @@ export default function ProRectorDashboard() {
                     <YAxis tickFormatter={(value) => formatNumber(value)} />
                     <Tooltip formatter={(value) => formatCurrency(value)} />
                     <Legend />
-                    <Bar dataKey="requested" name="Kërkuar" fill="#1d4d7d" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="approved" name="Aprovuar" fill="#15803d" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="requested" name={copy.dashboard.requested} fill="#1d4d7d" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="approved" name={copy.dashboard.approved} fill="#15803d" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : <ChartEmpty />}
+              ) : <ChartEmpty message={copy.dashboard.chartEmpty} />}
             </article>
 
             <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Kategoritë e financimit</h3><WalletCards size={20} /></div>
+              <div className="prorector-card-head"><h3>{copy.dashboard.fundingCategories}</h3><WalletCards size={20} /></div>
               {fundingAnalytics.categoryRows.some((row) => toNumber(row.value) > 0) ? (
                 <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie data={fundingAnalytics.categoryRows} dataKey="value" nameKey="name" innerRadius={58} outerRadius={104} paddingAngle={3}>
                       {fundingAnalytics.categoryRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => [formatNumber(value), "Kërkesa"]} />
+                    <Tooltip formatter={(value) => [formatNumber(value), copy.dashboard.requests]} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : <ChartEmpty />}
+              ) : <ChartEmpty message={copy.dashboard.chartEmpty} />}
             </article>
 
             <article className="prorector-analytics-card">
-              <div className="prorector-card-head"><h3>Statusi i kërkesave</h3><FileText size={20} /></div>
+              <div className="prorector-card-head"><h3>{copy.dashboard.requestStatus}</h3><FileText size={20} /></div>
               {fundingAnalytics.statusRows.some((row) => toNumber(row.value) > 0) ? (
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={fundingAnalytics.statusRows} layout="vertical" margin={{ left: 20, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis type="category" dataKey="label" width={96} />
-                    <Tooltip formatter={(value) => [formatNumber(value), "Kërkesa"]} />
-                    <Bar dataKey="value" name="Kërkesa" radius={[0, 6, 6, 0]}>
+                    <Tooltip formatter={(value) => [formatNumber(value), copy.dashboard.requests]} />
+                    <Bar dataKey="value" name={copy.dashboard.requests} radius={[0, 6, 6, 0]}>
                       {fundingAnalytics.statusRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              ) : <ChartEmpty />}
+              ) : <ChartEmpty message={copy.dashboard.chartEmpty} />}
             </article>
           </section>
         </>
@@ -1320,22 +1483,15 @@ export default function ProRectorDashboard() {
         <div><h2>{copy.reports.title}</h2></div>
       </div>
       <div className="prorector-reports-grid">
-        <article className="prorector-report-card">
-          <h3>{copy.reports.publications}</h3>
-          <p>{copy.reports.publicationsDescription}</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("artikuj-prorektor.csv", publicationRows)}><Download size={16} /> {copy.reports.generate}</button>
-        </article>
-        <article className="prorector-report-card">
-          <h3>{copy.reports.funding}</h3>
-          <p>{copy.reports.fundingDescription}</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("financime-prorektor.csv", fundingRows)}><Download size={16} /> {copy.reports.generate}</button>
-        </article>
-        <article className="prorector-report-card">
-          <h3>{copy.reports.faculties}</h3>
-          <p>{copy.reports.facultiesDescription}</p>
-          <button type="button" className="prorector-btn-primary" onClick={() => exportRows("fakultete-prorektor.csv", facultyRows)}><Download size={16} /> {copy.reports.generate}</button>
-        </article>
+        {visibleReportCards.map((card) => (
+          <article className="prorector-report-card" key={card.id}>
+            <h3>{card.title}</h3>
+            <p>{card.description}</p>
+            <button type="button" className="prorector-btn-primary" onClick={() => exportRows(card.filename, card.rows)}><Download size={16} /> {copy.reports.generate}</button>
+          </article>
+        ))}
       </div>
+      {visibleReportCards.length === 0 ? <div className="prorector-faculty-empty">{copy.reports.noResults}</div> : null}
     </div>
   );
 
@@ -1348,6 +1504,7 @@ export default function ProRectorDashboard() {
       </div>
 
       <div className="prorector-settings-grid">
+        {visibleSettingsCards.language ? (
         <article className="prorector-settings-card">
           <div className="prorector-settings-card-header">
             <Languages size={20} className="prorector-settings-icon" />
@@ -1374,7 +1531,9 @@ export default function ProRectorDashboard() {
             ) : null}
           </div>
         </article>
+        ) : null}
 
+        {visibleSettingsCards.profile ? (
         <article className="prorector-settings-card">
           <div className="prorector-settings-card-header">
             <Users size={20} className="prorector-settings-icon" />
@@ -1394,7 +1553,9 @@ export default function ProRectorDashboard() {
             </button>
           </div>
         </article>
+        ) : null}
       </div>
+      {!visibleSettingsCards.language && !visibleSettingsCards.profile ? <div className="prorector-faculty-empty">{copy.settings.noResults}</div> : null}
     </div>
   );
 
