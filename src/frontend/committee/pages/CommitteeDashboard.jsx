@@ -3475,42 +3475,54 @@ export default function CommitteeDashboard() {
     );
   };
 
+  const getPendingRequestTypeLabel = (typeDisplay) => {
+    if (typeDisplay.badge === "F1") {
+      return t("committee.pendingReview.labels.scientificArticle");
+    }
+
+    if (typeDisplay.badge === "F2") {
+      return t("committee.pendingReview.labels.conferenceSymposium");
+    }
+
+    return typeDisplay.label;
+  };
+
   const renderPendingSubmissions = () => selectedReimbursementReview ? renderReimbursementReviewShell(selectedReimbursementReview) : (
     <section className="committee-page-card committee-stats-only-card">
       <div className="committee-page-head committee-pending-head">
         <div>
-          <h3>Kërkesat për Shqyrtim</h3>
-          <p>Kërkesat e dërguara nga profesorët që ende nuk janë marrë në shqyrtim nga Komisioni.</p>
+          <h3>{t("committee.pendingReview.title")}</h3>
+          <p>{t("committee.pendingReview.description")}</p>
         </div>
         <button
           type="button"
           className="committee-details-btn committee-refresh-btn"
           onClick={() => loadPendingSubmissions()}
           disabled={isPendingSubmissionsLoading}
-          title="Rifresko"
-          aria-label="Rifresko"
+          title={t("committee.pendingReview.refresh")}
+          aria-label={t("committee.pendingReview.refresh")}
         >
           <RefreshCw size={15} aria-hidden="true" />
         </button>
       </div>
 
       {isPendingSubmissionsLoading ? (
-        <p className="committee-empty">Duke ngarkuar dorëzimet në pritje...</p>
+        <p className="committee-empty">{t("committee.pendingReview.loading")}</p>
       ) : pendingSubmissionsError ? (
-        <p className="committee-empty" role="alert">{pendingSubmissionsError}</p>
+        <p className="committee-empty" role="alert">{t("committee.pendingReview.loadError")}</p>
       ) : (
         <>
           <div className="committee-table-wrap">
             <table className="committee-table">
               <thead>
                 <tr>
-                  <th className="committee-row-number-column">Nr.</th>
-                  <th>{renderPendingSortHeader("title", "Titulli")}</th>
-                  <th>{renderPendingSortHeader("type", "Lloji")}</th>
-                  <th>{renderPendingSortHeader("applicant", "Aplikanti")}</th>
-                  <th>{renderPendingSortHeader("unit", "Njësia Akademike")}</th>
-                  <th>{renderPendingSortHeader("submittedAt", "Data e Dorëzimit")}</th>
-                  <th>Veprimi</th>
+                  <th className="committee-row-number-column">{t("committee.pendingReview.rowNumber")}</th>
+                  <th>{renderPendingSortHeader("title", t("committee.pendingReview.requestTitle"))}</th>
+                  <th>{renderPendingSortHeader("type", t("committee.pendingReview.type"))}</th>
+                  <th>{renderPendingSortHeader("applicant", t("committee.pendingReview.applicant"))}</th>
+                  <th>{renderPendingSortHeader("unit", t("committee.pendingReview.academicUnit"))}</th>
+                  <th>{renderPendingSortHeader("submittedAt", t("committee.pendingReview.submittedAt"))}</th>
+                  <th>{t("committee.pendingReview.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -3524,7 +3536,7 @@ export default function CommitteeDashboard() {
                       <td>
                         <span className={`committee-request-type-badge ${typeDisplay.className}`}>
                           <strong>{typeDisplay.badge}</strong>
-                          <span>{typeDisplay.label}</span>
+                          <span>{getPendingRequestTypeLabel(typeDisplay)}</span>
                         </span>
                       </td>
                       <td>{row.owner?.name || row.owner?.email || "-"}</td>
@@ -3532,7 +3544,7 @@ export default function CommitteeDashboard() {
                       <td>{formatSubmissionDate(row.submittedAt || row.createdAt)}</td>
                       <td>
                         <button type="button" className="committee-details-btn committee-review-btn" onClick={() => openReimbursementReview(row)}>
-                          Shqyrto
+                          {t("committee.pendingReview.review")}
                         </button>
                       </td>
                     </tr>
@@ -3542,7 +3554,7 @@ export default function CommitteeDashboard() {
             </table>
           </div>
           {filteredPendingSubmissions.length === 0 ? (
-            <p className="committee-empty">Nuk ka dorëzime në pritje për momentin.</p>
+            <p className="committee-empty">{t("committee.pendingReview.empty")}</p>
           ) : null}
         </>
       )}
