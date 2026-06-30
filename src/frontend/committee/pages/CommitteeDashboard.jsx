@@ -2305,8 +2305,8 @@ export default function CommitteeDashboard() {
   const profileMenuItems = [
     { id: "Njoftime", label: "Njoftime", icon: Bell },
     { id: "Profili", label: "Profili", icon: CircleUserRound },
-    { id: "Settings", label: "Settings", icon: Settings },
-    { id: "Logout", label: "Logout", icon: LogOut, tone: "danger" },
+    { id: "Settings", label: "Cilësimet", icon: Settings },
+    { id: "Logout", label: "Dil", icon: LogOut, tone: "danger" },
   ];
 
   const handleProfileAction = (actionId) => {
