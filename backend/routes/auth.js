@@ -410,60 +410,79 @@ async function ensureDefaultBankAccount(client, userId) {
 
 router.get("/community", async (req, res) => {
   try {
-    const result = await db.query(
-      `select
-         u.id,
-         u.email,
-         u.full_name,
-         u.role,
-         u.status,
-         u.academic_title,
-         u.scientific_title,
-         u.faculty,
-         u.department,
-         u.profile_overrides,
-         u.orcid_educations,
-         u.orcid_employments,
-         coalesce(pub.publications_total, 0)::int as publications_total,
-         coalesce(pub.citations_total, 0)::int as citations_total,
-         coalesce(conf.conferences_total, 0)::int as conferences_total
-       from users u
-       left join lateral (
-         select
-           count(*)::int as publications_total,
-           coalesce(sum(${CITATION_COUNT_SQL}), 0)::int as citations_total
-         from publications p
-         left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
-         where p.owner_id = u.id
-       ) pub on true
-       left join lateral (
-         select count(*)::int as conferences_total
-         from conferences c
-         where c.created_by = u.id
-       ) conf on true
-       where lower(coalesce(u.role, '')) in ('professor', 'profesor')
-         and coalesce(u.status, 'active') = 'active'
-       order by
-         (coalesce(pub.publications_total, 0) + coalesce(conf.conferences_total, 0) + coalesce(pub.citations_total, 0)) desc,
-         u.full_name asc nulls last,
-         u.email asc
-       limit 24`
-    );
+    const [result, totalsResult] = await Promise.all([
+      db.query(
+        `select
+           u.id,
+           u.email,
+           u.full_name,
+           u.role,
+           u.status,
+           u.academic_title,
+           u.scientific_title,
+           u.faculty,
+           u.department,
+           u.profile_overrides,
+           u.orcid_educations,
+           u.orcid_employments,
+           coalesce(pub.publications_total, 0)::int as publications_total,
+           coalesce(pub.citations_total, 0)::int as citations_total,
+           coalesce(conf.conferences_total, 0)::int as conferences_total
+         from users u
+         left join lateral (
+           select
+             count(*)::int as publications_total,
+             coalesce(sum(${CITATION_COUNT_SQL}), 0)::int as citations_total
+           from publications p
+           left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)
+           where p.owner_id = u.id
+         ) pub on true
+         left join lateral (
+           select count(*)::int as conferences_total
+           from conferences c
+           where c.created_by = u.id
+         ) conf on true
+         where lower(coalesce(u.role, '')) in ('professor', 'profesor')
+           and coalesce(u.status, 'active') = 'active'
+         order by
+           (coalesce(pub.publications_total, 0) + coalesce(conf.conferences_total, 0) + coalesce(pub.citations_total, 0)) desc,
+           u.full_name asc nulls last,
+           u.email asc
+         limit 24`
+      ),
+      db.query(
+        `select
+           (select count(*)::int
+            from users u
+            where coalesce(u.status, 'active') = 'active'
+              and lower(coalesce(nullif(u.role, ''), 'professor')) <> 'admin') as academic_staff_total,
+           (select count(*)::int from publications) as publication_total,
+           (select count(*)::int from conferences) as conference_total,
+           (select coalesce(sum(${CITATION_COUNT_SQL}), 0)::int
+            from publications p
+            left join publication_metadata m on m.doi = coalesce(p.external_metadata_id, p.doi)) as citations_total,
+           (select count(distinct nullif(trim(u.faculty), ''))::int
+            from users u
+            where coalesce(u.status, 'active') = 'active'
+              and lower(coalesce(nullif(u.role, ''), 'professor')) <> 'admin') as faculty_total`
+      ),
+    ]);
 
     const users = result.rows.map(mapCommunityProfessorRow);
     const faculties = new Set(users.map((user) => user.faculty).filter(Boolean));
     const institutions = new Set(users.map((user) => user.institution).filter(Boolean));
+    const totals = totalsResult.rows[0] || {};
 
     res.json({
       users,
       analytics: {
-        userSummary: { total: users.length },
+        userSummary: { total: Number(totals.academic_staff_total || users.length) },
       },
-      publicationTotal: users.reduce((total, user) => total + user.publicationCount, 0),
-      conferenceTotal: users.reduce((total, user) => total + user.conferenceCount, 0),
-      citationsTotal: users.reduce((total, user) => total + user.citationCount, 0),
+      publicationTotal: Number(totals.publication_total || 0),
+      conferenceTotal: Number(totals.conference_total || 0),
+      citationsTotal: Number(totals.citations_total || 0),
       institutionTotal: institutions.size,
-      facultyTotal: faculties.size,
+      facultyTotal: Number(totals.faculty_total || faculties.size),
     });
   } catch (error) {
     console.error("GET /api/auth/community failed:", error);
