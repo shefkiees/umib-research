@@ -43,6 +43,8 @@ const FALLBACK_COMMUNITY = {
   analytics: null,
   publications: [],
   conferences: [],
+  registeredUserTotal: 0,
+  academicStaffTotal: 0,
   publicationTotal: 0,
   conferenceTotal: 0,
 };
@@ -146,6 +148,8 @@ export default function HomePage() {
           analytics: communityPayload?.analytics,
           publications: [],
           conferences: [],
+          registeredUserTotal: toNumber(communityPayload?.registeredUserTotal || communityPayload?.analytics?.userSummary?.total || communityUsers.length),
+          academicStaffTotal: toNumber(communityPayload?.academicStaffTotal || communityPayload?.analytics?.userSummary?.academicStaffTotal || communityUsers.length),
           publicationTotal: toNumber(communityPayload?.publicationTotal || communityUsers.reduce((total, user) => total + toNumber(user.publicationCount || user.publicationsTotal), 0)),
           conferenceTotal: toNumber(communityPayload?.conferenceTotal || communityUsers.reduce((total, user) => total + toNumber(user.conferenceCount || user.conferencesTotal), 0)),
         });
@@ -175,6 +179,8 @@ export default function HomePage() {
         analytics: analyticsPayload,
         publications,
         conferences,
+        registeredUserTotal: toNumber(analyticsPayload?.userSummary?.total || getResponseList(usersPayload, "users").length),
+        academicStaffTotal: toNumber(getResponseList(usersPayload, "users").filter((user) => ["professor", "profesor"].includes(String(user.role || "").trim().toLowerCase())).length),
         publicationTotal,
         conferenceTotal: toNumber(conferencesPayload?.pagination?.total || conferences.length),
       });
@@ -237,7 +243,8 @@ export default function HomePage() {
       profileCards,
       faculties,
       stats: {
-        users: toNumber(communityData.analytics?.userSummary?.total || users.length),
+        users: toNumber(communityData.registeredUserTotal || communityData.analytics?.userSummary?.total || users.length),
+        academicStaff: toNumber(communityData.academicStaffTotal || communityData.analytics?.userSummary?.academicStaffTotal || professorUsers.length),
         publications: communityData.publicationTotal || users.reduce((total, user) => total + user.publicationCount, 0),
         conferences: communityData.conferenceTotal || users.reduce((total, user) => total + user.conferenceCount, 0),
         faculties: faculties.length,
@@ -327,7 +334,7 @@ export default function HomePage() {
                 </div>
                 <div className="kpi-info">
                   <span className="kpi-label">Staf Akademik</span>
-                  <span className="kpi-value">{formatNumber(community.stats.users)}</span>
+                  <span className="kpi-value">{formatNumber(community.stats.academicStaff)}</span>
                 </div>
               </button>
               <a className="kpi-card" href={SCIENTIFIC_CONFERENCES_URL} target="_blank" rel="noopener noreferrer">

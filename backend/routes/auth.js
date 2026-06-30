@@ -456,6 +456,7 @@ router.get("/community", async (req, res) => {
             from users u
             where coalesce(u.status, 'active') = 'active'
               and lower(coalesce(u.role, '')) in ('professor', 'profesor')) as academic_staff_total,
+           (select count(*)::int from users) as registered_user_total,
            (select count(*)::int from publications) as publication_total,
            (select count(*)::int from conferences) as conference_total,
            (select coalesce(sum(${CITATION_COUNT_SQL}), 0)::int
@@ -476,8 +477,13 @@ router.get("/community", async (req, res) => {
     res.json({
       users,
       analytics: {
-        userSummary: { total: Number(totals.academic_staff_total || users.length) },
+        userSummary: {
+          total: Number(totals.registered_user_total || users.length),
+          academicStaffTotal: Number(totals.academic_staff_total || users.length),
+        },
       },
+      registeredUserTotal: Number(totals.registered_user_total || users.length),
+      academicStaffTotal: Number(totals.academic_staff_total || users.length),
       publicationTotal: Number(totals.publication_total || 0),
       conferenceTotal: Number(totals.conference_total || 0),
       citationsTotal: Number(totals.citations_total || 0),
