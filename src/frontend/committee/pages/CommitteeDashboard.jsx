@@ -13,6 +13,7 @@ import CommitteeSidebar from "../components/CommitteeSidebar";
 import CommitteeTopBar from "../components/CommitteeTopBar";
 import CommitteeSettings from "./CommitteeSettings";
 import ReimbursementReviewPanel from "../../common/ReimbursementReviewPanel";
+import { useLanguage } from "../../i18n/LanguageContext";
 import { apiUrl } from "../../utils/api";
 
 const navLabels = ["Statistikat", "Kërkesat për Shqyrtim", "Shqyrtimi", "Vendimet"];
@@ -1323,6 +1324,7 @@ function formatReviewDate(value) {
 
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activePage, setActivePage] = useState("Statistikat");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
@@ -1910,10 +1912,10 @@ export default function CommitteeDashboard() {
     );
 
     return [
-      { key: "F1", type: "F1", label: "Artikull shkencor", total: totalsByType.f1, color: overviewTypeColors.F1 },
-      { key: "F2", type: "F2", label: "Konferencë / Simpozium", total: totalsByType.f2, color: overviewTypeColors.F2 },
+      { key: "F1", type: "F1", label: t("committee.statistics.labels.scientificArticle"), total: totalsByType.f1, color: overviewTypeColors.F1 },
+      { key: "F2", type: "F2", label: t("committee.statistics.labels.conferenceSymposium"), total: totalsByType.f2, color: overviewTypeColors.F2 },
     ];
-  }, [filteredOverviewRequests]);
+  }, [filteredOverviewRequests, t]);
 
   const committeeOverviewStatusChartData = useMemo(() => {
     const totalsByStatus = filteredOverviewRequests.reduce(
@@ -1942,13 +1944,13 @@ export default function CommitteeDashboard() {
     );
 
     return [
-      { key: "submitted", label: "Dorëzuar", total: totalsByStatus.submitted, color: overviewStatusColors.submitted },
-      { key: "in_review", label: "Në shqyrtim", total: totalsByStatus.in_review, color: overviewStatusColors.in_review },
-      { key: "needs_correction", label: "Për korrigjim", total: totalsByStatus.needs_correction, color: overviewStatusColors.needs_correction },
-      { key: "committee_approved", label: "Aprovuar nga Komisioni", total: totalsByStatus.committee_approved, color: overviewStatusColors.committee_approved },
-      { key: "rejected", label: "Refuzuar", total: totalsByStatus.rejected, color: overviewStatusColors.rejected },
+      { key: "submitted", label: t("committee.statistics.labels.submitted"), total: totalsByStatus.submitted, color: overviewStatusColors.submitted },
+      { key: "in_review", label: t("committee.statistics.labels.inReview"), total: totalsByStatus.in_review, color: overviewStatusColors.in_review },
+      { key: "needs_correction", label: t("committee.statistics.labels.needsCorrection"), total: totalsByStatus.needs_correction, color: overviewStatusColors.needs_correction },
+      { key: "committee_approved", label: t("committee.statistics.labels.committeeApproved"), total: totalsByStatus.committee_approved, color: overviewStatusColors.committee_approved },
+      { key: "rejected", label: t("committee.statistics.labels.rejected"), total: totalsByStatus.rejected, color: overviewStatusColors.rejected },
     ];
-  }, [filteredOverviewRequests]);
+  }, [filteredOverviewRequests, t]);
 
   const generatedNotifications = useMemo(() => {
     const rows = [];
@@ -2421,22 +2423,22 @@ export default function CommitteeDashboard() {
   const renderAcademicUnitReport = () => (
     <section className="committee-page-card committee-stats-only-card committee-overview-report">
       <div className="committee-page-head">
-        <h3>Statistika sipas njësive akademike</h3>
-        <p>Përmbledhje e kërkesave sipas fakultetit dhe departamentit të aplikantit.</p>
+        <h3>{t("committee.statistics.academicUnitsTitle")}</h3>
+        <p>{t("committee.statistics.academicUnitsDescription")}</p>
       </div>
 
       <div className="committee-table-wrap committee-dept-table-wrap">
         <table className="committee-table">
           <thead>
             <tr>
-              <th>Fakulteti</th>
-              <th>Departamenti</th>
-              <th>Artikuj</th>
-              <th>Konferenca</th>
-              <th>Në shqyrtim</th>
-              <th>Aprovime</th>
-              <th>Refuzime</th>
-              <th>Korrigjime</th>
+              <th>{t("committee.statistics.faculty")}</th>
+              <th>{t("committee.statistics.department")}</th>
+              <th>{t("committee.statistics.articles")}</th>
+              <th>{t("committee.statistics.conferences")}</th>
+              <th>{t("committee.statistics.inReview")}</th>
+              <th>{t("committee.statistics.approvals")}</th>
+              <th>{t("committee.statistics.rejections")}</th>
+              <th>{t("committee.statistics.corrections")}</th>
             </tr>
           </thead>
           <tbody>
@@ -2455,7 +2457,7 @@ export default function CommitteeDashboard() {
           </tbody>
         </table>
       </div>
-      {filteredFacultyStats.length === 0 ? <p className="committee-empty">Nuk ka rezultate për kërkimin aktual.</p> : null}
+      {filteredFacultyStats.length === 0 ? <p className="committee-empty">{t("committee.statistics.noSearchResults")}</p> : null}
     </section>
   );
 
@@ -2463,16 +2465,16 @@ export default function CommitteeDashboard() {
     <div className="committee-overview">
       <section className="committee-overview-grid">
         {renderOverviewPieChart({
-          title: "Artikuj Shkencorë dhe Konferenca",
-          description: "Shpërndarja e kërkesave sipas llojit të formularit: Artikuj Shkencorë (F1) dhe Konferenca / Simpoziume (F2).",
+          title: t("committee.statistics.typeChartTitle"),
+          description: t("committee.statistics.typeChartDescription"),
           data: committeeOverviewTypeChartData,
-          emptyText: "Nuk ka ende kërkesa F1/F2 për raportim.",
+          emptyText: t("committee.statistics.typeChartEmpty"),
         })}
         {renderOverviewPieChart({
-          title: "Gjendja e kërkesave në Komision",
-          description: "Pasqyra e kërkesave sipas fazës aktuale të shqyrtimit nga Komisioni.",
+          title: t("committee.statistics.statusChartTitle"),
+          description: t("committee.statistics.statusChartDescription"),
           data: committeeOverviewStatusChartData,
-          emptyText: "Nuk ka ende statuse kërkesash për raportim.",
+          emptyText: t("committee.statistics.statusChartEmpty"),
         })}
       </section>
 
