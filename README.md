@@ -11,7 +11,7 @@ Sistemi u mundëson profesorëve, komisionit, prorektorit dhe administratorit t�
 - Autentikim me Google OAuth
 - Dashboard i personalizuar sipas rolit
 - Menaxhim i publikimeve shkencore
-- Marrje automatike e metadata nga DOI (CrossRef)
+- Marrje automatike e metadata nga DOI 
 - Integrim me ORCID
 - Menaxhim i kërkesave për rimbursim
 - Shqyrtim dhe aprovime nga komisioni
