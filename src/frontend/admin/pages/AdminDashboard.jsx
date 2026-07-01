@@ -153,6 +153,26 @@ const normalizeSearchValue = (value) =>
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
 
+const mapProfileToAdminUser = (user, fallback = {}) => ({
+    ...fallback,
+    id: user.id || fallback.id,
+    email: user.email || fallback.email || "",
+    name: user.name || user.full_name || fallback.name || user.email || "",
+    role: user.role || fallback.role || "admin",
+    status: user.status || fallback.status || "active",
+    faculty: user.faculty || "",
+    department: user.department || "",
+    office: user.office || "",
+    academicTitle: user.academicTitle || user.academic_title || "",
+    scientificTitle: user.scientificTitle || user.scientific_title || "",
+    profilePhotoUrl: user.profilePhotoUrl || fallback.profilePhotoUrl || "",
+    avatarUrl: user.avatarUrl || user.profilePhotoUrl || fallback.avatarUrl || "",
+    lastLoginAt: user.lastLoginAt || user.last_login_at || fallback.lastLoginAt || fallback.last_login_at,
+    last_login_at: user.last_login_at || user.lastLoginAt || fallback.last_login_at || fallback.lastLoginAt,
+    createdAt: user.createdAt || user.created_at || fallback.createdAt || fallback.created_at,
+    updatedAt: user.updatedAt || user.updated_at || fallback.updatedAt || fallback.updated_at,
+});
+
 
 
 export default function AdminDashboard() {
@@ -638,15 +658,30 @@ export default function AdminDashboard() {
                 throw new Error("profile_save_failed");
             }
 
+            const savedUser = data.user;
+
             setProfileDraft((prev) => ({
                 ...prev,
-                name: data.user.name || prev.name,
-                faculty: data.user.faculty || "",
-                department: data.user.department || "",
-                office: data.user.office || "",
-                academicTitle: data.user.academicTitle || "",
-                scientificTitle: data.user.scientificTitle || "",
+                name: savedUser.name || prev.name,
+                faculty: savedUser.faculty || "",
+                department: savedUser.department || "",
+                office: savedUser.office || "",
+                academicTitle: savedUser.academicTitle || "",
+                scientificTitle: savedUser.scientificTitle || "",
             }));
+            setUsers((prev) => prev.map((item) => {
+                const matchesSavedUser = (savedUser.id && item.id === savedUser.id)
+                    || (savedUser.email && item.email === savedUser.email);
+
+                return matchesSavedUser ? mapProfileToAdminUser(savedUser, item) : item;
+            }));
+            setSelectedUser((prev) => {
+                if (!prev) return prev;
+                const matchesSavedUser = (savedUser.id && prev.id === savedUser.id)
+                    || (savedUser.email && prev.email === savedUser.email);
+
+                return matchesSavedUser ? mapProfileToAdminUser(savedUser, prev) : prev;
+            });
             setIsProfileModalOpen(false);
             setProfileRefreshKey((prev) => prev + 1);
         } catch (error) {
@@ -1190,7 +1225,7 @@ export default function AdminDashboard() {
 
         resultCount = 0;
 
-        content = <AdminSettingsSection />;
+        content = <AdminSettingsSection profileRefreshKey={profileRefreshKey} />;
 
     }
 

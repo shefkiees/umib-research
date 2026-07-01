@@ -433,7 +433,7 @@ function ActivityTooltip({ active, payload, label }) {
   );
 }
 
-export function AdminSettingsSection() {
+export function AdminSettingsSection({ profileRefreshKey = 0 }) {
   const { language, setLanguage, t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -467,7 +467,7 @@ export function AdminSettingsSection() {
     return () => {
       isMounted = false;
     };
-  }, [t]);
+  }, [t, profileRefreshKey]);
 
   useEffect(() => {
     if (!message) return undefined;
