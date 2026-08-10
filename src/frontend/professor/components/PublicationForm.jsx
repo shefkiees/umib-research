@@ -1621,7 +1621,6 @@ const PublicationForm = ({
     requireField("sourceUrl");
     requireField("volume", showVolumeField);
     requireField("issue", showIssueField);
-    requireField("pages", showPagesField);
     requireField("acceptanceDate", isJournalArticle);
     requireField("abstract", showAbstractField);
 
@@ -2067,7 +2066,7 @@ const PublicationForm = ({
         ) : null}
         {showPagesField ? (
           <label className={`prof-form-field${requiredClassName("pages")}`}>
-            <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"))}</span>
+            <span>{requiredLabel(t("professor.dashboard.publicationForm.pages"), false)}</span>
             <input value={value.pages || ""} onChange={updateField("pages")} readOnly={isFieldLocked("pages")} aria-invalid={Boolean(fieldErrors.pages)} />
             {renderFieldError("pages")}
           </label>

@@ -1,61 +1,73 @@
 # UMIBRes
 
-UMIBRes është një sistem për menaxhimin e publikimeve shkencore dhe kërkesave për rimbursim në Universitetin "Isa Boletini" në Mitrovicë.
+UMIBRes eshte aplikacion web per menaxhimin e publikimeve shkencore dhe kerkesave per rimbursim ne Universitetin "Isa Boletini" ne Mitrovice.
 
-Sistemi u mundëson profesorëve, komisionit, prorektorit dhe administratorit të menaxhojnë publikimet shkencore, kërkesat për rimbursim, procesin e shqyrtimit dhe raportimin institucional në një platformë të vetme.
+Qellimi i projektit eshte qe profesoret, komisioni, prorektori dhe administratori te kene nje sistem te perbashket ku mund te regjistrohen publikimet, te dorezohen kerkesat per rimbursim, te shqyrtohen dokumentet dhe te percillen njoftimet/statuset.
 
----
+## Ideja e projektit
 
-## Features
+Ne vend qe publikimet dhe rimbursimet te menaxhohen me dokumente te shperndara ose ne menyre manuale, UMIBRes i vendos keto procese ne nje platforme te vetme. Sistemi e ben me te lehte:
 
-- Autentikim me Google OAuth
-- Dashboard i personalizuar sipas rolit
-- Menaxhim i publikimeve shkencore
-- Marrje automatike e metadata nga DOI 
-- Integrim me ORCID
-- Menaxhim i kërkesave për rimbursim
-- Shqyrtim dhe aprovime nga komisioni
-- Gjenerim i dokumenteve PDF dhe DOCX
-- Njoftime brenda sistemit
-- Audit Log
-- Statistika dhe raporte institucionale
-- Mbështetje për gjuhën shqipe dhe angleze
+- ruajtjen e publikimeve shkencore;
+- dorezimin e kerkesave per rimbursim;
+- kontrollimin e dokumenteve nga komisioni;
+- kthimin e kerkesave per korrigjim;
+- njoftimin e perdoruesve per ndryshime;
+- shfaqjen e statistikave dhe raporteve.
 
----
+## Rolet ne sistem
 
-## User Roles
+### Profesor
 
-### Professor
+- regjistron publikime shkencore;
+- perdor DOI per plotesim te te dhenave kur eshte e mundur;
+- dorezon kerkesa per rimbursim;
+- shton dokumente mbeshtetese;
+- sheh statusin dhe historikun e kerkesave;
+- pranon njoftime ne sistem.
 
-- Regjistron publikime shkencore
-- Dorëzon kërkesa për rimbursim
-- Ngarkon dokumente mbështetëse
-- Monitoron statusin e kërkesave
-- Merr njoftime
+### Komision
 
-### Committee
+- sheh kerkesat qe jane per shqyrtim;
+- kontrollon publikimet, dokumentet dhe metadata;
+- aprovon, refuzon ose kthen kerkesa per korrigjim;
+- vendos komente per perdoruesin;
+- ndjek vendimet dhe historikun e shqyrtimit.
 
-- Shqyrton kërkesat
-- Verifikon dokumentacionin
-- Aprovojnë, refuzojnë ose kërkojnë korrigjime
-- Vendosin komente
+### Prorektor
 
-### Pro-Rector
-
-- Monitoron publikimet
-- Analizon statistikat sipas fakulteteve
-- Shikon raportet institucionale
+- sheh permbledhje te publikimeve dhe financimeve;
+- analizon te dhenat sipas fakulteteve;
+- shikon raporte dhe statistika;
+- perdor dashboard-in per monitorim institucional.
 
 ### Administrator
 
-- Menaxhon përdoruesit
-- Menaxhon rolet
-- Monitoron aktivitetin
-- Administron konfigurimet e sistemit
+- menaxhon perdoruesit;
+- ndryshon role dhe status te llogarive;
+- sheh historikun e veprimeve;
+- menaxhon njoftimet dhe statistikat administrative;
+- kontrollon disa konfigurime te sistemit.
 
----
+## Funksionalitetet kryesore
 
-## Technology Stack
+- Login dhe menaxhim i sesionit.
+- Autentikim me Google OAuth.
+- Dashboard i ndare sipas roleve.
+- Menaxhim i profilit te perdoruesit.
+- Regjistrim i publikimeve shkencore.
+- Kerkim i te dhenave nga DOI/CrossRef.
+- Lidhje me ORCID.
+- Menaxhim i konferencave.
+- Kerkesa per rimbursim per publikime dhe konferenca.
+- Gjenerim i dokumenteve PDF dhe DOCX per rimbursime.
+- Shqyrtim i kerkesave nga komisioni.
+- Njoftime brenda aplikacionit.
+- Audit log per veprimet kryesore.
+- Statistika dhe raporte per perdorues, publikime, fakultete dhe financime.
+- Nderfaqe ne shqip dhe anglisht.
+
+## Teknologjite kryesore
 
 ### Frontend
 
@@ -72,123 +84,87 @@ Sistemi u mundëson profesorëve, komisionit, prorektorit dhe administratorit t�
 - Express.js
 - Passport.js
 - Express Session
-
-### Database
-
 - PostgreSQL
+- Supabase, kur perdoret per sinkronizim/autentikim
 
-### Integrations
+### Integrime dhe dokumente
 
-- Google OAuth
-- CrossRef API
+- DOI / CrossRef
 - ORCID
 - PDFKit
 - docx
-- Supabase
-- Resend
+- Resend per email njoftime, nese eshte i konfiguruar
 
----
-
-## Project Structure
+## Struktura e projektit
 
 ```text
 src/
-│
-├── frontend/
-│   ├── admin/
-│   ├── committee/
-│   ├── professor/
-│   ├── prorector/
-│   └── common/
-│
-├── backend/
-│   ├── routes/
-│   ├── services/
-│   ├── config/
-│   └── scripts/
-│
-├── shared/
-└── public/
+  frontend/
+    admin/        pjesa e administratorit
+    committee/    pjesa e komisionit
+    professor/    pjesa e profesorit
+    ProRector/    pjesa e prorektorit
+    common/       komponente te perbashketa
+
+backend/
+  routes/         API endpoints
+  services/       logjika kryesore e sistemit
+  config/         databaza, sesionet dhe autentikimi
+  scripts/        skripta ndihmese
+
+shared/           funksione te perbashketa
+public/           logo, favicon, PDF i rregullores dhe asete tjera
 ```
 
----
+## Si startohet projekti
 
-## Installation
-
-Clone repository
-
-```bash
-git clone <repository-url>
-```
-
-Install dependencies
+Instalimi i paketave:
 
 ```bash
 npm install
 ```
 
-Install backend dependencies
-
-```bash
-cd backend
-npm install
-```
-
----
-
-## Environment Variables
-
-Create a `.env` file and configure:
-
-```env
-DATABASE_URL=
-CLIENT_URL=
-SESSION_SECRET=
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=
-
-VITE_API_BASE_URL=
-
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-
-ORCID_CLIENT_ID=
-ORCID_CLIENT_SECRET=
-ORCID_REDIRECT_URI=
-
-RESEND_API_KEY=
-EMAIL_FROM=
-```
-
----
-
-## Running the Project
-
-Frontend
+Startimi i frontend-it:
 
 ```bash
 npm run dev
 ```
 
-Backend
+Startimi i backend-it:
 
 ```bash
 cd backend
+npm install
 npm start
 ```
 
----
-
-## Build
+Build:
 
 ```bash
 npm run build
 ```
 
----
+## Konfigurimi
 
-## License
+Projekti perdor `.env` per databaze dhe integrime. Disa nga variablat qe mund te nevojiten jane:
 
-This project was developed for academic and research purposes at the University "Isa Boletini" in Mitrovica.
+```env
+DATABASE_URL=
+CLIENT_URL=
+SESSION_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=
+VITE_API_BASE_URL=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+ORCID_CLIENT_ID=
+ORCID_CLIENT_SECRET=
+ORCID_REDIRECT_URI=
+RESEND_API_KEY=
+EMAIL_FROM=
+```
+
+## Shenim
+
+Versioni i vjeter i dokumentimit ka pasur disa pjese qe kane ndryshuar gjate zhvillimit. Projekti aktual nuk perdor MySQL ose NestJS, por perdor PostgreSQL dhe Express.js. Gjithashtu fokusi kryesor i sistemit aktual eshte te publikimet, rimbursimet, shqyrtimi nga komisioni, njoftimet, statistikat dhe menaxhimi i perdoruesve.
