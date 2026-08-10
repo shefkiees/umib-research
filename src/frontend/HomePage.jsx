@@ -394,7 +394,7 @@ export default function HomePage() {
             <div className="community-empty-state">
               <UserRound size={34} />
               <h3>Profilet e profesorëve shfaqen nga të dhënat ekzistuese të sistemit</h3>
-              <p>Kur të dhënat janë të qasshme për sesionin aktual, këtu paraqiten profesorët, fakultetet dhe statistikat akademike pa ndryshuar backend-in.</p>
+              <p>Kur të dhënat janë të qasshme për sesionin aktual, këtu paraqiten profesorët, fakultetet dhe statistikat akademike.</p>
             </div>
           )}
         </div>
