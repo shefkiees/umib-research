@@ -2544,7 +2544,7 @@ export default function ReimbursementManager({
           setRequests((prev) => [savedRequest, ...prev.filter((item) => item.id !== savedRequest.id)]);
           setHasLoadedRequests(true);
           setEditingRequest(savedRequest);
-          throw new Error(SUBMIT_DRAFT_SAVED_ERROR);
+          throw new Error(submitResult.message || SUBMIT_DRAFT_SAVED_ERROR);
         }
 
         savedRequest = submitResult.data;
