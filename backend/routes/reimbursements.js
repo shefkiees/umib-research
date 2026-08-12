@@ -148,6 +148,9 @@ const ATTACHMENTS_REQUIRED_MESSAGE =
 const DUPLICATE_PUBLICATION_REIMBURSEMENT_MESSAGE =
   "Për këtë artikull ekziston tashmë një kërkesë rimbursimi.";
 
+const PUBLICATION_REIMBURSEMENT_AUTHOR_ROLE_MESSAGE =
+  "Rimbursimi është i mundur vetëm për artikujt në të cilët jeni autor i parë ose autor korrespondent.";
+
 const PUBLICATION_READ_ONLY_FORM_FIELDS = new Set([
   "doi",
   "publicationTitle",
@@ -1217,6 +1220,47 @@ function authorDisplayName(author = {}) {
     safeAuthor.fullName
     || safeAuthor.full_name
     || [safeAuthor.givenName || safeAuthor.given_name, safeAuthor.familyName || safeAuthor.family_name].filter(Boolean).join(" ")
+  );
+}
+
+function normalizeComparableName(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAuthorComparableNames(author = {}) {
+  const safeAuthor = author || {};
+  const fullName = authorDisplayName(safeAuthor);
+  const givenFamilyName = [safeAuthor.givenName || safeAuthor.given_name, safeAuthor.familyName || safeAuthor.family_name]
+    .filter(Boolean)
+    .join(" ");
+
+  return uniqueNonEmptyValues([fullName, givenFamilyName].map(normalizeComparableName));
+}
+
+function canSubmitPublicationReimbursementForAuthor(user = {}, publication = {}) {
+  const userName = normalizeComparableName(user.full_name || user.name);
+
+  if (!userName) {
+    return false;
+  }
+
+  const authors = Array.isArray(publication?.authors) ? publication.authors : [];
+  const matchedAuthor = authors.find((author) => getAuthorComparableNames(author).includes(userName));
+
+  if (!matchedAuthor) {
+    return false;
+  }
+
+  return Boolean(
+    matchedAuthor.isMainAuthor
+    || matchedAuthor.is_main_author
+    || matchedAuthor.isCorrespondingAuthor
+    || matchedAuthor.is_corresponding_author
   );
 }
 
@@ -2951,6 +2995,18 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       res.status(linkedPublicationSnapshot.error.status).json({
         error: linkedPublicationSnapshot.error.error,
         message: linkedPublicationSnapshot.error.message,
+      });
+      return;
+    }
+
+    if (
+      current.request_type === "publication"
+      && !canSubmitPublicationReimbursementForAuthor(user, linkedPublicationSnapshot.publication)
+    ) {
+      await client.query("rollback");
+      res.status(403).json({
+        error: "publication_author_role_required",
+        message: PUBLICATION_REIMBURSEMENT_AUTHOR_ROLE_MESSAGE,
       });
       return;
     }
