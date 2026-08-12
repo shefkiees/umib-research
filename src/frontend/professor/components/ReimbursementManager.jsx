@@ -2490,6 +2490,7 @@ export default function ReimbursementManager({
           requestType: selectedType,
           formData: buildSubmitFormData(form, selectedType),
           action: saveAction,
+          submitIntent: action === "submit" ? "submit" : "",
         }),
       });
       const result = await response.json();

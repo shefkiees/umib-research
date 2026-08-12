@@ -2696,6 +2696,9 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
 
   const action = normalizeText(req.body?.action || req.body?.status || "submit");
   const asDraft = action === "draft";
+  const isSubmitIntent = action === "submit"
+    || req.body?.submitIntent === true
+    || normalizeText(req.body?.submitIntent).toLowerCase() === "submit";
   const requiresAttachmentBeforeSubmit = !asDraft;
 
   const user = await loadCurrentUser(req.user.id);
@@ -2713,6 +2716,19 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
     res.status(linkedPublicationSnapshot.error.status).json({
       error: linkedPublicationSnapshot.error.error,
       message: linkedPublicationSnapshot.error.message,
+    });
+    return;
+  }
+
+  if (
+    requestType === "publication"
+    && isSubmitIntent
+    && linkedPublicationSnapshot.publication
+    && !canSubmitPublicationReimbursementForAuthor(user, linkedPublicationSnapshot.publication)
+  ) {
+    res.status(403).json({
+      error: "publication_author_role_required",
+      message: PUBLICATION_REIMBURSEMENT_AUTHOR_ROLE_MESSAGE,
     });
     return;
   }
