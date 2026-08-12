@@ -1468,7 +1468,6 @@ function ReimbursementHistoryList({
   isLoading,
   loadError,
   downloadingDocument,
-  error,
   onDownloadDocument,
   onEditRequest,
   renderAttachments,
@@ -1513,7 +1512,6 @@ function ReimbursementHistoryList({
         ))}
       </div>
 
-      {error ? <p className="reimbursement-message error" role="alert">{tx(error)}</p> : null}
       {loadError ? <p className="reimbursement-message error" role="alert">{loadError}</p> : null}
 
       <div className="prof-list reimbursement-request-list">
@@ -4083,7 +4081,6 @@ export default function ReimbursementManager({
           isLoading={isLoadingRequests}
           loadError={requestsError}
           downloadingDocument={downloadingDocument}
-          error={error}
           onDownloadDocument={handleDownloadDocument}
           onEditRequest={handleEditRequest}
           renderAttachments={renderAttachments}
