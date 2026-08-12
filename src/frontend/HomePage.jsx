@@ -522,6 +522,8 @@ export default function HomePage() {
                 <a href="#services"><ChevronRight size={15} /> Rreth Portalit</a>
                 <a href="#platform-stats"><ChevronRight size={15} /> Statistikat</a>
                 <a href="#academic-community"><ChevronRight size={15} /> Komuniteti Akademik</a>
+                <a href="/privacy"><ChevronRight size={15} /> Privatësia</a>
+                <a href="/terms"><ChevronRight size={15} /> Kushtet</a>
               </div>
               <div className="footer-column">
                 <h3>Burime akademike</h3>

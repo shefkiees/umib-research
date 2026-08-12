@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginForm from "./frontend/LoginForm";
 import HomePage from "./frontend/HomePage";
+import LegalPage from "./frontend/LegalPage";
 import { apiUrl } from "./frontend/utils/api";
 import ProfessorDashboard from "./frontend/professor/pages/ProfessorDashboard";
 import ResetPasswordPage from "./frontend/auth/ResetPasswordPage";
@@ -28,6 +29,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/privacy" element={<LegalPage type="privacy" />} />
+          <Route path="/terms" element={<LegalPage type="terms" />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/*" element={<GoogleAuthRedirect />} />
