@@ -165,11 +165,18 @@ const normalizeProfile = (user = {}) => {
   const education = Array.isArray(user.education) ? user.education : orcidEducations;
   const profileOverrides = user.profileOverrides || user.profile_overrides || {};
   const profilePhotoUrl = user.profilePhotoUrl || user.profile_photo_url || user.avatarUrl || user.avatar_url || profileOverrides.profilePhotoUrl || profileOverrides.profile_photo_url || "";
+  const roleLabels = {
+    professor: "Profesor",
+    committee: "Komision",
+    prorector: "Prorektor",
+    admin: "Administrator",
+  };
+  const appRole = user.role || "professor";
 
   return {
     name: user.name || user.displayName || user.full_name || professorProfile.name || "Professor",
-    role: user.role || professorProfile.role || "Professor",
-    appRole: user.role || "professor",
+    role: roleLabels[String(appRole).toLowerCase()] || user.role || professorProfile.role || "Profesor",
+    appRole,
     email: user.email || professorProfile.email,
     academicTitle: user.academicTitle || user.academic_title || professorProfile.academicTitle || pickOrcidTitle(orcidEmployments),
     scientificTitle: user.scientificTitle || user.scientific_title || professorProfile.scientificTitle || pickOrcidTitle(education),
