@@ -69,6 +69,10 @@
   line-height: 1.7;
 }
 
+.legal-hero span + span {
+  margin-top: 12px;
+}
+
 .legal-content {
   max-width: 1120px;
   margin: 0 auto;
@@ -94,6 +98,35 @@
   margin: 0;
   color: #59677b;
   line-height: 1.72;
+}
+
+.legal-content p + p {
+  margin-top: 12px;
+}
+
+.legal-content ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+  color: #59677b;
+  line-height: 1.72;
+}
+
+.legal-content li + li {
+  margin-top: 6px;
+}
+
+.legal-content address {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: #59677b;
+  font-style: normal;
+  line-height: 1.6;
+}
+
+.legal-content address span:first-child {
+  color: #1a2b49;
+  font-weight: 800;
 }
 
 .legal-content a {
