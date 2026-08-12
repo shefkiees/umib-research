@@ -3,13 +3,11 @@ import UMIBLogo from "../assets/umiblogo.jpg";
 import TransparentLogo from "./common/TransparentLogo";
 import "./LegalPage.css";
 
-const CONTACT_EMAIL = "shefkie.segashi@umib.net";
-
 const pages = {
   privacy: {
     title: "Politika e Privatësisë",
     intro:
-      "Universiteti “Isa Boletini” në Mitrovicë (UIBM) është i përkushtuar për mbrojtjen e privatësisë dhe të dhënave personale të përdoruesve të platformës UMIBRes. Kjo Politikë e Privatësisë shpjegon se si mblidhen, përdoren, ruhen dhe mbrohen të dhënat gjatë përdorimit të platformës.",
+      "Universiteti “Isa Boletini” në Mitrovicë është i përkushtuar për mbrojtjen e privatësisë dhe të dhënave personale të përdoruesve të platformës UMIBRes. Kjo Politikë e Privatësisë shpjegon se si mblidhen, përdoren, ruhen dhe mbrohen të dhënat gjatë përdorimit të platformës.",
     sections: [
       {
         title: "Të dhënat që mbledhim",
@@ -54,7 +52,7 @@ const pages = {
       {
         title: "Ruajtja dhe siguria e të dhënave",
         paragraphs: [
-          "UIBM zbaton masa teknike dhe organizative për mbrojtjen e të dhënave të përpunuara përmes UMIBRes nga qasja e paautorizuar, humbja, ndryshimi, keqpërdorimi ose zbulimi i tyre.",
+          "Universiteti “Isa Boletini” në Mitrovicë zbaton masa teknike dhe organizative për mbrojtjen e të dhënave të përpunuara përmes UMIBRes nga qasja e paautorizuar, humbja, ndryshimi, keqpërdorimi ose zbulimi i tyre.",
           "Të dhënat ruhen për aq kohë sa janë të nevojshme për realizimin e qëllimeve akademike, administrative dhe institucionale, si dhe për përmbushjen e detyrimeve ligjore.",
         ],
       },
@@ -96,7 +94,7 @@ const pages = {
   terms: {
     title: "Kushtet e Përdorimit",
     intro:
-      "Këto Kushte të Përdorimit përcaktojnë rregullat për qasjen dhe përdorimin e platformës UMIBRes, të Universitetit “Isa Boletini” në Mitrovicë (UIBM).",
+      "Këto Kushte të Përdorimit përcaktojnë rregullat për qasjen dhe përdorimin e platformës UMIBRes, të Universitetit “Isa Boletini” në Mitrovicë.",
     secondaryIntro:
       "Duke përdorur platformën UMIBRes, përdoruesi pajtohet që ta përdorë atë në përputhje me këto kushte, rregulloret e Universitetit dhe legjislacionin në fuqi.",
     sections: [
@@ -273,15 +271,7 @@ export default function LegalPage({ type }) {
           <article>
             <p>{page.closing}</p>
           </article>
-        ) : (
-          <article>
-            <h2>Kontakti</h2>
-            <p>
-              Për pyetje rreth këtyre faqeve ose përdorimit të të dhënave në UMIBRes,
-              kontaktoni në <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
-            </p>
-          </article>
-        )}
+        ) : null}
       </section>
     </main>
   );
