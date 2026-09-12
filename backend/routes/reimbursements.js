@@ -147,6 +147,9 @@ const ATTACHMENTS_REQUIRED_MESSAGE =
   "Kërkesa nuk mund të dërgohet për shqyrtim sepse nuk janë ngarkuar dokumentet mbështetëse. Kërkesa është ruajtur si draft.";
 const DUPLICATE_PUBLICATION_REIMBURSEMENT_MESSAGE =
   "Për këtë artikull ekziston tashmë një kërkesë rimbursimi.";
+const MAX_PUBLICATION_REIMBURSEMENTS_PER_YEAR = 3;
+const PUBLICATION_REIMBURSEMENT_YEAR_REQUIRED_MESSAGE =
+  "Viti i publikimit mungon për artikullin e zgjedhur.";
 
 const PUBLICATION_REIMBURSEMENT_AUTHOR_ROLE_MESSAGE =
   "Rimbursimi është i mundur vetëm për artikujt në të cilët jeni autor i parë ose autor korrespondent.";
@@ -1891,6 +1894,70 @@ function sendDuplicatePublicationReimbursementError(res) {
   });
 }
 
+function parsePublicationYear(value) {
+  const normalized = normalizeText(value);
+
+  if (!/^\d{4}$/.test(normalized)) {
+    return null;
+  }
+
+  const year = Number(normalized);
+  return Number.isInteger(year) ? year : null;
+}
+
+function getPublicationReimbursementLimitMessage(publicationYear) {
+  return `Për vitin e publikimit ${publicationYear} janë lejuar maksimum ${MAX_PUBLICATION_REIMBURSEMENTS_PER_YEAR} aplikime për rimbursim.`;
+}
+
+function sendPublicationReimbursementLimitError(res, publicationYear) {
+  const message = getPublicationReimbursementLimitMessage(publicationYear);
+
+  res.status(409).json({
+    error: "publication_reimbursement_year_limit_reached",
+    message,
+    errors: [{ field: "publicationId", message }],
+  });
+}
+
+async function hasReachedPublicationReimbursementYearLimit(client, ownerId, publication, excludedReimbursementId = null) {
+  const publicationYear = parsePublicationYear(publication?.publicationYear || publication?.publication_year || publication?.year);
+
+  if (!publicationYear) {
+    return {
+      blocked: true,
+      publicationYear: null,
+      message: PUBLICATION_REIMBURSEMENT_YEAR_REQUIRED_MESSAGE,
+    };
+  }
+
+  await client.query("select pg_advisory_xact_lock(hashtext($1::text), $2::int)", [ownerId, publicationYear]);
+
+  const result = await client.query(
+    `select count(*)::int as count
+     from reimbursements r
+     left join publications p on p.id = r.publication_id
+     where r.owner_id = $1
+       and r.request_type = 'publication'
+       and r.status <> 'draft'
+       and ($2::uuid is null or r.id <> $2::uuid)
+       and coalesce(
+         p.publication_year,
+         case
+           when r.request_data->>'publicationYear' ~ '^[0-9]{4}$' then (r.request_data->>'publicationYear')::int
+           when r.request_data->>'publication_year' ~ '^[0-9]{4}$' then (r.request_data->>'publication_year')::int
+           else null
+         end
+       ) = $3`,
+    [ownerId, excludedReimbursementId, publicationYear]
+  );
+
+  return {
+    blocked: Number(result.rows[0]?.count || 0) >= MAX_PUBLICATION_REIMBURSEMENTS_PER_YEAR,
+    publicationYear,
+    message: getPublicationReimbursementLimitMessage(publicationYear),
+  };
+}
+
 async function canAccessReimbursement(row, user) {
   if (!row) {
     return false;
@@ -2764,6 +2831,26 @@ router.post("/", requireAuthenticatedUser, async (req, res) => {
       return;
     }
 
+    if (requestType === "publication" && isSubmitIntent) {
+      const limitResult = await hasReachedPublicationReimbursementYearLimit(client, req.user.id, linkedPublicationSnapshot.publication);
+
+      if (limitResult.blocked) {
+        await client.query("rollback");
+
+        if (!limitResult.publicationYear) {
+          res.status(400).json({
+            error: "publication_year_required",
+            message: limitResult.message,
+            errors: [{ field: "publicationId", message: limitResult.message }],
+          });
+          return;
+        }
+
+        sendPublicationReimbursementLimitError(res, limitResult.publicationYear);
+        return;
+      }
+    }
+
     const insertResult = await client.query(
       `insert into reimbursements
        (owner_id, publication_id, conference_id, title, amount, currency, status, request_type, request_data, submitted_at)
@@ -2901,6 +2988,26 @@ router.put("/:id", requireAuthenticatedUser, async (req, res) => {
       await client.query("rollback");
       sendDuplicatePublicationReimbursementError(res);
       return;
+    }
+
+    if (requestType === "publication" && isSubmit) {
+      const limitResult = await hasReachedPublicationReimbursementYearLimit(client, req.user.id, linkedPublicationSnapshot.publication, current.id);
+
+      if (limitResult.blocked) {
+        await client.query("rollback");
+
+        if (!limitResult.publicationYear) {
+          res.status(400).json({
+            error: "publication_year_required",
+            message: limitResult.message,
+            errors: [{ field: "publicationId", message: limitResult.message }],
+          });
+          return;
+        }
+
+        sendPublicationReimbursementLimitError(res, limitResult.publicationYear);
+        return;
+      }
     }
 
     const updateResult = await client.query(
@@ -3049,6 +3156,26 @@ router.post("/:id/submit", requireAuthenticatedUser, async (req, res) => {
       await client.query("rollback");
       sendDuplicatePublicationReimbursementError(res);
       return;
+    }
+
+    if (current.request_type === "publication") {
+      const limitResult = await hasReachedPublicationReimbursementYearLimit(client, req.user.id, linkedPublicationSnapshot.publication, current.id);
+
+      if (limitResult.blocked) {
+        await client.query("rollback");
+
+        if (!limitResult.publicationYear) {
+          res.status(400).json({
+            error: "publication_year_required",
+            message: limitResult.message,
+            errors: [{ field: "publicationId", message: limitResult.message }],
+          });
+          return;
+        }
+
+        sendPublicationReimbursementLimitError(res, limitResult.publicationYear);
+        return;
+      }
     }
 
     const attachmentCount = await countReimbursementAttachments(client, current.id);
