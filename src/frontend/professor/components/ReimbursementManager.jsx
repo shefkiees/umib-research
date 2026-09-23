@@ -2022,6 +2022,9 @@ export default function ReimbursementManager({
         currency: nextAccount.currency || prev.currency || "EUR",
       };
     });
+    setFieldErrors((prev) => prev.selectedBankAccountId
+      ? { ...prev, selectedBankAccountId: "" }
+      : prev);
   }, [isLoadingBankAccounts, selectedType, validBankAccounts]);
 
   useEffect(() => {
