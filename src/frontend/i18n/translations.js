@@ -901,6 +901,7 @@ export const translations = {
           primary: "Llogari kryesore",
           loading: "Duke ngarkuar llogaritë bankare...",
           missingProfileAccount: "Ju lutem shtoni një llogari bankare në profil para aplikimit.",
+          incompleteProfileAccount: "Të dhënat e llogarisë bankare në profil janë jo të plota ose të pavlefshme. Plotësoni emrin e aplikantit, bankën, numrin e llogarisë ose IBAN-in dhe SWIFT/BIC.",
           savedWithRequest: "Llogaria bankare e ruajtur në kërkesë",
         },
         supportingDocuments: {
@@ -1650,6 +1651,7 @@ export const translations = {
           primary: "Primary account",
           loading: "Loading bank accounts...",
           missingProfileAccount: "Please add a bank account to your profile before applying.",
+          incompleteProfileAccount: "The bank account details in your profile are incomplete or invalid. Complete the applicant name, bank, account number or IBAN, and SWIFT/BIC.",
           savedWithRequest: "Bank account saved with the request",
         },
         supportingDocuments: {

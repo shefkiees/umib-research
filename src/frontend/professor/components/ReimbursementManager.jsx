@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, FileText, Landmark, Loader2, Plus, Save, Trash2, Upload, UserRound, Wallet } from "lucide-react";
 import { apiUrl } from "../../utils/api";
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -32,6 +32,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 const MAX_SELECTED_ATTACHMENTS = 5;
 const DECLARATION_REQUIRED_ERROR = "reimbursement.declaration.required";
 const BANK_ACCOUNT_REQUIRED_ERROR = "reimbursement.bankAccount.required";
+const BANK_ACCOUNT_INCOMPLETE_ERROR = "reimbursement.bankAccount.incomplete";
 const F1_PDF_ONLY_ERROR = "reimbursement.supportingDocuments.f1PdfOnly";
 const F1_PDF_REQUIRED_ERROR = "reimbursement.supportingDocuments.f1PdfRequired";
 const MAX_DOCUMENTS_ERROR = "reimbursement.supportingDocuments.maximumDocuments";
@@ -1181,6 +1182,16 @@ function buildSubmitFormData(formData, requestType) {
   return nextFormData;
 }
 
+function isCompleteProfileBankAccount(account) {
+  return Boolean(
+    account?.id
+    && hasValue(account.bankApplicantName)
+    && hasValue(account.bankName)
+    && isValidBankAccountIdentifier(account.bankAccountNumber || account.iban)
+    && isValidSwift(account.swiftCode)
+  );
+}
+
 function maskBankAccountNumber(value) {
   const normalized = normalizeIban(value);
   return normalized ? `**** ${normalized.slice(-4)}` : "";
@@ -1680,6 +1691,8 @@ export default function ReimbursementManager({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null);
   const isSubmittingRef = useRef(false);
+  const bankAccountsLoadIdRef = useRef(0);
+  const bankAccountsLoadErrorRef = useRef("");
 
   const effectiveProfile = useMemo(
     () => resolveProfile(context.profile, profile),
@@ -1698,9 +1711,13 @@ export default function ReimbursementManager({
   const detectedBank = useMemo(() => detectKosovoBankFromAccount(normalizedAccount), [normalizedAccount]);
   const selectedBank = useMemo(() => getBankByName(form.bankName), [form.bankName]);
   const visualBank = selectedBank || detectedBank;
+  const validBankAccounts = useMemo(
+    () => bankAccounts.filter(isCompleteProfileBankAccount),
+    [bankAccounts]
+  );
   const selectedProfileBankAccount = useMemo(
-    () => bankAccounts.find((account) => account.id === form.selectedBankAccountId) || null,
-    [bankAccounts, form.selectedBankAccountId]
+    () => validBankAccounts.find((account) => account.id === form.selectedBankAccountId) || null,
+    [form.selectedBankAccountId, validBankAccounts]
   );
   const legacyBankSnapshot = useMemo(() => {
     const banking = form.banking && typeof form.banking === "object" && !Array.isArray(form.banking)
@@ -1749,6 +1766,46 @@ export default function ReimbursementManager({
     .filter(Boolean)
     .join(" ") || "aplikuesi";
   const declarationArticleTitle = form.publicationTitle || "artikulli i përzgjedhur";
+
+  const loadBankAccounts = useCallback(async () => {
+    const loadId = bankAccountsLoadIdRef.current + 1;
+    bankAccountsLoadIdRef.current = loadId;
+    setIsLoadingBankAccounts(true);
+
+    try {
+      const response = await fetch(apiUrl("/auth/me/bank-accounts"), {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        throw new Error("Sesioni nuk eshte aktiv. Kyquni me Google per te derguar rimbursim.");
+      }
+
+      if (!response.ok) {
+        throw new Error("Llogarite bankare nuk u ngarkuan.");
+      }
+
+      if (loadId === bankAccountsLoadIdRef.current) {
+        const previousBankAccountsError = bankAccountsLoadErrorRef.current;
+        setBankAccounts(Array.isArray(data.bankAccounts) ? data.bankAccounts : []);
+        setError((currentError) => currentError === previousBankAccountsError ? "" : currentError);
+        bankAccountsLoadErrorRef.current = "";
+      }
+    } catch (loadError) {
+      if (loadId === bankAccountsLoadIdRef.current) {
+        const bankAccountsLoadError = loadError.message || "Llogarite bankare nuk u ngarkuan.";
+        setBankAccounts([]);
+        bankAccountsLoadErrorRef.current = bankAccountsLoadError;
+        setError(bankAccountsLoadError);
+      }
+    } finally {
+      if (loadId === bankAccountsLoadIdRef.current) {
+        setIsLoadingBankAccounts(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedType !== "publication" || !selectedF1Publication) {
@@ -1877,47 +1934,37 @@ export default function ReimbursementManager({
       }
     }
 
-    async function loadBankAccounts() {
-      setIsLoadingBankAccounts(true);
-
-      try {
-        const response = await fetch(apiUrl("/auth/me/bank-accounts"), {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const data = await response.json().catch(() => ({}));
-
-        if (response.status === 401) {
-          throw new Error("Sesioni nuk eshte aktiv. Kyquni me Google per te derguar rimbursim.");
-        }
-
-        if (!response.ok) {
-          throw new Error("Llogarite bankare nuk u ngarkuan.");
-        }
-
-        if (isMounted) {
-          setBankAccounts(Array.isArray(data.bankAccounts) ? data.bankAccounts : []);
-        }
-      } catch (loadError) {
-        if (isMounted) {
-          setBankAccounts([]);
-          setError(loadError.message || "Llogarite bankare nuk u ngarkuan.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingBankAccounts(false);
-        }
-      }
-    }
-
     loadContext();
     loadRequests();
-    loadBankAccounts();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const reimbursementActivationId = typeof reimbursementTypeTarget === "object"
+    ? reimbursementTypeTarget?.requestId
+    : reimbursementTypeTarget;
+
+  useEffect(() => {
+    if (view !== "create") {
+      return undefined;
+    }
+
+    const refreshBankAccounts = () => {
+      loadBankAccounts();
+    };
+
+    refreshBankAccounts();
+    window.addEventListener("focus", refreshBankAccounts);
+    window.addEventListener("umibres:bank-accounts-updated", refreshBankAccounts);
+
+    return () => {
+      window.removeEventListener("focus", refreshBankAccounts);
+      window.removeEventListener("umibres:bank-accounts-updated", refreshBankAccounts);
+      bankAccountsLoadIdRef.current += 1;
+    };
+  }, [loadBankAccounts, reimbursementActivationId, view]);
 
   useEffect(() => {
     if (isLoadingContext) {
@@ -1952,13 +1999,13 @@ export default function ReimbursementManager({
   }, [effectiveProfile, hasHydratedAutoFields, isLoadingContext]);
 
   useEffect(() => {
-    if (!SERVER_BANK_SNAPSHOT_TYPES.has(selectedType) || isLoadingBankAccounts || !bankAccounts.length) {
+    if (!SERVER_BANK_SNAPSHOT_TYPES.has(selectedType) || isLoadingBankAccounts || !validBankAccounts.length) {
       return;
     }
 
     setForm((prev) => {
-      const currentAccount = bankAccounts.find((account) => account.id === prev.selectedBankAccountId);
-      const defaultAccount = bankAccounts.find((account) => account.isDefault) || bankAccounts[0];
+      const currentAccount = validBankAccounts.find((account) => account.id === prev.selectedBankAccountId);
+      const defaultAccount = validBankAccounts.find((account) => account.isDefault) || validBankAccounts[0];
       const nextAccount = currentAccount || defaultAccount;
 
       if (!nextAccount) {
@@ -1975,7 +2022,7 @@ export default function ReimbursementManager({
         currency: nextAccount.currency || prev.currency || "EUR",
       };
     });
-  }, [bankAccounts, isLoadingBankAccounts, selectedType]);
+  }, [isLoadingBankAccounts, selectedType, validBankAccounts]);
 
   useEffect(() => {
     if (
@@ -2345,7 +2392,9 @@ export default function ReimbursementManager({
 
     if (bankRequired && SERVER_BANK_SNAPSHOT_TYPES.has(selectedType)) {
       if (!hasProfileBankSelection) {
-        nextErrors.selectedBankAccountId = BANK_ACCOUNT_REQUIRED_ERROR;
+        nextErrors.selectedBankAccountId = bankAccounts.length
+          ? BANK_ACCOUNT_INCOMPLETE_ERROR
+          : BANK_ACCOUNT_REQUIRED_ERROR;
       }
     } else if (bankRequired) {
       const submittedAccount = form.bankAccountNumber || form.iban;
@@ -3555,18 +3604,24 @@ export default function ReimbursementManager({
       );
     }
 
-    if (!bankAccounts.length && !summary) {
+    if (!validBankAccounts.length && !summary) {
+      const missingAccountMessage = bankAccounts.length
+        ? r.bankAccountSelection.incompleteProfileAccount
+        : r.bankAccountSelection.missingProfileAccount;
+
       return (
         <div className="reimbursement-field reimbursement-wide">
           <span>{r.bankAccountSelection.label}</span>
           <div className="reimbursement-bank-placeholder" role="alert">
-            {r.bankAccountSelection.missingProfileAccount}
+            {missingAccountMessage}
           </div>
           {fieldErrors.selectedBankAccountId ? (
             <small className="reimbursement-field-error">
               {fieldErrors.selectedBankAccountId === BANK_ACCOUNT_REQUIRED_ERROR
                 ? r.bankAccountSelection.missingProfileAccount
-                : tx(fieldErrors.selectedBankAccountId)}
+                : fieldErrors.selectedBankAccountId === BANK_ACCOUNT_INCOMPLETE_ERROR
+                  ? r.bankAccountSelection.incompleteProfileAccount
+                  : tx(fieldErrors.selectedBankAccountId)}
             </small>
           ) : null}
         </div>
@@ -3575,11 +3630,11 @@ export default function ReimbursementManager({
 
     return (
       <>
-        {bankAccounts.length ? (
+        {validBankAccounts.length ? (
           <label className="reimbursement-field reimbursement-wide">
             <span>{r.bankAccountSelection.label}</span>
             <select value={form.selectedBankAccountId} onChange={handleBankAccountSelect} required>
-              {bankAccounts.map((account) => {
+              {validBankAccounts.map((account) => {
                 const bankDisplayName = getLocalizedBankDisplayName(account.bankName, language) || account.label || "Llogari bankare";
 
                 return (
@@ -3591,8 +3646,10 @@ export default function ReimbursementManager({
             </select>
             {fieldErrors.selectedBankAccountId ? (
               <small className="reimbursement-field-error">
-                {fieldErrors.selectedBankAccountId === BANK_ACCOUNT_REQUIRED_ERROR
-                  ? r.bankAccountSelection.missingProfileAccount
+              {fieldErrors.selectedBankAccountId === BANK_ACCOUNT_REQUIRED_ERROR
+                ? r.bankAccountSelection.missingProfileAccount
+                : fieldErrors.selectedBankAccountId === BANK_ACCOUNT_INCOMPLETE_ERROR
+                  ? r.bankAccountSelection.incompleteProfileAccount
                   : tx(fieldErrors.selectedBankAccountId)}
               </small>
             ) : null}

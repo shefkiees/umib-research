@@ -1940,6 +1940,7 @@ export default function ProfessorDashboard() {
 
       resetBankAccountDraft();
       await loadBankAccounts();
+      window.dispatchEvent(new Event("umibres:bank-accounts-updated"));
     } catch (error) {
       console.error("Bank account save failed:", error);
       setBankAccountsError(error.message || settingsText.bankAccountSaveError);
@@ -2011,6 +2012,7 @@ export default function ProfessorDashboard() {
 
       setBankAccountDeleteTarget(null);
       await loadBankAccounts();
+      window.dispatchEvent(new Event("umibres:bank-accounts-updated"));
     } catch (error) {
       console.error("Bank account delete failed:", error);
       setBankAccountsError(error.message || settingsText.bankAccountSaveError);
@@ -2040,6 +2042,7 @@ export default function ProfessorDashboard() {
       }
 
       await loadBankAccounts();
+      window.dispatchEvent(new Event("umibres:bank-accounts-updated"));
     } catch (error) {
       console.error("Bank account default update failed:", error);
       setBankAccountsError(error.message || settingsText.bankAccountSaveError);

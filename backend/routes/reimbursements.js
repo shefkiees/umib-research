@@ -664,6 +664,15 @@ function getLegacyBankingSnapshot(fallbackData = {}) {
   return BANK_PROFILE_REQUIRED_FIELDS.every((field) => hasMeaningfulValue(snapshot[field])) ? snapshot : null;
 }
 
+function isCompleteProfileBankAccountRow(row = {}) {
+  return Boolean(
+    hasMeaningfulValue(row.bank_applicant_name)
+    && hasMeaningfulValue(row.bank_name)
+    && isValidBankAccountIdentifier(row.bank_account_number || row.iban)
+    && isValidSwift(row.swift_code)
+  );
+}
+
 async function selectProfileBankAccount(dbOrClient, userId, bankAccountId) {
   const requestedId = normalizeText(bankAccountId);
   const selectedId = parseOptionalUuid(bankAccountId);
@@ -674,7 +683,8 @@ async function selectProfileBankAccount(dbOrClient, userId, bankAccountId) {
 
   const whereClause = selectedId
     ? "and id = $2"
-    : "and is_default = true";
+    : "";
+  const limitClause = selectedId ? "limit 1" : "";
   const params = selectedId ? [userId, selectedId] : [userId];
   const result = await dbOrClient.query(
     `select id, label, bank_applicant_name, bank_name, bank_account_number, iban,
@@ -684,11 +694,15 @@ async function selectProfileBankAccount(dbOrClient, userId, bankAccountId) {
        and archived_at is null
        ${whereClause}
      order by is_default desc, updated_at desc nulls last, created_at desc
-     limit 1`,
+     ${limitClause}`,
     params
   );
 
-  return result.rows[0] || null;
+  if (selectedId) {
+    return result.rows[0] || null;
+  }
+
+  return result.rows.find(isCompleteProfileBankAccountRow) || result.rows[0] || null;
 }
 
 async function applyBankAccountSnapshot(dbOrClient, requestType, formData, userId, fallbackData = {}) {
@@ -701,15 +715,15 @@ async function applyBankAccountSnapshot(dbOrClient, requestType, formData, userI
   const selectedBankAccount = selectedBankAccountId
     ? await selectProfileBankAccount(dbOrClient, userId, selectedBankAccountId)
     : null;
-  const defaultBankAccount = selectedBankAccount || (!selectedBankAccountId
-    ? await selectProfileBankAccount(dbOrClient, userId, "")
-    : null);
-  const legacySnapshot = getLegacyBankingSnapshot(fallbackData);
+  const defaultBankAccount = (isCompleteProfileBankAccountRow(selectedBankAccount) ? selectedBankAccount : null)
+    || await selectProfileBankAccount(dbOrClient, userId, "");
+  const legacySnapshot = selectedBankAccountId ? null : getLegacyBankingSnapshot(fallbackData);
   const bankSnapshot = defaultBankAccount
     ? mapBankAccountSnapshot(defaultBankAccount)
     : legacySnapshot;
 
   if (!bankSnapshot) {
+    delete strippedFormData.selectedBankAccountId;
     return strippedFormData;
   }
 
@@ -733,7 +747,9 @@ function getBankAccountSnapshotValidationError(requestType, formData) {
 
   return {
     field: "selectedBankAccountId",
-    message: "Ju lutem shtoni një llogari bankare në profil para aplikimit.",
+    message: hasMeaningfulValue(formData?.selectedBankAccountId || formData?.bankAccountId)
+      ? "Të dhënat e llogarisë bankare në profil janë jo të plota. Ju lutem plotësoni emrin e aplikantit, bankën, numrin e llogarisë ose IBAN-in dhe SWIFT/BIC."
+      : "Ju lutem shtoni një llogari bankare në profil para aplikimit.",
   };
 }
 
