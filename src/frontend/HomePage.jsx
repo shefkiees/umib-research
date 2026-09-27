@@ -22,7 +22,7 @@ import {
   YAxis,
 } from "recharts";
 import UMIBLogo from "../assets/umiblogo.jpg";
-import UMIBLogoOfficial from "../assets/umiblogo-official.png";
+import UMIBLogoBlack from "../assets/umiblogo-black-transparent.png";
 import UMIBBack from "../assets/umibback.jpg";
 import TransparentLogo from "./common/TransparentLogo";
 import { apiUrl } from "./utils/api";
@@ -288,7 +288,7 @@ export default function HomePage() {
       <nav className="main-navbar">
         <div className="container nav-content">
           <div className="logo-section" onClick={() => navigate("/")}>
-            <img src={UMIBLogoOfficial} alt="UMIB Logo" className="uni-logo" />
+            <img src={UMIBLogoBlack} alt="UMIB Logo" className="uni-logo" />
             <div className="logo-text">
               <span className="logo-title">UMIBRes</span>
             </div>

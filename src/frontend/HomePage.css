@@ -41,7 +41,7 @@
 .umib-homepage-root .uni-logo {
     width: 64px;
     height: 64px;
-    border-radius: 50%;
+    background: transparent;
     object-fit: contain;
     flex: 0 0 auto;
 }
