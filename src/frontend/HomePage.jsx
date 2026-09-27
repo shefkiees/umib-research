@@ -21,10 +21,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import UMIBLogo from "../assets/umiblogo.jpg";
 import UMIBLogoBlack from "../assets/umiblogo-black-transparent.png";
 import UMIBBack from "../assets/umibback.jpg";
-import TransparentLogo from "./common/TransparentLogo";
 import { apiUrl } from "./utils/api";
 import "./HomePage.css";
 
@@ -507,7 +505,7 @@ export default function HomePage() {
             <div className="footer-brand">
               <div className="footer-brand-head">
                 <span className="footer-logo-mark">
-                  <TransparentLogo src={UMIBLogo} alt="Logo e Universitetit" className="footer-logo" />
+                  <img src={UMIBLogoBlack} alt="Logo e Universitetit" className="footer-logo" />
                 </span>
                 <div>
                   <strong>UMIBRes</strong>
