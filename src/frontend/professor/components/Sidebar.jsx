@@ -10,8 +10,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useState } from "react";
-import umibLogo from "../../../assets/umiblogo.jpg";
-import TransparentLogo from "../../common/TransparentLogo";
+import umibLogo from "../../../assets/umiblogo-black-transparent.png";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function Sidebar({ activePage, activeReimbursementType = "", onNavigate, setActivePage, onLogout }) {
@@ -108,7 +107,7 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
       <div className="prof-sidebar-top">
         <div className="prof-sidebar-brand">
           <div className="prof-brand-icon">
-            <TransparentLogo src={umibLogo} alt="UMIB logo" className="prof-brand-logo" threshold={196} />
+            <img src={umibLogo} alt="UMIB logo" className="prof-brand-logo" />
           </div>
           <span className="prof-brand-role">UMIBRes</span>
         </div>
