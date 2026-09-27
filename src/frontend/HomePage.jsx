@@ -249,8 +249,7 @@ export default function HomePage() {
       .sort((first, second) =>
         (second.publicationCount + second.conferenceCount + second.citationCount)
         - (first.publicationCount + first.conferenceCount + first.citationCount)
-      )
-      .slice(0, 6);
+      );
 
     const faculties = groupByCount(users, (user) => user.faculty || "");
     return {

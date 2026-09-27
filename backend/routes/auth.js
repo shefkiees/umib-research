@@ -447,8 +447,7 @@ router.get("/community", async (req, res) => {
          order by
            (coalesce(pub.publications_total, 0) + coalesce(conf.conferences_total, 0) + coalesce(pub.citations_total, 0)) desc,
            u.full_name asc nulls last,
-           u.email asc
-         limit 24`
+           u.email asc`
       ),
       db.query(
         `select
