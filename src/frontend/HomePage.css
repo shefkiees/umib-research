@@ -38,7 +38,13 @@
 }
 
 .umib-homepage-root .logo-section { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.umib-homepage-root .uni-logo { height: 60px; border-radius: 4px; }
+.umib-homepage-root .uni-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
 .umib-homepage-root .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
 .umib-homepage-root .logo-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--navy); font-weight: 800; }
 
