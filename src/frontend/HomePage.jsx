@@ -46,6 +46,7 @@ const FALLBACK_COMMUNITY = {
   academicStaffTotal: 0,
   publicationTotal: 0,
   conferenceTotal: 0,
+  facultyTotal: 0,
 };
 
 async function readOptionalJson(path) {
@@ -126,6 +127,18 @@ function getResponseList(payload, key) {
   return [];
 }
 
+function countActiveProfessorFaculties(users) {
+  return new Set(
+    users
+      .filter((user) =>
+        ["professor", "profesor"].includes(String(user.role || "").trim().toLowerCase())
+        && String(user.status || "active").trim().toLowerCase() === "active"
+      )
+      .map((user) => String(user.faculty || "").trim())
+      .filter(Boolean)
+  ).size;
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [communityData, setCommunityData] = useState(FALLBACK_COMMUNITY);
@@ -137,7 +150,7 @@ export default function HomePage() {
       const communityPayload = await readOptionalJson("/auth/community");
       const communityUsers = getResponseList(communityPayload, "users");
 
-      if (communityUsers.length) {
+      if (communityPayload) {
         if (!isMounted) {
           return;
         }
@@ -147,10 +160,11 @@ export default function HomePage() {
           analytics: communityPayload?.analytics,
           publications: [],
           conferences: [],
-          registeredUserTotal: toNumber(communityPayload?.registeredUserTotal || communityPayload?.analytics?.userSummary?.total || communityUsers.length),
-          academicStaffTotal: toNumber(communityPayload?.academicStaffTotal || communityPayload?.analytics?.userSummary?.academicStaffTotal || communityUsers.length),
-          publicationTotal: toNumber(communityPayload?.publicationTotal || communityUsers.reduce((total, user) => total + toNumber(user.publicationCount || user.publicationsTotal), 0)),
-          conferenceTotal: toNumber(communityPayload?.conferenceTotal || communityUsers.reduce((total, user) => total + toNumber(user.conferenceCount || user.conferencesTotal), 0)),
+          registeredUserTotal: toNumber(communityPayload?.registeredUserTotal ?? communityPayload?.analytics?.userSummary?.total ?? communityUsers.length),
+          academicStaffTotal: toNumber(communityPayload?.academicStaffTotal ?? communityPayload?.analytics?.userSummary?.academicStaffTotal ?? communityUsers.length),
+          publicationTotal: toNumber(communityPayload?.publicationTotal ?? communityUsers.reduce((total, user) => total + toNumber(user.publicationCount || user.publicationsTotal), 0)),
+          conferenceTotal: toNumber(communityPayload?.conferenceTotal ?? communityUsers.reduce((total, user) => total + toNumber(user.conferenceCount || user.conferencesTotal), 0)),
+          facultyTotal: toNumber(communityPayload?.facultyTotal ?? countActiveProfessorFaculties(communityUsers)),
         });
         return;
       }
@@ -172,16 +186,18 @@ export default function HomePage() {
       const publications = reviewPublications.length ? reviewPublications : ownPublications;
       const publicationTotal = toNumber(reviewPublicationsPayload?.pagination?.total || ownPublicationsPayload?.pagination?.total || publications.length);
       const conferences = getResponseList(conferencesPayload, "conferences");
+      const users = getResponseList(usersPayload, "users");
 
       setCommunityData({
-        users: getResponseList(usersPayload, "users"),
+        users,
         analytics: analyticsPayload,
         publications,
         conferences,
-        registeredUserTotal: toNumber(analyticsPayload?.userSummary?.total || getResponseList(usersPayload, "users").length),
-        academicStaffTotal: toNumber(getResponseList(usersPayload, "users").filter((user) => ["professor", "profesor"].includes(String(user.role || "").trim().toLowerCase())).length),
+        registeredUserTotal: toNumber(analyticsPayload?.userSummary?.total || users.length),
+        academicStaffTotal: toNumber(users.filter((user) => ["professor", "profesor"].includes(String(user.role || "").trim().toLowerCase())).length),
         publicationTotal,
         conferenceTotal: toNumber(conferencesPayload?.pagination?.total || conferences.length),
+        facultyTotal: countActiveProfessorFaculties(users),
       });
     };
 
@@ -246,7 +262,7 @@ export default function HomePage() {
         academicStaff: toNumber(communityData.academicStaffTotal || communityData.analytics?.userSummary?.academicStaffTotal || professorUsers.length),
         publications: communityData.publicationTotal || users.reduce((total, user) => total + user.publicationCount, 0),
         conferences: communityData.conferenceTotal || users.reduce((total, user) => total + user.conferenceCount, 0),
-        faculties: faculties.length,
+        faculties: toNumber(communityData.facultyTotal ?? faculties.length),
       },
     };
   }, [communityData]);
