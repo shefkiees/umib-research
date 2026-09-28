@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, Bell, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, RefreshCw, Settings } from "lucide-react";
 import {
   Cell,
@@ -17,6 +17,31 @@ import { useLanguage } from "../../i18n/LanguageContext";
 import { apiUrl } from "../../utils/api";
 
 const navLabels = ["Statistikat", "Kërkesat për Shqyrtim", "Shqyrtimi", "Vendimet"];
+
+const COMMITTEE_DASHBOARD_DEFAULT_PAGE = "Statistikat";
+const COMMITTEE_DASHBOARD_PAGES = new Set([
+  ...navLabels,
+  "Njoftime",
+  "Settings",
+]);
+
+const getCommitteeDashboardPage = (search = "") => {
+  const requestedPage = new URLSearchParams(search).get("section") || COMMITTEE_DASHBOARD_DEFAULT_PAGE;
+  return COMMITTEE_DASHBOARD_PAGES.has(requestedPage) ? requestedPage : COMMITTEE_DASHBOARD_DEFAULT_PAGE;
+};
+
+const getCommitteeDashboardSearch = (currentSearch, page) => {
+  const params = new URLSearchParams(currentSearch);
+
+  if (page === COMMITTEE_DASHBOARD_DEFAULT_PAGE) {
+    params.delete("section");
+  } else {
+    params.set("section", page);
+  }
+
+  const search = params.toString();
+  return search ? `?${search}` : "";
+};
 
 const overviewTypeColors = {
   F1: "#1f4f84",
@@ -1324,8 +1349,11 @@ function formatReviewDate(value) {
 
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
-  const [activePage, setActivePage] = useState("Statistikat");
+  const [activePage, setActivePage] = useState(
+    () => getCommitteeDashboardPage(window.location.search)
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [pendingSubmissionSort, setPendingSubmissionSort] = useState({ key: "", direction: "asc" });
@@ -1341,6 +1369,22 @@ export default function CommitteeDashboard() {
   const [f1ChecklistValidationErrors, setF1ChecklistValidationErrors] = useState({});
   const [isF2AbstractExpanded, setIsF2AbstractExpanded] = useState(false);
   const [isChecklistAbstractExpanded, setIsChecklistAbstractExpanded] = useState(false);
+
+  useEffect(() => {
+    setActivePage(getCommitteeDashboardPage(location.search));
+  }, [location.search]);
+
+  const handleCommitteeNavigate = (page) => {
+    const nextPage = COMMITTEE_DASHBOARD_PAGES.has(page) ? page : COMMITTEE_DASHBOARD_DEFAULT_PAGE;
+    const search = getCommitteeDashboardSearch(location.search, nextPage);
+
+    if (search === location.search) {
+      setActivePage(nextPage);
+      return;
+    }
+
+    navigate({ pathname: "/committee/dashboard", search });
+  };
 
   useEffect(() => {
     if (!f1ChecklistDashboardMessage) {
@@ -2047,14 +2091,14 @@ export default function CommitteeDashboard() {
     }
 
     setSelectedReimbursementReview(request);
-    setActivePage("Kërkesat për Shqyrtim");
+    handleCommitteeNavigate("Kërkesat për Shqyrtim");
   };
 
   const closeReimbursementReview = () => {
     setIsReviewChecklistDrawerOpen(false);
     setIsF2AbstractExpanded(false);
     setSelectedReimbursementReview(null);
-    setActivePage("Kërkesat për Shqyrtim");
+    handleCommitteeNavigate("Kërkesat për Shqyrtim");
   };
 
   const saveMetadataReview = (publication, updater) => {
@@ -2315,7 +2359,7 @@ export default function CommitteeDashboard() {
     const normalizedAction = String(actionId || "").trim().toLowerCase();
 
     if (normalizedAction === "njoftime" || normalizedAction === "notifications") {
-      setActivePage("Njoftime");
+      handleCommitteeNavigate("Njoftime");
       return;
     }
 
@@ -2326,7 +2370,7 @@ export default function CommitteeDashboard() {
     }
 
     if (normalizedAction === "settings") {
-      setActivePage("Settings");
+      handleCommitteeNavigate("Settings");
       return;
     }
 
@@ -4227,12 +4271,12 @@ export default function CommitteeDashboard() {
   }
 
   if (activePage === "Settings") {
-    content = <CommitteeSettings onBack={() => setActivePage("Statistikat")} />;
+    content = <CommitteeSettings onBack={() => handleCommitteeNavigate("Statistikat")} />;
   }
 
   return (
     <div className="committee-layout">
-      <CommitteeSidebar activePage={activePage} onNavigate={setActivePage} navLabels={navLabels} />
+      <CommitteeSidebar activePage={activePage} onNavigate={handleCommitteeNavigate} navLabels={navLabels} />
 
       <div className="committee-main">
         <CommitteeTopBar
