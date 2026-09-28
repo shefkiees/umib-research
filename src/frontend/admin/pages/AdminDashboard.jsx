@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { ArrowRight, RotateCcw, Trash2, X, User, Settings, Bell, Users } from "lucide-react";
 
@@ -130,6 +130,33 @@ const formatAuditDateTime = (value) => {
 
 const AUDIT_PAGE_SIZE = 25;
 
+const ADMIN_DASHBOARD_DEFAULT_PAGE = "Përdoruesit";
+const ADMIN_DASHBOARD_PAGES = new Set([
+    ADMIN_DASHBOARD_DEFAULT_PAGE,
+    "Statistikat",
+    "Historiku i veprimeve",
+    "Njoftimet",
+    "Cilësimet",
+]);
+
+const getAdminDashboardPage = (search = "") => {
+    const requestedPage = new URLSearchParams(search).get("section") || ADMIN_DASHBOARD_DEFAULT_PAGE;
+    return ADMIN_DASHBOARD_PAGES.has(requestedPage) ? requestedPage : ADMIN_DASHBOARD_DEFAULT_PAGE;
+};
+
+const getAdminDashboardSearch = (currentSearch, page) => {
+    const params = new URLSearchParams(currentSearch);
+
+    if (page === ADMIN_DASHBOARD_DEFAULT_PAGE) {
+        params.delete("section");
+    } else {
+        params.set("section", page);
+    }
+
+    const search = params.toString();
+    return search ? `?${search}` : "";
+};
+
 const getAuditStatusClass = (status) => {
     if (status === "success") return "admin-audit-status admin-audit-status--success";
     if (status === "failed") return "admin-audit-status admin-audit-status--failed";
@@ -178,10 +205,13 @@ const mapProfileToAdminUser = (user, fallback = {}) => ({
 export default function AdminDashboard() {
 
     const navigate = useNavigate();
+    const location = useLocation();
     const { language } = useLanguage();
     const adminText = useMemo(() => getAdminText(language), [language]);
 
-    const [activePage, setActivePage] = useState("Përdoruesit");
+    const [activePage, setActivePage] = useState(
+        () => getAdminDashboardPage(window.location.search)
+    );
 
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -230,6 +260,22 @@ export default function AdminDashboard() {
         academicTitle: "",
         scientificTitle: "",
     });
+
+    useEffect(() => {
+        setActivePage(getAdminDashboardPage(location.search));
+    }, [location.search]);
+
+    const handleAdminNavigate = (page) => {
+        const nextPage = ADMIN_DASHBOARD_PAGES.has(page) ? page : ADMIN_DASHBOARD_DEFAULT_PAGE;
+        const search = getAdminDashboardSearch(location.search, nextPage);
+
+        if (search === location.search) {
+            setActivePage(nextPage);
+            return;
+        }
+
+        navigate({ pathname: "/admin/dashboard", search });
+    };
 
     const [profileError, setProfileError] = useState("");
 
@@ -694,7 +740,7 @@ export default function AdminDashboard() {
     const handleProfileAction = (actionId) => {
         if (actionId === "Njoftime") {
 
-            setActivePage("Njoftimet");
+            handleAdminNavigate("Njoftimet");
 
             return;
 
@@ -710,7 +756,7 @@ export default function AdminDashboard() {
 
         if (actionId === "Cilësimet") {
 
-            setActivePage("Cilësimet");
+            handleAdminNavigate("Cilësimet");
 
             return;
 
@@ -1233,7 +1279,7 @@ export default function AdminDashboard() {
 
         <div className="admin-layout">
 
-            <AdminSidebar activePage={activePage} onNavigate={setActivePage} labels={adminText} />
+            <AdminSidebar activePage={activePage} onNavigate={handleAdminNavigate} labels={adminText} />
 
 
 

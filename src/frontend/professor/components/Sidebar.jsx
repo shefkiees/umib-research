@@ -9,7 +9,7 @@ import {
   Wallet,
   BarChart3,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import umibLogo from "../../../assets/umiblogo-black-transparent.png";
 import { useLanguage } from "../../i18n/LanguageContext";
 
@@ -36,6 +36,18 @@ export default function Sidebar({ activePage, activeReimbursementType = "", onNa
     { name: "Rimbursime", label: t("navigation.reimbursements"), icon: <Wallet size={18} /> },
     { name: "Historiku i Rimbursimeve", label: t("navigation.reimbursementHistory"), icon: <History size={18} /> },
   ];
+
+  useEffect(() => {
+    const isPublicationPage = activePage === "Publikime" || publicationPages.includes(activePage);
+    const isReimbursementPage = activePage === "Rimbursime";
+
+    setIsPublicationMenuOpen(isPublicationPage);
+    setIsReimbursementMenuOpen(isReimbursementPage);
+
+    if (!isReimbursementPage) {
+      setActiveReimbursementSubmenu("");
+    }
+  }, [activePage]);
 
   const handleNavigate = (page) => {
     if (typeof onNavigate === "function") {

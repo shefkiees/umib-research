@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -260,6 +260,53 @@ const PUBLICATION_LIST_PAGES = new Set([
   "Të gjitha publikimet",
   "Lista e Publikimeve",
 ]);
+
+const PROFESSOR_DASHBOARD_DEFAULT_PAGE = "Statistika";
+const PROFESSOR_DASHBOARD_PAGES = new Set([
+  PROFESSOR_DASHBOARD_DEFAULT_PAGE,
+  "Publikime",
+  ...PUBLICATION_LIST_PAGES,
+  "Konferenca",
+  "Rimbursime",
+  "Historiku i Rimbursimeve",
+  "Njoftime",
+  "Settings",
+  "Integrime",
+]);
+
+const getProfessorDashboardRouteState = (search = "") => {
+  const params = new URLSearchParams(search);
+  const requestedPage = params.get("section") || PROFESSOR_DASHBOARD_DEFAULT_PAGE;
+  const page = PROFESSOR_DASHBOARD_PAGES.has(requestedPage)
+    ? requestedPage
+    : PROFESSOR_DASHBOARD_DEFAULT_PAGE;
+  const requestedReimbursementType = params.get("reimbursement") || "";
+  const reimbursementType = page === "Rimbursime" && ["publication", "conference"].includes(requestedReimbursementType)
+    ? requestedReimbursementType
+    : "";
+
+  return { page, reimbursementType };
+};
+
+const getProfessorDashboardSearch = (currentSearch, page, reimbursementType = "") => {
+  const params = new URLSearchParams(currentSearch);
+  params.delete("orcid");
+
+  if (page === PROFESSOR_DASHBOARD_DEFAULT_PAGE) {
+    params.delete("section");
+  } else {
+    params.set("section", page);
+  }
+
+  if (page === "Rimbursime" && reimbursementType) {
+    params.set("reimbursement", reimbursementType);
+  } else {
+    params.delete("reimbursement");
+  }
+
+  const search = params.toString();
+  return search ? `?${search}` : "";
+};
 
 const getPublicationTypeFilterForPage = (page) => {
   if (page === "Artikuj reviste") {
@@ -865,10 +912,11 @@ const hasStatisticMetricData = (rows = []) =>
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language, setLanguage, t, tx } = useLanguage();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const orcidStatus = params.get("orcid");
 
     if (!orcidStatus) return;
@@ -881,13 +929,18 @@ export default function ProfessorDashboard() {
       alert("Ndodhi një gabim gjatë lidhjes me ORCID.");
     }
 
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }, []);
+    params.delete("orcid");
+    const search = params.toString();
+    navigate({ pathname: location.pathname, search: search ? `?${search}` : "" }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
-
-  const [activePage, setActivePage] = useState("Statistika");
+  const [activePage, setActivePage] = useState(
+    () => getProfessorDashboardRouteState(window.location.search).page
+  );
   const [reimbursementTypeTarget, setReimbursementTypeTarget] = useState({ type: "", requestId: 0 });
-  const [activeReimbursementType, setActiveReimbursementType] = useState("");
+  const [activeReimbursementType, setActiveReimbursementType] = useState(
+    () => getProfessorDashboardRouteState(window.location.search).reimbursementType
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [periodRange, setPeriodRange] = useState("6m");
   const [profile, setProfile] = useState(professorProfile);
@@ -936,6 +989,17 @@ export default function ProfessorDashboard() {
   const [notificationsError, setNotificationsError] = useState("");
   const [systemPreferences, setSystemPreferences] = useState(DEFAULT_PROFESSOR_SYSTEM_PREFERENCES);
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
+
+  useEffect(() => {
+    const routeState = getProfessorDashboardRouteState(location.search);
+
+    setActivePage(routeState.page);
+    setActiveReimbursementType(routeState.reimbursementType);
+    setReimbursementTypeTarget((prev) => ({
+      type: routeState.reimbursementType,
+      requestId: prev.requestId + 1,
+    }));
+  }, [location.search]);
 
   const settingsText = t("professor.settings");
   const departmentOptions = FACULTY_DEPARTMENTS[profileDraft.faculty] || [];
@@ -1398,7 +1462,7 @@ export default function ProfessorDashboard() {
 
   const openPublicationSearchResult = (item) => {
     if (item?.page) {
-      setActivePage(item.page);
+      handleDashboardNavigate(item.page);
       setFocusedPublicationId("");
       if (PUBLICATION_LIST_PAGES.has(item.page)) {
         setPublicationsPage(1);
@@ -1412,7 +1476,7 @@ export default function ProfessorDashboard() {
       return;
     }
 
-    setActivePage("Publikime");
+    handleDashboardNavigate("Publikime");
     startPublicationEdit(publication);
     setFocusedPublicationId(publication.id);
 
@@ -1590,7 +1654,7 @@ export default function ProfessorDashboard() {
   const openPublicationEditForm = (publication) => {
     startPublicationEdit(publication);
     setFocusedPublicationId(publication.id);
-    setActivePage("Publikime");
+    handleDashboardNavigate("Publikime");
 
     window.setTimeout(() => {
       document.getElementById("publication-edit-form")?.scrollIntoView({
@@ -1627,27 +1691,25 @@ export default function ProfessorDashboard() {
   );
 
   const handleDashboardNavigate = (destination) => {
-    if (destination && typeof destination === "object") {
-      const reimbursementType = destination.reimbursementType || "";
+    const isStructuredDestination = destination && typeof destination === "object";
+    const page = isStructuredDestination
+      ? destination.page || PROFESSOR_DASHBOARD_DEFAULT_PAGE
+      : destination || PROFESSOR_DASHBOARD_DEFAULT_PAGE;
+    const reimbursementType = page === "Rimbursime"
+      ? isStructuredDestination
+        ? destination.reimbursementType || ""
+        : "publication"
+      : "";
+    const search = getProfessorDashboardSearch(location.search, page, reimbursementType);
 
-      setReimbursementTypeTarget((prev) => ({
-        type: reimbursementType,
-        requestId: prev.requestId + 1,
-      }));
+    if (search === location.search) {
+      setActivePage(page);
       setActiveReimbursementType(reimbursementType);
-      setActivePage(destination.page || "Statistika");
+      setReimbursementTypeTarget((prev) => ({ type: reimbursementType, requestId: prev.requestId + 1 }));
       return;
     }
 
-    if (destination === "Rimbursime") {
-      setReimbursementTypeTarget((prev) => ({ type: "publication", requestId: prev.requestId + 1 }));
-      setActiveReimbursementType("");
-    } else {
-      setReimbursementTypeTarget((prev) => ({ type: "", requestId: prev.requestId + 1 }));
-      setActiveReimbursementType("");
-    }
-
-    setActivePage(destination);
+    navigate({ pathname: "/professor/dashboard", search });
   };
 
   const handleMenuAction = (action) => {
@@ -2251,7 +2313,7 @@ export default function ProfessorDashboard() {
 
   const cancelPublicationEditAndReturn = () => {
     cancelPublicationEdit();
-    setActivePage("Te gjithe Artikujt");
+    handleDashboardNavigate("Te gjithe Artikujt");
   };
 
   const resetManualPublicationDraft = () => {
@@ -2282,7 +2344,7 @@ export default function ProfessorDashboard() {
 
       resetManualPublicationDraft();
       setPublicationsPage(1);
-      setActivePage(targetPublicationPage);
+      handleDashboardNavigate(targetPublicationPage);
       await loadPublications({
         page: 1,
         query: searchQuery,
@@ -2317,7 +2379,7 @@ export default function ProfessorDashboard() {
       }
 
       cancelPublicationEdit();
-      setActivePage("Te gjithe Artikujt");
+      handleDashboardNavigate("Te gjithe Artikujt");
       await loadPublications({ page: publicationsPage, query: searchQuery });
       setPublicationSuccessToast("Artikulli u ruajt me sukses");
     } catch (error) {
@@ -2458,10 +2520,10 @@ export default function ProfessorDashboard() {
             <p>{t("professor.dashboard.heroDescription")}</p>
           </div>
           <div className="prof-hero-actions">
-            <button className="primary-btn" type="button" onClick={() => setActivePage("Publikime")}>
+            <button className="primary-btn" type="button" onClick={() => handleDashboardNavigate("Publikime")}>
               {t("professor.dashboard.managePublications")}
             </button>
-            <button className="secondary-btn" type="button" onClick={() => setActivePage("Statistika")}>
+            <button className="secondary-btn" type="button" onClick={() => handleDashboardNavigate("Statistika")}>
               {t("professor.dashboard.viewStats")}
             </button>
           </div>
@@ -2526,7 +2588,7 @@ export default function ProfessorDashboard() {
                   key={item.title}
                   className="prof-quick-item"
                   type="button"
-                  onClick={() => setActivePage(item.page)}
+                  onClick={() => handleDashboardNavigate(item.page)}
                 >
                   <div className="prof-quick-icon">{item.icon}</div>
                   <h4>{item.title}</h4>
@@ -3133,7 +3195,7 @@ export default function ProfessorDashboard() {
                 <h3>{t("professor.dashboard.integrationsTitle")}</h3>
                 <p>{t("professor.dashboard.integrationsDescription")}</p>
               </div>
-              <button type="button" className="prof-integration-manage-btn" onClick={() => setActivePage("Settings")}>
+              <button type="button" className="prof-integration-manage-btn" onClick={() => handleDashboardNavigate("Settings")}>
                 {t("professor.dashboard.manage")}
               </button>
             </div>
@@ -3316,7 +3378,7 @@ export default function ProfessorDashboard() {
                   >
                     {profile.orcidId ? settingsText.refreshOrcid : settingsText.connectOrcid}
                   </button>
-                  <button className="prorector-settings-action-btn" onClick={() => setActivePage("Integrime")}>
+                  <button className="prorector-settings-action-btn" onClick={() => handleDashboardNavigate("Integrime")}>
                     {settingsText.viewIntegrations}
                   </button>
                 </div>

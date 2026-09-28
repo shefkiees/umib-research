@@ -1,5 +1,6 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./LoginForm.css";
 import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
@@ -15,7 +16,15 @@ const AUTH_ERROR_CODES = new Set([
   "google_login_failed",
 ]);
 
+const DASHBOARD_BY_ROLE = {
+  admin: "/admin/dashboard",
+  committee: "/committee/dashboard",
+  professor: "/professor/dashboard",
+  prorector: "/prorector/dashboard",
+};
+
 const LoginForm = () => {
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
@@ -23,6 +32,37 @@ const LoginForm = () => {
   const authErrorMessage = authError
     ? t(`auth.login.errors.${authErrorKey}`)
     : "";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const redirectAuthenticatedUser = async () => {
+      try {
+        const response = await fetch(apiUrl("/auth/me"), {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json().catch(() => ({}));
+        const role = String(data.user?.role || "").toLowerCase();
+        const dashboardRoute = DASHBOARD_BY_ROLE[role];
+
+        if (isMounted && dashboardRoute) {
+          navigate(dashboardRoute, { replace: true });
+        }
+      } catch {
+        // Keep the login form available when the session check cannot be completed.
+      }
+    };
+
+    redirectAuthenticatedUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   const handleGoogleLogin = () => {
     setLoading(true);
