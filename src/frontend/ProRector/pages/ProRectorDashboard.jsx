@@ -62,6 +62,34 @@ const DEFAULT_PROFILE = {
   role: "Monitorim dhe raporte",
 };
 
+const PRORECTOR_DASHBOARD_DEFAULT_PAGE = "Dashboard";
+const PRORECTOR_DASHBOARD_PAGES = new Set([
+  PRORECTOR_DASHBOARD_DEFAULT_PAGE,
+  "Artikujt",
+  "Fakultetet",
+  "Financimet",
+  "Raportet",
+  "Cilësimet",
+]);
+
+const getProrectorDashboardPage = (search = "") => {
+  const requestedPage = new URLSearchParams(search).get("section") || PRORECTOR_DASHBOARD_DEFAULT_PAGE;
+  return PRORECTOR_DASHBOARD_PAGES.has(requestedPage) ? requestedPage : PRORECTOR_DASHBOARD_DEFAULT_PAGE;
+};
+
+const getProrectorDashboardSearch = (currentSearch, page) => {
+  const params = new URLSearchParams(currentSearch);
+
+  if (page === PRORECTOR_DASHBOARD_DEFAULT_PAGE) {
+    params.delete("section");
+  } else {
+    params.set("section", page);
+  }
+
+  const search = params.toString();
+  return search ? `?${search}` : "";
+};
+
 const EMPTY_PROFILE_DRAFT = {
   name: "",
   email: "",
@@ -1029,7 +1057,9 @@ export default function ProRectorDashboard() {
   const location = useLocation();
   const { language, setLanguage } = useLanguage();
   const copy = PRORECTOR_COPY[language] || PRORECTOR_COPY.sq;
-  const [activePage, setActivePage] = useState(location.state?.activePage || "Dashboard");
+  const [activePage, setActivePage] = useState(
+    () => getProrectorDashboardPage(window.location.search)
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [facultySearchQuery, setFacultySearchQuery] = useState("");
   const [filters, setFilters] = useState({ search: "", year: "", faculty: "", type: "", platform: "", quartile: "", status: "" });
@@ -1044,6 +1074,22 @@ export default function ProRectorDashboard() {
   const [notificationsError, setNotificationsError] = useState("");
   const [systemPreferences, setSystemPreferences] = useState(DEFAULT_SYSTEM_PREFERENCES);
   const [systemPreferencesMessage, setSystemPreferencesMessage] = useState("");
+
+  useEffect(() => {
+    setActivePage(getProrectorDashboardPage(location.search));
+  }, [location.search]);
+
+  const handleProrectorNavigate = (page) => {
+    const nextPage = PRORECTOR_DASHBOARD_PAGES.has(page) ? page : PRORECTOR_DASHBOARD_DEFAULT_PAGE;
+    const search = getProrectorDashboardSearch(location.search, nextPage);
+
+    if (search === location.search) {
+      setActivePage(nextPage);
+      return;
+    }
+
+    navigate({ pathname: "/prorector/dashboard", search });
+  };
 
   const faculties = useProrectorResource("/prorector/faculties", { faculties: [] });
   const publications = useProrectorResource(`/prorector/publications?${new URLSearchParams({
@@ -1690,7 +1736,7 @@ export default function ProRectorDashboard() {
 
   return (
     <div className="prorector-layout">
-      <ProRectorSidebar activePage={activePage} setActivePage={setActivePage} />
+      <ProRectorSidebar activePage={activePage} setActivePage={handleProrectorNavigate} />
       <div className="prorector-main">
         <ProRectorTopBar
           activePage={activePage}
@@ -1708,7 +1754,7 @@ export default function ProRectorDashboard() {
           onProfileAction={(action) => {
             if (action === "Settings") {
               setIsProfileModalOpen(false);
-              setActivePage("Cilësimet");
+              handleProrectorNavigate("Cilësimet");
               return;
             }
             if (action === "Logout") {

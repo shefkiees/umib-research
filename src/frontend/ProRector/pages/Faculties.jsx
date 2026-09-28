@@ -40,6 +40,11 @@ function formatCurrency(value) {
   }).format(toNumber(value));
 }
 
+function getProrectorDashboardUrl(page) {
+  if (!page || page === "Dashboard") return "/prorector/dashboard";
+  return `/prorector/dashboard?${new URLSearchParams({ section: page }).toString()}`;
+}
+
 function ChartEmpty({ message }) {
   return (
     <div className="prorector-chart-empty">
@@ -111,7 +116,7 @@ export default function FacultyDetails() {
     <div className="prorector-layout">
       <ProRectorSidebar
         activePage="Fakultetet"
-        setActivePage={(page) => navigate("/prorector/dashboard", { state: { activePage: page } })}
+        setActivePage={(page) => navigate(getProrectorDashboardUrl(page))}
       />
       <div className="prorector-main">
         <ProRectorTopBar
@@ -122,7 +127,7 @@ export default function FacultyDetails() {
           notifications={[]}
           onProfileAction={(action) => {
             if (action === "Settings") {
-              navigate("/prorector/dashboard", { state: { activePage: "Cilësimet" } });
+              navigate(getProrectorDashboardUrl("Cilësimet"));
               return;
             }
             if (action === "Logout") {
@@ -136,7 +141,7 @@ export default function FacultyDetails() {
             <button
               type="button"
               className="prorector-back-btn"
-              onClick={() => navigate("/prorector/dashboard", { state: { activePage: "Fakultetet" } })}
+              onClick={() => navigate(getProrectorDashboardUrl("Fakultetet"))}
             >
               <ArrowLeft size={17} />
               Kthehu te Fakultetet
