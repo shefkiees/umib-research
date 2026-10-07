@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Award,
@@ -88,10 +88,55 @@ function getInitials(user) {
 }
 
 function getAcademicDisplayName(user) {
-  const title = pickFirstText(user?.academicTitle, user?.academic_title);
+  const title = formatAcademicTitle(pickFirstText(user?.academicTitle, user?.academic_title));
   const name = pickFirstText(user?.name, user?.fullName, user?.full_name, user?.email);
 
   return [title, name].filter(Boolean).join(" ");
+}
+
+function formatAcademicTitle(value) {
+  const title = String(value || "").trim();
+  if (!title) return "";
+
+  const normalizedTitle = title
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const hasDoctorate = /\bdr\b|\bdoktor/.test(normalizedTitle);
+  const titleWithoutDoctorate = normalizedTitle
+    .replace(/\bdr\b/g, "")
+    .replace(/\bdoktor(e|i|ature)?\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const compactTitle = (() => {
+    switch (titleWithoutDoctorate) {
+      case "profesor":
+      case "professor":
+      case "profesor i rregullt":
+        return "Prof.";
+      case "profesor asistent":
+      case "asistent profesor":
+      case "assistant professor":
+        return "Prof. Ass.";
+      case "asistent":
+      case "assistant":
+        return "Ass.";
+      case "senior asistent":
+      case "senior assistant":
+        return "Sr. Ass.";
+      case "profesor i asociuar":
+      case "associate professor":
+        return "Prof. Assoc.";
+      default:
+        return title;
+    }
+  })();
+
+  return hasDoctorate && !/\bdr\.?\b/i.test(compactTitle)
+    ? `${compactTitle} Dr.`
+    : compactTitle;
 }
 
 function pickFirstText(...values) {
@@ -148,7 +193,12 @@ function countActiveProfessorFaculties(users) {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const communitySliderRef = useRef(null);
   const [communityData, setCommunityData] = useState(FALLBACK_COMMUNITY);
+  const [communitySliderState, setCommunitySliderState] = useState({
+    canScrollPrev: false,
+    canScrollNext: false,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -287,6 +337,51 @@ export default function HomePage() {
     { key: "conferences", icon: CalendarDays },
     { key: "faculties", icon: Building2 },
   ];
+
+  const updateCommunitySliderState = useCallback(() => {
+    const slider = communitySliderRef.current;
+    if (!slider) {
+      setCommunitySliderState({ canScrollPrev: false, canScrollNext: false });
+      return;
+    }
+
+    const maxScrollLeft = slider.scrollWidth - slider.clientWidth;
+    setCommunitySliderState({
+      canScrollPrev: slider.scrollLeft > 4,
+      canScrollNext: slider.scrollLeft < maxScrollLeft - 4,
+    });
+  }, []);
+
+  const scrollCommunitySlider = useCallback((direction) => {
+    const slider = communitySliderRef.current;
+    if (!slider) return;
+
+    const firstCard = slider.querySelector(".community-profile-card");
+    const cardWidth = firstCard?.getBoundingClientRect().width || 420;
+    slider.scrollBy({
+      left: direction * (cardWidth + 20),
+      behavior: "smooth",
+    });
+  }, []);
+
+  useEffect(() => {
+    updateCommunitySliderState();
+  }, [community.profileCards.length, updateCommunitySliderState]);
+
+  useEffect(() => {
+    const slider = communitySliderRef.current;
+    if (!slider) return undefined;
+
+    const handleScroll = () => updateCommunitySliderState();
+    slider.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    updateCommunitySliderState();
+
+    return () => {
+      slider.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [updateCommunitySliderState]);
   const platformStatDescriptions = [
     "Anëtarë të regjistruar",
     "Artikuj shkencorë të regjistruar",
@@ -382,45 +477,72 @@ export default function HomePage() {
           </div>
 
           {community.profileCards.length ? (
-            <div className="community-profile-grid" aria-label="Anetaret e komunitetit akademik">
-              {community.profileCards.map((profile) => (
-                <article className="community-profile-card" key={profile.id || profile.email}>
-                  <div className="community-profile-main">
-                    <div className="community-profile-photo">
-                      {profile.avatarUrl ? (
-                        <img src={profile.avatarUrl} alt={profile.name || profile.email} />
-                      ) : (
-                        <span>{getInitials(profile)}</span>
-                      )}
-                    </div>
-                    <div className="community-profile-copy">
-                      <h3>{profile.displayName || profile.name || profile.email}</h3>
-                      <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
-                      {profile.department ? <p>{profile.department}</p> : null}
-                    </div>
-                    <button className="community-profile-arrow" type="button" aria-label={`Hap profilin e ${profile.name || profile.email}`}>
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                  <div className="community-profile-stats">
-                    <span>
-                      <BookOpen size={14} aria-hidden="true" />
-                      <strong>{formatNumber(profile.publicationCount)}</strong>
-                      <small>Publikime</small>
-                    </span>
-                    <span>
-                      <CalendarDays size={14} aria-hidden="true" />
-                      <strong>{formatNumber(profile.conferenceCount)}</strong>
-                      <small>Konferenca</small>
-                    </span>
-                    <span>
-                      <Award size={14} aria-hidden="true" />
-                      <strong>{formatNumber(profile.citationCount)}</strong>
-                      <small>Citime</small>
-                    </span>
-                  </div>
-                </article>
-              ))}
+            <div className="community-profile-slider-shell">
+              <button
+                className="community-slider-control community-slider-control--prev"
+                type="button"
+                aria-label="Shfaq anëtarët e mëparshëm"
+                disabled={!communitySliderState.canScrollPrev}
+                onClick={() => scrollCommunitySlider(-1)}
+              >
+                <ChevronRight size={18} />
+              </button>
+              <div
+                className="community-profile-slider"
+                ref={communitySliderRef}
+                onScroll={updateCommunitySliderState}
+                aria-label="Anetaret e komunitetit akademik"
+              >
+                <div className="community-profile-track">
+                  {community.profileCards.map((profile) => (
+                    <article className="community-profile-card" key={profile.id || profile.email}>
+                      <div className="community-profile-main">
+                        <div className="community-profile-photo">
+                          {profile.avatarUrl ? (
+                            <img src={profile.avatarUrl} alt={profile.name || profile.email} />
+                          ) : (
+                            <span>{getInitials(profile)}</span>
+                          )}
+                        </div>
+                        <div className="community-profile-copy">
+                          <h3>{profile.displayName || profile.name || profile.email}</h3>
+                          <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
+                          {profile.department ? <p>{profile.department}</p> : null}
+                        </div>
+                        <button className="community-profile-arrow" type="button" aria-label={`Hap profilin e ${profile.name || profile.email}`}>
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                      <div className="community-profile-stats">
+                        <span>
+                          <BookOpen size={14} aria-hidden="true" />
+                          <strong>{formatNumber(profile.publicationCount)}</strong>
+                          <small>Publikime</small>
+                        </span>
+                        <span>
+                          <CalendarDays size={14} aria-hidden="true" />
+                          <strong>{formatNumber(profile.conferenceCount)}</strong>
+                          <small>Konferenca</small>
+                        </span>
+                        <span>
+                          <Award size={14} aria-hidden="true" />
+                          <strong>{formatNumber(profile.citationCount)}</strong>
+                          <small>Citime</small>
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="community-slider-control community-slider-control--next"
+                type="button"
+                aria-label="Shfaq anëtarët e radhës"
+                disabled={!communitySliderState.canScrollNext}
+                onClick={() => scrollCommunitySlider(1)}
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
           ) : (
             <div className="community-empty-state">
