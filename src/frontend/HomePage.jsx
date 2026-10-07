@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Award,
@@ -8,7 +8,6 @@ import {
   FlaskConical, 
   Users, 
   Globe, 
-  ChevronRight, 
   Lock,
   UserRound
 } from "lucide-react";
@@ -113,24 +112,16 @@ function formatAcademicTitle(value) {
   const compactTitle = (() => {
     switch (titleWithoutDoctorate) {
       case "profesor":
-      case "professor":
-      case "profesor i rregullt":
         return "Prof.";
       case "profesor asistent":
       case "asistent profesor":
-      case "assistant professor":
         return "Prof. Ass.";
       case "asistent":
-      case "assistant":
         return "Ass.";
-      case "senior asistent":
-      case "senior assistant":
-        return "Sr. Ass.";
       case "profesor i asociuar":
-      case "associate professor":
         return "Prof. Assoc.";
       default:
-        return title;
+        return "";
     }
   })();
 
@@ -193,12 +184,9 @@ function countActiveProfessorFaculties(users) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const communitySliderRef = useRef(null);
+  const communityResumeTimerRef = useRef(null);
   const [communityData, setCommunityData] = useState(FALLBACK_COMMUNITY);
-  const [communitySliderState, setCommunitySliderState] = useState({
-    canScrollPrev: false,
-    canScrollNext: false,
-  });
+  const [isCommunitySliderPaused, setIsCommunitySliderPaused] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -338,50 +326,41 @@ export default function HomePage() {
     { key: "faculties", icon: Building2 },
   ];
 
-  const updateCommunitySliderState = useCallback(() => {
-    const slider = communitySliderRef.current;
-    if (!slider) {
-      setCommunitySliderState({ canScrollPrev: false, canScrollNext: false });
+  const communityLoopProfiles = community.profileCards.length
+    ? [...community.profileCards, ...community.profileCards]
+    : [];
+
+  useEffect(() => {
+    return () => {
+      if (communityResumeTimerRef.current) {
+        window.clearTimeout(communityResumeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const pauseCommunitySlider = () => {
+    if (communityResumeTimerRef.current) {
+      window.clearTimeout(communityResumeTimerRef.current);
+    }
+    setIsCommunitySliderPaused(true);
+  };
+
+  const resumeCommunitySlider = (delay = 0) => {
+    if (communityResumeTimerRef.current) {
+      window.clearTimeout(communityResumeTimerRef.current);
+    }
+
+    if (!delay) {
+      setIsCommunitySliderPaused(false);
       return;
     }
 
-    const maxScrollLeft = slider.scrollWidth - slider.clientWidth;
-    setCommunitySliderState({
-      canScrollPrev: slider.scrollLeft > 4,
-      canScrollNext: slider.scrollLeft < maxScrollLeft - 4,
-    });
-  }, []);
+    communityResumeTimerRef.current = window.setTimeout(() => {
+      setIsCommunitySliderPaused(false);
+      communityResumeTimerRef.current = null;
+    }, delay);
+  };
 
-  const scrollCommunitySlider = useCallback((direction) => {
-    const slider = communitySliderRef.current;
-    if (!slider) return;
-
-    const firstCard = slider.querySelector(".community-profile-card");
-    const cardWidth = firstCard?.getBoundingClientRect().width || 420;
-    slider.scrollBy({
-      left: direction * (cardWidth + 20),
-      behavior: "smooth",
-    });
-  }, []);
-
-  useEffect(() => {
-    updateCommunitySliderState();
-  }, [community.profileCards.length, updateCommunitySliderState]);
-
-  useEffect(() => {
-    const slider = communitySliderRef.current;
-    if (!slider) return undefined;
-
-    const handleScroll = () => updateCommunitySliderState();
-    slider.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-    updateCommunitySliderState();
-
-    return () => {
-      slider.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, [updateCommunitySliderState]);
   const platformStatDescriptions = [
     "Anëtarë të regjistruar",
     "Artikuj shkencorë të regjistruar",
@@ -477,25 +456,26 @@ export default function HomePage() {
           </div>
 
           {community.profileCards.length ? (
-            <div className="community-profile-slider-shell">
-              <button
-                className="community-slider-control community-slider-control--prev"
-                type="button"
-                aria-label="Shfaq anëtarët e mëparshëm"
-                disabled={!communitySliderState.canScrollPrev}
-                onClick={() => scrollCommunitySlider(-1)}
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div
+              className={`community-profile-slider-shell${isCommunitySliderPaused ? " is-paused" : ""}`}
+              onMouseEnter={pauseCommunitySlider}
+              onMouseLeave={() => resumeCommunitySlider()}
+              onTouchStart={pauseCommunitySlider}
+              onTouchMove={pauseCommunitySlider}
+              onTouchEnd={() => resumeCommunitySlider(1200)}
+              onTouchCancel={() => resumeCommunitySlider(1200)}
+            >
               <div
                 className="community-profile-slider"
-                ref={communitySliderRef}
-                onScroll={updateCommunitySliderState}
                 aria-label="Anetaret e komunitetit akademik"
               >
                 <div className="community-profile-track">
-                  {community.profileCards.map((profile) => (
-                    <article className="community-profile-card" key={profile.id || profile.email}>
+                  {communityLoopProfiles.map((profile, index) => (
+                    <article
+                      className="community-profile-card"
+                      key={`${profile.id || profile.email}-${index}`}
+                      aria-hidden={index >= community.profileCards.length}
+                    >
                       <div className="community-profile-main">
                         <div className="community-profile-photo">
                           {profile.avatarUrl ? (
@@ -509,9 +489,6 @@ export default function HomePage() {
                           <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
                           {profile.department ? <p>{profile.department}</p> : null}
                         </div>
-                        <button className="community-profile-arrow" type="button" aria-label={`Hap profilin e ${profile.name || profile.email}`}>
-                          <ChevronRight size={16} />
-                        </button>
                       </div>
                       <div className="community-profile-stats">
                         <span>
@@ -534,15 +511,6 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-              <button
-                className="community-slider-control community-slider-control--next"
-                type="button"
-                aria-label="Shfaq anëtarët e radhës"
-                disabled={!communitySliderState.canScrollNext}
-                onClick={() => scrollCommunitySlider(1)}
-              >
-                <ChevronRight size={18} />
-              </button>
             </div>
           ) : (
             <div className="community-empty-state">
