@@ -2404,14 +2404,14 @@ function getListScopeWhere(user, scope) {
     };
   }
 
-  if ((role === "committee" && (!normalizedScope || normalizedScope === "review")) || (role === "admin" && normalizedScope === "review")) {
+  if ((role === "committee" && (!normalizedScope || normalizedScope === "review" || normalizedScope === "all")) || (role === "admin" && normalizedScope === "review")) {
     return {
       where: "where r.status = any($1::text[])",
       params: [COMMITTEE_REVIEW_SCOPE_STATUSES],
     };
   }
 
-  if ((role === "prorector" && (!normalizedScope || normalizedScope === "final")) || (role === "admin" && normalizedScope === "final")) {
+  if ((role === "prorector" && (!normalizedScope || normalizedScope === "final" || normalizedScope === "all")) || (role === "admin" && normalizedScope === "final")) {
     return {
       where: `where r.status in ('committee_approved', 'approved', 'rejected', 'paid')
               and exists (
@@ -2423,7 +2423,7 @@ function getListScopeWhere(user, scope) {
     };
   }
 
-  if (role === "admin" || normalizedScope === "all") {
+  if (role === "admin") {
     return {
       where: "where r.status <> 'draft'",
       params: [],

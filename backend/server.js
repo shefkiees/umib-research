@@ -20,10 +20,15 @@ import prorectorRoutes from "./routes/prorector.js";
 const app = express();
 
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "umibres-secret");
 const sessionMaxAgeMs = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 7);
 const callbackOrigin = process.env.GOOGLE_CALLBACK_URL
   ? new URL(process.env.GOOGLE_CALLBACK_URL).origin
   : null;
+
+if (isProduction && !sessionSecret.trim()) {
+  throw new Error("SESSION_SECRET is required in production.");
+}
 
 const allowedOrigins = new Set([
   "http://localhost:5173",
@@ -51,7 +56,7 @@ app.use(express.urlencoded({ extended: true, limit: "12mb" }));
 
 app.use(session({
   store: new PostgresSessionStore({ ttlMs: sessionMaxAgeMs }),
-  secret: process.env.SESSION_SECRET || "umibres-secret",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   proxy: true,

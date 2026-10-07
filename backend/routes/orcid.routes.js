@@ -1,4 +1,5 @@
 import express from "express";
+import { randomBytes } from "node:crypto";
 import db from "../config/db.js";
 import {
   exchangeCodeForToken,
@@ -109,6 +110,28 @@ const getProfessorDashboardUrl = (status) => {
   return `${getFrontendUrl()}/professor/dashboard?orcid=${status}`;
 };
 
+function createOrcidState() {
+  return randomBytes(32).toString("base64url");
+}
+
+function saveSession(req) {
+  return new Promise((resolve, reject) => {
+    if (!req.session?.save) {
+      resolve();
+      return;
+    }
+
+    req.session.save((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
 // 🔗 STEP 1: Redirect tek ORCID
 router.get("/connect", async (req, res) => {
   try {
@@ -136,12 +159,25 @@ router.get("/connect", async (req, res) => {
 
     const dbUser = dbUserResult.rows[0];
 
+    if (!req.session) {
+      console.log("No session found before ORCID connect");
+      return res.redirect(getProfessorDashboardUrl("no_user_session"));
+    }
+
+    const state = createOrcidState();
+
+    req.session.orcidOAuth = {
+      state,
+      userId: dbUser.id,
+    };
+    await saveSession(req);
+
     const params = new URLSearchParams({
       client_id: process.env.ORCID_CLIENT_ID,
       response_type: "code",
       scope: "/authenticate",
       redirect_uri: process.env.ORCID_REDIRECT_URI,
-      state: dbUser.id,
+      state,
     });
 
     return res.redirect(`https://orcid.org/oauth/authorize?${params.toString()}`);
@@ -165,12 +201,17 @@ router.get("/callback", async (req, res) => {
       return res.redirect(getProfessorDashboardUrl("missing_code"));
     }
 
-    const userId = state;
+    const receivedState = String(state || "");
+    const storedOrcidOAuth = req.session?.orcidOAuth || null;
 
-    if (!userId || userId === "undefined" || userId === "null") {
-      console.log("Invalid userId in ORCID state:", userId);
+    if (!receivedState || !storedOrcidOAuth?.state || receivedState !== storedOrcidOAuth.state || !storedOrcidOAuth.userId) {
+      console.log("Invalid ORCID OAuth state");
       return res.redirect(getProfessorDashboardUrl("no_user_session"));
     }
+
+    const userId = storedOrcidOAuth.userId;
+    delete req.session.orcidOAuth;
+    await saveSession(req);
 
     const tokenData = await exchangeCodeForToken(code);
 
@@ -244,16 +285,6 @@ router.get("/session-check", (req, res) => {
   res.json({
     loggedIn: Boolean(req.user),
     user: req.user || null,
-  });
-});
-
-// 🧪 Debug env
-router.get("/debug-env", (req, res) => {
-  res.json({
-    hasClientId: Boolean(process.env.ORCID_CLIENT_ID),
-    hasRedirectUri: Boolean(process.env.ORCID_REDIRECT_URI),
-    redirectUri: process.env.ORCID_REDIRECT_URI,
-    frontendUrl: getFrontendUrl(),
   });
 });
 

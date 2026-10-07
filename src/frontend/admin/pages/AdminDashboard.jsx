@@ -737,7 +737,7 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleProfileAction = (actionId) => {
+    const handleProfileAction = async (actionId) => {
         if (actionId === "Njoftime") {
 
             handleAdminNavigate("Njoftimet");
@@ -764,11 +764,20 @@ export default function AdminDashboard() {
 
         if (actionId === "Logout") {
 
-            localStorage.removeItem("authToken");
+            try {
+                await fetch(apiUrl("/auth/logout"), {
+                    method: "POST",
+                    credentials: "include",
+                });
+            } catch (error) {
+                console.error("Logout failed:", error);
+            } finally {
+                localStorage.removeItem("authToken");
 
-            sessionStorage.removeItem("authToken");
+                sessionStorage.removeItem("authToken");
 
-            navigate("/login", { replace: true });
+                navigate("/login", { replace: true });
+            }
 
             return;
 
