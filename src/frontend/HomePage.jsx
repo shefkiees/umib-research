@@ -87,6 +87,13 @@ function getInitials(user) {
   return source.slice(0, 2).toUpperCase() || "UM";
 }
 
+function getAcademicDisplayName(user) {
+  const title = pickFirstText(user?.academicTitle, user?.academic_title);
+  const name = pickFirstText(user?.name, user?.fullName, user?.full_name, user?.email);
+
+  return [title, name].filter(Boolean).join(" ");
+}
+
 function pickFirstText(...values) {
   return values.find((value) => typeof value === "string" && value.trim())?.trim() || "";
 }
@@ -236,6 +243,8 @@ export default function HomePage() {
         fieldOfStudy,
         avatarUrl: user.profilePhotoUrl || user.profile_photo_url || user.avatarUrl || user.avatar_url || user.photoUrl || user.photo_url || user.picture || "",
         academicRole: ROLE_LABELS[user.role] || user.role || "Anëtar akademik",
+        displayName: getAcademicDisplayName(user),
+        department: pickFirstText(user.department, user.departmentName, user.department_name),
         publicationCount: toNumber(user.publicationsTotal || user.publicationCount || publicationCounts.get(user.id)),
         conferenceCount: toNumber(user.conferencesTotal || user.conferenceCount || conferenceCounts.get(user.id)),
         citationCount: toNumber(user.citationsTotal || user.citationCount || citationCounts.get(user.id)),
@@ -266,9 +275,6 @@ export default function HomePage() {
     };
   }, [communityData]);
 
-  const communitySliderProfiles = community.profileCards.length
-    ? Array.from({ length: community.profileCards.length < 4 ? 4 : 2 }, () => community.profileCards).flat()
-    : [];
   const platformStats = [
     { label: "Përdorues", value: community.stats.users },
     { label: "Artikuj", value: community.stats.publications },
@@ -376,10 +382,10 @@ export default function HomePage() {
           </div>
 
           {community.profileCards.length ? (
-            <div className="community-profile-carousel" aria-label="Anetaret e komunitetit akademik">
-              <div className="community-profile-track">
-                {communitySliderProfiles.map((profile, index) => (
-                  <article className="community-profile-card" key={`${profile.id || profile.email}-${index}`}>
+            <div className="community-profile-grid" aria-label="Anetaret e komunitetit akademik">
+              {community.profileCards.map((profile) => (
+                <article className="community-profile-card" key={profile.id || profile.email}>
+                  <div className="community-profile-main">
                     <div className="community-profile-photo">
                       {profile.avatarUrl ? (
                         <img src={profile.avatarUrl} alt={profile.name || profile.email} />
@@ -387,22 +393,34 @@ export default function HomePage() {
                         <span>{getInitials(profile)}</span>
                       )}
                     </div>
-                    <div className="community-profile-body">
-                      <div className="community-profile-title">
-                        <div>
-                          <h3>{profile.name || profile.email}</h3>
-                          <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
-                        </div>
-                      </div>
-                      <div className="community-profile-stats">
-                        <span><strong>{formatNumber(profile.publicationCount)}</strong> Publikime</span>
-                        <span><strong>{formatNumber(profile.conferenceCount)}</strong> Konferenca</span>
-                        <span><strong>{formatNumber(profile.citationCount)}</strong> Citime</span>
-                      </div>
+                    <div className="community-profile-copy">
+                      <h3>{profile.displayName || profile.name || profile.email}</h3>
+                      <p>{profile.faculty || "Fakulteti nuk është plotësuar"}</p>
+                      {profile.department ? <p>{profile.department}</p> : null}
                     </div>
-                  </article>
-                ))}
-              </div>
+                    <button className="community-profile-arrow" type="button" aria-label={`Hap profilin e ${profile.name || profile.email}`}>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                  <div className="community-profile-stats">
+                    <span>
+                      <BookOpen size={14} aria-hidden="true" />
+                      <strong>{formatNumber(profile.publicationCount)}</strong>
+                      <small>Publikime</small>
+                    </span>
+                    <span>
+                      <CalendarDays size={14} aria-hidden="true" />
+                      <strong>{formatNumber(profile.conferenceCount)}</strong>
+                      <small>Konferenca</small>
+                    </span>
+                    <span>
+                      <Award size={14} aria-hidden="true" />
+                      <strong>{formatNumber(profile.citationCount)}</strong>
+                      <small>Citime</small>
+                    </span>
+                  </div>
+                </article>
+              ))}
             </div>
           ) : (
             <div className="community-empty-state">

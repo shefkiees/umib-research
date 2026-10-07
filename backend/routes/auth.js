@@ -289,6 +289,7 @@ function mapCommunityProfessorRow(row) {
     name: row.full_name || row.email || "",
     role: row.role || "professor",
     status: row.status || "active",
+    academicTitle: row.academic_title || "",
     faculty: row.faculty || "",
     department: row.department || "",
     institution,
