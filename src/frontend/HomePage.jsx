@@ -5,6 +5,7 @@ import {
   BookOpen, 
   Building2,
   CalendarDays,
+  ChevronRight,
   FlaskConical, 
   Users, 
   Globe, 
