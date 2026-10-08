@@ -24,6 +24,7 @@ import {
 import UMIBLogoBlack from "../assets/umiblogo-black-transparent.png";
 import UMIBBack from "../assets/umibback.jpg";
 import { apiUrl } from "./utils/api";
+import { getAcademicDisplayName, hasPhD } from "./utils/academicTitles";
 import "./HomePage.css";
 
 const SYSTEM_INSTITUTION = "Universiteti \"Isa Boletini\" Mitrovicë";
@@ -85,50 +86,6 @@ function getInitials(user) {
   }
 
   return source.slice(0, 2).toUpperCase() || "UM";
-}
-
-function getAcademicDisplayName(user) {
-  const title = formatAcademicTitle(pickFirstText(user?.academicTitle, user?.academic_title));
-  const name = pickFirstText(user?.name, user?.fullName, user?.full_name, user?.email);
-
-  return [title, name].filter(Boolean).join(" ");
-}
-
-function formatAcademicTitle(value) {
-  const title = String(value || "").trim();
-  if (!title) return "";
-
-  const normalizedTitle = title
-    .toLowerCase()
-    .replace(/\./g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const hasDoctorate = /\bdr\b|\bdoktor/.test(normalizedTitle);
-  const titleWithoutDoctorate = normalizedTitle
-    .replace(/\bdr\b/g, "")
-    .replace(/\bdoktor(e|i|ature)?\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const compactTitle = (() => {
-    switch (titleWithoutDoctorate) {
-      case "profesor":
-        return "Prof.";
-      case "profesor asistent":
-      case "asistent profesor":
-        return "Prof. Ass.";
-      case "asistent":
-        return "Ass.";
-      case "profesor i asociuar":
-        return "Prof. Assoc.";
-      default:
-        return "";
-    }
-  })();
-
-  return hasDoctorate && !/\bdr\.?\b/i.test(compactTitle)
-    ? `${compactTitle} Dr.`
-    : compactTitle;
 }
 
 function pickFirstText(...values) {
@@ -202,7 +159,11 @@ export default function HomePage() {
         }
 
         setCommunityData({
-          users: communityUsers,
+          // The community API exposes scientific_title as fieldOfStudy.
+          users: communityUsers.map((user) => ({
+            ...user,
+            scientificTitle: user.scientificTitle ?? user.scientific_title ?? (hasPhD(user.fieldOfStudy) ? "PhD" : ""),
+          })),
           analytics: communityPayload?.analytics,
           publications: [],
           conferences: [],

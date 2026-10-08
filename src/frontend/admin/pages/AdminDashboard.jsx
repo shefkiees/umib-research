@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -1134,7 +1135,7 @@ export default function AdminDashboard() {
 
                             <tr key={item.id}>
 
-                                <td>{item.name}</td>
+                                <td>{getAcademicDisplayName(item)}</td>
 
                                 <td className="admin-user-email-cell" title={item.email}>{item.email}</td>
 
@@ -1210,7 +1211,7 @@ export default function AdminDashboard() {
             {selectedUser ? (
                 <div className="admin-user-details" role="dialog" aria-label={adminText.users.detailsAria}>
                     <div>
-                        <h4>{selectedUser.name}</h4>
+                        <h4>{getAcademicDisplayName(selectedUser)}</h4>
                         <p>{selectedUser.email}</p>
                     </div>
                     <dl>

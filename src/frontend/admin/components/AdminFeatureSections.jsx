@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 import {
   Languages,
   Users,
@@ -147,15 +148,6 @@ function EmptyState({ text = "Nuk ka të dhëna për t'u shfaqur." }) {
   return <p className="admin-empty">{text}</p>;
 }
 
-const pickFirstText = (...values) =>
-  values.find((value) => typeof value === "string" && value.trim())?.trim() || "";
-
-const pickOrcidTitle = (items = []) => {
-  const firstItem = Array.isArray(items) ? items.find(Boolean) : null;
-  if (!firstItem) return "";
-  return pickFirstText(firstItem.roleTitle, firstItem.title, firstItem.position, firstItem.department);
-};
-
 const normalizeSettingsProfile = (user = {}) => {
   const orcidEducations = Array.isArray(user.orcidEducations) ? user.orcidEducations : [];
   const orcidEmployments = Array.isArray(user.orcidEmployments) ? user.orcidEmployments : [];
@@ -164,8 +156,8 @@ const normalizeSettingsProfile = (user = {}) => {
     name: user.name || user.displayName || user.full_name || user.email || "",
     email: user.email || "",
     role: user.role || "",
-    academicTitle: user.academicTitle || user.academic_title || user.role || pickOrcidTitle(orcidEmployments),
-    scientificTitle: user.scientificTitle || user.scientific_title || pickOrcidTitle(orcidEducations),
+    academicTitle: user.academicTitle ?? user.academic_title ?? "",
+    scientificTitle: user.scientificTitle ?? user.scientific_title ?? "",
     faculty: user.faculty || "",
     department: user.department || "",
     office: user.office || "",
@@ -593,7 +585,7 @@ export function AdminSettingsSection({ profileRefreshKey = 0 }) {
               <span className="admin-settings-profile-avatar" aria-hidden="true">
                 {getProfileInitials(profile.name)}
               </span>
-              <strong>{profile.name || "-"}</strong>
+              <strong>{getAcademicDisplayName(profile) || "-"}</strong>
             </div>
           )}
           <div className="admin-settings-actions">

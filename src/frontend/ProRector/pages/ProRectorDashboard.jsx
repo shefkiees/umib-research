@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -1711,7 +1712,7 @@ export default function ProRectorDashboard() {
                 {getProfileInitials(profile.name)}
               </span>
               <div>
-                <strong>{profile.name}</strong>
+                <strong>{getAcademicDisplayName(profile)}</strong>
               </div>
             </div>
             <button type="button" className="prorector-settings-edit-btn" onClick={openProfileEditor}>

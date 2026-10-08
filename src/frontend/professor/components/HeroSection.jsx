@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowRight, BarChart3 } from "lucide-react";
 import { useLanguage } from "../../i18n/LanguageContext";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 
 export default function HeroSection({ profile, onPrimaryAction, onSecondaryAction }) {
   const { t } = useLanguage();
@@ -15,7 +16,7 @@ export default function HeroSection({ profile, onPrimaryAction, onSecondaryActio
         <div className="prof-hero-meta">
           <div>
             <span>{t("professor.dashboard.professor")}</span>
-            <strong>{profile.name}</strong>
+            <strong>{getAcademicDisplayName(profile)}</strong>
           </div>
           <div>
             <span>{t("professor.dashboard.faculty")}</span>

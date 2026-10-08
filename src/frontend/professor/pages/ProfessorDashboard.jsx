@@ -39,6 +39,7 @@ import PublicationForm, {
   publicationToDraft,
 } from "../components/PublicationForm";
 import { apiUrl } from "../../utils/api";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 import { sendPasswordResetEmail } from "../../utils/supabaseAuth";
 import { useLanguage } from "../../i18n/LanguageContext";
 import {
@@ -178,8 +179,8 @@ const normalizeProfile = (user = {}) => {
     role: roleLabels[String(appRole).toLowerCase()] || user.role || professorProfile.role || "Profesor",
     appRole,
     email: user.email || professorProfile.email,
-    academicTitle: user.academicTitle || user.academic_title || professorProfile.academicTitle || pickOrcidTitle(orcidEmployments),
-    scientificTitle: user.scientificTitle || user.scientific_title || professorProfile.scientificTitle || pickOrcidTitle(education),
+    academicTitle: user.academicTitle ?? user.academic_title ?? "",
+    scientificTitle: user.scientificTitle ?? user.scientific_title ?? "",
     faculty: user.faculty || professorProfile.faculty,
     department: user.department || professorProfile.department,
     office: user.office || professorProfile.office,
@@ -2516,7 +2517,7 @@ export default function ProfessorDashboard() {
         <section className="prof-hero">
           <div>
             <span className="prof-badge">{t("professor.dashboard.heroBadge")}</span>
-            <h2>{t("professor.dashboard.greeting", { name: profile.name })}</h2>
+            <h2>{t("professor.dashboard.greeting", { name: getAcademicDisplayName(profile) })}</h2>
             <p>{t("professor.dashboard.heroDescription")}</p>
           </div>
           <div className="prof-hero-actions">
@@ -3282,7 +3283,7 @@ export default function ProfessorDashboard() {
                 <div className="prorector-settings-list">
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">{settingsText.fullName}</span>
-                    <strong className="prorector-settings-value">{profile.name}</strong>
+                    <strong className="prorector-settings-value">{getAcademicDisplayName(profile)}</strong>
                   </div>
                   <div className="prorector-settings-item">
                     <span className="prorector-settings-label">{settingsText.academicTitle}</span>
@@ -3558,6 +3559,10 @@ export default function ProfessorDashboard() {
                 <label className="prof-form-field">
                   <span>{settingsText.academicTitle}</span>
                   <select value={profileDraft.academicTitle} onChange={handleProfileFieldChange("academicTitle")}>
+                    <option value="">{settingsText.academicTitlePlaceholder}</option>
+                    {profileDraft.academicTitle && !ACADEMIC_TITLE_OPTIONS.includes(profileDraft.academicTitle) ? (
+                      <option value={profileDraft.academicTitle}>{profileDraft.academicTitle}</option>
+                    ) : null}
                     {ACADEMIC_TITLE_OPTIONS.map((title) => (
                       <option key={title} value={title}>{title}</option>
                     ))}

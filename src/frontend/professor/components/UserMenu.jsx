@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { getAcademicDisplayName } from "../../utils/academicTitles";
 
 export default function UserMenu({ user, items, onSelect }) {
   const [open, setOpen] = useState(false);
@@ -37,7 +38,7 @@ export default function UserMenu({ user, items, onSelect }) {
         <div className="user-menu-identity">
           <div className="user-menu-avatar">AI</div>
           <div className="user-menu-text">
-            <strong>{user.name}</strong>
+            <strong>{getAcademicDisplayName(user)}</strong>
             <span>{user.role}</span>
           </div>
         </div>
