@@ -6,6 +6,12 @@
   },
   "headers": [
     {
+      "source": "/:page(privacy|terms)/:path*",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+      ]
+    },
+    {
       "source": "/:section(admin|professor|committee|prorector|ProRector|dashboard|login|auth|api|backend)/:path*",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
