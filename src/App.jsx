@@ -14,6 +14,7 @@ import CommitteeSettings from "./frontend/committee/pages/CommitteeSettings";
 import ProfessorConferences from "./frontend/professor/pages/ProfessorConferences";
 import AdminDashboard from "./frontend/admin/pages/AdminDashboard";
 import { LanguageProvider } from "./frontend/i18n/LanguageContext";
+import PageMetadata from "./frontend/common/PageMetadata";
 
 function GoogleAuthRedirect() {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ function App() {
   return (
     <LanguageProvider>
       <Router>
+        <PageMetadata />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/privacy" element={<LegalPage type="privacy" />} />

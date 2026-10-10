@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# Private URLs remain crawlable so crawlers can read their noindex HTTP header.
+# Access to private data is controlled by backend authentication, not this file.
+Sitemap: https://www.umibres.page/sitemap.xml
