@@ -43,8 +43,15 @@ export function formatAcademicTitle(value, { omitDoctorate = false } = {}) {
   return rank !== normalized && !omitDoctorate ? `${prefix} Dr.` : prefix;
 }
 
+export function getPlainDisplayName(user = {}) {
+  const firstName = firstText(user.firstName, user.first_name);
+  const lastName = firstText(user.lastName, user.last_name);
+  const fullName = firstName && lastName ? `${firstName} ${lastName}` : "";
+  return firstText(fullName, user.name, user.fullName, user.full_name, user.displayName, firstName, lastName, user.email);
+}
+
 export function getAcademicDisplayName(user = {}) {
-  const name = firstText(user.name, user.fullName, user.full_name, user.displayName, user.email);
+  const name = getPlainDisplayName(user);
   const doctorate = hasPhD(firstText(user.scientificTitle, user.scientific_title));
   const title = formatAcademicTitle(firstText(user.academicTitle, user.academic_title), { omitDoctorate: doctorate });
   if (!name) return "";

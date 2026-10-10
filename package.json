@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:auth": "node --test backend/tests/auth.test.js",
+    "test:auth:postgres": "node --test backend/tests/auth-postgres.test.js",
+    "auth:config:check": "node backend/scripts/auth-config-check.js",
     "dev": "vite",
     "build": "vite build",
     "db:schema": "node backend/scripts/apply-schema.js",

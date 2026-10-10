@@ -2,12 +2,12 @@ import express from "express";
 import db from "../config/db.js";
 import passport from "../config/passport.js";
 import { googleAuthConfigured } from "../config/passport.js";
-import { getAbsoluteUrlEnvValue } from "../config/urlConfig.js";
+import { getAuthConfig, redirectAuthenticatedUser } from "../config/authSession.js";
 import { sendEmailNotification } from "../services/notification.service.js";
 import { getRequestIp, writeAuditLog } from "../services/auditLog.service.js";
 
 const router = express.Router();
-const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+const authConfig = getAuthConfig();
 const LOGIN_ROUTE = "/login";
 const PROFESSOR_DASHBOARD_ROUTE = "/professor/dashboard";
 const ACCESS_RESET_SUCCESS_MESSAGE = "Nese ky email ekziston ne sistem, kerkesa do te procesohet nga stafi pergjegjes.";
@@ -17,8 +17,6 @@ const DASHBOARD_BY_ROLE = {
   professor: PROFESSOR_DASHBOARD_ROUTE,
   prorector: "/prorector/dashboard"
 };
-const configuredClientUrl = getAbsoluteUrlEnvValue(process.env.CLIENT_URL);
-const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const PROFILE_PHOTO_MAX_LENGTH = 180000;
@@ -71,46 +69,8 @@ function normalizeProfilePhotoUrl(value) {
   return photoUrl;
 }
 
-function getRequestOrigin(req) {
-  const forwardedProto = req.get("x-forwarded-proto");
-  const forwardedHost = req.get("x-forwarded-host");
-  const host = forwardedHost || req.get("host");
-
-  if (!host) {
-    return null;
-  }
-
-  return `${forwardedProto || "https"}://${host}`;
-}
-
-function isLocalOrigin(origin) {
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-}
-
-function getAppOrigin(req) {
-  if (!isProduction) {
-    return configuredClientUrl || "http://localhost:5173";
-  }
-
-  const requestOrigin = getRequestOrigin(req);
-
-  if (requestOrigin && !isLocalOrigin(requestOrigin)) {
-    return requestOrigin;
-  }
-
-  if (configuredClientUrl) {
-    return configuredClientUrl;
-  }
-
-  if (configuredGoogleCallbackUrl) {
-    return new URL(configuredGoogleCallbackUrl).origin;
-  }
-
-  return requestOrigin || null;
-}
-
-function getClientUrl(req) {
-  return getAppOrigin(req);
+function getClientUrl() {
+  return authConfig.clientUrl;
 }
 
 function getAccessResetAdminUrl(req) {
@@ -174,18 +134,8 @@ function getAccessResetTemplateId() {
   return process.env.RESEND_ACCESS_RESET_TEMPLATE_ID || process.env.RESEND_PASSWORD_RESET_TEMPLATE_ID || "";
 }
 
-function getGoogleCallbackUrl(req) {
-  if (!isProduction && configuredGoogleCallbackUrl) {
-    return configuredGoogleCallbackUrl;
-  }
-
-  const appOrigin = getAppOrigin(req);
-
-  if (appOrigin) {
-    return `${appOrigin}/api/auth/google/callback`;
-  }
-
-  return "http://localhost:5000/api/auth/google/callback";
+function getGoogleCallbackUrl() {
+  return authConfig.googleCallbackUrl;
 }
 
 const redirectToLoginWithError = (res, authError, req) => {
@@ -500,6 +450,7 @@ router.get("/community", async (req, res) => {
 });
 
 router.get("/me", async (req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
     if (!req.isAuthenticated?.() || !req.user?.id) {
       res.status(401).json({ user: null });
@@ -1000,10 +951,9 @@ router.post("/password-reset", async (req, res) => {
 
 router.post("/logout", (req, res) => {
   const clearCookieOptions = {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
+    ...authConfig.cookie,
   };
+  delete clearCookieOptions.maxAge;
 
   req.logout((error) => {
     if (error) {
@@ -1017,7 +967,11 @@ router.post("/logout", (req, res) => {
       return;
     }
 
-    req.session.destroy(() => {
+    req.session.destroy((destroyError) => {
+      if (destroyError) {
+        res.status(500).json({ error: "logout_failed" });
+        return;
+      }
       res.clearCookie("connect.sid", clearCookieOptions);
       res.json({ message: "Logged out" });
     });
@@ -1025,6 +979,7 @@ router.post("/logout", (req, res) => {
 });
 
 router.get("/google", (req, res, next) => {
+  if (redirectAuthenticatedUser(req, res, getClientUrl(), DASHBOARD_BY_ROLE)) return;
   if (!googleAuthConfigured) {
     redirectToLoginWithError(res, "oauth_not_configured", req);
     return;
@@ -1037,13 +992,21 @@ router.get("/google", (req, res, next) => {
 });
 
 router.get("/google/callback", (req, res, next) => {
-  console.log("CALLBACK HIT");
-
+  if (typeof req.query.code !== "string" || !req.query.code) {
+    const nonce = req.session?.googleOAuthState?.nonce;
+    delete req.session?.googleOAuthState;
+    if (nonce) {
+      req.sessionStore.consumeOAuthState(req.sessionID, nonce, (error) => error ? next(error) : redirectToLoginWithError(res, "google_login_failed", req));
+    } else {
+      redirectToLoginWithError(res, "google_login_failed", req);
+    }
+    return;
+  }
   passport.authenticate("google", {
     callbackURL: getGoogleCallbackUrl(req)
   }, (error, user, info) => {
     if (error) {
-      console.error("Google OAuth callback failed:", error);
+      console.error("Google OAuth callback failed.");
       redirectToLoginWithError(res, getCallbackErrorCode(error), req);
       return;
     }
@@ -1059,12 +1022,21 @@ router.get("/google/callback", (req, res, next) => {
 
     req.logIn(user, async (loginError) => {
       if (loginError) {
-        console.error("Creating session after Google login failed:", loginError);
+        console.error("Creating session after Google login failed.");
         redirectToLoginWithError(res, "session_login_failed", req);
         return;
       }
 
       const dashboardRoute = DASHBOARD_BY_ROLE[user.role] || PROFESSOR_DASHBOARD_ROUTE;
+      req.session.authenticatedAt = Date.now();
+      req.session.authExpiresAt = req.session.authenticatedAt + authConfig.maxAge;
+      req.session.cookie.maxAge = authConfig.maxAge;
+      try {
+        await new Promise((resolve, reject) => req.session.save((saveError) => saveError ? reject(saveError) : resolve()));
+      } catch {
+        redirectToLoginWithError(res, "session_login_failed", req);
+        return;
+      }
 
       try {
         await updateLastLoginAt(user.id);
@@ -1091,7 +1063,6 @@ router.get("/google/callback", (req, res, next) => {
         });
       }
 
-      console.log("LOGIN SUCCESS");
       res.redirect(`${getClientUrl(req)}${dashboardRoute}`);
     });
   })(req, res, next);

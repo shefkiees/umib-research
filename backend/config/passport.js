@@ -3,25 +3,17 @@ import "./env.js";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import db from "./db.js";
-import { getAbsoluteUrlEnvValue } from "./urlConfig.js";
-
-const DEFAULT_GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
+import { getAuthConfig } from "./authSession.js";
+import GoogleStateStore from "./googleStateStore.js";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const configuredGoogleCallbackUrl = getAbsoluteUrlEnvValue(process.env.GOOGLE_CALLBACK_URL);
-
-const googleCallbackUrl =
-  process.env.NODE_ENV === "production" && configuredGoogleCallbackUrl
-    ? configuredGoogleCallbackUrl
-    : DEFAULT_GOOGLE_CALLBACK_PATH;
+const googleCallbackUrl = getAuthConfig().googleCallbackUrl;
 
 const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
 
 const ALLOWED_EMAIL_DOMAIN = "umib.net";
 const DEFAULT_ROLE = "professor";
-
-console.log("Google OAuth callback URL:", googleCallbackUrl);
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
@@ -39,6 +31,8 @@ if (googleAuthConfigured) {
         clientSecret: googleClientSecret,
         callbackURL: googleCallbackUrl,
         proxy: true,
+        state: true,
+        store: new GoogleStateStore(),
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -140,7 +134,7 @@ if (googleAuthConfigured) {
             office: dbUser.office,
           });
         } catch (error) {
-          console.error("Google OAuth database sync failed:", error);
+          console.error("Google OAuth database sync failed.");
           return done(error);
         }
       }

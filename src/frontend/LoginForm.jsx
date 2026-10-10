@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginForm.css";
 import UMIBLogo from "../assets/umiblogo.jpg";
@@ -27,6 +27,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const loginPending = useRef(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
   const authErrorKey = AUTH_ERROR_CODES.has(authError) ? authError : "google_login_failed";
   const authErrorMessage = authError
@@ -64,10 +65,24 @@ const LoginForm = () => {
     };
   }, [navigate]);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
+    if (loginPending.current) return;
+    loginPending.current = true;
     setLoading(true);
+    try {
+      const response = await fetch(apiUrl("/auth/me"), { credentials: "include", cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        const route = DASHBOARD_BY_ROLE[data.user?.role];
+        if (route) {
+          navigate(route, { replace: true });
+          return;
+        }
+      }
+    } catch {
+      // The backend repeats the session check before starting OAuth.
+    }
     window.location.href = apiUrl("/auth/google");
-    console.log("Duke u ridrejtuar te Google...");
   };
 
   return (

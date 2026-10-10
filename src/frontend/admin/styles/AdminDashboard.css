@@ -290,14 +290,15 @@
 
 .admin-profile-btn {
     width: 272px;
-    height: 58px;
+    max-width: 100%;
+    min-height: 58px;
     border-radius: 10px;
     border: 1px solid #cfd8e3;
     background: #f7f9fc;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px 0 12px;
+    padding: 8px 14px 8px 12px;
     cursor: pointer;
     transition: var(--transition);
     box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
@@ -333,11 +334,10 @@
     color: var(--text-dark);
     font-size: 0.95rem;
     font-weight: 600;
-    line-height: 1.1;
+    line-height: 1.3;
     max-width: 178px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .admin-profile-text span {
@@ -1341,7 +1341,7 @@
 
 @media (max-width: 700px) {
     .admin-profile-text {
-        display: none;
+        display: flex;
     }
 
     .admin-modal-backdrop {

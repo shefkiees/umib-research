@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, User, Settings, ArrowRight } from "lucide-react";
 
 import { apiUrl } from "../../utils/api";
-import { getAcademicDisplayName } from "../../utils/academicTitles";
+import { getPlainDisplayName } from "../../utils/academicTitles";
 
 const ROLE_LABELS = {
   admin: "Admin",
@@ -355,7 +355,7 @@ export default function AdminTopbar({
 
               <div className="admin-profile-text"> 
 
-                <strong>{getAcademicDisplayName({ ...profileUser, name })}</strong>
+                <strong>{getPlainDisplayName({ ...profileUser, name })}</strong>
 
                 <span>{role}</span> 
 

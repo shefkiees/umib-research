@@ -16,15 +16,15 @@ import professorStatsRoutes from "./routes/professorStats.js";
 import notificationRoutes from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
 import prorectorRoutes from "./routes/prorector.js";
+import { getAuthConfig, enforceSessionLifetime } from "./config/authSession.js";
 
 const app = express();
 
 const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "umibres-secret");
-const sessionMaxAgeMs = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 7);
-const callbackOrigin = process.env.GOOGLE_CALLBACK_URL
-  ? new URL(process.env.GOOGLE_CALLBACK_URL).origin
-  : null;
+const authConfig = getAuthConfig();
+const sessionSecret = authConfig.secret;
+const sessionMaxAgeMs = authConfig.maxAge;
+const callbackOrigin = new URL(authConfig.googleCallbackUrl).origin;
 
 if (isProduction && !sessionSecret.trim()) {
   throw new Error("SESSION_SECRET is required in production.");
@@ -33,12 +33,12 @@ if (isProduction && !sessionSecret.trim()) {
 const allowedOrigins = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  process.env.CLIENT_URL,
+  new URL(authConfig.clientUrl).origin,
   callbackOrigin,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
 ].filter(Boolean));
 
-app.set("trust proxy", 1);
+app.set("trust proxy", authConfig.trustedProxy);
 
 app.use(cors({
   origin(origin, callback) {
@@ -59,15 +59,10 @@ app.use(session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
-  proxy: true,
-  cookie: {
-    httpOnly: true,
-    maxAge: sessionMaxAgeMs,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax"
-  }
+  cookie: authConfig.cookie
 }));
 
+app.use(enforceSessionLifetime(sessionMaxAgeMs));
 app.use(passport.initialize());
 app.use(passport.session());
 

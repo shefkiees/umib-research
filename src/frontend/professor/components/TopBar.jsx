@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Bell, Search, User, Settings, Link2, ArrowRight } from "lucide-react";
 import { useLanguage } from "../../i18n/LanguageContext";
-import { getAcademicDisplayName } from "../../utils/academicTitles";
+import { getPlainDisplayName } from "../../utils/academicTitles";
 
 export default function TopBar({
   activePage,
@@ -208,7 +208,7 @@ export default function TopBar({
             onClick={() => setIsProfileOpen((current) => !current)}
           >
             <div>
-              <h4>{getAcademicDisplayName(profile) || name}</h4>
+              <h4>{getPlainDisplayName(profile) || name}</h4>
               <span>{role}</span>
             </div>
             <div className="prof-avatar">

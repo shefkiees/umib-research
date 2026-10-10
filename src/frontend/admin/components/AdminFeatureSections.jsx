@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAcademicDisplayName } from "../../utils/academicTitles";
+import { getPlainDisplayName } from "../../utils/academicTitles";
 import {
   Languages,
   Users,
@@ -585,7 +585,7 @@ export function AdminSettingsSection({ profileRefreshKey = 0 }) {
               <span className="admin-settings-profile-avatar" aria-hidden="true">
                 {getProfileInitials(profile.name)}
               </span>
-              <strong>{getAcademicDisplayName(profile) || "-"}</strong>
+              <strong>{getPlainDisplayName(profile) || "-"}</strong>
             </div>
           )}
           <div className="admin-settings-actions">
