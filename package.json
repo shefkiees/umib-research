@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test:auth": "node --test backend/tests/auth.test.js",
+    "test:auth": "node --test backend/tests/auth.test.js backend/tests/auth-client.test.js",
+    "test:auth:browser": "node --test backend/tests/auth-browser.test.js",
     "test:auth:postgres": "node --test backend/tests/auth-postgres.test.js",
     "auth:config:check": "node backend/scripts/auth-config-check.js",
     "dev": "vite",
@@ -40,6 +41,7 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "playwright": "1.62.1",
     "@eslint/js": "^9.39.4",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",

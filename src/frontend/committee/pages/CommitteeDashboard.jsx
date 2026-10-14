@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLogout } from "../../auth/LogoutContext.js";
+import { useLoginRedirect } from "../../auth/useLoginRedirect.js";
 import { AlertTriangle, Bell, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, CircleUserRound, Clock3, CreditCard, Database, Eye, FileText, GitCompareArrows, LogOut, RefreshCw, Settings } from "lucide-react";
 import {
   Cell,
@@ -1349,6 +1351,8 @@ function formatReviewDate(value) {
 
 export default function CommitteeDashboard() {
   const navigate = useNavigate();
+  const redirectToLogin = useLoginRedirect();
+  const logout = useLogout();
   const location = useLocation();
   const { t } = useLanguage();
   const [activePage, setActivePage] = useState(
@@ -1464,7 +1468,7 @@ export default function CommitteeDashboard() {
         });
 
         if (response.status === 401) {
-          navigate("/login", { replace: true });
+          if (isMounted) redirectToLogin();
           return;
         }
 
@@ -1489,7 +1493,7 @@ export default function CommitteeDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [navigate]);
+  }, [redirectToLogin]);
 
   const loadPendingSubmissions = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -2375,14 +2379,7 @@ export default function CommitteeDashboard() {
     }
 
     if (normalizedAction === "logout") {
-      fetch(apiUrl("/auth/logout"), {
-        method: "POST",
-        credentials: "include",
-      }).finally(() => {
-        localStorage.removeItem("authToken");
-        sessionStorage.removeItem("authToken");
-        navigate("/", { replace: true });
-      });
+      logout();
       return;
     }
   };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useLogout } from "../../auth/LogoutContext.js";
 import {
   ArrowLeft,
   BarChart3,
@@ -57,6 +58,7 @@ function ChartEmpty({ message }) {
 export default function FacultyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const logout = useLogout();
   const [searchQuery, setSearchQuery] = useState("");
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export default function FacultyDetails() {
               return;
             }
             if (action === "Logout") {
-              fetch(apiUrl("/auth/logout"), { method: "POST", credentials: "include" }).finally(() => navigate("/"));
+              logout();
             }
           }}
         />

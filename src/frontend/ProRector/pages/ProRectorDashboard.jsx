@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getAcademicDisplayName } from "../../utils/academicTitles";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLogout } from "../../auth/LogoutContext.js";
 import {
   BarChart3,
   Download,
@@ -1055,6 +1056,7 @@ function AnalyticsCharts({ analytics, faculties = [], copy = PRORECTOR_COPY.sq.d
 }
 export default function ProRectorDashboard() {
   const navigate = useNavigate();
+  const logout = useLogout();
   const location = useLocation();
   const { language, setLanguage } = useLanguage();
   const copy = PRORECTOR_COPY[language] || PRORECTOR_COPY.sq;
@@ -1759,7 +1761,7 @@ export default function ProRectorDashboard() {
               return;
             }
             if (action === "Logout") {
-              fetch(apiUrl("/auth/logout"), { method: "POST", credentials: "include" }).finally(() => navigate("/"));
+              logout();
             }
           }}
         />

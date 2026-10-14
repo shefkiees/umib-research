@@ -6,6 +6,8 @@ import UMIBLogo from "../assets/umiblogo.jpg";
 import { FcGoogle } from "react-icons/fc";
 import { apiUrl } from "./utils/api";
 import { useLanguage } from "./i18n/LanguageContext";
+import { authClient } from "./auth/authClient.js";
+import { RefreshCw } from "lucide-react";
 
 const AUTH_ERROR_CODES = new Set([
   "oauth_not_configured",
@@ -16,72 +18,38 @@ const AUTH_ERROR_CODES = new Set([
   "google_login_failed",
 ]);
 
-const DASHBOARD_BY_ROLE = {
-  admin: "/admin/dashboard",
-  committee: "/committee/dashboard",
-  professor: "/professor/dashboard",
-  prorector: "/prorector/dashboard",
-};
-
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const english = language === "en";
+  const [sessionStatus, setSessionStatus] = useState("checking");
+  const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
   const loginPending = useRef(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
+  const loggedOut = new URLSearchParams(window.location.search).get("loggedOut") === "1";
   const authErrorKey = AUTH_ERROR_CODES.has(authError) ? authError : "google_login_failed";
   const authErrorMessage = authError
     ? t(`auth.login.errors.${authErrorKey}`)
     : "";
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
+    authClient.checkSession(controller.signal).then((route) => {
+      if (controller.signal.aborted) return;
+      if (route) navigate(route, { replace: true });
+      else setSessionStatus("anonymous");
+    }).catch((error) => {
+      if (!controller.signal.aborted && error.name !== "AbortError") setSessionStatus("error");
+    });
+    return () => controller.abort();
+  }, [navigate, attempt]);
 
-    const redirectAuthenticatedUser = async () => {
-      try {
-        const response = await fetch(apiUrl("/auth/me"), {
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (!response.ok) return;
-
-        const data = await response.json().catch(() => ({}));
-        const role = String(data.user?.role || "").toLowerCase();
-        const dashboardRoute = DASHBOARD_BY_ROLE[role];
-
-        if (isMounted && dashboardRoute) {
-          navigate(dashboardRoute, { replace: true });
-        }
-      } catch {
-        // Keep the login form available when the session check cannot be completed.
-      }
-    };
-
-    redirectAuthenticatedUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
-
-  const handleGoogleLogin = async () => {
-    if (loginPending.current) return;
+  const handleGoogleLogin = () => {
+    if (loginPending.current || sessionStatus !== "anonymous") return;
     loginPending.current = true;
     setLoading(true);
-    try {
-      const response = await fetch(apiUrl("/auth/me"), { credentials: "include", cache: "no-store" });
-      if (response.ok) {
-        const data = await response.json();
-        const route = DASHBOARD_BY_ROLE[data.user?.role];
-        if (route) {
-          navigate(route, { replace: true });
-          return;
-        }
-      }
-    } catch {
-      // The backend repeats the session check before starting OAuth.
-    }
+    // The backend rechecks the session before starting OAuth.
     window.location.href = apiUrl("/auth/google");
   };
 
@@ -107,20 +75,28 @@ const LoginForm = () => {
           </div>
 
           <div className="oauth-content">
+            {loggedOut && <p className="domain-restriction" role="status">{english ? "You have signed out successfully." : "Keni dalë me sukses nga platforma."}</p>}
+            {sessionStatus === "checking" && <p role="status">{english ? "Checking your session..." : "Duke kontrolluar sesionin..."}</p>}
+            {sessionStatus === "error" && (
+              <>
+                <p className="domain-restriction" role="alert">{english ? "Your session could not be checked. Please try again." : "Sesioni nuk mund të kontrollohej. Ju lutemi provoni përsëri."}</p>
+                <button className="google-btn" type="button" onClick={() => { setSessionStatus("checking"); setAttempt((value) => value + 1); }}><RefreshCw size={20} />{english ? "Try again" : "Provo përsëri"}</button>
+              </>
+            )}
             {authErrorMessage ? (
               <p className="domain-restriction" role="alert">
                 {authErrorMessage}
               </p>
             ) : null}
 
-            <button
+            {sessionStatus === "anonymous" && <button
               className="google-btn"
               onClick={handleGoogleLogin}
               disabled={loading}
             >
               <FcGoogle className="google-icon" />
               <span>{loading ? t("auth.login.connecting") : t("auth.login.googleButton")}</span>
-            </button>
+            </button>}
 
             <p className="domain-restriction">
               {t("auth.login.domainPrefix")} <strong>@umib.net</strong> {t("auth.login.domainSuffix")}

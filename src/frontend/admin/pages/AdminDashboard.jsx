@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { getPlainDisplayName } from "../../utils/academicTitles";
 
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLogout } from "../../auth/LogoutContext.js";
 
 import { ArrowRight, RotateCcw, Trash2, X, User, Settings, Bell, Users } from "lucide-react";
 
@@ -206,6 +207,7 @@ const mapProfileToAdminUser = (user, fallback = {}) => ({
 export default function AdminDashboard() {
 
     const navigate = useNavigate();
+    const logout = useLogout();
     const location = useLocation();
     const { language } = useLanguage();
     const adminText = useMemo(() => getAdminText(language), [language]);
@@ -764,22 +766,7 @@ export default function AdminDashboard() {
         }
 
         if (actionId === "Logout") {
-
-            try {
-                await fetch(apiUrl("/auth/logout"), {
-                    method: "POST",
-                    credentials: "include",
-                });
-            } catch (error) {
-                console.error("Logout failed:", error);
-            } finally {
-                localStorage.removeItem("authToken");
-
-                sessionStorage.removeItem("authToken");
-
-                navigate("/login", { replace: true });
-            }
-
+            await logout();
             return;
 
         }

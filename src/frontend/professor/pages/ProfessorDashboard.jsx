@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLogout } from "../../auth/LogoutContext.js";
+import { useLoginRedirect } from "../../auth/useLoginRedirect.js";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -913,6 +915,7 @@ const hasStatisticMetricData = (rows = []) =>
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
+  const redirectToLogin = useLoginRedirect();
   const location = useLocation();
   const { language, setLanguage, t, tx } = useLanguage();
 
@@ -1113,7 +1116,7 @@ export default function ProfessorDashboard() {
         });
 
         if (response.status === 401) {
-          navigate("/login", { replace: true });
+          if (isMounted) redirectToLogin();
           return;
         }
 
@@ -1139,7 +1142,7 @@ export default function ProfessorDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [navigate]);
+  }, [redirectToLogin]);
 
   const loadNotifications = useCallback(async ({ showLoading = true } = {}) => {
     if (showLoading) {
@@ -1888,7 +1891,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        navigate("/login", { replace: true });
+        redirectToLogin();
         return;
       }
 
@@ -1904,7 +1907,7 @@ export default function ProfessorDashboard() {
     } finally {
       setIsBankAccountsLoading(false);
     }
-  }, [navigate, settingsText.bankAccountLoadError]);
+  }, [redirectToLogin, settingsText.bankAccountLoadError]);
 
   useEffect(() => {
     if (isEditProfileOpen) {
@@ -1992,7 +1995,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        navigate("/login", { replace: true });
+        redirectToLogin();
         return;
       }
 
@@ -2061,7 +2064,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        navigate("/login", { replace: true });
+        redirectToLogin();
         return;
       }
 
@@ -2096,7 +2099,7 @@ export default function ProfessorDashboard() {
       const data = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        navigate("/login", { replace: true });
+        redirectToLogin();
         return;
       }
 
@@ -2140,7 +2143,7 @@ export default function ProfessorDashboard() {
       });
 
       if (response.status === 401) {
-        navigate("/login", { replace: true });
+        redirectToLogin();
         return;
       }
 
@@ -2231,20 +2234,7 @@ export default function ProfessorDashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch(apiUrl("/auth/logout"), {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (error) {
-      console.error("Logout failed:", error);
-    } finally {
-      localStorage.removeItem("authToken");
-      sessionStorage.removeItem("authToken");
-      navigate("/", { replace: true });
-    }
-  };
+  const handleLogout = useLogout();
 
   const markAllNotificationsAsRead = async () => {
     if (unreadNotifications === 0 || notifications.length === 0) {

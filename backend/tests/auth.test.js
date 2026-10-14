@@ -184,12 +184,12 @@ test("untrusted forwarded HTTPS does not cause a production cookie to be emitted
   } finally { await close(server); }
 });
 
-test("admin/professor login, refresh, cookie reuse, restart, expiry, inactive user and logout", async () => {
+test("all roles: login, refresh, cookie reuse, restart, expiry, inactive user and logout", async () => {
   rows.clear();
   let server = createServer();
   try {
     assert.equal((await request(server, "/me")).status, 401);
-    for (const currentRole of ["admin", "professor"]) {
+    for (const currentRole of ["admin", "professor", "committee", "prorector"]) {
       role = currentRole;
       const { cookie, pending } = await login(server);
       assert.equal((await request(server, "/me", pending.cookie)).status, 401);

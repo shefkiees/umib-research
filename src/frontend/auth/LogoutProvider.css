@@ -1,0 +1,31 @@
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.logout-dialog {
+  width: min(100%, 420px);
+  padding: 24px;
+  border-radius: 8px;
+  background: white;
+  color: #222;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.logout-dialog h2 { margin: 0 0 12px; font-size: 20px; }
+.logout-dialog p { line-height: 1.5; }
+.logout-dialog button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 8px 0 0;
+  padding: 10px 14px;
+  border: 1px solid #777;
+  border-radius: 4px;
+  background: white;
+  color: #222;
+  cursor: pointer;
+}
