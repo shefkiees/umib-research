@@ -27,7 +27,6 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const loginPending = useRef(false);
   const authError = new URLSearchParams(window.location.search).get("authError");
-  const loggedOut = new URLSearchParams(window.location.search).get("loggedOut") === "1";
   const authErrorKey = AUTH_ERROR_CODES.has(authError) ? authError : "google_login_failed";
   const authErrorMessage = authError
     ? t(`auth.login.errors.${authErrorKey}`)
@@ -75,7 +74,6 @@ const LoginForm = () => {
           </div>
 
           <div className="oauth-content">
-            {loggedOut && <p className="domain-restriction" role="status">{english ? "You have signed out successfully." : "Keni dalë me sukses nga platforma."}</p>}
             {sessionStatus === "checking" && <p role="status">{english ? "Checking your session..." : "Duke kontrolluar sesionin..."}</p>}
             {sessionStatus === "error" && (
               <>

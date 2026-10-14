@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { authClient } from "./authClient.js";
 import { LogoutContext } from "./LogoutContext.js";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -8,10 +9,29 @@ import "./LogoutProvider.css";
 export default function LogoutProvider({ children }) {
   const { language } = useLanguage();
   const english = language === "en";
+  const location = useLocation();
+  const navigate = useNavigate();
+  const notificationConsumed = useRef(false);
+  const [showSuccess, setShowSuccess] = useState(() =>
+    window.location.pathname === "/" && new URLSearchParams(window.location.search).get("loggedOut") === "1"
+  );
   const pending = useRef(false);
   const requestController = useRef(null);
   const [status, setStatus] = useState("idle");
   useEffect(() => () => requestController.current?.abort(), []);
+  useEffect(() => {
+    if (!showSuccess || notificationConsumed.current) return;
+    notificationConsumed.current = true;
+    // Consume the notification marker so refresh and history cannot replay it.
+    const params = new URLSearchParams(location.search);
+    params.delete("loggedOut");
+    navigate({ pathname: "/", search: params.toString(), hash: location.hash }, { replace: true });
+  }, [showSuccess, location.search, location.hash, navigate]);
+  useEffect(() => {
+    if (!showSuccess) return;
+    const timer = setTimeout(() => setShowSuccess(false), 4000);
+    return () => clearTimeout(timer);
+  }, [showSuccess]);
 
   const logout = async () => {
     if (pending.current) return;
@@ -33,12 +53,18 @@ export default function LogoutProvider({ children }) {
     for (const storage of ["localStorage", "sessionStorage"]) {
       try { window[storage].removeItem("authToken"); } catch { /* Storage may be unavailable. */ }
     }
-    window.location.replace("/login?loggedOut=1");
+    window.location.replace("/?loggedOut=1");
   };
 
   return (
     <LogoutContext.Provider value={logout}>
       <div style={{ display: "contents" }} inert={status === "pending"}>{children}</div>
+      {showSuccess && location.pathname === "/" && (
+        <div className="logout-toast" role="status" aria-live="polite" aria-atomic="true">
+          <CheckCircle2 size={20} aria-hidden="true" />
+          <span>{english ? "You have signed out successfully." : "Keni dalë me sukses nga platforma."}</span>
+        </div>
+      )}
       {status !== "idle" && (
         <div className="logout-overlay">
           <section className="logout-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-title" aria-busy={status === "pending"}>

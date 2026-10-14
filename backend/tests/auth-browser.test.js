@@ -113,7 +113,9 @@ test("logout timeout restores retry without clearing authentication or storage",
     state.delayLogout = 0;
     state.logoutFailure = null;
     await clickLogout(page, "professor");
-    await page.waitForURL("**/login?loggedOut=1");
+    await page.waitForURL(`${base}/`);
+    await waitVisible(page.locator(".logout-toast"));
+    await page.goto(`${base}/login`);
     await waitVisible(page.getByRole("button", { name: /Google/ }));
   } finally { await context.close(); }
 });
@@ -162,6 +164,7 @@ for (const role of ["admin", "professor", "committee", "prorector"]) {
       await page.reload();
       await waitVisible(page.locator(role === "committee" ? ".committee-profile-block" : `.${role === "professor" ? "prof" : role}-profile-btn`));
       assert.equal(new URL(page.url()).pathname, `/${role}/dashboard`);
+      assert.equal(await page.locator(".logout-toast").count(), 0);
       await page.evaluate(() => { localStorage.setItem("authToken", "synthetic"); sessionStorage.setItem("authToken", "synthetic"); });
       state.logoutFailure = 500;
       await clickLogout(page, role);
@@ -173,20 +176,24 @@ for (const role of ["admin", "professor", "committee", "prorector"]) {
       await page.getByRole("button", { name: "Provo përsëri" }).click();
       await waitVisible(page.locator(".logout-dialog [role=alert]"));
       assert.equal(state.authenticated, true);
+      assert.equal(await page.locator(".logout-toast").count(), 0);
       assert.equal(new URL(page.url()).pathname, `/${role}/dashboard`);
       state.logoutFailure = null;
       state.delayLogout = 200;
       await page.getByRole("button", { name: "Provo përsëri" }).click();
       await waitVisible(page.locator(".logout-dialog [role=status]"));
       assert.equal(state.logoutCalls, 3);
-      await page.waitForURL("**/login?loggedOut=1");
+      await page.waitForURL(`${base}/`);
       await waitVisible(page.getByText("Keni dalë me sukses nga platforma."));
-      await waitVisible(page.getByRole("button", { name: /Google/ }));
       assert.equal(await page.evaluate(() => localStorage.getItem("authToken")), null);
       assert.equal(await page.evaluate(() => sessionStorage.getItem("authToken")), null);
       assert.equal(state.authenticated, false);
+      await page.locator(".logout-toast").waitFor({ state: "detached", timeout: 5500 });
       await page.reload();
+      assert.equal(await page.locator(".logout-toast").count(), 0);
+      await page.locator(".nav-login-btn").click();
       await waitVisible(page.getByRole("button", { name: /Google/ }));
+      assert.equal(await page.getByText("Keni dalë me sukses nga platforma.").count(), 0);
     } finally { await context.close(); }
   });
 }
@@ -226,8 +233,32 @@ test("faculty page uses the shared logout and the error dialog fits mobile", asy
     if (process.env.AUTH_SCREENSHOT_DIR) await page.screenshot({ path: join(process.env.AUTH_SCREENSHOT_DIR, "logout-error-mobile.png") });
     state.logoutFailure = null;
     await page.getByRole("button", { name: "Provo përsëri" }).click();
-    await page.waitForURL("**/login?loggedOut=1");
-    await waitVisible(page.getByRole("button", { name: /Google/ }));
+    await page.waitForURL(`${base}/`);
+    await waitVisible(page.locator(".logout-toast"));
+    const toastBounds = await page.locator(".logout-toast").boundingBox();
+    assert.ok(toastBounds.x >= 0 && toastBounds.x + toastBounds.width <= 390);
+    assert.ok(toastBounds.y >= 0 && toastBounds.y + toastBounds.height <= 844);
     if (process.env.AUTH_SCREENSHOT_DIR) await page.screenshot({ path: join(process.env.AUTH_SCREENSHOT_DIR, "logged-out-mobile.png") });
+  } finally { await context.close(); }
+});
+
+test("logout toast is one-shot on refresh and the old login marker has no static message", async () => {
+  const { context, page } = await setup();
+  try {
+    await page.goto(`${base}/?loggedOut=1`);
+    await page.waitForURL(`${base}/`);
+    await waitVisible(page.locator(".logout-toast"));
+    if (process.env.AUTH_SCREENSHOT_DIR) await page.screenshot({ path: join(process.env.AUTH_SCREENSHOT_DIR, "logged-out-desktop.png") });
+    await page.waitForTimeout(3000);
+    assert.equal(await page.locator(".logout-toast").isVisible(), true);
+    await page.locator(".logout-toast").waitFor({ state: "detached", timeout: 2000 });
+    await page.goto(`${base}/?loggedOut=1`);
+    await page.waitForURL(`${base}/`);
+    await waitVisible(page.locator(".logout-toast"));
+    await page.reload();
+    assert.equal(await page.locator(".logout-toast").count(), 0);
+    await page.goto(`${base}/login?loggedOut=1`);
+    await waitVisible(page.getByRole("button", { name: /Google/ }));
+    assert.equal(await page.getByText("Keni dalë me sukses nga platforma.").count(), 0);
   } finally { await context.close(); }
 });
